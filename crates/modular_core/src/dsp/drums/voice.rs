@@ -3,7 +3,7 @@
 //! cut-off circuits.
 
 use super::input::Input;
-use super::lanes::{Lanes, Mono, Real, c, lanewise};
+use super::simd::{Mono, Real, Simd, c, lanewise};
 use crate::dsp::utils::SchmittTrigger;
 
 /// How long a hit cut off by a restart takes to fade out under the next
@@ -27,7 +27,7 @@ impl Strike {
 
 /// A trigger pulse as it plays out: its voltage for the remaining samples.
 #[derive(Clone, Copy, Default)]
-pub struct Pulse<L: Lanes = Mono> {
+pub struct Pulse<L: Simd = Mono> {
     left: L::S,
     volts: L::S,
 }
@@ -41,7 +41,7 @@ impl Pulse {
     }
 }
 
-impl<L: Lanes> Pulse<L> {
+impl<L: Simd> Pulse<L> {
     pub fn active(&self) -> L::SM {
         self.left.gt(c(0.0))
     }
@@ -88,7 +88,7 @@ impl Timing {
 
 /// A voice circuit's state through a sequence of hits, at width `L`. The
 /// default value is the circuit at rest.
-pub trait Circuit<L: Lanes = Mono>: Copy + Default {
+pub trait Circuit<L: Simd = Mono>: Copy + Default {
     /// Constants shared by every channel, fixed by the sample rate.
     type Shared;
     /// Settings read once per sample.
@@ -203,7 +203,7 @@ impl<C: Fire> Voices<C> {
 /// A running peak of a voice's output, falling 60 dB in `QUIET_SECS`, so
 /// silence means silent for a while rather than a zero crossing.
 #[derive(Clone, Copy, Default)]
-pub struct Quiet<L: Lanes = Mono> {
+pub struct Quiet<L: Simd = Mono> {
     level: L::S,
 }
 
@@ -216,7 +216,7 @@ pub fn quiet_fall(sample_rate: f32) -> f32 {
     (-std::f32::consts::LN_10 * 3.0 / (QUIET_SECS * sample_rate)).exp()
 }
 
-impl<L: Lanes> Quiet<L> {
+impl<L: Simd> Quiet<L> {
     /// Takes in a sample, with the peak falling by `fall` from
     /// [`quiet_fall`].
     #[inline]
@@ -233,7 +233,7 @@ impl<L: Lanes> Quiet<L> {
 /// A voice's output scale, set by each hit's accent. A hit on a sounding
 /// voice ramps it to the new scale, so the tail it rescales does not click.
 #[derive(Clone, Copy, Default)]
-pub struct Level<L: Lanes = Mono> {
+pub struct Level<L: Simd = Mono> {
     now: L::S,
     step: L::S,
     left: L::S,
@@ -254,7 +254,7 @@ impl Level {
     }
 }
 
-impl<L: Lanes> Level<L> {
+impl<L: Simd> Level<L> {
     pub fn now(&self) -> L::S {
         self.now
     }

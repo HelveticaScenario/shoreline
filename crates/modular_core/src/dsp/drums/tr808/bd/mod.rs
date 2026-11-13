@@ -18,7 +18,7 @@ use super::circuit::{DIODE_DROP, SILENCE, T60_TO_RATE, VSAT, decay_secs, pulse_v
 use super::levels;
 use crate::dsp::drums::analog::{high_pass, low_pass, one_pole_coeff};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices, knob};
 use crate::dsp::utils::voct_to_hz;
 use crate::poly::{PolyOutput, PolySignal};
@@ -87,7 +87,7 @@ const OUTPUT_GAIN: f32 = 1.23;
 
 /// The circuit's state for one hit sequence.
 #[derive(Clone, Copy)]
-struct Kick<L: Lanes = Mono> {
+struct Kick<L: Simd = Mono> {
     pulse: Pulse<L>,
     /// Voltage across C40.
     shaper: L::S,
@@ -117,7 +117,7 @@ lanewise!(Kick {
     output_hp,
 });
 
-impl<L: Lanes> Default for Kick<L> {
+impl<L: Simd> Default for Kick<L> {
     fn default() -> Self {
         Self {
             pulse: Pulse::default(),
@@ -141,7 +141,7 @@ impl Fire for Kick {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Kick<L> {
+impl<L: Simd> Circuit<L> for Kick<L> {
     type Shared = KickShared;
     type Controls = KickControls<L>;
 
@@ -164,9 +164,9 @@ struct KickDrum;
 
 impl Drum for KickDrum {
     type Shared = KickShared;
-    type Circuit<L: Lanes> = Kick<L>;
-    type Controls<L: Lanes> = KickControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Kick<L>;
+    type Controls<L: Simd> = KickControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = false;
 }
@@ -229,7 +229,7 @@ impl Network {
 /// `decay` (its arm capacitance, 1 / (R167·C), and the feedback gain), and
 /// the tone low-pass coefficient, and the output gain levelling `freq`.
 #[derive(Clone, Copy, Default)]
-struct KickControls<L: Lanes = Mono> {
+struct KickControls<L: Simd = Mono> {
     c: L::S,
     a: L::S,
     g: L::S,
@@ -245,7 +245,7 @@ lanewise!(KickControls {
     level
 });
 
-impl<L: Lanes> Kick<L> {
+impl<L: Simd> Kick<L> {
     /// Advances the circuit one sample and returns the output stage's voltage.
     #[inline]
     fn advance(&mut self, sh: &KickShared, controls: &KickControls<L>) -> L::S {

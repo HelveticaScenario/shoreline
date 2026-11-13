@@ -1,7 +1,7 @@
 //! Building blocks shared by the TR-808 voice models: the common trigger
 //! pulse, the noise generator, and discretised analog filters.
 
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::knob;
 use crate::dsp::utils::rng::LcgRng;
 
@@ -97,14 +97,14 @@ pub struct Biquad {
 
 /// The running state of a [`Biquad`].
 #[derive(Clone, Copy, Default)]
-pub struct BiquadState<L: Lanes = Mono> {
+pub struct BiquadState<L: Simd = Mono> {
     s1: L::S,
     s2: L::S,
 }
 
 lanewise!(BiquadState { s1, s2 });
 
-impl<L: Lanes> BiquadState<L> {
+impl<L: Simd> BiquadState<L> {
     pub fn settled(&self) -> L::SM {
         self.s1.abs().lt(c(SILENCE)) & self.s2.abs().lt(c(SILENCE))
     }
@@ -154,7 +154,7 @@ impl Biquad {
     }
 
     #[inline]
-    pub fn process<L: Lanes>(&self, state: &mut BiquadState<L>, x: L::S) -> L::S {
+    pub fn process<L: Simd>(&self, state: &mut BiquadState<L>, x: L::S) -> L::S {
         let y = x * self.b[0] + state.s1;
         state.s1 = (x * self.b[1] - y * self.a[0] + state.s2).sanitize();
         state.s2 = (x * self.b[2] - y * self.a[1]).sanitize();
@@ -168,7 +168,7 @@ impl Biquad {
 /// the junction to ground, and the inverted output fed back into the junction
 /// through `g_fb`.
 #[derive(Clone, Copy, Default)]
-pub struct BridgedT<L: Lanes = Mono> {
+pub struct BridgedT<L: Simd = Mono> {
     pub c_a: L::S,
     pub c_b: L::S,
     pub r_bridge: L::S,
@@ -184,20 +184,20 @@ lanewise!(BridgedT {
 
 /// The voltages across a [`BridgedT`]'s arms.
 #[derive(Clone, Copy, Default)]
-pub struct Arms<L: Lanes = Mono> {
+pub struct Arms<L: Simd = Mono> {
     pub a: L::S,
     pub b: L::S,
 }
 
 lanewise!(Arms { a, b });
 
-impl<L: Lanes> Arms<L> {
+impl<L: Simd> Arms<L> {
     pub fn settled(&self) -> L::SM {
         self.a.abs().lt(c(SILENCE)) & self.b.abs().lt(c(SILENCE))
     }
 }
 
-impl<L: Lanes> BridgedT<L> {
+impl<L: Simd> BridgedT<L> {
     /// One trapezoidal step from `arms` with the input at `vp` and a shunt
     /// current `i_shunt + g_shunt·junction`, returning the output and the
     /// new arms. While the op-amp is linear its inverting input follows `vp`,

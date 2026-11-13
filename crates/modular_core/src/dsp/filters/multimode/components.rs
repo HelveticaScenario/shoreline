@@ -3,7 +3,7 @@
 
 use std::sync::LazyLock;
 
-use super::lanes::Lanes;
+use super::simd::Simd;
 
 /// Thermal voltage at 27 °C, the temperature the SPICE models are fitted at.
 pub(super) const VT: f64 = 0.025_865;
@@ -268,7 +268,7 @@ impl ZenerTables {
     /// falls from 100 pF at 0 V to about 55 pF at 4.5 V; past the table it
     /// holds its last value.
     #[inline]
-    pub(super) fn capacitance<L: Lanes>(&self, v: L) -> L {
+    pub(super) fn capacitance<L: Simd>(&self, v: L) -> L {
         L::lerp(&self.capacitance, v.abs() * L::splat(CAP_PER_VOLT as f32))
     }
 }

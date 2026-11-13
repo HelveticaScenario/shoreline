@@ -13,7 +13,7 @@ use crate::dsp::utils::{
 };
 
 /// Channels per group.
-pub(super) const LANES: usize = 4;
+pub(super) const SIMD_WIDTH: usize = 4;
 
 /// Every lane set to `value`, broadcast in a register so that no use lowers to
 /// a `memset_pattern16` call on Apple targets.
@@ -37,7 +37,7 @@ fn broadcast(value: f32) -> f32x4 {
 /// `f32x4` runs a whole group and `f32` runs lane 0 alone, a single-channel
 /// module's one channel, without paying for three dead lanes. State is stored
 /// as `f32x4` either way.
-pub(super) trait Lanes:
+pub(super) trait Simd:
     Copy
     + Add<Output = Self>
     + Sub<Output = Self>
@@ -54,8 +54,8 @@ pub(super) trait Lanes:
     fn load(stored: &f32x4) -> Self;
     fn store(self, stored: &mut f32x4);
     /// Lane values, for work with no vector form; `f32` fills lane 0.
-    fn to_lanes(self) -> [f32; LANES];
-    fn from_lanes(lanes: [f32; LANES]) -> Self;
+    fn to_lanes(self) -> [f32; SIMD_WIDTH];
+    fn from_lanes(lanes: [f32; SIMD_WIDTH]) -> Self;
     /// Non-finite lanes become 0, lane for lane as `sanitize` does.
     fn sanitize(self) -> Self;
     fn abs(self) -> Self;
@@ -72,9 +72,9 @@ pub(super) trait Lanes:
     fn lerp(table: &[f32], pos: Self) -> Self;
 }
 
-impl Lanes for f32x4 {
+impl Simd for f32x4 {
     type Mask = f32x4;
-    const WIDTH: usize = LANES;
+    const WIDTH: usize = SIMD_WIDTH;
 
     #[inline(always)]
     fn splat(value: f32) -> Self {
@@ -89,11 +89,11 @@ impl Lanes for f32x4 {
         *stored = self;
     }
     #[inline(always)]
-    fn to_lanes(self) -> [f32; LANES] {
+    fn to_lanes(self) -> [f32; SIMD_WIDTH] {
         self.to_array()
     }
     #[inline(always)]
-    fn from_lanes(lanes: [f32; LANES]) -> Self {
+    fn from_lanes(lanes: [f32; SIMD_WIDTH]) -> Self {
         f32x4::new(lanes)
     }
     // `x − x` is zero exactly when `x` is finite.
@@ -150,7 +150,7 @@ impl Lanes for f32x4 {
     }
 }
 
-impl Lanes for f32 {
+impl Simd for f32 {
     type Mask = bool;
     const WIDTH: usize = 1;
 
@@ -167,11 +167,11 @@ impl Lanes for f32 {
         stored.as_mut_array()[0] = self;
     }
     #[inline(always)]
-    fn to_lanes(self) -> [f32; LANES] {
+    fn to_lanes(self) -> [f32; SIMD_WIDTH] {
         [self, 0.0, 0.0, 0.0]
     }
     #[inline(always)]
-    fn from_lanes(lanes: [f32; LANES]) -> Self {
+    fn from_lanes(lanes: [f32; SIMD_WIDTH]) -> Self {
         lanes[0]
     }
     #[inline(always)]
@@ -244,7 +244,7 @@ struct Allpass {
 
 impl Allpass {
     #[inline]
-    fn process<L: Lanes>(&mut self, coeff: f32, x: L) -> L {
+    fn process<L: Simd>(&mut self, coeff: f32, x: L) -> L {
         let y = (L::splat(coeff) * (x - L::load(&self.y_prev)) + L::load(&self.x_prev)).sanitize();
         x.sanitize().store(&mut self.x_prev);
         y.store(&mut self.y_prev);
@@ -266,7 +266,7 @@ pub(super) struct HalfbandUp {
 impl HalfbandUp {
     /// Returns `(even, odd)` at the upper rate.
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, x: L) -> (L, L) {
+    pub(super) fn process<L: Simd>(&mut self, x: L) -> (L, L) {
         let [a1, a2, b1, b2] = &mut self.stages;
         let even = a2.process(BRANCH_A[1], a1.process(BRANCH_A[0], x));
         let odd = b2.process(BRANCH_B[1], b1.process(BRANCH_B[0], x));
@@ -287,7 +287,7 @@ pub(super) struct HalfbandDown {
 impl HalfbandDown {
     /// One lower-rate sample from an even/odd pair, even first in time.
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, even: L, odd: L) -> L {
+    pub(super) fn process<L: Simd>(&mut self, even: L, odd: L) -> L {
         let [a1, a2, b1, b2] = &mut self.stages;
         let a = a2.process(BRANCH_A[1], a1.process(BRANCH_A[0], odd));
         let b = b2.process(BRANCH_B[1], b1.process(BRANCH_B[0], even));
@@ -329,7 +329,7 @@ impl OnePole {
     }
 
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, x: L) -> L {
+    pub(super) fn process<L: Simd>(&mut self, x: L) -> L {
         let y = (x * L::splat(self.coeff) + L::load(&self.state) * L::splat(1.0 - self.coeff))
             .sanitize();
         y.store(&mut self.state);
@@ -345,7 +345,7 @@ impl OnePole {
 /// recomputes when its input's bits change, as `Cached` does for one channel.
 #[derive(Clone, Copy, Default)]
 pub(super) struct LaneCache {
-    bits: [Option<u32>; LANES],
+    bits: [Option<u32>; SIMD_WIDTH],
 }
 
 /// The law's value for lane `lane`, handed to `set` for it and, from lane 0,
@@ -373,7 +373,7 @@ impl LaneCache {
     #[inline(always)]
     pub(super) fn update<T>(
         &mut self,
-        inputs: [f32; LANES],
+        inputs: [f32; SIMD_WIDTH],
         active: usize,
         dead: std::ops::Range<usize>,
         derive: impl Fn(f32) -> T,
@@ -412,7 +412,7 @@ mod tests {
         assert!((got[3] - 3.0).abs() < 1.0e-3);
         assert_eq!(
             f32x4::lerp(&table, f32x4::splat(f32::NAN)).to_array(),
-            [0.0; LANES]
+            [0.0; SIMD_WIDTH]
         );
         // Each lane reads as the scalar lookup does.
         for (lane, pos) in [1.5, -4.0, f32::INFINITY, 1.0e9].into_iter().enumerate() {

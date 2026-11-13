@@ -17,8 +17,8 @@ use super::circuit::pulse_volts;
 use super::metal::{MetalBank, MetalFilters, metal_pulse};
 use super::swing::{SwingState, vca};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, QUAD, Run};
-use crate::dsp::drums::lanes::{Lanes, Lanewise, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
+use crate::dsp::drums::simd::{Lanewise, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -115,7 +115,7 @@ const SETTLED: f32 = 3.0e-4;
 
 /// The cymbal's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Cymbal<L: Lanes = Mono> {
+struct Cymbal<L: Simd = Mono> {
     pulse: Pulse<L>,
     smooth: L::S,
     env: MnaState<ENV_CAPS, L>,
@@ -169,7 +169,7 @@ struct CymbalShared {
 }
 
 #[derive(Clone, Copy, Default)]
-struct CymbalControls<L: Lanes = Mono> {
+struct CymbalControls<L: Simd = Mono> {
     high: L::S,
     low: L::S,
     /// Conductances of the decay pot and the tone pot's two halves.
@@ -189,9 +189,9 @@ struct CymbalDrum;
 
 impl Drum for CymbalDrum {
     type Shared = CymbalShared;
-    type Circuit<L: Lanes> = Cymbal<L>;
-    type Controls<L: Lanes> = CymbalControls<L>;
-    type Sources<L: Lanes> = MetalBank<L>;
+    type Circuit<L: Simd> = Cymbal<L>;
+    type Controls<L: Simd> = CymbalControls<L>;
+    type Sources<L: Simd> = MetalBank<L>;
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = true;
 }
@@ -215,7 +215,7 @@ impl Fire for Cymbal {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Cymbal<L> {
+impl<L: Simd> Circuit<L> for Cymbal<L> {
     type Shared = CymbalShared;
     type Controls = CymbalControls<L>;
 

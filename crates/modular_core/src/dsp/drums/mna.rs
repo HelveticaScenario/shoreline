@@ -9,7 +9,7 @@
 //! of the network; the system matrix is inverted once per combination of
 //! switch states, so a sample costs one matrix-vector product.
 
-use super::lanes::{Lanes, Lanewise, Mask, Mono, Real, c};
+use super::simd::{Lanewise, Mask, Mono, Real, Simd, c};
 
 /// Ground, as a node index.
 pub const GROUND: usize = usize::MAX;
@@ -70,12 +70,12 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Default for
 /// The capacitors' trapezoidal history: voltage and current at the last
 /// sample.
 #[derive(Clone, Copy)]
-pub struct MnaState<const C: usize, L: Lanes = Mono> {
+pub struct MnaState<const C: usize, L: Simd = Mono> {
     pub v: [L::S; C],
     pub i: [L::S; C],
 }
 
-impl<const C: usize, L: Lanes> Default for MnaState<C, L> {
+impl<const C: usize, L: Simd> Default for MnaState<C, L> {
     fn default() -> Self {
         Self {
             v: [c(0.0); C],
@@ -84,7 +84,7 @@ impl<const C: usize, L: Lanes> Default for MnaState<C, L> {
     }
 }
 
-impl<const C: usize, L: Lanes> Lanewise for MnaState<C, L> {
+impl<const C: usize, L: Simd> Lanewise for MnaState<C, L> {
     type Lane = MnaState<C>;
     #[inline]
     fn lane(&self, lane: usize) -> MnaState<C> {
@@ -232,7 +232,7 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
     /// set, plus current `injected[n]` driven into each node `n`, returning
     /// every unknown and advancing the capacitors' history.
     #[inline]
-    pub fn step<L: Lanes>(
+    pub fn step<L: Simd>(
         &self,
         state: &mut MnaState<C, L>,
         closed: L::Closed,
@@ -245,7 +245,7 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
     /// The sample's solution before [`Self::close`] drives currents into
     /// its ports: a port node's voltage here is its open-circuit voltage.
     #[inline]
-    pub fn open<L: Lanes>(
+    pub fn open<L: Simd>(
         &self,
         state: &MnaState<C, L>,
         closed: L::Closed,
@@ -292,13 +292,7 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
     /// Adds `current` times column `j` of each lane's inverse for `closed`
     /// to `x`.
     #[inline]
-    fn add_gathered<L: Lanes>(
-        &self,
-        x: &mut [L::S; N],
-        closed: L::Closed,
-        j: usize,
-        current: L::S,
-    ) {
+    fn add_gathered<L: Simd>(&self, x: &mut [L::S; N], closed: L::Closed, j: usize, current: L::S) {
         for (i, xi) in x.iter_mut().enumerate() {
             let m = L::gather(|lane| self.inverse[L::closed_lane(closed, lane)][j][i]);
             *xi = m.mul_add(current, *xi);
@@ -307,7 +301,7 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
 
     /// How far node `a`'s voltage rises per ampere driven into node `b`.
     #[inline]
-    pub fn impedance<L: Lanes>(&self, closed: L::Closed, a: usize, b: usize) -> L::S {
+    pub fn impedance<L: Simd>(&self, closed: L::Closed, a: usize, b: usize) -> L::S {
         match L::uniform(closed) {
             Some(k) => L::S::splat(self.inverse[k][b][a]),
             None => L::gather(|lane| self.inverse[L::closed_lane(closed, lane)][b][a]),
@@ -318,7 +312,7 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
     /// `(node, current)` driven into its node, returning every unknown and
     /// advancing the capacitors' history.
     #[inline]
-    pub fn close<L: Lanes>(
+    pub fn close<L: Simd>(
         &self,
         state: &mut MnaState<C, L>,
         closed: L::Closed,
@@ -343,13 +337,13 @@ impl<const N: usize, const C: usize, const S: usize, const K: usize> Mna<N, C, S
 
 /// Adds `current` times `column` to `x`.
 #[inline(always)]
-fn add_column<L: Lanes, const N: usize>(x: &mut [L::S; N], column: &[f32; N], current: L::S) {
+fn add_column<L: Simd, const N: usize>(x: &mut [L::S; N], column: &[f32; N], current: L::S) {
     for (xi, &m) in x.iter_mut().zip(column.iter()) {
         *xi = L::S::splat(m).mul_add(current, *xi);
     }
 }
 
 #[inline]
-fn node<L: Lanes, const N: usize>(x: &[L::S; N], n: usize) -> L::S {
+fn node<L: Simd, const N: usize>(x: &[L::S; N], n: usize) -> L::S {
     if n == GROUND { c(0.0) } else { x[n] }
 }

@@ -10,7 +10,7 @@
 //! the new groups from them.
 
 use super::input::Input;
-use super::lanes::{Lanes, Lanewise, Mask, Mono, Real, X2, X4, c};
+use super::simd::{Lanewise, Mask, Mono, Real, Simd, X2, X4, c};
 use super::voice::{Circuit, Fire, Level, Voices, under};
 use crate::poly::PORT_MAX_CHANNELS;
 
@@ -64,14 +64,14 @@ thread_local! {
 pub trait Drum: 'static {
     /// Constants shared by every channel, fixed by the sample rate.
     type Shared;
-    type Circuit<L: Lanes>: Circuit<L, Shared = Self::Shared, Controls = Self::Controls<L>>
+    type Circuit<L: Simd>: Circuit<L, Shared = Self::Shared, Controls = Self::Controls<L>>
         + Lanewise<Lane = Self::Circuit<Mono>>;
     /// Settings read once per sample.
-    type Controls<L: Lanes>: Default + Lanewise<Lane = Self::Controls<Mono>>;
+    type Controls<L: Simd>: Default + Lanewise<Lane = Self::Controls<Mono>>;
     /// State a group runs every sample for its channels besides their
     /// circuits, such as the sources the settings come from. Each channel
     /// holds its own, in the [`Mono`] form, while it runs alone.
-    type Sources<L: Lanes>: Default;
+    type Sources<L: Simd>: Default;
     /// Whether three or four channels run faster as one [`X4`] group than
     /// one at a time.
     const RUNS_IN_QUADS: bool;
@@ -93,7 +93,7 @@ pub trait ChannelInputs<D: Drum> {
     /// `first` on, with the group's `sources`; by default each channel's
     /// [`Self::inputs`], lane by lane.
     #[inline]
-    fn group_inputs<L: Lanes>(
+    fn group_inputs<L: Simd>(
         &self,
         first: usize,
         members: &mut [Self::Channel],
@@ -116,7 +116,7 @@ pub trait ChannelInputs<D: Drum> {
     /// Reads a group's sounding circuits, `voice`, after they step, with
     /// `sounding` marking the lanes of `members` they sound for.
     #[inline]
-    fn group_stepped<L: Lanes>(
+    fn group_stepped<L: Simd>(
         _members: &mut [Self::Channel],
         _voice: &D::Circuit<L>,
         _sounding: u32,
@@ -125,7 +125,7 @@ pub trait ChannelInputs<D: Drum> {
 
     /// Moves `channel`'s sources into lane `lane` of a group's.
     #[inline]
-    fn load_sources<L: Lanes>(
+    fn load_sources<L: Simd>(
         _channel: &mut Self::Channel,
         _lane: usize,
         _sources: &mut D::Sources<L>,
@@ -134,7 +134,7 @@ pub trait ChannelInputs<D: Drum> {
 
     /// Moves lane `lane` of a group's sources back into `channel`.
     #[inline]
-    fn unload_sources<L: Lanes>(
+    fn unload_sources<L: Simd>(
         _channel: &mut Self::Channel,
         _lane: usize,
         _sources: &D::Sources<L>,
@@ -255,7 +255,7 @@ where
 /// channel's [`Voices`] holds the circuit as it settled, as a channel
 /// running alone would, while the lane runs on unheard, and the channel's
 /// next hit starts from the parked circuit.
-struct VoiceGroup<L: Lanes, D: Drum> {
+struct VoiceGroup<L: Simd, D: Drum> {
     voice: D::Circuit<L>,
     tail: D::Circuit<L>,
     trim: Level<L>,
@@ -264,7 +264,7 @@ struct VoiceGroup<L: Lanes, D: Drum> {
     sources: D::Sources<L>,
 }
 
-impl<L: Lanes, D: Drum> Default for VoiceGroup<L, D> {
+impl<L: Simd, D: Drum> Default for VoiceGroup<L, D> {
     fn default() -> Self {
         Self {
             voice: Default::default(),
@@ -277,7 +277,7 @@ impl<L: Lanes, D: Drum> Default for VoiceGroup<L, D> {
     }
 }
 
-impl<L: Lanes, D: Drum> VoiceGroup<L, D>
+impl<L: Simd, D: Drum> VoiceGroup<L, D>
 where
     D::Circuit<Mono>: Fire,
 {

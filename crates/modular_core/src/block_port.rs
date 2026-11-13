@@ -1,7 +1,7 @@
 //! Block-sized port buffer.
 //!
-//! Layout: a flat `block_size * channels * lanes` slice; sample `index`, channel
-//! `ch` starts at `(index * channels + ch) * lanes`. All channel values at the
+//! Layout: a flat `block_size * channels * words` slice; sample `index`, channel
+//! `ch` starts at `(index * channels + ch) * words`. All channel values at the
 //! same sample index are contiguous in memory. Heap-allocated once at
 //! construction; never resized on the audio thread.
 
@@ -27,8 +27,8 @@ use crate::poly::PORT_MAX_CHANNELS;
 /// channels. The channel count is the producing port's width: 1 for a mono
 /// (f32) output, the module's channel count for a polyphonic output.
 ///
-/// An f64 port stores each channel as a [`split_f64`] pair (two lanes), so
-/// f32 readers load the first lane and never convert, and f64 readers rejoin
+/// An f64 port stores each channel as a [`split_f64`] pair (two words), so
+/// f32 readers load the first word and never convert, and f64 readers rejoin
 /// both.
 ///
 /// Reads cycle (`ch % channels`) so a consumer with more channels than the
@@ -38,14 +38,14 @@ use crate::poly::PORT_MAX_CHANNELS;
 /// A bounded port also stores one [`Bounds`] per channel per slot, laid out
 /// like f32 samples and written with them.
 pub struct BlockPort {
-    /// Flat `block_size * channels * lanes` values. Length never changes after
+    /// Flat `block_size * channels * words` values. Length never changes after
     /// construction.
     data: Box<[f32]>,
     /// Per-port channel width (`>= 1` for live ports, `0` only when the
     /// module is zero-channel).
     channels: usize,
     /// f32 values per channel: 1, or 2 for an f64 port.
-    lanes: usize,
+    words: usize,
     /// Number of sample slots (the internal block size).
     block_size: usize,
     /// The bounds of a bounded port.
@@ -160,19 +160,19 @@ impl BlockPort {
     ///
     /// **Must not be called on the audio thread** (allocates heap memory).
     pub fn new(block_size: usize, channels: usize) -> Self {
-        Self::with_lanes(block_size, channels, 1)
+        Self::with_words(block_size, channels, 1)
     }
 
     /// Allocate a new zeroed f64 port buffer. Main thread only, like [`new`](Self::new).
     pub fn new_f64(block_size: usize, channels: usize) -> Self {
-        Self::with_lanes(block_size, channels, 2)
+        Self::with_words(block_size, channels, 2)
     }
 
-    fn with_lanes(block_size: usize, channels: usize, lanes: usize) -> Self {
+    fn with_words(block_size: usize, channels: usize, words: usize) -> Self {
         Self {
-            data: vec![0.0f32; block_size * channels * lanes].into_boxed_slice(),
+            data: vec![0.0f32; block_size * channels * words].into_boxed_slice(),
             channels,
-            lanes,
+            words,
             block_size,
             bounds: None,
         }
@@ -326,8 +326,8 @@ impl BlockPort {
 
     /// f32 values per channel: 2 for an f64 port, otherwise 1.
     #[inline]
-    pub fn lanes(&self) -> usize {
-        self.lanes
+    pub fn words(&self) -> usize {
+        self.words
     }
 
     /// Slots `range` of an f32 port, flattened: slot `i`, channel `ch` is
@@ -335,7 +335,7 @@ impl BlockPort {
     /// of range.
     #[inline]
     pub fn slots_mut(&mut self, range: std::ops::Range<usize>) -> &mut [f32] {
-        debug_assert_eq!(self.lanes, 1, "f64 ports are written with set_f64");
+        debug_assert_eq!(self.words, 1, "f64 ports are written with set_f64");
         &mut self.data[range.start * self.channels..range.end * self.channels]
     }
 
@@ -349,14 +349,14 @@ impl BlockPort {
         if self.channels == 0 || index >= self.block_size {
             return 0.0;
         }
-        self.data[(index * self.channels + ch % self.channels) * self.lanes]
+        self.data[(index * self.channels + ch % self.channels) * self.words]
     }
 
     /// [`get`](Self::get) on a port built with [`new`](Self::new), skipping
-    /// the lane stride. Output structs use it for ports declared f32.
+    /// the word stride. Output structs use it for ports declared f32.
     #[inline]
     pub fn get_f32_port(&self, index: usize, ch: usize) -> f32 {
-        debug_assert_eq!(self.lanes, 1, "f64 ports are read with get");
+        debug_assert_eq!(self.words, 1, "f64 ports are read with get");
         if self.channels == 0 || index >= self.block_size {
             return 0.0;
         }
@@ -369,8 +369,8 @@ impl BlockPort {
         if self.channels == 0 || index >= self.block_size {
             return 0.0;
         }
-        let at = (index * self.channels + ch % self.channels) * self.lanes;
-        if self.lanes == 2 {
+        let at = (index * self.channels + ch % self.channels) * self.words;
+        if self.words == 2 {
             join_f64(self.data[at], self.data[at + 1])
         } else {
             self.data[at] as f64
@@ -381,7 +381,7 @@ impl BlockPort {
     /// is out of range.
     #[inline]
     pub fn slot_mut(&mut self, index: usize) -> &mut [f32] {
-        debug_assert_eq!(self.lanes, 1, "f64 ports are written with set_f64");
+        debug_assert_eq!(self.words, 1, "f64 ports are written with set_f64");
         let start = index * self.channels;
         &mut self.data[start..start + self.channels]
     }
@@ -391,19 +391,19 @@ impl BlockPort {
     #[inline]
     pub fn set(&mut self, index: usize, ch: usize, value: f32) {
         if index < self.block_size && ch < self.channels {
-            let at = (index * self.channels + ch) * self.lanes;
+            let at = (index * self.channels + ch) * self.words;
             self.data[at] = value;
-            if self.lanes == 2 {
+            if self.words == 2 {
                 self.data[at + 1] = 0.0;
             }
         }
     }
 
     /// [`set`](Self::set) on a port built with [`new`](Self::new), skipping
-    /// the lane stride. Output structs use it for ports declared f32.
+    /// the word stride. Output structs use it for ports declared f32.
     #[inline]
     pub fn set_f32_port(&mut self, index: usize, ch: usize, value: f32) {
-        debug_assert_eq!(self.lanes, 1, "f64 ports are written with set_f64");
+        debug_assert_eq!(self.words, 1, "f64 ports are written with set_f64");
         if index < self.block_size && ch < self.channels {
             self.data[index * self.channels + ch] = value;
         }
@@ -415,10 +415,10 @@ impl BlockPort {
     #[inline]
     pub fn set_f64(&mut self, index: usize, ch: usize, value: f64) {
         if index < self.block_size && ch < self.channels {
-            let at = (index * self.channels + ch) * self.lanes;
+            let at = (index * self.channels + ch) * self.words;
             let (hi, lo) = split_f64(value);
             self.data[at] = hi;
-            if self.lanes == 2 {
+            if self.words == 2 {
                 self.data[at + 1] = lo;
             }
         }

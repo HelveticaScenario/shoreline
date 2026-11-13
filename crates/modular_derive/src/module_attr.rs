@@ -976,14 +976,14 @@ fn impl_module_macro_attr(
                 }
                 let port_idx = <#block_outputs_ty>::port_index(port)?;
                 let outputs = unsafe { &*self.block_outputs.get() };
-                let (data, channels, lanes) = outputs.data_at(port_idx)?;
+                let (data, channels, words) = outputs.data_at(port_idx)?;
                 if channels == 0 {
                     return None;
                 }
                 Some(crate::types::PortView {
                     data,
                     channels,
-                    lanes,
+                    words,
                     processed: &self.index,
                 })
             }

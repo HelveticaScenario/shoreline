@@ -7,8 +7,8 @@
 //! oscillators at their factory tuning.
 
 use super::circuit::{ACCENT_V, PULSE_V};
-use crate::dsp::drums::lanes::{Lanes, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState};
+use crate::dsp::drums::simd::{Mono, Real, Simd, c, lanewise};
 use crate::dsp::utils::rng::LcgRng;
 
 // The metal voices' trigger buffer, IC2a, puts out 0.824·V + 3.29 for a
@@ -93,7 +93,7 @@ impl MetalFilters {
 
 /// One channel's oscillators and filters.
 #[derive(Clone, Copy, Default)]
-pub struct MetalBank<L: Lanes = Mono> {
+pub struct MetalBank<L: Simd = Mono> {
     phases: [L::S; 6],
     net: MnaState<CAPS, L>,
     seeded: L::SM,
@@ -129,7 +129,7 @@ impl MetalBank {
     }
 }
 
-impl<L: Lanes> MetalBank<L> {
+impl<L: Simd> MetalBank<L> {
     /// Advances one sample, returning the upper and lower bands. Each
     /// oscillator drives the sum with its mean voltage over the sample,
     /// which keeps its edges' timing between samples.

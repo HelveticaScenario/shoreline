@@ -9,8 +9,8 @@ use super::components::{self, ZENER_PAIR_CAPACITANCE_0V, ZenerTables};
 use super::controls::{ControlInputs, Controls, row, update_controls};
 use super::curve::Curve;
 use super::drive::{self, DriveCurves, DriveState, PreEmphasis};
-use super::lanes::{HalfbandDown, HalfbandUp, LANES, Lanes, OnePole, f32x4};
 use super::output::{self, OUTPUT_POLE_HZ, output_amp, rails};
+use super::simd::{HalfbandDown, HalfbandUp, OnePole, SIMD_WIDTH, Simd, f32x4};
 use super::svf::{NEGATIVE_DAMPING, SvfCore};
 use super::vca::{self, GainX4};
 use super::{MultimodeBlockOutputs, MultimodeParamsBlockInputs};
@@ -60,7 +60,7 @@ pub(super) struct GroupState {
     pub(super) output_poles: [OnePole; 3],
     pub(super) drive: DriveState,
     pub(super) core: SvfCore,
-    pub(super) noise: [LcgRng; LANES],
+    pub(super) noise: [LcgRng; SIMD_WIDTH],
     pub(super) pre_emphasis: PreEmphasis,
 }
 
@@ -109,16 +109,16 @@ impl GroupState {
     /// filtering each one equals filtering their mix. The drive stage runs on
     /// the first `active` lanes.
     #[inline]
-    fn tick<L: Lanes>(
+    fn tick<L: Simd>(
         &mut self,
         x: L,
-        fold_gains: &[(f32, f32); LANES],
+        fold_gains: &[(f32, f32); SIMD_WIDTH],
         tables: Tables,
         active: usize,
     ) -> [L; 4] {
         let x = self.drive_pole.process(x);
         let filter_in = self.drive.process(tables.drive, x, fold_gains, active);
-        let mut noise = [0.0; LANES];
+        let mut noise = [0.0; SIMD_WIDTH];
         for (noise, rng) in noise.iter_mut().zip(&mut self.noise).take(active) {
             *noise = rng.next_bipolar();
         }
@@ -144,7 +144,7 @@ impl GroupState {
 /// BP and HP through 62k each; VCA B takes its output less BP and LP (through
 /// the IC14C summer) and adds to the LP that reaches the output directly.
 #[inline]
-fn morph<L: Lanes>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> L {
+fn morph<L: Simd>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> L {
     // Below mode 2.5 VCA A is off, and at mode 0 VCA B too, so LP reaches the
     // output alone.
     let live = |gain: &GainX4| L::bits(gain.gain::<L>().ge(L::splat(f32::MIN_POSITIVE))) != 0;
@@ -162,15 +162,15 @@ fn morph<L: Lanes>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> 
 }
 
 /// One sample's `[output, lp, bp, hp]` for a group's lanes.
-pub(super) type GroupOutputs = [[f32; LANES]; 4];
+pub(super) type GroupOutputs = [[f32; SIMD_WIDTH]; 4];
 
 /// One sample for the `active` channels of group `state`, kept out of line so
 /// `update` carries one inlined copy.
 #[inline(never)]
-pub(super) fn process_group<L: Lanes>(
+pub(super) fn process_group<L: Simd>(
     state: &mut GroupState,
     controls: &ControlInputs,
-    input: [f32; LANES],
+    input: [f32; SIMD_WIDTH],
     (active, high_res, rate, tables): (usize, bool, f32, Tables),
 ) -> GroupOutputs {
     update_controls::<L>(&mut state.controls, controls, active, rate);
@@ -181,7 +181,7 @@ pub(super) fn process_group<L: Lanes>(
 /// `base`, read from `inputs` and written to `outputs`. Controls held over the
 /// range update once.
 #[inline(never)]
-pub(super) fn process_block_group<L: Lanes>(
+pub(super) fn process_block_group<L: Simd>(
     state: &mut GroupState,
     inputs: &MultimodeParamsBlockInputs,
     outputs: &mut MultimodeBlockOutputs,
@@ -226,9 +226,9 @@ pub(super) fn process_block_group<L: Lanes>(
 /// One sample of the signal path for the first `active` lanes of group
 /// `state`, returning each output's lanes.
 #[inline(always)]
-pub(super) fn step<L: Lanes>(
+pub(super) fn step<L: Simd>(
     state: &mut GroupState,
-    input: [f32; LANES],
+    input: [f32; SIMD_WIDTH],
     active: usize,
     high_res: bool,
     tables: Tables,

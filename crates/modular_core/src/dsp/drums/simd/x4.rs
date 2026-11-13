@@ -7,7 +7,7 @@ use std::ops::{
 use wide::{f32x4, f64x4};
 
 use super::vector::{broadcast_f32x4, broadcast_f64x4, switch_lanes, vector};
-use super::{Lanes, Lanewise, Mask, Real};
+use super::{Lanewise, Mask, Real, Simd};
 
 /// Four channels.
 #[derive(Clone, Copy, Default)]
@@ -29,7 +29,7 @@ pub struct M64x4(f64x4);
 vector!(F32x4, M32x4, f32x4, f32, broadcast_f32x4, 4);
 vector!(F64x4, M64x4, f64x4, f64, broadcast_f64x4, 4);
 
-impl Lanes for X4 {
+impl Simd for X4 {
     type S = F32x4;
     type D = F64x4;
     type SM = M32x4;

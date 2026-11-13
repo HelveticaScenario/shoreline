@@ -12,8 +12,8 @@
 //! (Q40) emptying it, Q71/Q72 (Q38) the pair.
 
 use super::analog::VT;
-use super::lanes::{Lanes, Mono, Real, c, lanewise};
 use super::mna::{GROUND, Mna, MnaBuilder, MnaState, Switch};
+use super::simd::{Mono, Real, Simd, c, lanewise};
 
 const RAIL: f32 = 15.0;
 const BETA: f32 = 300.0;
@@ -116,7 +116,7 @@ impl EnvelopeNetwork {
 
 /// The envelope generator's state.
 #[derive(Clone, Copy, Default)]
-pub struct Envelope<L: Lanes = Mono> {
+pub struct Envelope<L: Simd = Mono> {
     net: MnaState<CAPS, L>,
     /// Node voltages on the last sample that set the switches.
     oc: L::S,
@@ -144,7 +144,7 @@ lanewise!(Envelope {
     q71_base
 });
 
-impl<L: Lanes> Envelope<L> {
+impl<L: Simd> Envelope<L> {
     /// True while the window IC23b opens is open.
     pub fn window_open(&self) -> L::SM {
         self.ob.lt(c(P))
@@ -199,6 +199,6 @@ impl<L: Lanes> Envelope<L> {
 /// The BA662's output current for control current `iabc` and voltage
 /// `input` at its inverting input, the other grounded.
 #[inline]
-pub fn ota_current<L: Lanes>(iabc: L::S, input: L::S) -> L::S {
+pub fn ota_current<L: Simd>(iabc: L::S, input: L::S) -> L::S {
     iabc * (-input / (2.0 * VT)).map(f32::tanh)
 }

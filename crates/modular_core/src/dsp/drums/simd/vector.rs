@@ -319,7 +319,7 @@ macro_rules! vector {
 
 pub(super) use vector;
 
-/// The [`Lanes`](super::Lanes) items for a group's switch combinations,
+/// The [`Simd`](super::Simd) items for a group's switch combinations,
 /// one per lane in `[u8; $lanes]`, with switch masks `$m`.
 macro_rules! switch_lanes {
     ($m:ident, $lanes:expr) => {

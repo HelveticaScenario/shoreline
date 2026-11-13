@@ -5,7 +5,7 @@
 use super::components::{
     ZENER_FLOOR_V, ZENER_MIN_LN_I, ZENER_PAIR_CAPACITANCE_0V, ZenerPoint, ZenerTables,
 };
-use super::lanes::{LANES, Lanes, clear_lane, f32x4, set_lane};
+use super::simd::{SIMD_WIDTH, Simd, clear_lane, f32x4, set_lane};
 use super::vca::{self, GainX4};
 
 /// Integrator input resistance (R132, R131). The zener pair across the first
@@ -88,7 +88,7 @@ const LINEAR_THETA: f32 = 0.25;
 /// Integrator gains `(g1, g2)` where the rate changes scale the prewarped gain
 /// directly.
 #[inline]
-fn linear_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
+fn linear_gains<L: Simd>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
     let g = L::load(&tuning.tan_theta) * L::load(&tuning.sqrt_slowdown);
     (g * rate1, g * rate2)
 }
@@ -97,7 +97,7 @@ fn linear_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
 /// tuning, applied to the prewarped gain by tan addition with a cubic tan for
 /// the small step.
 #[inline]
-fn warped_gains<L: Lanes>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
+fn warped_gains<L: Simd>(tuning: &TuningX4, (rate1, rate2): (L, L)) -> (L, L) {
     let (theta, tan_theta) = (L::load(&tuning.theta), L::load(&tuning.tan_theta));
     let split = (rate1 / rate2).sqrt();
     let shift = split * rate2 * L::load(&tuning.sqrt_slowdown);
@@ -117,7 +117,7 @@ pub(super) struct SvfCore {
     s2: f32x4,
     bp: f32x4,
     vca_input: f32x4,
-    zener: [ZenerSeed; LANES],
+    zener: [ZenerSeed; SIMD_WIDTH],
     /// Bit `l` set where lane `l` was clamped last sample.
     clamped: u32,
 }
@@ -129,7 +129,7 @@ impl Default for SvfCore {
             s2: f32x4::default(),
             bp: f32x4::default(),
             vca_input: f32x4::default(),
-            zener: [ZenerSeed::default(); LANES],
+            zener: [ZenerSeed::default(); SIMD_WIDTH],
             clamped: 0,
         }
     }
@@ -145,7 +145,7 @@ impl SvfCore {
     /// input current. The zener clamp is solved on the first `active` lanes
     /// that reach it.
     #[inline]
-    pub(super) fn step<L: Lanes>(
+    pub(super) fn step<L: Simd>(
         &mut self,
         u: L,
         tuning: &TuningX4,
@@ -196,7 +196,7 @@ impl SvfCore {
         let (b, i_zener) = if clamped == 0 {
             (linear, L::splat(0.0))
         } else {
-            let (mut b, mut i_zener) = (linear.to_lanes(), [0.0; LANES]);
+            let (mut b, mut i_zener) = (linear.to_lanes(), [0.0; SIMD_WIDTH]);
             let (rhs, g1, denom) = (rhs.to_lanes(), g1.to_lanes(), denom.to_lanes());
             for lane in (0..active).filter(|&lane| clamped & (1 << lane) != 0) {
                 (b[lane], i_zener[lane]) = solve_clamped(

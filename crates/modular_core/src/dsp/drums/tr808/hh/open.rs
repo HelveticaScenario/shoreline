@@ -3,7 +3,7 @@ use super::*;
 /// The open hat's circuit: the trigger pulse, C60's timer, C62's envelope,
 /// Q27's VCA and the output stage.
 #[derive(Clone, Copy, Default)]
-pub struct Open<L: Lanes = Mono> {
+pub struct Open<L: Simd = Mono> {
     pulse: Pulse<L>,
     /// C60's voltage and Q22's base-emitter voltage.
     c60: L::S,
@@ -35,7 +35,7 @@ lanewise!(Open {
 
 /// Settings read once per sample.
 #[derive(Clone, Copy, Default)]
-pub struct OpenControls<L: Lanes = Mono> {
+pub struct OpenControls<L: Simd = Mono> {
     pub band: L::S,
     /// Conductance from the rail to C60: the decay pot and R132.
     pub decay: L::S,
@@ -52,7 +52,7 @@ lanewise!(OpenControls {
     drain
 });
 
-impl<L: Lanes> Open<L> {
+impl<L: Simd> Open<L> {
     /// Advances C60 one sample by backward Euler, with Q21 emptying it while
     /// `striking`, and returns Q22's base current.
     #[inline(always)]
@@ -115,7 +115,7 @@ impl Fire for Open {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Open<L> {
+impl<L: Simd> Circuit<L> for Open<L> {
     type Shared = HatShared;
     type Controls = OpenControls<L>;
 

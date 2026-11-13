@@ -13,8 +13,8 @@ mod controls;
 mod curve;
 mod drive;
 mod group;
-mod lanes;
 mod output;
+mod simd;
 mod svf;
 mod vca;
 
@@ -32,7 +32,7 @@ use crate::{
 
 use controls::{ControlInputs, update_controls};
 use group::{GroupOutputs, GroupState, Tables, process_block_group, process_group, step};
-use lanes::{HalfbandDown, LANES, f32x4};
+use simd::{HalfbandDown, SIMD_WIDTH, f32x4};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, ChannelCount, BlockInputs)]
@@ -168,7 +168,7 @@ struct MultimodeState {
 /// `read(channel)` for the first `active` channels from `base`, 0 for dead
 /// lanes.
 #[inline]
-fn lanes(base: usize, active: usize, read: impl Fn(usize) -> f32) -> [f32; LANES] {
+fn lanes(base: usize, active: usize, read: impl Fn(usize) -> f32) -> [f32; SIMD_WIDTH] {
     std::array::from_fn(|lane| {
         if lane < active {
             read(base + lane)
@@ -187,7 +187,7 @@ impl Multimode {
         let base = seed_base(self);
         for (group, state) in self.channel_state.iter_mut().enumerate() {
             for (lane, noise) in state.noise.iter_mut().enumerate() {
-                noise.seed(base, group * LANES + lane);
+                noise.seed(base, group * SIMD_WIDTH + lane);
             }
         }
     }
@@ -228,11 +228,11 @@ impl Multimode {
         for (group, state) in self
             .channel_state
             .iter_mut()
-            .take(channels.div_ceil(LANES))
+            .take(channels.div_ceil(SIMD_WIDTH))
             .enumerate()
         {
-            let base = group * LANES;
-            let active = (channels - base).min(LANES);
+            let base = group * SIMD_WIDTH;
+            let active = (channels - base).min(SIMD_WIDTH);
             let controls = ControlInputs::read(p, base, active);
             let input = lanes(base, active, |ch| p.input.get_value(ch));
             let group = (active, high_res, rate, tables);
@@ -262,11 +262,11 @@ impl Multimode {
         for (group, state) in self
             .channel_state
             .iter_mut()
-            .take(channels.div_ceil(LANES))
+            .take(channels.div_ceil(SIMD_WIDTH))
             .enumerate()
         {
-            let base = group * LANES;
-            let active = (channels - base).min(LANES);
+            let base = group * SIMD_WIDTH;
+            let active = (channels - base).min(SIMD_WIDTH);
             let group = (base, active, high_res, rate, tables);
             // A group's one live channel runs on lane 0, as in `update`.
             if active == 1 {
@@ -283,7 +283,7 @@ impl crate::types::PatchUpdateHandler for Multimode {
     fn on_patch_update(&mut self) {
         let rate = self.core_rate();
         let (old, channels) = (self.state.channels, self.channel_count());
-        let groups = channels.div_ceil(LANES);
+        let groups = channels.div_ceil(SIMD_WIDTH);
         for group in self.channel_state.iter_mut().take(groups) {
             group.configure(rate);
         }
@@ -292,7 +292,8 @@ impl crate::types::PatchUpdateHandler for Multimode {
         // live channel and several transposes them. A group that comes back
         // with one live channel starts all four from rest, since clearing its
         // lane alone would leave the other three outputs' history.
-        let live = |count: usize, group: usize| count.saturating_sub(group * LANES).min(LANES);
+        let live =
+            |count: usize, group: usize| count.saturating_sub(group * SIMD_WIDTH).min(SIMD_WIDTH);
         for (group, state) in self.channel_state.iter_mut().enumerate() {
             let (before, after) = (live(old, group), live(channels, group));
             if before != 0 && after != 0 && (before == 1) != (after == 1) {
@@ -304,7 +305,7 @@ impl crate::types::PatchUpdateHandler for Multimode {
         // Channels new to this patch start from rest, as they would in a fresh
         // module, rather than from a lane that ran dead before.
         for ch in old.min(channels)..channels {
-            self.channel_state[ch / LANES].clear_lane(ch % LANES);
+            self.channel_state[ch / SIMD_WIDTH].clear_lane(ch % SIMD_WIDTH);
         }
         // A new channel count changes which lanes are dead; recomputing every
         // law sets them to follow lane 0 again.

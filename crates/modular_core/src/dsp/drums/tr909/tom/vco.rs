@@ -2,14 +2,14 @@ use super::*;
 
 /// One triangle VCO whose two slopes may differ.
 #[derive(Clone, Copy, Default)]
-pub(super) struct Vco<L: Lanes = Mono> {
+pub(super) struct Vco<L: Simd = Mono> {
     pub(super) tri: L::S,
     pub(super) rising: L::SM,
 }
 
 lanewise!(Vco { tri, rising });
 
-impl<L: Lanes> Vco<L> {
+impl<L: Simd> Vco<L> {
     /// Advances `dt` rising at `up` V/s and falling at `down` V/s,
     /// reflecting off the comparator's thresholds.
     #[inline]
@@ -51,7 +51,7 @@ const CLIPPER_DONE: f64 = converged(1.0e-7, VT as f64);
 /// Q18's clipper: its collector, its emitter with the exponential of the
 /// voltage between them, and the diode node.
 #[derive(Clone, Copy, Default)]
-pub(super) struct Clipper<L: Lanes = Mono> {
+pub(super) struct Clipper<L: Simd = Mono> {
     collector: L::D,
     emitter: L::D,
     ce: Exp<L>,
@@ -65,7 +65,7 @@ lanewise!(Clipper {
     diodes
 });
 
-impl<L: Lanes> Clipper<L> {
+impl<L: Simd> Clipper<L> {
     /// Solves VCO-1 at `vi` through R102 into Q18's collector, its emitter
     /// through R103 onto the diodes, and R104 on to Q19's collector near
     /// ground, with Q18's base current `ib`, in the lanes of `on`; the
@@ -120,7 +120,7 @@ impl<L: Lanes> Clipper<L> {
 
 /// Solves the 3×3 system `j·x = f` by Cramer's rule.
 #[inline]
-fn solve3<L: Lanes>(j: [[L::D; 3]; 3], f: [L::D; 3]) -> [L::D; 3] {
+fn solve3<L: Simd>(j: [[L::D; 3]; 3], f: [L::D; 3]) -> [L::D; 3] {
     let det = |m: [[L::D; 3]; 3]| {
         m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
             - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])

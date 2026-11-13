@@ -26,9 +26,9 @@ struct TomDrum;
 
 impl Drum for TomDrum {
     type Shared = TomShared;
-    type Circuit<L: Lanes> = Tom<L>;
-    type Controls<L: Lanes> = TomControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Tom<L>;
+    type Controls<L: Simd> = TomControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = true;
 }

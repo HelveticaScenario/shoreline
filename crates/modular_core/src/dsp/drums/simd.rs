@@ -1,5 +1,5 @@
 //! One circuit, several widths. Each drum circuit is written once over
-//! [`Lanes`] and runs as [`Mono`], one channel in `f32` and `f64`, or as
+//! [`Simd`] and runs as [`Mono`], one channel in `f32` and `f64`, or as
 //! [`X2`] or [`X4`], two or four channels at once in vectors. Every lane of
 //! a vector circuit computes exactly what a `Mono` circuit computes for its
 //! channel: the same operations in the same order with the same rounding,
@@ -201,7 +201,7 @@ scalar_real!(f64);
 
 /// How wide a circuit runs: its single- and double-precision values, their
 /// masks, and which of a network's switches are closed.
-pub trait Lanes: Copy + Default + 'static {
+pub trait Simd: Copy + Default + 'static {
     type S: Real<Elem = f32, Mask = Self::SM> + Lanewise<Lane = f32>;
     type D: Real<Elem = f64, Mask = Self::DM> + Lanewise<Lane = f64>;
     type SM: Mask + Lanewise<Lane = bool>;
@@ -234,7 +234,7 @@ pub trait Lanes: Copy + Default + 'static {
 #[derive(Clone, Copy, Default)]
 pub struct Mono;
 
-impl Lanes for Mono {
+impl Simd for Mono {
     type S = f32;
     type D = f64;
     type SM = bool;
@@ -332,15 +332,15 @@ impl<T: Lanewise, const N: usize> Lanewise for [T; N] {
 /// be all of them: the [`Mono`] form's literal names every field.
 macro_rules! lanewise {
     ($ty:ident { $($field:ident),* $(,)? }) => {
-        impl<L: $crate::dsp::drums::lanes::Lanes> $crate::dsp::drums::lanes::Lanewise for $ty<L> {
-            type Lane = $ty<$crate::dsp::drums::lanes::Mono>;
+        impl<L: $crate::dsp::drums::simd::Simd> $crate::dsp::drums::simd::Lanewise for $ty<L> {
+            type Lane = $ty<$crate::dsp::drums::simd::Mono>;
             #[inline]
             fn lane(&self, lane: usize) -> Self::Lane {
-                $ty { $($field: $crate::dsp::drums::lanes::Lanewise::lane(&self.$field, lane)),* }
+                $ty { $($field: $crate::dsp::drums::simd::Lanewise::lane(&self.$field, lane)),* }
             }
             #[inline]
             fn set_lane(&mut self, lane: usize, value: &Self::Lane) {
-                $($crate::dsp::drums::lanes::Lanewise::set_lane(&mut self.$field, lane, &value.$field);)*
+                $($crate::dsp::drums::simd::Lanewise::set_lane(&mut self.$field, lane, &value.$field);)*
             }
         }
     };

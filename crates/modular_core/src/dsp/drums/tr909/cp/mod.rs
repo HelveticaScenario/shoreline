@@ -16,8 +16,8 @@ use super::noise::{NOISE_MEAN, Noise};
 use crate::dsp::drums::analog::Junction;
 use crate::dsp::drums::clap::{Envelope, EnvelopeNetwork, ota_current};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Level, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -124,7 +124,7 @@ fn output_network(dt: f32) -> Mna<OUT_UNKNOWNS, OUT_CAPS, 0, 1> {
 
 /// The clap's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Clap<L: Lanes = Mono> {
+struct Clap<L: Simd = Mono> {
     trigger: Pulse<L>,
     accent: L::S,
     level: Level<L>,
@@ -171,15 +171,15 @@ struct ClapDrum;
 
 impl Drum for ClapDrum {
     type Shared = ClapShared;
-    type Circuit<L: Lanes> = Clap<L>;
+    type Circuit<L: Simd> = Clap<L>;
     /// The noise generator's voltage.
-    type Controls<L: Lanes> = L::S;
-    type Sources<L: Lanes> = ();
+    type Controls<L: Simd> = L::S;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = true;
 }
 
-impl<L: Lanes> Clap<L> {
+impl<L: Simd> Clap<L> {
     /// Advances one sample with the generator's voltage at `noise`.
     #[inline]
     fn advance(&mut self, sh: &ClapShared, noise: L::S) -> L::S {
@@ -255,7 +255,7 @@ impl Fire for Clap {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Clap<L> {
+impl<L: Simd> Circuit<L> for Clap<L> {
     type Shared = ClapShared;
     type Controls = L::S;
 

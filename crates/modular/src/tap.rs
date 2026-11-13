@@ -39,12 +39,12 @@ impl<'a> Tap<'a> {
             Some(PortView {
                 data,
                 channels,
-                lanes,
+                words,
                 processed,
             }) => Tap::View {
                 data,
-                stride: channels * lanes,
-                offset: (channel % channels) * lanes,
+                stride: channels * words,
+                offset: (channel % channels) * words,
                 processed,
             },
             None => Tap::Module {

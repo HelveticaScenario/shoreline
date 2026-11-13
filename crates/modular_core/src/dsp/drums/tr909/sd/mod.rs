@@ -23,8 +23,8 @@ use super::noise::{NOISE_MEAN, Noise};
 use super::vco::Vco;
 use crate::dsp::drums::analog::Junction;
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -164,7 +164,7 @@ fn noise_network(dt: f32) -> Mna<NOISE_UNKNOWNS, NOISE_CAPS, 0, 1> {
 
 /// The snare's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Snare<L: Lanes = Mono> {
+struct Snare<L: Simd = Mono> {
     trigger: Pulse<L>,
     accent: L::S,
     c66: L::S,
@@ -231,7 +231,7 @@ struct SnareShared {
 }
 
 #[derive(Clone, Copy, Default)]
-struct SnareControls<L: Lanes = Mono> {
+struct SnareControls<L: Simd = Mono> {
     /// Both VCOs' rate relative to stock.
     rate: L::S,
     /// C67's fall per sample as the tone pot and R254 drain it.
@@ -253,9 +253,9 @@ struct SnareDrum;
 
 impl Drum for SnareDrum {
     type Shared = SnareShared;
-    type Circuit<L: Lanes> = Snare<L>;
-    type Controls<L: Lanes> = SnareControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Snare<L>;
+    type Controls<L: Simd> = SnareControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = true;
 }
@@ -271,7 +271,7 @@ impl Fire for Snare {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Snare<L> {
+impl<L: Simd> Circuit<L> for Snare<L> {
     type Shared = SnareShared;
     type Controls = SnareControls<L>;
 

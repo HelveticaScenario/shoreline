@@ -2,7 +2,7 @@
 //! harmonic from mismatched emitter resistances in the cell's NPN and PNP
 //! halves, which vanishes at unity gain.
 
-use super::lanes::{Lanes, f32x4, set_lane};
+use super::simd::{Simd, f32x4, set_lane};
 
 /// Second-harmonic coefficient, per ampere of input current, fitted to the
 /// datasheet's class-A 0.15 % THD at ±20 dB.
@@ -38,7 +38,7 @@ impl GainX4 {
     }
 
     #[inline]
-    pub(super) fn gain<L: Lanes>(&self) -> L {
+    pub(super) fn gain<L: Simd>(&self) -> L {
         L::load(&self.gain)
     }
 }
@@ -46,12 +46,12 @@ impl GainX4 {
 /// The cells' gain relative to nominal for input currents `i_in` (A): the
 /// output is `gain · i_in · scale`.
 #[inline]
-pub(super) fn scale<L: Lanes>(gain: &GainX4, i_in: L) -> L {
+pub(super) fn scale<L: Simd>(gain: &GainX4, i_in: L) -> L {
     L::splat(1.0) + L::load(&gain.hd2) * i_in
 }
 
 /// The cells' output currents for input currents `i_in`.
 #[inline]
-pub(super) fn output<L: Lanes>(gain: &GainX4, i_in: L) -> L {
+pub(super) fn output<L: Simd>(gain: &GainX4, i_in: L) -> L {
     gain.gain::<L>() * i_in * scale(gain, i_in)
 }

@@ -16,8 +16,8 @@ use super::circuit::{PULSE_SECS, pulse_volts};
 use super::metal::metal_pulse;
 use super::swing::{SwingState, vca};
 use crate::dsp::drums::analog::{Exp, Junction, VT, converged};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{GROUND, Mna, MnaBuilder, MnaState, Switch};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing};
 
 mod module;
@@ -53,7 +53,7 @@ fn charge_target<S: Real<Elem = f32>>(volts: S) -> S {
 /// The base current of a transistor fed from `volts` through conductance
 /// `g`, by Newton on its base-emitter junction from its last solution.
 #[inline(always)]
-fn base_current<L: Lanes>(volts: L::S, g: L::S, base: &mut Junction<L>) -> L::S {
+fn base_current<L: Simd>(volts: L::S, g: L::S, base: &mut Junction<L>) -> L::S {
     const DONE: f64 = converged(1.0e-7, VT as f64);
     let (v, g, inv_vt) = (L::wide(volts), L::wide(g), 1.0 / VT as f64);
     let a = IS / BETA as f64;
@@ -244,7 +244,7 @@ impl HatShared {
 /// The closed hat's circuit: the trigger pulse, C63's envelope, Q30's VCA
 /// and the output stage.
 #[derive(Clone, Copy, Default)]
-pub struct Closed<L: Lanes = Mono> {
+pub struct Closed<L: Simd = Mono> {
     pulse: Pulse<L>,
     net: MnaState<CH_CAPS, L>,
     base: SwingState<L>,
@@ -267,7 +267,7 @@ lanewise!(Closed {
     quiet
 });
 
-impl<L: Lanes> Closed<L> {
+impl<L: Simd> Closed<L> {
     /// Q23's base current, which sets how hard it drains the open hat.
     fn q23(&self) -> L::S {
         self.q23
@@ -276,7 +276,7 @@ impl<L: Lanes> Closed<L> {
 
 /// The closed hat's settings read once per sample.
 #[derive(Clone, Copy, Default)]
-pub struct ClosedControls<L: Lanes = Mono> {
+pub struct ClosedControls<L: Simd = Mono> {
     /// The upper band.
     pub band: L::S,
     /// Conductance from C63 to Q23's base.
@@ -326,7 +326,7 @@ impl Fire for Closed {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Closed<L> {
+impl<L: Simd> Circuit<L> for Closed<L> {
     type Shared = HatShared;
     type Controls = ClosedControls<L>;
 

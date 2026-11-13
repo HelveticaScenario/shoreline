@@ -5,7 +5,7 @@
 use super::*;
 use crate::dsp::drums::group::{ChannelInputs, Drum, QUAD};
 use crate::dsp::drums::input::{Cached, Input};
-use crate::dsp::drums::lanes::Lanewise;
+use crate::dsp::drums::simd::Lanewise;
 use crate::dsp::drums::tr808::metal::{MetalBank, MetalFilters};
 use crate::dsp::drums::voice::{Voices, knob};
 
@@ -38,9 +38,9 @@ pub(super) struct ClosedHat;
 
 impl Drum for ClosedHat {
     type Shared = HatShared;
-    type Circuit<L: Lanes> = Closed<L>;
-    type Controls<L: Lanes> = ClosedControls<L>;
-    type Sources<L: Lanes> = MetalBank<L>;
+    type Circuit<L: Simd> = Closed<L>;
+    type Controls<L: Simd> = ClosedControls<L>;
+    type Sources<L: Simd> = MetalBank<L>;
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = false;
 }
@@ -50,9 +50,9 @@ pub(super) struct OpenHat;
 
 impl Drum for OpenHat {
     type Shared = HatShared;
-    type Circuit<L: Lanes> = Open<L>;
-    type Controls<L: Lanes> = OpenControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Open<L>;
+    type Controls<L: Simd> = OpenControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = true;
 }
@@ -91,7 +91,7 @@ impl<I: Input> ChannelInputs<ClosedHat> for ClosedSide<'_, I> {
     }
 
     #[inline]
-    fn group_inputs<L: Lanes>(
+    fn group_inputs<L: Simd>(
         &self,
         first: usize,
         members: &mut [Channel],
@@ -115,7 +115,7 @@ impl<I: Input> ChannelInputs<ClosedHat> for ClosedSide<'_, I> {
     }
 
     #[inline]
-    fn group_stepped<L: Lanes>(members: &mut [Channel], voice: &Closed<L>, sounding: u32) {
+    fn group_stepped<L: Simd>(members: &mut [Channel], voice: &Closed<L>, sounding: u32) {
         let q23 = voice.q23();
         for (lane, cs) in members.iter_mut().enumerate() {
             cs.q23 = if sounding & (1 << lane) != 0 {
@@ -126,11 +126,11 @@ impl<I: Input> ChannelInputs<ClosedHat> for ClosedSide<'_, I> {
         }
     }
 
-    fn load_sources<L: Lanes>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
+    fn load_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
         bank.set_lane(lane, &cs.bank);
     }
 
-    fn unload_sources<L: Lanes>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
+    fn unload_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
         cs.bank = bank.lane(lane);
     }
 }

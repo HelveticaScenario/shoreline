@@ -252,7 +252,7 @@ impl<I: Input> ChannelInputs<CymbalDrum> for CyInputs<'_, I> {
     }
 
     #[inline]
-    fn group_inputs<L: Lanes>(
+    fn group_inputs<L: Simd>(
         &self,
         first: usize,
         members: &mut [Channel],
@@ -275,11 +275,11 @@ impl<I: Input> ChannelInputs<CymbalDrum> for CyInputs<'_, I> {
         controls
     }
 
-    fn load_sources<L: Lanes>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
+    fn load_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &mut MetalBank<L>) {
         bank.set_lane(lane, &cs.bank);
     }
 
-    fn unload_sources<L: Lanes>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
+    fn unload_sources<L: Simd>(cs: &mut Channel, lane: usize, bank: &MetalBank<L>) {
         cs.bank = bank.lane(lane);
     }
 }

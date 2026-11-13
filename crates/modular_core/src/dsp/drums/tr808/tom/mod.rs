@@ -23,7 +23,7 @@ use super::circuit::{
 use crate::dsp::drums::analog::{Exp, VT, converged, high_pass, low_pass, one_pole_coeff, rc_hz};
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
 use crate::dsp::drums::input::{Cached, Hold};
-use crate::dsp::drums::lanes::{Lanes, Lanewise, Mask, Mono, Real, c, lanewise};
+use crate::dsp::drums::simd::{Lanewise, Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::dsp::utils::voct_to_hz;
@@ -89,7 +89,7 @@ const D56_DROP: f32 = 0.6;
 
 /// The circuit's state for one hit sequence.
 #[derive(Clone, Copy, Default)]
-struct Tom<L: Lanes = Mono> {
+struct Tom<L: Simd = Mono> {
     pulse: Pulse<L>,
     /// Voltage across the input coupling capacitor.
     c_in: L::S,
@@ -187,7 +187,7 @@ struct Channel {
 
 /// The settings for one sample.
 #[derive(Clone, Copy, Default)]
-struct TomControls<L: Lanes = Mono> {
+struct TomControls<L: Simd = Mono> {
     t: BridgedT<L>,
     /// The white noise generator's voltage. Gated noise keeps its generator
     /// running between hits, so the gate's first sample after a strike draws
@@ -204,9 +204,9 @@ struct TomDrum;
 
 impl Drum for TomDrum {
     type Shared = TomShared;
-    type Circuit<L: Lanes> = Tom<L>;
-    type Controls<L: Lanes> = TomControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Tom<L>;
+    type Controls<L: Simd> = TomControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = true;
     const RUNS_IN_PAIRS: bool = false;
 }
@@ -222,7 +222,7 @@ impl Fire for Tom {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Tom<L> {
+impl<L: Simd> Circuit<L> for Tom<L> {
     type Shared = TomShared;
     type Controls = TomControls<L>;
 
@@ -252,7 +252,7 @@ impl<L: Lanes> Circuit<L> for Tom<L> {
     }
 }
 
-impl<L: Lanes> Tom<L> {
+impl<L: Simd> Tom<L> {
     /// Advances the input network and bridged-T one sample, returning
     /// IC15's output.
     #[inline]

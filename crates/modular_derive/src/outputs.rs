@@ -781,7 +781,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         .map(|o| {
             let field_name = &o.field_name;
             quote! {
-                && self.#field_name.lanes() == other.#field_name.lanes()
+                && self.#field_name.words() == other.#field_name.words()
                 && self.#field_name.has_bounds() == other.#field_name.has_bounds()
             }
         })
@@ -865,7 +865,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 #i => Some((
                     self.#field_name.as_ptr(),
                     self.#field_name.channels(),
-                    self.#field_name.lanes(),
+                    self.#field_name.words(),
                 )),
             }
         })
@@ -886,7 +886,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 OutputPrecision::PolySignal if o.value_precision != ValuePrecision::F32 => quote! {
                     {
                         let poly = &inner.#field_name;
-                        if self.#field_name.lanes() == 2 {
+                        if self.#field_name.words() == 2 {
                             for ch in 0..self.#field_name.channels() {
                                 self.#field_name.set_f64(slot, ch, poly.get_cycling_f64(ch));
                             }
@@ -1038,7 +1038,7 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 }
             }
 
-            /// A port's data pointer, channel width and lanes per channel, by
+            /// A port's data pointer, channel width and words per channel, by
             /// index from [`port_index`]; `None` for an out-of-range index.
             #[inline]
             pub fn data_at(&self, port_idx: usize) -> Option<(*const f32, usize, usize)> {

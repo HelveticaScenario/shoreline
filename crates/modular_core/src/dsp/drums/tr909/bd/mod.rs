@@ -20,8 +20,8 @@ use super::noise::{NOISE_MEAN, Noise};
 use super::vco::Vco;
 use crate::dsp::drums::analog::Junction;
 use crate::dsp::drums::group::{ChannelInputs, Drum, Groups, Run};
-use crate::dsp::drums::lanes::{Lanes, Mask, Mono, Real, c, lanewise};
 use crate::dsp::drums::mna::{DC_STEP, GROUND, Mna, MnaBuilder, MnaState, STIFF, Switch};
+use crate::dsp::drums::simd::{Mask, Mono, Real, Simd, c, lanewise};
 use crate::dsp::drums::voice::{Circuit, Fire, Pulse, Quiet, Timing, Voices};
 use crate::dsp::utils::rng::seed_base;
 use crate::poly::{PolyOutput, PolySignal};
@@ -144,7 +144,7 @@ const E1_SETTLED: f32 = 0.3;
 
 /// The bass drum's circuit state.
 #[derive(Clone, Copy, Default)]
-struct Kick<L: Lanes = Mono> {
+struct Kick<L: Simd = Mono> {
     trigger: Pulse<L>,
     /// The scaled accent voltage for this hit.
     accent: L::S,
@@ -216,7 +216,7 @@ struct KickShared {
 }
 
 #[derive(Clone, Copy, Default)]
-struct KickControls<L: Lanes = Mono> {
+struct KickControls<L: Simd = Mono> {
     /// The VCO's rate relative to stock.
     rate: L::S,
     /// Conductances draining C9 and C8.
@@ -240,14 +240,14 @@ struct KickDrum;
 
 impl Drum for KickDrum {
     type Shared = KickShared;
-    type Circuit<L: Lanes> = Kick<L>;
-    type Controls<L: Lanes> = KickControls<L>;
-    type Sources<L: Lanes> = ();
+    type Circuit<L: Simd> = Kick<L>;
+    type Controls<L: Simd> = KickControls<L>;
+    type Sources<L: Simd> = ();
     const RUNS_IN_QUADS: bool = false;
     const RUNS_IN_PAIRS: bool = false;
 }
 
-impl<L: Lanes> Kick<L> {
+impl<L: Simd> Kick<L> {
     /// C7's voltage below which Q3 can no longer hold Q4 on.
     fn gate_threshold(&self) -> L::S {
         let need = (self.accent - DIODE_DROP).max(c(0.0)) / (R32 * BETA);
@@ -266,7 +266,7 @@ impl Fire for Kick {
     }
 }
 
-impl<L: Lanes> Circuit<L> for Kick<L> {
+impl<L: Simd> Circuit<L> for Kick<L> {
     type Shared = KickShared;
     type Controls = KickControls<L>;
 

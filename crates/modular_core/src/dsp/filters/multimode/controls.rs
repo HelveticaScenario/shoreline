@@ -7,7 +7,7 @@ use crate::{
     poly::{PolySignal, PolySignalExt},
 };
 
-use super::lanes::{LANES, LaneCache, Lanes};
+use super::simd::{LaneCache, SIMD_WIDTH, Simd};
 use super::svf::{CoreTuning, TuningX4};
 use super::vca::{self, GainX4};
 use super::{MultimodeParams, MultimodeParamsBlockInputs, lanes};
@@ -54,7 +54,7 @@ pub(super) struct Controls {
     pub(super) drive: LaneCache,
     pub(super) drive_x4: GainX4,
     pub(super) fold: LaneCache,
-    pub(super) fold_gains: [(f32, f32); LANES],
+    pub(super) fold_gains: [(f32, f32); SIMD_WIDTH],
     pub(super) tuning: LaneCache,
     pub(super) tuning_x4: TuningX4,
     pub(super) res: LaneCache,
@@ -106,11 +106,11 @@ fn mode_gains(mode: f32) -> (vca::Gain, vca::Gain) {
 
 /// One sample's control inputs for a group's live channels, 0 in dead lanes.
 pub(super) struct ControlInputs {
-    cutoff: [f32; LANES],
-    resonance: [f32; LANES],
-    mode: [f32; LANES],
-    drive: [f32; LANES],
-    fold: [f32; LANES],
+    cutoff: [f32; SIMD_WIDTH],
+    resonance: [f32; SIMD_WIDTH],
+    mode: [f32; SIMD_WIDTH],
+    drive: [f32; SIMD_WIDTH],
+    fold: [f32; SIMD_WIDTH],
 }
 
 impl ControlInputs {
@@ -150,7 +150,7 @@ impl ControlInputs {
 /// Slot `i` of `input` for the `active` channels from `base`, 0 for dead
 /// lanes.
 #[inline(always)]
-pub(super) fn row(input: &BlockInput, i: usize, base: usize, active: usize) -> [f32; LANES] {
+pub(super) fn row(input: &BlockInput, i: usize, base: usize, active: usize) -> [f32; SIMD_WIDTH] {
     let row = &input.row(i)[base..base + active];
     lanes(0, active, |lane| row[lane])
 }
@@ -158,7 +158,7 @@ pub(super) fn row(input: &BlockInput, i: usize, base: usize, active: usize) -> [
 /// Recomputes the control laws of the first `active` lanes whose controls
 /// changed.
 #[inline(always)]
-pub(super) fn update_controls<L: Lanes>(
+pub(super) fn update_controls<L: Simd>(
     c: &mut Controls,
     inputs: &ControlInputs,
     active: usize,

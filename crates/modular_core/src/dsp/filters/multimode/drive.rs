@@ -11,7 +11,7 @@ use std::sync::LazyLock;
 
 use super::components::{DIODE_IS, DIODE_NVT, zener_clamp};
 use super::curve::Curve;
-use super::lanes::{LANES, Lanes, clear_lane, f32x4};
+use super::simd::{SIMD_WIDTH, Simd, clear_lane, f32x4};
 
 /// Drive transimpedance feedback resistor (R24), in parallel with the zener pair.
 const R_DRIVE_FB: f64 = 30.0e3;
@@ -80,8 +80,8 @@ const ADAA_TOL: f64 = 1.0e-6;
 /// is rebuilt from `x_prev` on the next one.
 #[derive(Clone, Copy, Default)]
 struct CurveAdaa {
-    x_prev: [f64; LANES],
-    ad_prev: [f64; LANES],
+    x_prev: [f64; SIMD_WIDTH],
+    ad_prev: [f64; SIMD_WIDTH],
     stale: u8,
 }
 
@@ -137,7 +137,7 @@ pub(super) struct PreEmphasis {
 
 impl PreEmphasis {
     #[inline]
-    pub(super) fn process<L: Lanes>(&mut self, x: L) -> L {
+    pub(super) fn process<L: Simd>(&mut self, x: L) -> L {
         let (x1, x2) = (L::load(&self.x1), L::load(&self.x2));
         let y = x1 + L::splat(PRE_EMPHASIS) * (L::splat(2.0) * x1 - x - x2);
         x1.store(&mut self.x2);
@@ -165,15 +165,15 @@ impl DriveState {
     /// cancel. A path whose gain is zero on every one of the first `active`
     /// lanes is skipped.
     #[inline]
-    pub(super) fn process<L: Lanes>(
+    pub(super) fn process<L: Simd>(
         &mut self,
         curves: &DriveCurves,
         x: L,
-        gains: &[(f32, f32); LANES],
+        gains: &[(f32, f32); SIMD_WIDTH],
         active: usize,
     ) -> L {
         let x = x.to_lanes();
-        let mut y = [0.0; LANES];
+        let mut y = [0.0; SIMD_WIDTH];
         for lane in 0..active.min(L::WIDTH) {
             let (clean, folded) = gains[lane];
             let x = x[lane] as f64;
@@ -253,9 +253,9 @@ mod tests {
         let mut gated = DriveState::default();
         for n in 0..400 {
             let x = input(n);
-            let reference = always.process(&CURVES, x, &[(0.5, 2.0); LANES], 1);
+            let reference = always.process(&CURVES, x, &[(0.5, 2.0); SIMD_WIDTH], 1);
             let fold_gain = if (100..200).contains(&n) { 0.0 } else { 2.0 };
-            let y = gated.process(&CURVES, x, &[(0.5, fold_gain); LANES], 1);
+            let y = gated.process(&CURVES, x, &[(0.5, fold_gain); SIMD_WIDTH], 1);
             if fold_gain != 0.0 {
                 assert_eq!(y, reference, "sample {n}");
             }
@@ -270,19 +270,19 @@ mod tests {
         };
         let gains = [(0.5, 2.0), (0.0, 1.0), (1.0, 0.0), (0.3, 0.3)];
         let mut group = DriveState::default();
-        let mut single = [DriveState::default(); LANES];
+        let mut single = [DriveState::default(); SIMD_WIDTH];
         for n in 0..400 {
             let y = group
                 .process(
                     &CURVES,
                     f32x4::new(std::array::from_fn(|l| input(n, l))),
                     &gains,
-                    LANES,
+                    SIMD_WIDTH,
                 )
                 .to_array();
-            for lane in 0..LANES {
+            for lane in 0..SIMD_WIDTH {
                 let reference =
-                    single[lane].process(&CURVES, input(n, lane), &[gains[lane]; LANES], 1);
+                    single[lane].process(&CURVES, input(n, lane), &[gains[lane]; SIMD_WIDTH], 1);
                 assert!(
                     (y[lane] - reference).abs() < 1.0e-6,
                     "sample {n} lane {lane}"

@@ -3,7 +3,7 @@
 //! built around, and the pots and diode shapers in front of them.
 
 use crate::dsp::drums::analog::{Exp, Junction, VT, converged};
-use crate::dsp::drums::lanes::{Lanes, Mask, Real, c};
+use crate::dsp::drums::simd::{Mask, Real, Simd, c};
 
 /// The 909's trigger: a 5 V pulse 2 ms long, which each voice turns into a
 /// 15 V pulse on its own trigger transistors.
@@ -43,7 +43,7 @@ pub struct TransistorVca {
 const IS: f64 = 10.0e-15;
 
 /// A [`TransistorVca`]'s currents at one operating point.
-pub struct VcaCurrents<L: Lanes> {
+pub struct VcaCurrents<L: Simd> {
     /// Into the collector.
     pub collector: L::D,
     /// Out of the emitter, into the virtual ground.
@@ -57,14 +57,14 @@ impl TransistorVca {
     /// with both junctions conducting, by Newton on the base-emitter
     /// junction from its last solution.
     #[inline]
-    pub fn base_current<L: Lanes>(&self, volts: L::S, ohms: f32, base: &mut Junction<L>) -> L::D {
+    pub fn base_current<L: Simd>(&self, volts: L::S, ohms: f32, base: &mut Junction<L>) -> L::D {
         self.base_current_where(!L::DM::default(), volts, ohms, base)
     }
 
     /// [`Self::base_current`] in the lanes of `on`; the others draw none
     /// and keep their junction.
     #[inline(always)]
-    pub fn base_current_where<L: Lanes>(
+    pub fn base_current_where<L: Simd>(
         &self,
         on: L::DM,
         volts: L::S,
@@ -107,7 +107,7 @@ impl TransistorVca {
     /// The currents with base current `ib` and the collector at `vc`, given
     /// as its exponential at scale [`COLLECTOR`].
     #[inline]
-    pub fn currents<L: Lanes>(&self, ib: L::D, k: Exp<L>) -> VcaCurrents<L> {
+    pub fn currents<L: Simd>(&self, ib: L::D, k: Exp<L>) -> VcaCurrents<L> {
         let k = k.value;
         let (rf, rr) = (1.0 / self.beta_f, 1.0 / self.beta_r);
         let inv_d = c::<L::D>(1.0) / (k * rr + rf);
@@ -186,7 +186,7 @@ const DIODE_NVT: f64 = 1.752 * VT as f64;
 /// A diode pair's current and slope at `e`, the exponential of the voltage
 /// across it at scale [`DIODE`].
 #[inline]
-pub fn diode_pair<L: Lanes>(e: Exp<L>) -> (L::D, L::D) {
+pub fn diode_pair<L: Simd>(e: Exp<L>) -> (L::D, L::D) {
     let (e, inv) = (e.value, c::<L::D>(1.0) / e.value);
     (
         (e - inv) * DIODE_IS,
@@ -203,7 +203,7 @@ impl Shaper {
     /// their last values, in the lanes of `on`; the others keep their
     /// nodes. Returns the VCA's emitter current.
     #[inline]
-    pub fn solve<L: Lanes>(
+    pub fn solve<L: Simd>(
         &self,
         on: L::DM,
         d: &mut Junction<L>,
@@ -217,7 +217,7 @@ impl Shaper {
     /// [`Self::solve`] in the lanes where `ib` turns the transistor on; the
     /// others pass nothing.
     #[inline(always)]
-    pub fn solve_gated<L: Lanes>(
+    pub fn solve_gated<L: Simd>(
         &self,
         d: &mut Junction<L>,
         vc: &mut Junction<L>,
@@ -235,7 +235,7 @@ impl Shaper {
     /// the others pass nothing.
     #[allow(clippy::too_many_arguments)]
     #[inline(always)]
-    pub fn solve_with_gated<L: Lanes>(
+    pub fn solve_with_gated<L: Simd>(
         &self,
         d: &mut Junction<L>,
         vc: &mut Junction<L>,
@@ -255,7 +255,7 @@ impl Shaper {
     /// node through conductance `g`.
     #[allow(clippy::too_many_arguments)]
     #[inline(always)]
-    pub fn solve_with<L: Lanes>(
+    pub fn solve_with<L: Simd>(
         &self,
         on: L::DM,
         d: &mut Junction<L>,
@@ -307,7 +307,7 @@ impl Shaper {
 /// the lanes of `on`; the others keep their node. Returns the emitter
 /// current and the current drawn from the source.
 #[inline(always)]
-pub fn vca_port<L: Lanes>(
+pub fn vca_port<L: Simd>(
     vca: &TransistorVca,
     on: L::DM,
     vc: &mut Junction<L>,
@@ -342,7 +342,7 @@ pub fn vca_port<L: Lanes>(
 /// [`vca_port`] in the lanes where `ib` turns the transistor on; in the
 /// others it passes nothing, and the source sees only `ohms` and `r_load`.
 #[inline(always)]
-pub fn vca_port_gated<L: Lanes>(
+pub fn vca_port_gated<L: Simd>(
     vca: &TransistorVca,
     vc: &mut Junction<L>,
     open: L::D,

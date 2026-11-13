@@ -2062,7 +2062,7 @@ pub struct PortView {
     pub channels: usize,
     /// f32 values per channel: 2 for an f64 port (see
     /// [`BlockPort`](crate::block_port::BlockPort)), otherwise 1.
-    pub lanes: usize,
+    pub words: usize,
     /// The producing wrapper's per-block cursor: slots below it are computed.
     pub processed: *const std::cell::Cell<usize>,
 }
@@ -2087,9 +2087,9 @@ impl CableView {
     fn new(port: PortView, channel: usize) -> Self {
         Self {
             data: port.data,
-            stride: port.channels * port.lanes,
-            offset: (channel % port.channels) * port.lanes,
-            f64: port.lanes == 2,
+            stride: port.channels * port.words,
+            offset: (channel % port.channels) * port.words,
+            f64: port.words == 2,
             processed: port.processed,
         }
     }

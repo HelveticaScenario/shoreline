@@ -273,11 +273,11 @@ mod parking {
     //! so its lanes settle, park and strike again while others ring.
 
     use super::super::group::{ALONE, ChannelInputs, Drum, Groups, Run};
-    use super::super::lanes::{Lanes, Mono, Real, c, lanewise};
+    use super::super::simd::{Mono, Real, Simd, c, lanewise};
     use super::super::voice::{Circuit, Fire, Voices};
 
     #[derive(Clone, Copy, Default)]
-    struct Ring<L: Lanes = Mono> {
+    struct Ring<L: Simd = Mono> {
         level: L::S,
         phase: L::S,
     }
@@ -290,7 +290,7 @@ mod parking {
         }
     }
 
-    impl<L: Lanes> Circuit<L> for Ring<L> {
+    impl<L: Simd> Circuit<L> for Ring<L> {
         type Shared = ();
         type Controls = L::S;
 
@@ -309,9 +309,9 @@ mod parking {
 
     impl<const Q: bool, const P: bool> Drum for RingDrum<Q, P> {
         type Shared = ();
-        type Circuit<L: Lanes> = Ring<L>;
-        type Controls<L: Lanes> = L::S;
-        type Sources<L: Lanes> = ();
+        type Circuit<L: Simd> = Ring<L>;
+        type Controls<L: Simd> = L::S;
+        type Sources<L: Simd> = ();
         const RUNS_IN_QUADS: bool = Q;
         const RUNS_IN_PAIRS: bool = P;
     }
