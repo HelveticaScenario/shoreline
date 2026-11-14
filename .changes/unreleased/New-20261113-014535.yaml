@@ -1,10 +1,10 @@
 kind: New
 body: |-
-    A lane can carry a stereo pair. `$stereo(left, right)` joins two signals into one, `$left`, `$right` and `$mono` take a side or the average back out, and filters, oscillators, envelopes and the other modules that work lane by lane run on each side. A stereo signal on a param such as `$eq`'s band frequency or `$wowFlutter`'s `speed` gives each side its own. `.out()` still plays a stereo lane in the centre, so send the sides to their own outputs for now.
+    A lane can carry a stereo pair. `$stereo(left, right)` joins two signals into one, `$left`, `$right` and `$mono` take a side or the average back out, and `$mid`, `$side` and `$fromMidSide` work in mid/side. `$pan` places each lane in the stereo field, with `spread` to fan a chord out. Filters, oscillators, envelopes and the other modules that work lane by lane run on each side, and a stereo signal on a param such as `$eq`'s band frequency or `$wowFlutter`'s `speed` gives each side its own.
 
     ```js
     const pair = $stereo($saw('c3'), $saw('g3')).lpf('c6')
-    $left(pair).outMono(0)
-    $right(pair).outMono(1)
+    $fromMidSide($mid(pair), $side(pair).mul(2)).out()
+    $pan($saw($chord('C3[m9]')), 0, { spread: 4 }).out()
     ```
 time: 2026-11-13T01:45:35.438759-05:00

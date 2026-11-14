@@ -53,7 +53,7 @@ describe('computeControlQuickFixes — API methods and functions', () => {
         expect(addTitles(fixes)).toEqual([
             `Add slider for 'gain'`,
             `Add slider for 'pan'`,
-            `Add slider for 'width'`,
+            `Add slider for 'spread'`,
         ]);
         expect(apply(source, addFix(fixes, 'pan'))).toBe(
             `$sine('c4').out({ pan: $slider('pan', 0, -5, 5) })`,
