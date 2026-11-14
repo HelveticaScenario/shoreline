@@ -34,7 +34,7 @@ import {
     type ChainHost,
 } from './chainModules';
 import { captureSourceLocation } from './captureSourceLocation';
-import { MIX_SLOT, RECEIVER_SLOT } from '../../shared/dsl/outputResolutionRule';
+import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import {
     markRoot,
     OutputResolver,
@@ -49,7 +49,11 @@ import {
     isSignalGroupLike,
 } from './signalGroups';
 import type { TrackTapSources, PendingTrackTap } from './trackTap';
-import { type Channels, collectionChannels, liftedChannels } from './channels';
+import {
+    type Channels,
+    collectionChannels,
+    liftedChannels,
+} from '../../shared/dsl/channels';
 
 import z from 'zod';
 
@@ -472,11 +476,6 @@ export class BaseCollection<T extends ModuleOutput> {
     ): this {
         if (this.items.length > 0) {
             const loc = captureSourceLocation();
-            const { builder } = this.items[0];
-            // A mono out folds what may be stereo.
-            if (builder.channelsOf(this) !== 'mono') {
-                builder.outputResolver.noteFold(loc, RECEIVER_SLOT);
-            }
             this.items[0].builder.addOutMono(
                 [...this.items],
                 resolveMonoOutArgs(channelOrOptions, gainOrOptions),

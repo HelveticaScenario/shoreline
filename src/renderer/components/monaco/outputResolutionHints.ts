@@ -1,11 +1,11 @@
 /**
- * Inlay hints naming the output a module root stands for at each place it is
- * used: `$saw(seq‹._cv›).amp($perc(seq‹._trig›))`.
+ * Inlay hints naming the output a module root stands for where it is used,
+ * and folding what may be stereo where an input reads it folded:
+ * `$saw(seq‹._cv›)`, `$enosc(pair‹.mono()›)`, `$coinFlip(pair)‹._heads.mono()›.outMono()`.
  *
- * Sites the type checker resolves show as the code is typed. Sites it cannot
- * (an untyped helper parameter, say) are filled from the resolutions the
- * runtime recorded the last time the buffer ran, for as long as the value's
- * text is unchanged.
+ * All show as the code is typed. An output the type checker cannot name (an
+ * untyped helper parameter, say) comes from the runtime's last run, while the
+ * value's text is unchanged.
  */
 
 import type {
@@ -129,15 +129,19 @@ function hint(
     position: Position,
     outputs: readonly string[],
     insertable: boolean,
+    fold: boolean,
 ): languages.InlayHint {
-    const label = outputs.map((output) => `._${output}`).join(' | ');
+    const label =
+        outputs.map((output) => `._${output}`).join(' | ') +
+        (fold ? '.mono()' : '');
     return {
         label,
         position,
-        // Accepting the hint writes the output into the code, where one
+        tooltip: fold ? 'Folds a stereo signal to mono here' : undefined,
+        // Accepting the hint writes it into the code, where at most one
         // output can be written after the value.
         textEdits:
-            outputs.length === 1 && insertable
+            outputs.length <= 1 && insertable
                 ? [
                       {
                           range: active!.monaco.Range.fromPositions(position),
@@ -165,8 +169,9 @@ export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
                     hints.push(
                         hint(
                             model.getPositionAt(site.end),
-                            [site.output],
+                            site.output === undefined ? [] : [site.output],
                             site.insertable,
+                            site.fold,
                         ),
                     );
                 }
@@ -179,10 +184,20 @@ export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
                     continue;
                 }
                 const end = tracked.getEndPosition();
-                if (
-                    unresolved.get(model.getOffsetAt(end))?.slot === fill.slot
-                ) {
-                    hints.push(hint(end, fill.outputs, fill.insertable));
+                const site = unresolved.get(model.getOffsetAt(end));
+                if (site?.slot === fill.slot) {
+                    unresolved.delete(site.end);
+                    hints.push(
+                        hint(end, fill.outputs, fill.insertable, site.fold),
+                    );
+                }
+            }
+            // An unfilled root that folds still folds.
+            for (const site of unresolved.values()) {
+                if (site.fold) {
+                    hints.push(
+                        hint(model.getPositionAt(site.end), [], false, true),
+                    );
                 }
             }
             return {

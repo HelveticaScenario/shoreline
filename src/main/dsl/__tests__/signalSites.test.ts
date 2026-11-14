@@ -9,7 +9,6 @@ import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import {
     collectSignalSites,
-    collectValueSites,
     siteOfRecord,
     type SignalSite,
 } from '../../../shared/dsl/signalSites';
@@ -287,32 +286,83 @@ describe('agreement with the runtime', () => {
 });
 
 describe('fold sites', () => {
-    /** The text each fold record of `source` would write `.mono()` after. */
-    function foldedText(source: string): string[] {
-        const sites = collect(source, collectValueSites);
-        const { folds } = executePatchScript(source, schemas, {
-            sampleRate: 48_000,
-            workspaceRoot: '/workspace',
-        });
-        return folds.map((record) => {
-            const site = siteOfRecord(sites, record);
-            expect(site, record.slot).toBeDefined();
-            return source.slice(site!.start, site!.end);
-        });
+    /** Each fold of `source` as `<value>‹<hint>›`, in source order. */
+    function folds(source: string): string[] {
+        return collect(source)
+            .filter((site) => site.fold)
+            .map(
+                (site) =>
+                    `${source.slice(site.start, site.end)}‹${site.output ? `._${site.output}` : ''}.mono()›`,
+            );
     }
 
-    test('every fold finds the value it folds', () => {
-        const wide = `const wide = $stereo($saw('c3'), $saw('g3'))\n`;
-        expect(foldedText(`${wide}$enosc(wide).out()`)).toEqual(['wide']);
+    const wide = `const wide = $stereo($saw('c3'), $saw('g3'))\n`;
+
+    test('a stereo value into an input that folds', () => {
+        expect(folds(`${wide}$enosc(wide).out()`)).toEqual(['wide‹.mono()›']);
         expect(
-            foldedText(`${wide}$plate($saw('c3'), { decay: wide }).out()`),
-        ).toEqual(['wide']);
-        expect(foldedText(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
-            'wide',
+            folds(`${wide}$plate($saw('c3'), { decay: wide }).out()`),
+        ).toEqual(['wide‹.mono()›']);
+        expect(folds(`${wide}wide.enosc().out()`)).toEqual(['wide‹.mono()›']);
+    });
+
+    test('a mono out folds what it sends', () => {
+        expect(folds(`$stereo(0, 1).outMono()`)).toEqual([
+            '$stereo(0, 1)‹.mono()›',
         ]);
-        expect(foldedText(`${wide}wide.lpf('c5').outMono(0)`)).toEqual([
-            "wide.lpf('c5')",
+        expect(folds(`${wide}wide.lpf('c5').outMono(0)`)).toEqual([
+            "wide.lpf('c5')‹.mono()›",
         ]);
-        expect(foldedText(`${wide}wide.enosc().out()`)).toEqual(['wide']);
+    });
+
+    test('a module root folds through the output it reads', () => {
+        expect(folds(`$coinFlip($stereo('c', 'g')).outMono()`)).toEqual([
+            "$coinFlip($stereo('c', 'g'))‹._heads.mono()›",
+        ]);
+    });
+
+    test('an input read side by side does not fold', () => {
+        expect(folds(`${wide}$pan(wide, 2).out()`)).toEqual([]);
+        expect(folds(`${wide}$mono(wide).outMono()`)).toEqual([]);
+        expect(folds(`${wide}wide.mono().outMono()`)).toEqual([]);
+    });
+
+    test('a lifted module carries what its inputs carry', () => {
+        expect(folds(`${wide}$enosc(wide.lpf('c5').add(1)).out()`)).toEqual([
+            "wide.lpf('c5').add(1)‹.mono()›",
+        ]);
+        expect(folds(`$saw('c3').lpf('c5').outMono()`)).toEqual([]);
+        expect(folds(`$enosc($saw($sine('1hz'))).out()`)).toEqual([]);
+    });
+
+    test('plain values, patterns and controls are mono', () => {
+        expect(folds(`$enosc('c3').out()`)).toEqual([]);
+        expect(folds(`$enosc($('c3 e3')).out()`)).toEqual([]);
+        expect(folds(`const n = 3\n$enosc(n).out()`)).toEqual([]);
+        expect(folds(`$saw($clock._tempo).outMono()`)).toEqual([]);
+    });
+
+    test('an array folds element by element', () => {
+        expect(folds(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
+            'wide‹.mono()›',
+        ]);
+    });
+
+    test('a value only a run can tell may be stereo', () => {
+        expect(folds(`const d = $deferred()\n$enosc(d).out()`)).toEqual([
+            'd‹.mono()›',
+        ]);
+        expect(folds(`const f = (x) => $enosc(x).out()`)).toEqual([
+            'x‹.mono()›',
+        ]);
+        expect(folds(`$input.outMono()`)).toEqual(['$input‹.mono()›']);
+        expect(folds(`$inputMono.outMono()`)).toEqual([]);
+    });
+
+    test('a collection of mono and stereo may be stereo', () => {
+        expect(folds(`${wide}$c($saw('c3'), wide).outMono()`)).toEqual([
+            "$c($saw('c3'), wide)‹.mono()›",
+        ]);
+        expect(folds(`$c($saw('c3'), $saw('e3')).outMono()`)).toEqual([]);
     });
 });

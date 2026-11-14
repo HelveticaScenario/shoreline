@@ -6,10 +6,7 @@
  */
 
 import type { AssetKind } from './assetFiles';
-import type {
-    FoldRecord,
-    OutputResolutionRecord,
-} from './dsl/outputResolutionRule';
+import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
 import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
 import type { ReleaseNotes } from './releaseNotes';
@@ -262,8 +259,6 @@ export interface DSLExecuteResult {
     videoPreviews?: VideoPreviewSite[];
     /** Every contextual output choice made while the script ran */
     outputResolutions?: OutputResolutionRecord[];
-    /** Every value the run found folding to mono while it may be stereo */
-    folds?: FoldRecord[];
 }
 
 /**

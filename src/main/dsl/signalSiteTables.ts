@@ -15,8 +15,27 @@ import {
 /** `$delay(input, time, { feedback })`: a helper called like a module. */
 export const DELAY_SITE: ModuleSiteInfo = {
     chainable: true,
+    folds: [],
     inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
     positional: ['input', 'time'],
+    stereo: 'lift',
+};
+
+/**
+ * The globals that are signals or make them without being a module call.
+ * Patterns and panel controls are mono; `$input` pairs device channels.
+ */
+const GLOBAL_CHANNELS: SignalSiteTables['globals'] = {
+    $: 'mono',
+    $arrange: 'mono',
+    $btn: 'mono',
+    $c: 'collection',
+    $clock: 'mono',
+    $input: 'stereo',
+    $inputMono: 'mono',
+    $r: 'collection',
+    $slider: 'mono',
+    $toggleBtn: 'mono',
 };
 
 /**
@@ -28,6 +47,7 @@ export function buildSignalSiteTables(
 ): SignalSiteTables {
     const tables: SignalSiteTables = {
         chainMethods: CHAIN_METHODS,
+        globals: GLOBAL_CHANNELS,
         modules: { $delay: DELAY_SITE },
         roots: {},
     };
@@ -37,11 +57,15 @@ export function buildSignalSiteTables(
         const { flat, nested } = signalParamsOf(schema, processed);
         tables.modules[schema.name] = {
             chainable: qualifiesForChain(processed),
+            folds: (schema.signalParams ?? [])
+                .filter((param) => param.fold)
+                .map((param) => param.name),
             inputs: Object.fromEntries([
                 ...flat.map((p) => [p.name, p.inputClass] as const),
                 ...nested.map((p) => [p.name, 'cv'] as const),
             ]),
             positional: (schema.positionalArgs ?? []).map((p) => p.name),
+            stereo: schema.stereo as ModuleSiteInfo['stereo'],
         };
         if ((schema.outputs ?? []).length > 1) {
             tables.roots[qualifiedMultiOutputInterfaceName(schema)] =

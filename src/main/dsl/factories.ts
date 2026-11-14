@@ -303,34 +303,6 @@ export class DSLContext {
     }
 
     /**
-     * Note each value among `params`' `folding` inputs that may be stereo,
-     * as written: an array's elements one by one, and a `$gN` group's
-     * contents, so the editor can write `.mono()` after each.
-     */
-    private noteFolds(
-        params: Record<string, unknown>,
-        folding: readonly string[],
-        sourceLocation: CallSite | undefined,
-    ): void {
-        const visit = (value: unknown, slot: string): void => {
-            if (isSignalGroupLike(value)) {
-                visit(value.signals, slot);
-            } else if (Array.isArray(value)) {
-                value.forEach((element, i) =>
-                    visit(element, elementSlot(slot, i)),
-                );
-            } else if (this.builder.channelsOf(value) !== 'mono') {
-                this.builder.outputResolver.fold(sourceLocation, slot);
-            }
-        };
-        for (const name of folding) {
-            if (params[name] !== undefined) {
-                visit(params[name], name);
-            }
-        }
-    }
-
-    /**
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
      * contents of a `$gN` group, and spread the collections inside an array.
@@ -389,9 +361,6 @@ export class DSLContext {
         const signalParamNames = new Set(
             [...signalParams.flat, ...signalParams.nested].map((p) => p.name),
         );
-        const foldParams = (schema.signalParams ?? [])
-            .filter((p) => p.fold)
-            .map((p) => p.name);
 
         return (...args: any[]): ModuleReturn => {
             const sourceLocation = captureSourceLocation();
@@ -428,8 +397,6 @@ export class DSLContext {
                     params[key] = restConfig[key];
                 }
             }
-
-            this.noteFolds(params, foldParams, sourceLocation);
 
             for (const { inputClass, name } of signalParams.flat) {
                 params[name] = this.signalParam(
@@ -511,9 +478,7 @@ export class DSLContext {
                     ? 'mono'
                     : schema.stereo === 'stereo'
                       ? 'stereo'
-                      : schema.stereo === 'derived'
-                        ? 'unknown'
-                        : this.builder.liftedChannelsOf(Object.values(params)),
+                      : this.builder.liftedChannelsOf(Object.values(params)),
             );
 
             // Derive lane count from params using Rust-side derivation (backed by LRU cache)

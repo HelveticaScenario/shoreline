@@ -1,8 +1,8 @@
 /**
  * Whether a signal is mono or stereo, as far as the DSL can tell without
  * running the patch. The engine settles the truth when it builds the patch;
- * `'unknown'` stands for a signal only the engine can settle (a deferred
- * one, or a player whose file decides), and the editor treats it as stereo.
+ * `'unknown'` stands for a signal only the engine can settle, such as a
+ * deferred one, and the editor treats it as stereo.
  */
 
 export type Channels = 'mono' | 'stereo' | 'unknown';

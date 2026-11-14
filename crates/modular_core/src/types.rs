@@ -3038,7 +3038,7 @@ pub struct SignalParamSchema {
     #[serde(default)]
     pub bounds_need_constant: bool,
     /// Whether the module reads this input folded to `(L + R) / 2`: marked
-    /// `#[input(…, fold)]` on a stereo or file-derived module, and every
+    /// `#[input(…, fold)]` on a stereo module, and every
     /// input of a mono module but those that read both sides.
     #[serde(default)]
     pub fold: bool,
