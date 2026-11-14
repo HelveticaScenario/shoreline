@@ -52,6 +52,17 @@ export class TrackTap extends Collection {
     override slice(start?: number, end?: number): this {
         return new TrackTap(this.items.slice(start, end), this) as this;
     }
+
+    override concat(other: this): this {
+        if (!(other instanceof TrackTap)) {
+            throw new Error('concat() on a $trackTap takes another $trackTap');
+        }
+        return new TrackTap([...this.items, ...other.items], {
+            active: this.active.concat(other.active),
+            level: this.level.concat(other.level),
+            pan: this.pan.concat(other.pan),
+        }) as this;
+    }
 }
 
 /**
