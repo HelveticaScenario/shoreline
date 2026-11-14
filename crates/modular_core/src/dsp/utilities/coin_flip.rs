@@ -84,7 +84,7 @@ const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$coinFlip", stereo = mono,
+    name = "$coinFlip",
     docs = COIN_FLIP_DOCS,
     patch_update,
     args(input, probability)
@@ -114,9 +114,11 @@ impl crate::types::PatchUpdateHandler for CoinFlip {
     /// lane keeps its sequence across patch updates.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
+        let channels = self.channels();
         for (lane, state) in self.lane_state.iter_mut().enumerate() {
             if !state.seeded {
-                state.rng.seed(base, lane);
+                // A stereo lane's sides flip together.
+                state.rng.seed(base, lane / channels);
                 state.seeded = true;
             }
         }

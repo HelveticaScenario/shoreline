@@ -23984,7 +23984,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$coinFlip",
@@ -24142,7 +24142,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$scan",
@@ -24319,7 +24319,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$curve",
@@ -25054,7 +25054,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$slew",
@@ -25339,7 +25339,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$falling",
@@ -25459,7 +25459,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$math",
@@ -26975,7 +26975,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$amp",
@@ -27648,7 +27648,7 @@
     ],
     "lanesParam": "count",
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$unison",
@@ -27806,7 +27806,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "_videoTap",
@@ -30735,7 +30735,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$step",
