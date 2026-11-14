@@ -321,6 +321,12 @@ impl BlockPort {
         self.lanes
     }
 
+    /// Slots per block.
+    #[inline]
+    pub fn block_size(&self) -> usize {
+        self.block_size
+    }
+
     /// f32 values per lane: 2 for an f64 port, otherwise 1.
     #[inline]
     pub fn words(&self) -> usize {

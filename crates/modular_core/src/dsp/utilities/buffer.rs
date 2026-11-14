@@ -71,6 +71,7 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
             min_value: None,
             max_value: None,
             lanes: None,
+            mono: false,
             precision: crate::types::OutputPrecision::F32,
             bounds: crate::types::BoundsKind::Unbounded,
         }]
@@ -128,6 +129,9 @@ impl BufferWriteBlockOutputs {
     }
 
     #[inline]
+    /// No `mono` ports.
+    pub fn narrow_mono_ports(&mut self, _channels: usize) {}
+
     pub fn port_index(name: &str) -> Option<usize> {
         match name {
             "output" => Some(0),
