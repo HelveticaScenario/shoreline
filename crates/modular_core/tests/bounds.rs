@@ -6,6 +6,7 @@ use modular_core::Patch;
 use modular_core::bounds::{Bounds, Settled};
 use modular_core::dsp::get_params_deserializers;
 use modular_core::params::DeserializedParams;
+use modular_core::patch::Settlement;
 use modular_core::types::{ProcessingMode, SameIds};
 use serde_json::{Value, json};
 
@@ -20,7 +21,7 @@ fn cable(module: &str) -> Value {
 /// `modules`, each read by a `$remap` that maps it from its own range, so
 /// every bounded output stores its bounds.
 fn build(modules: &[(&str, &str, Value, ProcessingMode)]) -> Patch {
-    build_unread(&with_readers(modules))
+    build_settled(&with_readers(modules)).0
 }
 
 fn with_readers(
@@ -44,10 +45,11 @@ fn with_readers(
         .collect()
 }
 
-fn build_unread(modules: &[(String, &str, Value, ProcessingMode)]) -> Patch {
+/// `modules` as given, with what building them settled.
+fn build_settled(modules: &[(String, &str, Value, ProcessingMode)]) -> (Patch, Settlement) {
     let deserializers = get_params_deserializers();
     let mut patch = Patch::new();
-    patch
+    let settlement = patch
         .insert_modules(
             modules.iter().map(|(id, module_type, params, mode)| {
                 let cached = deserializers[*module_type](params.clone()).unwrap();
@@ -68,7 +70,7 @@ fn build_unread(modules: &[(String, &str, Value, ProcessingMode)]) -> Patch {
         )
         .unwrap();
     patch.connect_all();
-    patch
+    (patch, settlement)
 }
 
 /// Render one block, advancing every module through `steps`, `order` first.
@@ -544,11 +546,11 @@ fn only_outputs_whose_bounds_are_read_store_them() {
         .into_iter()
         .map(|(id, module_type, params, mode)| (id.to_string(), module_type, params, mode))
         .collect();
-    let patch = build_unread(&modules);
+    let (patch, settlement) = build_settled(&modules);
     render_block(&patch, &["reader", "unread", "read", "saw"], &[BLOCK_SIZE]);
     assert_eq!(read(&patch, "read", 3).1, Bounds::new(-3.0, 7.0));
     assert_eq!(read(&patch, "unread", 3).1, Bounds::UNBOUNDED);
-    assert_eq!(patch.bounds.read.get("unread"), None);
+    assert_eq!(settlement.bounds.read.get("unread"), None);
     // The reader maps from -3..7 onto 0..1: the saw at -5 reads 0.
     let (saw, _) = read(&patch, "saw", 3);
     let (mapped, _) = read(&patch, "reader", 3);
@@ -724,8 +726,8 @@ fn constants_carry_bounds_but_no_range() {
             ProcessingMode::Block,
         ),
     ];
-    let patch = build(&modules);
-    let settled = &patch.bounds;
+    let (_patch, settlement) = build_settled(&with_readers(&modules));
+    let settled = &settlement.bounds;
     for id in ["saw", "held", "declared", "offset", "moving"] {
         assert!(settled.bounded(id, "output"), "{id} is bounded");
     }
@@ -843,8 +845,8 @@ fn a_constant_beside_a_ranged_lane_gives_no_range() {
             ProcessingMode::Block,
         ),
     ];
-    let patch = build(&modules);
-    assert!(!patch.bounds.bounded("mixed", "output"));
+    let (_patch, settlement) = build_settled(&with_readers(&modules));
+    assert!(!settlement.bounds.bounded("mixed", "output"));
 }
 
 #[test]
@@ -855,8 +857,8 @@ fn a_clamp_over_a_constant_has_its_limits_for_a_range() {
         json!({ "input": 3.0, "min": 0.0, "max": 10.0 }),
         ProcessingMode::Block,
     )];
-    let patch = build(&modules);
-    assert!(patch.bounds.ranged("clamped", "output"));
+    let (patch, settlement) = build_settled(&with_readers(&modules));
+    assert!(settlement.bounds.ranged("clamped", "output"));
     render_block(&patch, &["clamped"], &[BLOCK_SIZE]);
     for slot in 0..BLOCK_SIZE {
         assert_eq!(read(&patch, "clamped", slot), (3.0, Bounds::new(0.0, 10.0)));

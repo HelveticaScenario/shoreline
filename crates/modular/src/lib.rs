@@ -1404,30 +1404,11 @@ impl Synthesizer {
             .get(&module_type)
             .map(|builder| builder(&params));
 
-        // Deserialize on main thread (no cache — slider values would pollute it)
-        let deserialized = deserialize_params(&module_type, params, false).map_err(|e| {
-            napi::Error::from_reason(format!(
-                "Failed to deserialize params for {}: {}",
-                module_type, e
-            ))
-        })?;
-
-        // Construct the module on the main thread
-        let constructors = modular_core::dsp::get_constructors();
-        let constructor = constructors.get(&module_type).ok_or_else(|| {
-            napi::Error::from_reason(format!("Unknown module type: {}", module_type))
-        })?;
-        let module = constructor(
-            &module_id,
-            self.sample_rate,
-            deserialized,
-            self.state.block_size,
-            modular_core::types::ProcessingMode::Block,
-        )
-        .map_err(|e| {
-            napi::Error::from_reason(format!("Failed to create module {}: {}", module_id, e))
-        })?;
-        self.state.settle_rebuilt(&module_id, module.as_ref());
+        // Uncached: slider values would pollute the params cache.
+        let module = self
+            .state
+            .rebuild_module(&module_id, &module_type, params, self.sample_rate)
+            .map_err(napi::Error::from_reason)?;
 
         self.state.send_command(GraphCommand::SingleModuleUpdate {
             module_id: module_id.clone(),

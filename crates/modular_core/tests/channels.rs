@@ -3,8 +3,9 @@
 //! port stores lane `l` side `c` at `l * channels + c`.
 
 use modular_core::Patch;
-use modular_core::dsp::{get_params_deserializers, schema};
+use modular_core::dsp::{get_constructors, get_params_deserializers, schema};
 use modular_core::params::DeserializedParams;
+use modular_core::patch::Settlement;
 use modular_core::types::{ProcessingMode, SameIds};
 use serde_json::{Value, json};
 
@@ -15,9 +16,14 @@ fn cable(module: &str, lane: usize) -> Value {
 }
 
 fn build(modules: &[(&str, &str, Value)]) -> Result<Patch, String> {
+    build_settled(modules).map(|(patch, _)| patch)
+}
+
+/// `modules`, with what building them settled.
+fn build_settled(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement), String> {
     let deserializers = get_params_deserializers();
     let mut patch = Patch::new();
-    patch.insert_modules(
+    let settlement = patch.insert_modules(
         modules.iter().map(|(id, module_type, params)| {
             let cached = deserializers[*module_type](params.clone()).unwrap();
             (
@@ -36,7 +42,7 @@ fn build(modules: &[(&str, &str, Value)]) -> Result<Patch, String> {
         1,
     )?;
     patch.connect_all();
-    Ok(patch)
+    Ok((patch, settlement))
 }
 
 fn default_port(module_type: &str) -> String {
@@ -102,6 +108,41 @@ fn a_lifted_module_runs_each_side() {
     ])
     .unwrap();
     assert_eq!(step(&patch, "sum"), [11.0, 12.0]);
+}
+
+#[test]
+fn a_module_rebuilt_on_its_own_keeps_its_settled_channels() {
+    let (mut patch, settlement) = build_settled(&[
+        ("l", "$signal", signal(json!(1.0))),
+        ("r", "$signal", signal(json!(2.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "sum",
+            "$add",
+            json!({ "input": cable("st", 0), "offset": 10.0 }),
+        ),
+    ])
+    .unwrap();
+    let cached =
+        get_params_deserializers()["$add"](json!({ "input": cable("st", 0), "offset": 20.0 }))
+            .unwrap();
+    let mut params = DeserializedParams {
+        params: cached.params,
+        lane_count: cached.lane_count,
+        f64_inputs: false,
+        channels: 1,
+    };
+    let mode = settlement.prepare_rebuilt("sum", &mut params).unwrap();
+    assert_eq!(mode, ProcessingMode::Sample);
+    let rebuilt = get_constructors()["$add"]("sum", SAMPLE_RATE, params, 1, mode).unwrap();
+    settlement.settle_rebuilt("sum", rebuilt.as_ref());
+    patch.sampleables.insert("sum".into(), rebuilt);
+    patch.connect_all();
+    assert_eq!(step(&patch, "sum"), [21.0, 22.0]);
 }
 
 #[test]

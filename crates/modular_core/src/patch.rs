@@ -7,7 +7,8 @@
 use crate::bounds::Settled;
 use crate::dsp::core::audio_in::AudioIn;
 use crate::types::{
-    CableSource, Message, MessageTag, ROOT_ID, ROOT_OUTPUT_PORT, Sampleable, SampleableMap, WavData,
+    CableSource, Message, MessageTag, ProcessingMode, ROOT_ID, ROOT_OUTPUT_PORT, Sampleable,
+    SampleableMap, WavData,
 };
 
 use std::collections::HashMap;
@@ -18,10 +19,6 @@ pub struct Patch {
     pub sampleables: SampleableMap,
     pub wav_data: HashMap<String, Arc<WavData>>,
     message_listeners: HashMap<MessageTag, Vec<String>>,
-    /// Which outputs are bounded and read, from the last
-    /// [`insert_modules`](Self::insert_modules). Main thread only: a module
-    /// rebuilt on its own settles from here.
-    pub bounds: PatchBounds,
 }
 
 /// Which outputs of a patch are bounded and ranged so far, as bits by port
@@ -80,12 +77,52 @@ impl Settled for PatchBounds {
     }
 }
 
-impl PatchBounds {
-    /// Settle a module rebuilt on its own, under the same id, as its
-    /// predecessor was settled. Main thread, before it is shipped.
+/// How building a patch settled one module.
+#[derive(Clone, Debug)]
+pub struct SettledModule {
+    pub module_type: String,
+    pub mode: ProcessingMode,
+    pub f64_inputs: bool,
+    /// Channels per lane: 1 for mono, 2 for stereo.
+    pub channels: usize,
+}
+
+/// What building a patch settled, which a module rebuilt on its own under the
+/// same id is settled by again, since a lone module cannot settle what
+/// depends on the rest of the graph.
+#[derive(Clone, Debug, Default)]
+pub struct Settlement {
+    pub bounds: PatchBounds,
+    pub modules: HashMap<String, SettledModule>,
+}
+
+impl Settlement {
+    /// Prepare `params`, deserialized for a module rebuilt on its own as
+    /// `id`, as the patch prepared its predecessor, returning the processing
+    /// mode to construct it in. Main thread, before construction.
+    pub fn prepare_rebuilt(
+        &self,
+        id: &str,
+        params: &mut crate::params::DeserializedParams,
+    ) -> Result<ProcessingMode, String> {
+        let Some(settled) = self.modules.get(id) else {
+            return Ok(ProcessingMode::default());
+        };
+        let layouts = crate::dsp::stereo_layouts();
+        params.f64_inputs = settled.f64_inputs;
+        settle_module_channels(id, settled.channels, params, &|module, port| {
+            self.modules.get(module).map_or(1, |producer| {
+                producer_channels(layouts, &producer.module_type, port, producer.channels)
+            })
+        })?;
+        Ok(settled.mode)
+    }
+
+    /// Settle the bounds of a module rebuilt on its own, under the same id, as
+    /// its predecessor was settled. Main thread, before it is shipped.
     pub fn settle_rebuilt(&self, id: &str, module: &dyn Sampleable) {
-        module.settle_params(self);
-        module.make_bounded(self.read.get(id).copied().unwrap_or(0));
+        module.settle_params(&self.bounds);
+        module.make_bounded(self.bounds.read.get(id).copied().unwrap_or(0));
     }
 }
 
@@ -109,7 +146,6 @@ impl Patch {
             sampleables,
             wav_data: HashMap::new(),
             message_listeners: HashMap::new(),
-            bounds: PatchBounds::default(),
         };
         patch.rebuild_message_listeners();
         patch
@@ -167,7 +203,8 @@ impl Patch {
     }
 
     /// Construct each module from already-deserialized params at its resolved
-    /// processing mode and insert it unconnected. Main thread only.
+    /// processing mode and insert it unconnected, returning what the patch
+    /// settled. Main thread only.
     pub fn insert_modules(
         &mut self,
         modules: impl IntoIterator<
@@ -180,10 +217,22 @@ impl Patch {
         >,
         sample_rate: f32,
         block_size: usize,
-    ) -> Result<(), String> {
+    ) -> Result<Settlement, String> {
         let constructors = crate::dsp::get_constructors();
         let mut modules: Vec<_> = modules.into_iter().collect();
         settle_channels(&mut modules)?;
+        let settled_modules = modules
+            .iter()
+            .map(|(id, module_type, params, mode)| {
+                let settled = SettledModule {
+                    module_type: module_type.clone(),
+                    mode: *mode,
+                    f64_inputs: params.f64_inputs,
+                    channels: params.channels,
+                };
+                (id.clone(), settled)
+            })
+            .collect();
         for (id, module_type, params, mode) in modules {
             let constructor = constructors
                 .get(&module_type)
@@ -192,8 +241,10 @@ impl Patch {
                 .map_err(|e| format!("Failed to create module {}: {}", id, e))?;
             self.sampleables.insert(id, module);
         }
-        self.settle_bounds();
-        Ok(())
+        Ok(Settlement {
+            bounds: self.settle_bounds(),
+            modules: settled_modules,
+        })
     }
 
     /// Settle which outputs carry bounds and give them their storage.
@@ -206,13 +257,12 @@ impl Patch {
     /// stores its bounds only when something reads them: a module that reads
     /// an input's bounds for itself, or a read output whose bounds come from
     /// it. Each module then settles the choices it makes from which of its
-    /// inputs are bounded or ranged. The result is left in
-    /// [`bounds`](Self::bounds).
+    /// inputs are bounded or ranged.
     ///
     /// Main thread, once the modules are constructed and before
     /// [`connect_all`](Self::connect_all): it replaces the storage cables
     /// point into.
-    fn settle_bounds(&mut self) {
+    fn settle_bounds(&mut self) -> PatchBounds {
         let index = |module: &str, port: &str| {
             self.sampleables
                 .get(module)
@@ -291,7 +341,7 @@ impl Patch {
             module.make_bounded(stored.get(id).copied().unwrap_or(0));
         }
         settled.read = stored;
-        self.bounds = settled;
+        settled
     }
 
     /// Resolve every module's cable pointers, then notify each that the patch is
@@ -357,15 +407,9 @@ fn settle_channels(
         })
         .collect();
     let producer = |channels: &HashMap<String, usize>, module: &str, port: &str| {
-        let follows = types
-            .get(module)
-            .and_then(|module_type| layouts.get(module_type))
-            .is_some_and(|layout| layout.following_ports.contains(port));
-        if follows {
-            channels.get(module).copied().unwrap_or(1)
-        } else {
-            1
-        }
+        types.get(module).map_or(1, |module_type| {
+            producer_channels(layouts, module_type, port, channels[module])
+        })
     };
     loop {
         let mut grew = false;
@@ -382,23 +426,48 @@ fn settle_channels(
             break;
         }
     }
-    let producer_channels = |module: &str, port: &str| producer(&channels, module, port);
+    let channels_of = |module: &str, port: &str| producer(&channels, module, port);
     for (id, _, params, _) in modules.iter_mut() {
-        let module_channels = channels[id.as_str()];
-        let lanes = params.lane_count.max(1);
-        if lanes * module_channels > crate::poly::PORT_MAX_LANES {
-            return Err(format!(
-                "{id} is stereo with {lanes} lanes, more than the {} a stereo signal can carry",
-                crate::poly::PORT_MAX_LANES / module_channels
-            ));
-        }
-        params.params.expand_lanes(&crate::types::LaneExpansion {
-            channels: module_channels,
-            producer: &producer_channels,
-        });
-        params.lane_count *= module_channels;
-        params.channels = module_channels;
+        settle_module_channels(id, channels[id.as_str()], params, &channels_of)?;
     }
+    Ok(())
+}
+
+/// Channels of `port` on a `module_type` module settled with `channels`: an
+/// output that follows its module has its channels, any other is mono.
+fn producer_channels(
+    layouts: &HashMap<String, crate::dsp::StereoLayout>,
+    module_type: &str,
+    port: &str,
+    channels: usize,
+) -> usize {
+    let follows = layouts
+        .get(module_type)
+        .is_some_and(|layout| layout.following_ports.contains(port));
+    if follows { channels } else { 1 }
+}
+
+/// Give module `id` its settled `channels`: its lane count then counts sides,
+/// and its inputs read their producers' physical lanes, whose channels
+/// `producer` gives by module and port.
+fn settle_module_channels(
+    id: &str,
+    channels: usize,
+    params: &mut crate::params::DeserializedParams,
+    producer: &dyn Fn(&str, &str) -> usize,
+) -> Result<(), String> {
+    let lanes = params.lane_count.max(1);
+    if lanes * channels > crate::poly::PORT_MAX_LANES {
+        return Err(format!(
+            "{id} is stereo with {lanes} lanes, more than the {} a stereo signal can carry",
+            crate::poly::PORT_MAX_LANES / channels
+        ));
+    }
+    params
+        .params
+        .expand_lanes(&crate::types::LaneExpansion { channels, producer });
+    params.lane_count *= channels;
+    params.channels = channels;
     Ok(())
 }
 
