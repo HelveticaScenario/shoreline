@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PairSignal, PolyOutput, PolySignal};
+use crate::poly::{PairSignal, PolyOutput};
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -70,7 +70,7 @@ message_handlers!(impl Stereo {});
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MonoParams {
     #[input("the signal to fold", type = audio)]
-    input: PolySignal,
+    input: PairSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -103,7 +103,7 @@ impl Mono {
         for lane in 0..self.lane_count() {
             self.outputs
                 .sample
-                .set(lane, self.params.input.get_value(lane));
+                .set(lane, self.params.input.get_folded(lane));
         }
     }
 }
@@ -230,7 +230,7 @@ impl Mid {
         for lane in 0..self.lane_count() {
             self.outputs
                 .sample
-                .set(lane, self.params.input.get_value(lane));
+                .set(lane, self.params.input.get_folded(lane));
         }
     }
 }

@@ -1284,7 +1284,15 @@ fn impl_module_macro_attr(
                     },
                     outputs,
                     buffer_outputs: <#outputs_ty as crate::types::OutputStruct>::buffer_port_names(),
-                    signal_params: <#params_struct_name as crate::types::SignalParamMeta>::signal_param_schemas(),
+                    signal_params: {
+                        let mut params = <#params_struct_name as crate::types::SignalParamMeta>::signal_param_schemas();
+                        if #stereo_mode == crate::types::StereoMode::Mono {
+                            for param in &mut params {
+                                param.fold = !param.reads_sides;
+                            }
+                        }
+                        params
+                    },
                     positional_args: vec![
                         #(#positional_args_exprs),*
                     ],

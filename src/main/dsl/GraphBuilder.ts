@@ -34,7 +34,7 @@ import {
     type ChainHost,
 } from './chainModules';
 import { captureSourceLocation } from './captureSourceLocation';
-import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
+import { MIX_SLOT, RECEIVER_SLOT } from '../../shared/dsl/outputResolutionRule';
 import {
     markRoot,
     OutputResolver,
@@ -49,6 +49,7 @@ import {
     isSignalGroupLike,
 } from './signalGroups';
 import type { TrackTapSources, PendingTrackTap } from './trackTap';
+import { type Channels, collectionChannels, liftedChannels } from './channels';
 
 import z from 'zod';
 
@@ -452,6 +453,11 @@ export class BaseCollection<T extends ModuleOutput> {
     ): this {
         if (this.items.length > 0) {
             const loc = captureSourceLocation();
+            const { builder } = this.items[0];
+            // A mono out folds what may be stereo.
+            if (builder.channelsOf(this) !== 'mono') {
+                builder.outputResolver.noteFold(loc, RECEIVER_SLOT);
+            }
             this.items[0].builder.addOutMono(
                 [...this.items],
                 resolveMonoOutArgs(channelOrOptions, gainOrOptions),
@@ -704,6 +710,8 @@ export class GraphBuilder implements ChainHost {
     private modules = new Map<string, ModuleSpec>();
     /** The output ports handed out as ranged, as `module:port`. */
     private rangedPorts = new Set<string>();
+    /** Each module's channels as the DSL settles them; unlisted is mono. */
+    private moduleChannels = new Map<string, Channels>();
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
     private schemaByName = new Map<string, ProcessedModuleSchema>();
@@ -837,6 +845,68 @@ export class GraphBuilder implements ChainHost {
      */
     getModule(id: string): ModuleSpec | undefined {
         return this.modules.get(id);
+    }
+
+    /** Set the channels module `id`'s lane-following outputs carry. */
+    setModuleChannels(id: string, channels: Channels): void {
+        this.moduleChannels.set(id, channels);
+    }
+
+    /**
+     * The channels each lane of `value` carries: an output or collection, an
+     * array or `$gN` group of them, a `$buffer` reference, or anything
+     * holding them. A deferred lane is unknown until the engine settles it.
+     */
+    private *laneChannels(value: unknown): Generator<Channels> {
+        if (value instanceof DeferredModuleOutput) {
+            yield 'unknown';
+        } else if (value instanceof ModuleOutput) {
+            const spec = this.modules.get(value.moduleId);
+            const output = spec
+                ? this.schemaByName
+                      .get(spec.moduleType)
+                      ?.outputs.find((o) => o.name === value.portName)
+                : undefined;
+            yield output?.mono
+                ? 'mono'
+                : (this.moduleChannels.get(value.moduleId) ?? 'mono');
+        } else if (value instanceof BaseCollection) {
+            for (const item of value.items) {
+                yield* this.laneChannels(item);
+            }
+        } else if (Array.isArray(value)) {
+            for (const item of value) {
+                yield* this.laneChannels(item);
+            }
+        } else if (isSignalGroupLike(value)) {
+            yield* this.laneChannels(value.signals);
+        } else if (isPlainObject(value)) {
+            const ref = value as { type?: unknown; module?: unknown };
+            if (ref.type === 'buffer_ref' && typeof ref.module === 'string') {
+                yield this.moduleChannels.get(ref.module) ?? 'mono';
+                return;
+            }
+            for (const field of Object.values(value)) {
+                yield* this.laneChannels(field);
+            }
+        }
+    }
+
+    /** The channels of `value`: mono or stereo when every lane is. */
+    channelsOf(value: unknown): Channels {
+        return collectionChannels(this.laneChannels(value));
+    }
+
+    /** The channels a lifted module reading `inputs` lane by lane settles to. */
+    liftedChannelsOf(inputs: Iterable<unknown>): Channels {
+        const lanes = this.laneChannels.bind(this);
+        return liftedChannels(
+            (function* () {
+                for (const input of inputs) {
+                    yield* lanes(input);
+                }
+            })(),
+        );
     }
 
     /** Record that module `moduleId`'s `port` is ranged. */
@@ -1810,11 +1880,18 @@ export class GraphBuilder implements ChainHost {
         }
 
         const outputs = Array.isArray(value) ? value : [value];
-        const lanes = outputs.map((o) => ({
-            lane: o.lane,
-            moduleId: o.moduleId,
-            portName: o.portName,
-        }));
+        // A lane that may be stereo draws both sides; a mono one reads the
+        // same on either, so its second trace would only repeat the first.
+        const lanes = outputs.flatMap((o) => {
+            const lane = {
+                lane: o.lane,
+                moduleId: o.moduleId,
+                portName: o.portName,
+            };
+            return this.channelsOf(o) === 'mono'
+                ? [lane]
+                : [lane, { ...lane, side: 1 }];
+        });
 
         this.scopes.push({
             lanes,
@@ -1865,6 +1942,7 @@ export class GraphBuilder implements ChainHost {
             lane: lane.lane,
             moduleId: resolved.moduleId,
             portName: resolved.portName,
+            side: lane.side,
         };
     }
 }

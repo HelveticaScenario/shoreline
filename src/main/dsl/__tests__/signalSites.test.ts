@@ -9,6 +9,7 @@ import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import {
     collectSignalSites,
+    collectValueSites,
     siteOfRecord,
     type SignalSite,
 } from '../../../shared/dsl/signalSites';
@@ -28,7 +29,10 @@ const OPTIONS: ts.CompilerOptions = {
     target: ts.ScriptTarget.ES2020,
 };
 
-function collect(source: string): SignalSite[] {
+function collect(
+    source: string,
+    collector: typeof collectSignalSites = collectSignalSites,
+): SignalSite[] {
     const files: Record<string, string> = {
         'dsl.d.ts': lib,
         'patch.js': source,
@@ -42,7 +46,7 @@ function collect(source: string): SignalSite[] {
     host.fileExists = (name) => name in files || ts.sys.fileExists(name);
     host.readFile = (name) => files[name] ?? ts.sys.readFile(name);
     const program = ts.createProgram(Object.keys(files), OPTIONS, host);
-    return collectSignalSites(
+    return collector(
         ts,
         program.getSourceFile('patch.js')!,
         program.getTypeChecker(),
@@ -274,5 +278,36 @@ describe('agreement with the runtime', () => {
                 JSON.stringify(site),
             ).toBe(true);
         }
+    });
+});
+
+describe('fold sites', () => {
+    /** The text each fold record of `source` would write `.mono()` after. */
+    function foldedText(source: string): string[] {
+        const sites = collect(source, collectValueSites);
+        const { folds } = executePatchScript(source, schemas, {
+            sampleRate: 48_000,
+            workspaceRoot: '/workspace',
+        });
+        return folds.map((record) => {
+            const site = siteOfRecord(sites, record);
+            expect(site, record.slot).toBeDefined();
+            return source.slice(site!.start, site!.end);
+        });
+    }
+
+    test('every fold finds the value it folds', () => {
+        const wide = `const wide = $stereo($saw('c3'), $saw('g3'))\n`;
+        expect(foldedText(`${wide}$enosc(wide).out()`)).toEqual(['wide']);
+        expect(
+            foldedText(`${wide}$plate($saw('c3'), { decay: wide }).out()`),
+        ).toEqual(['wide']);
+        expect(foldedText(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
+            'wide',
+        ]);
+        expect(foldedText(`${wide}wide.lpf('c5').outMono(0)`)).toEqual([
+            "wide.lpf('c5')",
+        ]);
+        expect(foldedText(`${wide}wide.enosc().out()`)).toEqual(['wide']);
     });
 });

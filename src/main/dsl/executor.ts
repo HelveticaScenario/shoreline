@@ -44,7 +44,10 @@ import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { VIDEO_CV_RANGE } from '../../shared/dsl/controlRanges';
 import { assertControlsPlaced } from './controlPlacement';
-import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
+import type {
+    FoldRecord,
+    OutputResolutionRecord,
+} from '../../shared/dsl/outputResolutionRule';
 import { $p } from './miniNotation';
 import { DELAY_SITE } from './signalSiteTables';
 import { setActiveCycleFactory } from './patterns';
@@ -90,6 +93,8 @@ export interface DSLExecutionResult {
     videoPreviews: VideoPreviewSite[];
     /** Every contextual output choice made while the script ran */
     outputResolutions: OutputResolutionRecord[];
+    /** Every value the run found folding to mono while it may be stereo */
+    folds: FoldRecord[];
 }
 
 /** The bands of a `$xover`. */
@@ -406,6 +411,7 @@ export function executePatchScript(
         // Resolve the input signal and set params
         const resolvedInput = replaceSignals(input);
         node._setParam('input', resolvedInput);
+        builder.setModuleChannels(node.id, builder.liftedChannelsOf([input]));
         node._setParam('length', lengthSeconds);
 
         // Derive lane count from the input signal
@@ -1064,6 +1070,7 @@ export function executePatchScript(
             eqPanels: resultBuilder.getEqPanels(),
             interpolationResolutions,
             outputResolutions: resultBuilder.outputResolver.records,
+            folds: resultBuilder.outputResolver.folds,
             patch,
             sliders: controls.sliders,
             sourceLocationMap,
