@@ -28,6 +28,7 @@ struct ChorusParams {
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     amount: Option<LaneSum>,
@@ -36,6 +37,7 @@ struct ChorusParams {
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     depth: Option<LaneSum>,

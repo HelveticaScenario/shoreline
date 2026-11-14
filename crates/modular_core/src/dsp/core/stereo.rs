@@ -12,9 +12,9 @@ use crate::poly::{PairSignal, PolyOutput, PolySignal};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoParams {
-    #[input("the left side", type = audio)]
+    #[input("the left side", type = audio, fold)]
     left: PairSignal,
-    #[input("the right side", type = audio)]
+    #[input("the right side", type = audio, fold)]
     right: PairSignal,
 }
 
@@ -276,9 +276,9 @@ message_handlers!(impl SideOf {});
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FromMidSideParams {
-    #[input("what both sides share", type = audio)]
+    #[input("what both sides share", type = audio, fold)]
     mid: PairSignal,
-    #[input("what makes the signal wide", type = audio)]
+    #[input("what makes the signal wide", type = audio, fold)]
     side: PairSignal,
 }
 

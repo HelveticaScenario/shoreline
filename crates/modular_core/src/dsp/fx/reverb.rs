@@ -130,6 +130,7 @@ struct ReverbParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     decay: Option<LaneSum>,
@@ -138,6 +139,7 @@ struct ReverbParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     damping: Option<LaneSum>,
@@ -146,6 +148,7 @@ struct ReverbParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     size: Option<LaneSum>,
@@ -154,6 +157,7 @@ struct ReverbParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     width: Option<LaneSum>,
@@ -162,6 +166,7 @@ struct ReverbParams {
         type = control,
         default = 0.0,
         range = (0.0, 0.5),
+        fold,
     )]
     #[deserr(default)]
     predelay: Option<LaneSum>,
@@ -170,6 +175,7 @@ struct ReverbParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     modulation: Option<LaneSum>,

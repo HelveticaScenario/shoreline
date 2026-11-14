@@ -98,6 +98,7 @@ struct PlateParams {
         type = control,
         default = 2.02,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     bandwidth: Option<LaneSum>,
@@ -106,6 +107,7 @@ struct PlateParams {
         type = control,
         default = 4.09,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     damping: Option<LaneSum>,
@@ -114,6 +116,7 @@ struct PlateParams {
         type = control,
         default = -2.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     decay: Option<LaneSum>,
@@ -122,6 +125,7 @@ struct PlateParams {
         type = control,
         default = 0.0,
         control_range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     modulation: Option<LaneSum>,

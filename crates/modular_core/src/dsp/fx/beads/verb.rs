@@ -110,6 +110,7 @@ struct BeadsReverbParams {
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     amount: Option<LaneSum>,
@@ -118,6 +119,7 @@ struct BeadsReverbParams {
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     size: Option<LaneSum>,
@@ -126,6 +128,7 @@ struct BeadsReverbParams {
         type = control,
         default = 1.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     tone: Option<LaneSum>,
