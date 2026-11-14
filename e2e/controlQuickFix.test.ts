@@ -9,8 +9,6 @@ import { test, expect, openUntitledBuffer } from './fixtures';
 
 /** Put `code` in the patch editor with the caret at the `|` marker. */
 async function setCode(page: Page, marked: string) {
-    const column = marked.indexOf('|') + 1;
-    const code = marked.replace('|', '');
     await page.evaluate(
         ({ code, column }) => {
             const ed = window.monaco.editor
@@ -20,7 +18,7 @@ async function setCode(page: Page, marked: string) {
             ed.setPosition({ column, lineNumber: 1 });
             ed.focus();
         },
-        { code, column },
+        { code: marked.replace('|', ''), column: marked.indexOf('|') + 1 },
     );
 }
 
@@ -37,12 +35,11 @@ async function quickFixTitles(page: Page): Promise<string[]> {
 }
 
 async function editorValue(page: Page): Promise<string> {
-    return page.evaluate(
-        () =>
-            window.monaco.editor
-                .getEditors()
-                .find((e) => e.getModel()?.getLanguageId() === 'javascript')!
-                .getValue(),
+    return page.evaluate(() =>
+        window.monaco.editor
+            .getEditors()
+            .find((e) => e.getModel()?.getLanguageId() === 'javascript')!
+            .getValue(),
     );
 }
 
@@ -67,7 +64,7 @@ test.describe('control quick-fixes', () => {
             .dispatchEvent('click');
         await expect
             .poll(() => editorValue(window))
-            .toContain(`$slider('resonance', 2.5, 0, 5)`);
+            .toContain('$slider(`resonance`, 2.5, 0, 5)');
     });
 
     test('an audio input offers no wrap', async ({ window }) => {
@@ -88,8 +85,9 @@ test.describe('control quick-fixes', () => {
     test('API method params still get controls', async ({ window }) => {
         await setCode(window, `$saw('a3').out(|)`);
         const titles = await quickFixTitles(window);
-        expect(titles.some((t) => t.includes(`'gain'`)), titles.join('\n')).toBe(
-            true,
-        );
+        expect(
+            titles.some((t) => t.includes(`'gain'`)),
+            titles.join('\n'),
+        ).toBe(true);
     });
 });

@@ -27,7 +27,6 @@ import {
     DeferredCollection,
     Bus,
     cycleToLanes,
-    withCarried,
     replaceSignals,
     PORT_MAX_LANES,
 } from './GraphBuilder';
@@ -490,15 +489,14 @@ export function executePatchScript(
      * colours every recirculation. With `feedback = 0` you still hear the first
      * echo; higher values repeat it.
      *
-     * Returns the wet `$delayRead` output with the captured `buffer` attached
-     * as a property for additional taps. Mix the dry signal back yourself
+     * Returns the wet `$delayRead` output. Mix the dry signal back yourself
      * (`$mix([input, $delay(input, time)])`) or use `.delay(time).wet(mix)`.
      */
     const $delay = (
         input: Collection,
         time: PolySignal,
         opts?: DelayOptions,
-    ): Collection & { buffer: BufferOutputRef } => {
+    ): Collection => {
         const signals: Record<string, unknown> = {
             feedback: opts?.feedback,
             input,
@@ -546,7 +544,7 @@ export function executePatchScript(
                 const buf = $buffer(buffered, maxTime);
                 const delayed = $delayRead(buf, time) as Collection;
                 def.set(builder.getFactory('$amp')(delayed, feedback));
-                return withCarried(delayed, { buffer: buf });
+                return delayed;
             },
         );
     };

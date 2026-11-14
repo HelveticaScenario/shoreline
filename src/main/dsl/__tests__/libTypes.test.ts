@@ -91,6 +91,30 @@ describe('generated DSL lib', () => {
         expect(patchErrors).toEqual([]);
     });
 
+    test('concat joins collections of one type and keeps that type', () => {
+        const patchErrors = diagnostics(`
+                $sine('c3').concat($saw('e3')).out();
+                $sine('1hz').range(0, 1).concat($sine('2hz')).range(0, 5);
+                const oscs = $enosc('c3').concat($enosc('g3'));
+                oscs._all.out();
+                $saw(oscs).out();
+                const seq = $p('c4 e4').concat($p('g3 b3'));
+                $perc(seq._trig).out();
+                seq.concat($p('c5'))._gate.scope();
+                const tap = $trackTap('bass').concat($trackTap('lead'));
+                tap.level.range(0, 1);
+            `).filter((d) => d.startsWith(PATCH_FILE));
+        expect(patchErrors).toEqual([]);
+    });
+
+    test('concat rejects a collection of another type', () => {
+        const patchErrors = diagnostics(`
+                $enosc('c3').concat($sine('c3'));
+                $p('c4').concat($enosc('c3'));
+            `).filter((d) => d.startsWith(PATCH_FILE));
+        expect(patchErrors).toHaveLength(2);
+    });
+
     test('an arithmetic method needs its operand', () => {
         const patchErrors = diagnostics(`$sine('c3').add().out();`).filter(
             (d) => d.startsWith(PATCH_FILE),

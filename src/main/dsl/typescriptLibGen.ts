@@ -507,6 +507,16 @@ interface Pattern extends PatternModule {
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
+  /**
+   * This pattern's \`$cycle\` sequencer followed by \`other\`'s, as one
+   * sequencer signal with each of their outputs joined lane by lane.
+   *
+   * \`\`\`js
+   * const seq = $p("c4 e4").concat($p("g3 b3"))
+   * $saw(seq).amp($perc(seq)).out()
+   * \`\`\`
+   */
+  concat(other: Pattern | CycleOutputs): CycleOutputs;
 }
 
 /**
@@ -752,6 +762,21 @@ class BaseCollection {
    * @param size Lanes per chunk (a positive integer)
    */
   chunk(size: number): this[];
+
+  /**
+   * This collection's lanes followed by those of \`other\`, a collection of
+   * the same type. A module with several outputs joins output by output: the
+   * result has every output by name and still stands for whichever fits the
+   * input it is plugged into.
+   *
+   * \`\`\`js
+   * const oscs = $enosc('c3').concat($enosc('g3'))
+   * oscs.out()
+   * oscs._root.lpf('400hz').outMono(2)
+   * \`\`\`
+   * @param other A collection of the same type
+   */
+  concat(other: this): this;
 
   /**
    * Add scope visualization for all lanes, overlaid on one scope unless \`split\` is set.
@@ -2348,7 +2373,7 @@ export function generateDSL(schemas: Schemas): string {
         '',
         '`feedback` is 0-5 (5 = unity), clamped, default 2.5. `maxTime` (default',
         '5) sizes the buffer and caps how long `time` can be. Returns the wet',
-        'signal with the captured `buffer` attached for extra taps.',
+        'signal.',
         '',
         '```js',
         '// mix the dry signal back in for a classic echo',
@@ -2375,7 +2400,7 @@ export function generateDSL(schemas: Schemas): string {
     ];
     lines.push(...renderDelayDoc('', []));
     lines.push(
-        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
+        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
 
     // Chain methods. The qualifying set matches the runtime's exactly: both
@@ -2460,7 +2485,7 @@ export function generateDSL(schemas: Schemas): string {
     }
     lines.push(
         ...renderDelayDoc('  ', chainDelayHeader),
-        `  delay(time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
+        `  delay(time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
     lines.push('}');
 

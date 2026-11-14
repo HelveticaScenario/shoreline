@@ -1,7 +1,18 @@
 import React from 'react';
-import type { AppConfig, PrettierConfig } from '../../shared/ipcTypes';
+import type {
+    AppConfig,
+    PrettierConfig,
+    QuoteStyle,
+} from '../../shared/ipcTypes';
+import { resolvePrettierOptions } from './monaco/formattingProvider';
 
 const TRAILING_COMMA_OPTIONS = ['all', 'es5', 'none'] as const;
+
+const QUOTE_OPTIONS: { label: string; value: QuoteStyle }[] = [
+    { label: "Single: 'text'", value: 'single' },
+    { label: 'Double: "text"', value: 'double' },
+    { label: 'Backtick: `text`', value: 'backtick' },
+];
 
 interface FormatterSettingsTabProps {
     config: AppConfig;
@@ -78,19 +89,29 @@ export function FormatterSettingsTab({
                 </label>
             </div>
 
-            {/* Single Quotes */}
+            {/* Quotes */}
             <div className="settings-section">
-                <h3>Single Quotes</h3>
-                <label className="settings-toggle">
-                    <input
-                        type="checkbox"
-                        checked={prettier.singleQuote ?? true}
-                        onChange={(e) =>
-                            updatePrettier({ singleQuote: e.target.checked })
-                        }
-                    />
-                    <span>Use single quotes instead of double quotes</span>
-                </label>
+                <h3>Quotes</h3>
+                <select
+                    className="device-select"
+                    value={resolvePrettierOptions(prettier).quotes}
+                    onChange={(e) =>
+                        updatePrettier({
+                            quotes: e.target.value as QuoteStyle,
+                            singleQuote: undefined,
+                        })
+                    }
+                >
+                    {QUOTE_OPTIONS.map(({ label, value }) => (
+                        <option key={value} value={value}>
+                            {label}
+                        </option>
+                    ))}
+                </select>
+                <span className="settings-hint">
+                    Backtick keeps quotes where JavaScript requires them, such
+                    as import paths and object keys
+                </span>
             </div>
 
             {/* Trailing Commas */}

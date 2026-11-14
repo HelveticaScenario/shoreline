@@ -302,7 +302,7 @@ function collectRootLabels(file: ts.SourceFile): Set<string> {
             kind !== '$cGroup' &&
             group.length === 0 &&
             first &&
-            ts.isStringLiteral(first)
+            ts.isStringLiteralLike(first)
         ) {
             labels.add(first.text);
         }

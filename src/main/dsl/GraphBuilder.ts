@@ -41,7 +41,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPatternPayload } from './patterns';
+import { isPatternPayload, patternSignal } from './patterns';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -381,10 +381,6 @@ export class BaseCollection<T extends ModuleOutput> {
         if (set) {
             sliceRoot(sliced, set, this.items.length, start, end);
         }
-        const carried = carriedOf(this);
-        if (carried) {
-            withCarried(sliced, carried);
-        }
         return sliced;
     }
 
@@ -403,6 +399,29 @@ export class BaseCollection<T extends ModuleOutput> {
             chunks.push(this.slice(i, i + size));
         }
         return chunks;
+    }
+
+    /**
+     * The lanes of this collection followed by those of `other`, as a
+     * collection of the same class. A multi-output module's outputs join
+     * output by output, so the result is still a root standing for whichever
+     * fits the input it feeds. A plain receiver takes a multi-output argument
+     * as the output it stands for read as a signal.
+     */
+    concat(other: this): this {
+        const that = patternSignal(other);
+        const ctor = this.constructor as new (...args: T[]) => this;
+        if (
+            !(that instanceof BaseCollection) ||
+            !(that instanceof ctor || this.constructor === Collection)
+        ) {
+            throw new Error(
+                `concat() takes a signal of the same type as the one it is called on`,
+            );
+        }
+        const joined = new ctor(...this.items, ...(that.items as T[]));
+        concatRoots(joined, this, that);
+        return joined;
     }
 
     /**
@@ -516,24 +535,6 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 }
 
-const CARRIED = Symbol('carried');
-
-/**
- * `collection` with `props` assigned, which its slices, lanes and chunks
- * keep too.
- */
-export function withCarried<C extends AnyCollection, P extends object>(
-    collection: C,
-    props: P,
-): C & P {
-    Object.defineProperty(collection, CARRIED, { value: props });
-    return Object.assign(collection, props);
-}
-
-function carriedOf(collection: AnyCollection): object | undefined {
-    return (collection as { [CARRIED]?: object })[CARRIED];
-}
-
 /**
  * Make `sliced` a root standing for the same lanes of every output of the
  * root `set` came from, so each input still takes the output that fits it:
@@ -561,6 +562,34 @@ function sliceRoot(
                 : value;
     }
     markRoot(sliced, { outputs: set.outputs, values });
+}
+
+/**
+ * Make `joined` a root standing for the outputs of the root `a` and those of
+ * `b`, each output's lanes those of `a` followed by those of `b`. When `a` is
+ * no root, `b` joins as the output it stands for read as a signal.
+ */
+function concatRoots(joined: object, a: object, b: object): void {
+    const set = outputSetOf(a);
+    if (!set) {
+        return;
+    }
+    const other = outputSetOf(b)?.values ?? {};
+    const names = Object.keys(set.values);
+    const otherNames = Object.keys(other);
+    if (names.join() !== otherNames.join()) {
+        const list = (ns: string[]) =>
+            ns.length === 0 ? 'none' : ns.map((n) => `_${n}`).join(', ');
+        throw new Error(
+            `concat() takes a signal of the same type as the one it is called on: one has ${list(names)}, the other ${list(otherNames)}`,
+        );
+    }
+    const values: Record<string, unknown> = {};
+    for (const name of names) {
+        const value = set.values[name] as AnyCollection;
+        values[name] = value.concat(other[name] as AnyCollection);
+    }
+    markRoot(joined, { outputs: set.outputs, values });
 }
 
 /**

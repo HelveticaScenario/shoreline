@@ -22,7 +22,7 @@ function requireStringLiteralLabel(
     args: readonly ts.Expression[],
     file: ts.SourceFile,
 ): void {
-    if (args.length >= 1 && !ts.isStringLiteral(args[0])) {
+    if (args.length >= 1 && !ts.isStringLiteralLike(args[0])) {
         throw new Error(
             `${kind}() label (argument 1) must be a string literal ${at(args[0], file)}`,
         );
@@ -30,7 +30,7 @@ function requireStringLiteralLabel(
 }
 
 function isSliderLiteral(node: ts.Node): boolean {
-    return ts.isStringLiteral(node) || negatableNumber(node) !== null;
+    return ts.isStringLiteralLike(node) || negatableNumber(node) !== null;
 }
 
 /** Throw unless the arguments of control call `call` are literals the

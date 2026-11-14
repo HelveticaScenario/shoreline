@@ -63,8 +63,12 @@ export interface AudioConfig {
 
 export type { MonospaceFont, SystemFont } from './fonts';
 
+/** How Format Document quotes strings. `backtick` prints each string as a
+ *  template literal wherever the syntax allows one. */
+export type QuoteStyle = 'single' | 'double' | 'backtick';
+
 export interface PrettierConfig {
-    singleQuote?: boolean;
+    quotes?: QuoteStyle;
     trailingComma?: 'all' | 'es5' | 'none';
     semi?: boolean;
     tabWidth?: number;

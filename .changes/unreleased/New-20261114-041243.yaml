@@ -1,0 +1,3 @@
+kind: New
+body: 'Choose how Format Document quotes strings under **Quotes** in the Formatter settings (or `prettier.quotes` in your config): single, double or backtick. Backtick keeps quotes only where JavaScript requires them, such as import paths and object keys; single and double turn template literals with no `${}`, line break or tag into quoted strings. New installs start with backticks; existing setups keep their quotes. Controls such as `$slider` and `$btn` also accept backtick labels and values like `` $btn(`Kick`) ``.'
+time: 2026-11-14T04:12:43.563271-05:00
