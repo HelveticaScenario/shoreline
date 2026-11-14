@@ -1132,10 +1132,10 @@ pub struct AudioState {
     /// build the editor JSON in `get_module_states`. Single lock for `&self`
     /// mutation; the audio thread never touches it. See [`ModuleStateMetaCache`].
     module_state_meta: Mutex<ModuleStateMetaCache>,
-    /// Which outputs are bounded and read in each built patch not yet
-    /// superseded, by update id and whether it applies at once, so a module
-    /// rebuilt on its own settles as the patch it lands in did.
-    patch_bounds: Mutex<Vec<(u64, bool, modular_core::patch::PatchBounds)>>,
+    /// What each built patch not yet superseded settled, by update id and
+    /// whether it applies at once, so a module rebuilt on its own settles as
+    /// the patch it lands in did.
+    patch_settlements: Mutex<Vec<(u64, bool, modular_core::patch::Settlement)>>,
     /// The last successfully built editor-state JSON, served when a poll loses
     /// the `module_states` try_lock race with the audio thread — so contention
     /// reads as an unchanged poll, never as "all modules removed". Shared via
@@ -1191,7 +1191,7 @@ impl AudioState {
             audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             module_state_meta: Mutex::new(ModuleStateMetaCache::default()),
-            patch_bounds: Mutex::new(Vec::new()),
+            patch_settlements: Mutex::new(Vec::new()),
             module_states_snapshot: Mutex::new(Arc::new(HashMap::new())),
             midi_manager,
             transport_meter: Arc::new(TransportMeter::default()),
@@ -1202,21 +1202,43 @@ impl AudioState {
         }
     }
 
-    /// Settle `module`, rebuilt on its own as `id`, as the patch it lands in
-    /// settled its predecessor, dropping older patches. The command queue
-    /// delivers it after every update sent before it, so it lands in the
-    /// newest update that applies at once, or else in the last applied one;
-    /// one waiting for a bar or beat has not taken over yet.
-    pub fn settle_rebuilt(&self, id: &str, module: &dyn modular_core::types::Sampleable) {
+    /// Build module `id` on its own from `params`, settled as the patch it
+    /// lands in settled its predecessor, dropping older patches. The command
+    /// queue delivers it after every update sent before it, so it lands in
+    /// the newest update that applies at once, or else in the last applied
+    /// one; one waiting for a bar or beat has not taken over yet. Main thread.
+    pub fn rebuild_module(
+        &self,
+        id: &str,
+        module_type: &str,
+        params: serde_json::Value,
+        sample_rate: f32,
+    ) -> std::result::Result<Box<dyn modular_core::types::Sampleable>, String> {
+        let mut deserialized = crate::params_cache::deserialize_params(module_type, params, false)
+            .map_err(|e| format!("Failed to deserialize params for {module_type}: {e}"))?;
+        let constructors = modular_core::dsp::get_constructors();
+        let constructor = constructors
+            .get(module_type)
+            .ok_or_else(|| format!("Unknown module type: {module_type}"))?;
         let applied = self.transport_meter.read_applied_update_id();
-        let mut patches = self.patch_bounds.lock();
+        let mut patches = self.patch_settlements.lock();
         let lands_in = patches
             .iter()
             .rposition(|(update_id, immediate, _)| *immediate || *update_id <= applied);
         if let Some(lands_in) = lands_in {
             patches.drain(..lands_in);
-            patches[0].2.settle_rebuilt(id, module);
         }
+        let settlement = lands_in.map(|_| &patches[0].2);
+        let mode = match settlement {
+            Some(settlement) => settlement.prepare_rebuilt(id, &mut deserialized)?,
+            None => modular_core::types::ProcessingMode::default(),
+        };
+        let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
+            .map_err(|e| format!("Failed to create module {id}: {e}"))?;
+        if let Some(settlement) = settlement {
+            settlement.settle_rebuilt(id, module.as_ref());
+        }
+        Ok(module)
     }
 
     /// True if the audio callback has caught a panic and is now emitting silence.
@@ -1653,14 +1675,14 @@ impl AudioState {
             }
             to_construct.push((id, module_type, deserialized, mode));
         }
-        update
+        let settlement = update
             .new_patch
             .insert_modules(to_construct, sample_rate, self.block_size)
             .map_err(napi::Error::from_reason)?;
-        self.patch_bounds.lock().push((
+        self.patch_settlements.lock().push((
             update.update_id,
             matches!(trigger, QueuedTrigger::Immediate),
-            std::mem::take(&mut update.new_patch.bounds),
+            settlement,
         ));
         block_ids.sort();
         sample_ids.sort();
@@ -5140,6 +5162,59 @@ mod tests {
     }
 
     #[test]
+    fn a_module_rebuilt_on_its_own_keeps_its_channels() {
+        // An EQ panel edit rebuilds a lifted module fed stereo; it stays
+        // stereo, one physical lane per side.
+        let state = create_test_audio_state();
+        let cable = |module: &str| serde_json::json!({ "type": "cable", "module": module, "port": "output", "lane": 0 });
+        let module = |id: &str, module_type: &str, params| modular_core::types::ModuleSpec {
+            id: id.into(),
+            module_type: module_type.into(),
+            id_is_explicit: None,
+            skip_state_transfer: None,
+            params,
+        };
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: vec![
+                    module("l", "$signal", serde_json::json!({ "value": 1.0 })),
+                    module("r", "$signal", serde_json::json!({ "value": 2.0 })),
+                    module(
+                        "st",
+                        "$stereo",
+                        serde_json::json!({ "left": cable("l"), "right": cable("r") }),
+                    ),
+                    module(
+                        "sum",
+                        "$add",
+                        serde_json::json!({ "input": cable("st"), "offset": 1.0 }),
+                    ),
+                ],
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 1,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+        let rebuilt = state
+            .rebuild_module(
+                "sum",
+                "$add",
+                serde_json::json!({ "input": cable("st"), "offset": 2.0 }),
+                44_100.0,
+            )
+            .unwrap();
+        assert_eq!(rebuilt.port_channels("output"), 2);
+        assert_eq!(rebuilt.port_lanes("output"), 2);
+    }
+
+    #[test]
     fn a_module_rebuilt_on_its_own_keeps_its_bounds() {
         // A module rebuilt on its own (`set_module_param`) takes its storage
         // from here, so its bounds keep reaching the modules that read them.
@@ -5204,22 +5279,14 @@ mod tests {
         // never did.
         state.transport_meter.write_applied_update_id(1);
         let rebuilt = |id: &str| {
-            let deserialized = crate::params_cache::deserialize_params(
-                "$add",
-                serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
-                false,
-            )
-            .unwrap();
-            let constructors = modular_core::dsp::get_constructors();
-            let module = constructors["$add"](
-                id,
-                44_100.0,
-                deserialized,
-                1,
-                modular_core::types::ProcessingMode::Block,
-            )
-            .unwrap();
-            state.settle_rebuilt(id, module.as_ref());
+            let module = state
+                .rebuild_module(
+                    id,
+                    "$add",
+                    serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
+                    44_100.0,
+                )
+                .unwrap();
             module.ensure_processed_to(1);
             module.get_bounds_at("output", 0, 0)
         };
@@ -5228,21 +5295,14 @@ mod tests {
 
         // A rebuilt `$erratic` settles its unset mode as the patch did: its
         // input is ranged, so it blends within the saw's range.
-        let deserialized = crate::params_cache::deserialize_params(
-            "$erratic",
-            serde_json::json!({ "input": cable("saw"), "amount": 2.0 }),
-            false,
-        )
-        .unwrap();
-        let wander = modular_core::dsp::get_constructors()["$erratic"](
-            "wander",
-            44_100.0,
-            deserialized,
-            1,
-            modular_core::types::ProcessingMode::Block,
-        )
-        .unwrap();
-        state.settle_rebuilt("wander", wander.as_ref());
+        let wander = state
+            .rebuild_module(
+                "wander",
+                "$erratic",
+                serde_json::json!({ "input": cable("saw"), "amount": 2.0 }),
+                44_100.0,
+            )
+            .unwrap();
         wander.ensure_processed_to(1);
         assert_eq!(
             wander.get_bounds_at("output", 0, 0),
