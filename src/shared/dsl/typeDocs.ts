@@ -327,12 +327,12 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         definition: outOptionsDefinition(STEREO_OUT_OPTIONS),
         description:
             'Options for stereo output routing via the out() method. ' +
-            'Controls base channel, gain, panning, stereo width, and the VU meter label, mute, and solo.',
+            'Controls base channel, gain, panning, spread, and the VU meter label, mute, and solo.',
         examples: [
             "$sine('c').out({ baseChannel: 4 })      // Output of channels 4 and 5",
             "$sine('c').out({ gain: 2.5 })           // 50% gain",
             "$sine('c').out({ pan: -2.5 })           // Pan left",
-            "$sine('c').out({ width: 5 })            // Full stereo spread",
+            "$saw($chord('C3[m7]')).out({ spread: 5 })  // Lanes fanned edge to edge",
             "$sine('c').out({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
         ],
         name: 'StereoOutOptions',
@@ -746,10 +746,10 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description:
             'Tap the out labeled `label`: a 2-lane Collection of its audio after gain and mute/solo, ' +
-            'with `.active` (0–5V gate), `.level` (gain, 0–10), and `.pan` (-5–5) as ranged signals. ' +
+            'with `.active` (0–5V gate), `.level` (gain, 0–10), and `.panning` (-5–5) as ranged signals. ' +
             'Follows live VU-panel changes. The out may be declared after the tap; an undeclared label is an error.',
         examples: [
-            "$saw('c2').out({ label: 'bass' });\nconst bass = $trackTap('bass');\n$sine('c5').gain(bass.level).out({ pan: bass.pan });\n$sine('g5').gain(bass.active).out();",
+            "$saw('c2').out({ label: 'bass' });\nconst bass = $trackTap('bass');\n$sine('c5').gain(bass.level).out({ pan: bass.panning });\n$sine('g5').gain(bass.active).out();",
         ],
         group: 'Advanced',
         name: '$trackTap',

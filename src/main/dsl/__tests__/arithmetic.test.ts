@@ -63,7 +63,7 @@ describe('arithmetic methods', () => {
     });
 
     test('a collection keeps its width', () => {
-        const muls = run(`$c('c3', 'e3', 'g3').mul(2).out()`).filter(
+        const muls = run(`$c('c3', 'e3', 'g3').mul(2).scope()`).filter(
             (m) => m.moduleType === '$mul',
         );
         expect(muls).toHaveLength(1);

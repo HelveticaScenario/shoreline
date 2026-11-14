@@ -14,24 +14,24 @@ import {
  * outputs the engine knows the range of.
  */
 export interface TrackTapSources {
-    /** Post-gain, post-mute audio: two lanes for stereo outs, one for mono. */
+    /** Post-gain, post-mute audio: one lane, stereo for a stereo out. */
     audio: ModuleOutput[];
     /** Mute/solo gate (5 audible, 0 silenced). */
     active: ModuleOutput;
     level: ModuleOutput;
     /** Center (0) for mono outs. */
-    pan: ModuleOutput;
+    panning: ModuleOutput;
 }
 
 interface TrackTapControls {
     active: CollectionWithRange;
     level: CollectionWithRange;
-    pan: CollectionWithRange;
+    panning: CollectionWithRange;
 }
 
 /**
- * `$trackTap` result: a stereo Collection of the out's audio, with its
- * mute/solo gate, gain, and pan as ranged properties. Slices keep the
+ * `$trackTap` result: a Collection of the out's audio, one lane, with its
+ * mute/solo gate, gain, and panning as ranged properties. Slices keep the
  * properties.
  */
 export class TrackTap extends Collection {
@@ -40,13 +40,13 @@ export class TrackTap extends Collection {
     /** The out's gain in DSL units (5 = unity). */
     readonly level: CollectionWithRange;
     /** The out's pan (-5 left … +5 right). */
-    readonly pan: CollectionWithRange;
+    readonly panning: CollectionWithRange;
 
     constructor(audio: ModuleOutput[], controls: TrackTapControls) {
         super(...audio);
         this.active = controls.active;
         this.level = controls.level;
-        this.pan = controls.pan;
+        this.panning = controls.panning;
     }
 
     override slice(start?: number, end?: number): this {
@@ -57,7 +57,7 @@ export class TrackTap extends Collection {
 /**
  * The deferred outputs behind one `$trackTap` call. Every lane and control
  * is deferred because the out may be declared after the tap; the audio is
- * fixed at two lanes so consumers can derive lane counts at call time.
+ * fixed at one lane so consumers can derive lane counts at call time.
  * The controls are ranged: each resolves to an output whose range the engine
  * knows.
  */
@@ -66,27 +66,27 @@ export class PendingTrackTap {
     private readonly audio: DeferredCollection;
     private readonly active: DeferredModuleOutput;
     private readonly level: DeferredModuleOutput;
-    private readonly pan: DeferredModuleOutput;
+    private readonly panning: DeferredModuleOutput;
 
     constructor(builder: GraphBuilder) {
         const deferred = () => new DeferredModuleOutput(builder);
-        this.audio = new DeferredCollection(deferred(), deferred());
+        this.audio = new DeferredCollection(deferred());
         this.active = deferred();
         this.level = deferred();
-        this.pan = deferred();
+        this.panning = deferred();
         this.tap = new TrackTap(this.audio.items, {
             active: asRanged(new Collection(this.active)),
             level: asRanged(new Collection(this.level)),
-            pan: asRanged(new Collection(this.pan)),
+            panning: asRanged(new Collection(this.panning)),
         });
     }
 
-    /** Point the tap at its out's signals; mono audio fills both lanes. */
+    /** Point the tap at its out's signals. */
     resolve(sources: TrackTapSources): void {
         this.audio.set(sources.audio);
         this.active.set(sources.active);
         this.level.set(sources.level);
-        this.pan.set(sources.pan);
+        this.panning.set(sources.panning);
     }
 }
 

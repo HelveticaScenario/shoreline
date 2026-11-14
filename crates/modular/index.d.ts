@@ -584,8 +584,12 @@ export interface ModuleSchema {
    * still change between releases. Always serialized, like `buffer_outputs`.
    */
   experimental: boolean
-  /** How the module's lanes carry stereo (`#[module(stereo = …)]`). */
-  stereo: StereoMode
+  /**
+   * How the module's lanes carry stereo (`#[module(stereo = …)]`): a
+   * `StereoMode`, typed as a string in TypeScript so `schemas.json`
+   * imports, whose string literals widen, still satisfy this interface.
+   */
+  stereo: string
   /**
    * The two optional params, `[min, max]`, that bound the module's
    * `bounds = input` outputs when both are set, whatever its inputs

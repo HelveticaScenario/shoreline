@@ -6,6 +6,7 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 pub mod audio_in;
 pub mod clock;
 pub mod mix;
+pub mod pan;
 pub mod set_lanes;
 pub mod signal;
 pub mod stereo;
@@ -19,6 +20,10 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     stereo::Mono::install_constructor(map);
     stereo::Left::install_constructor(map);
     stereo::Right::install_constructor(map);
+    stereo::Mid::install_constructor(map);
+    stereo::SideOf::install_constructor(map);
+    stereo::FromMidSide::install_constructor(map);
+    pan::Pan::install_constructor(map);
     stereo_mixer::StereoMixer::install_constructor(map);
     clock::Clock::install_constructor(map);
 }
@@ -31,6 +36,10 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     stereo::Mono::install_params_deserializer(map);
     stereo::Left::install_params_deserializer(map);
     stereo::Right::install_params_deserializer(map);
+    stereo::Mid::install_params_deserializer(map);
+    stereo::SideOf::install_params_deserializer(map);
+    stereo::FromMidSide::install_params_deserializer(map);
+    pan::Pan::install_params_deserializer(map);
     stereo_mixer::StereoMixer::install_params_deserializer(map);
     clock::Clock::install_params_deserializer(map);
 }
@@ -44,6 +53,10 @@ pub fn schemas() -> Vec<ModuleSchema> {
         stereo::Mono::get_schema(),
         stereo::Left::get_schema(),
         stereo::Right::get_schema(),
+        stereo::Mid::get_schema(),
+        stereo::SideOf::get_schema(),
+        stereo::FromMidSide::get_schema(),
+        pan::Pan::get_schema(),
         stereo_mixer::StereoMixer::get_schema(),
         clock::Clock::get_schema(),
     ]

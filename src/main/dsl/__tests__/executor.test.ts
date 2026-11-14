@@ -358,8 +358,7 @@ describe('mixing', () => {
         const patch = execPatch(
             '$stereoMix($sine(["C3", "E3", "G3"]), { width: 5 }).out()',
         );
-        // .out() also creates a $stereoMix in the output chain, so expect 2.
-        expect(findModules(patch, '$stereoMix').length).toBe(2);
+        expect(findModules(patch, '$stereoMix').length).toBe(1);
     });
 });
 
@@ -1787,6 +1786,37 @@ describe('built-in modules', () => {
         // A device reporting no inputs still leaves one readable lane.
         expect(rootInputWidth(0)).toBe(1);
     });
+
+    test('$input pairs the device channels into stereo lanes', () => {
+        const pairs = (lanes: number) => {
+            const patch = executePatchScript('$input.out()', schemas, {
+                ...DEFAULT_EXECUTION_OPTIONS,
+                inputChannels: lanes,
+            }).patch;
+            const stereo = patch.modules.find(
+                (m) => m.id === 'ROOT_INPUT_STEREO',
+            )!;
+            expect(stereo.moduleType).toBe('$stereo');
+            const lanesOf = (side: unknown) =>
+                (side as { lane: number }[]).map((c) => c.lane);
+            return [lanesOf(stereo.params.left), lanesOf(stereo.params.right)];
+        };
+        expect(pairs(4)).toEqual([
+            [0, 2],
+            [1, 3],
+        ]);
+        // An odd last channel sits on both sides.
+        expect(pairs(3)).toEqual([
+            [0, 2],
+            [1, 2],
+        ]);
+    });
+
+    test('a patch that never reads $input builds no $stereo', () => {
+        const patch = execPatch('$inputMono[0].out()');
+        expect(findModules(patch, '$stereo')).toHaveLength(0);
+        expect(patch.modules.find((m) => m.id === 'ROOT_INPUT')).toBeDefined();
+    });
 });
 
 // ─── FX modules ──────────────────────────────────────────────────────────────
@@ -2684,9 +2714,7 @@ describe('$phase helpers', () => {
 
 describe('$setLanes', () => {
     test('.setLanes(2) on a 3-voice spread builds one $setLanes folding 3→2', () => {
-        const patch = execPatch(
-            '$saw($spread(0, 5, 3)).setLanes(2).scope().out()',
-        );
+        const patch = execPatch('$saw($spread(0, 5, 3)).setLanes(2).scope()');
         const setLanesModules = findModules(patch, '$setLanes');
         expect(setLanesModules.length).toBe(1);
         expect(setLanesModules[0].params.lanes).toBe(2);
@@ -2698,30 +2726,26 @@ describe('$setLanes', () => {
     });
 
     test('$setLanes(src, 2) factory form matches the chain form', () => {
-        const patch = execPatch(
-            '$setLanes($saw($spread(0, 5, 3)), 2).scope().out()',
-        );
+        const patch = execPatch('$setLanes($saw($spread(0, 5, 3)), 2).scope()');
         expect(findModules(patch, '$setLanes').length).toBe(1);
         expect(patch.scopes[0].lanes.length).toBe(2);
     });
 
     test('.setLanes() defaults to mono', () => {
-        const patch = execPatch(
-            '$saw($spread(0, 5, 3)).setLanes().scope().out()',
-        );
+        const patch = execPatch('$saw($spread(0, 5, 3)).setLanes().scope()');
         expect(findModules(patch, '$setLanes').length).toBe(1);
         expect(patch.scopes[0].lanes.length).toBe(1);
     });
 
     test('.setLanes(2, { mode }) sets how lanes combine', () => {
         const patch = execPatch(
-            '$saw($spread(0, 5, 3)).setLanes(2, { mode: "average" }).scope().out()',
+            '$saw($spread(0, 5, 3)).setLanes(2, { mode: "average" }).scope()',
         );
         expect(findModules(patch, '$setLanes')[0].params.mode).toBe('average');
     });
 
     test('.setLanes(2) pans a single lane to stereo center', () => {
-        const patch = execPatch('$saw("c4").setLanes(2).scope().out()');
+        const patch = execPatch('$saw("c4").setLanes(2).scope()');
         expect(findModules(patch, '$setLanes').length).toBe(1);
         expect(patch.scopes[0].lanes.length).toBe(2);
     });

@@ -969,8 +969,8 @@ class DeferredCollection extends BaseCollection {
 
 /**
  * A tap on a labeled out, returned by {@link $trackTap}. As a
- * {@link Collection} it is the lane's audio after its gain and mute/solo gate:
- * two lanes, with a mono out's signal on both.
+ * {@link Collection} it is the out's audio after its gain and mute/solo gate:
+ * one lane, stereo for a stereo out.
  */
 class TrackTap extends Collection {
   private constructor();
@@ -985,7 +985,7 @@ class TrackTap extends Collection {
    * The lane's pan (-5 left to +5 right); 0 for mono outs. Ranged -5 to 5, or
    * the pan signal's own range when it declares one.
    */
-  readonly pan: CollectionWithRange;
+  readonly panning: CollectionWithRange;
 }
 
 
@@ -1316,7 +1316,7 @@ function $bus(cb: (mixed: Collection) => unknown): Bus;
 
 /**
  * Tap the out labeled \`label\`: its audio after gain and mute/solo, plus its
- * \`.active\` gate, \`.level\` gain, and \`.pan\` as ranged signals. Follows
+ * \`.active\` gate, \`.level\` gain, and \`.panning\` as ranged signals. Follows
  * live VU-panel changes. The out may be declared before or after the tap; a
  * label no out declares is an error.
  *
@@ -1327,7 +1327,7 @@ function $bus(cb: (mixed: Collection) => unknown): Bus;
  * $saw('c2').out({ label: 'bass' });
  * const bass = $trackTap('bass');
  * // Follows the bass fader and pan
- * $sine('c5').gain(bass.level).out({ pan: bass.pan });
+ * $sine('c5').gain(bass.level).out({ pan: bass.panning });
  * // Silent while bass is muted or soloed out
  * $sine('g5').gain(bass.active).out();
  */
@@ -2333,11 +2333,15 @@ export function generateDSL(schemas: Schemas): string {
     const signalSchema = schemas.find((s) => s.name === '$signal');
     if (signalSchema) {
         lines.push('');
-        lines.push(
-            '/** Live audio input, one lane per input channel on the current device. */',
-        );
         const signalReturnType = getFactoryReturnType(signalSchema);
+        lines.push(
+            '/** Live audio input in stereo lanes: input channels 1 and 2 are the first lane, 3 and 4 the second, and an odd last channel sits in the centre. */',
+        );
         lines.push(`export const $input: Readonly<${signalReturnType}>;`);
+        lines.push(
+            '/** Live audio input, one mono lane per input channel on the current device. */',
+        );
+        lines.push(`export const $inputMono: Readonly<${signalReturnType}>;`);
     }
 
     lines.push('');

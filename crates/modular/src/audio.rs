@@ -2360,7 +2360,7 @@ impl AudioProcessor {
             for meter in meters.iter_mut() {
                 for ch in 0..meter.channels {
                     if let Some(tap) =
-                        Tap::resolve(sampleables, &meter.module_id, &meter.port_name, ch)
+                        Tap::resolve_physical(sampleables, &meter.module_id, &meter.port_name, ch)
                     {
                         meter
                             .levels
