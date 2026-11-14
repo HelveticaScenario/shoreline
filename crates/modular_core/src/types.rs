@@ -3334,8 +3334,11 @@ pub struct ModuleSchema {
     /// still change between releases. Always serialized, like `buffer_outputs`.
     #[serde(default)]
     pub experimental: bool,
-    /// How the module's lanes carry stereo (`#[module(stereo = …)]`).
+    /// How the module's lanes carry stereo (`#[module(stereo = …)]`): a
+    /// `StereoMode`, typed as a string in TypeScript so `schemas.json`
+    /// imports, whose string literals widen, still satisfy this interface.
     #[serde(default)]
+    #[napi(ts_type = "string")]
     pub stereo: StereoMode,
     /// The two optional params, `[min, max]`, that bound the module's
     /// `bounds = input` outputs when both are set, whatever its inputs
