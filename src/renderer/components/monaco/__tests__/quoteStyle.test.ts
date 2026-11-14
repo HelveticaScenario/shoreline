@@ -94,6 +94,7 @@ describe('template literals in single or double mode', () => {
             'const a = `c4 ${n}`',
             'const b = `c4\ne4`',
             'const c = String.raw`c4`',
+            'const d = $`c4 e4`',
         ].join('\n');
         expect(await format(code)).toBe(code);
     });

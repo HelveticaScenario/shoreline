@@ -512,7 +512,7 @@ interface Pattern extends PatternModule {
    * sequencer signal with each of their outputs joined lane by lane.
    *
    * \`\`\`js
-   * const seq = $p("c4 e4").concat($p("g3 b3"))
+   * const seq = $\`c4 e4\`.concat($\`g3 b3\`)
    * $saw(seq).amp($perc(seq)).out()
    * \`\`\`
    */
