@@ -1542,10 +1542,8 @@ fn supersaw_saws_carry_across_a_patch_update() {
         .map(|_| run(supersaw_params(5, 0.18), supersaw_params(5, 0.2)))
         .collect();
     assert!(
-        runs.iter().any(|(before, after)| before
-            .iter()
-            .zip(after)
-            .all(|(b, a)| (a - b).abs() < 0.5)),
+        runs.iter()
+            .any(|(before, after)| before.iter().zip(after).all(|(b, a)| (a - b).abs() < 0.5)),
         "every lane must be continuous across the transfer: {runs:?}"
     );
 
