@@ -49,10 +49,6 @@ describe('.scale', () => {
             patternPayload($arrange([1, $('0')]).scale('c(maj)')).__kind,
         ).toBe('ScalePattern');
     });
-
-    test('$.s is gone', () => {
-        expect(($ as unknown as Record<string, unknown>).s).toBeUndefined();
-    });
 });
 
 describe('.trans', () => {

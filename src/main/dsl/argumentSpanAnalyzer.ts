@@ -19,13 +19,16 @@ import type {
     SourceSpan,
     SpanRegistry,
 } from './sourceAnalysisTypes';
-import { dottedName, propertyName } from '../../shared/dsl/ast/names';
+import {
+    dottedName,
+    isPatternTag,
+    propertyName,
+} from '../../shared/dsl/ast/names';
 import { callSiteKey, v8CallAnchor } from '../../shared/dsl/ast/position';
 import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
 import { validateControlCall } from './controlCallValidation';
 import {
-    isPatternTag,
     isTransCall,
     PATTERN_METHOD_ARGS,
     patternMethodCallName,

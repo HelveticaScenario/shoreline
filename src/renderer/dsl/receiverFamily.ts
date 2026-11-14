@@ -7,7 +7,7 @@
 import ts from 'typescript';
 
 import { constInitializerOf } from '../../shared/dsl/ast/consts';
-import { dottedName } from '../../shared/dsl/ast/names';
+import { dottedName, isPatternTag } from '../../shared/dsl/ast/names';
 import type { ApiIndex, Family } from './apiSignatures';
 
 const MAX_DEPTH = 16;
@@ -42,6 +42,9 @@ export function createFamilyReader(
         }
         if (ts.isElementAccessExpression(expr)) {
             return next(expr.expression);
+        }
+        if (ts.isTaggedTemplateExpression(expr)) {
+            return isPatternTag(expr) ? 'audio' : null;
         }
         if (ts.isPropertyAccessExpression(expr)) {
             const name = dottedName(expr);

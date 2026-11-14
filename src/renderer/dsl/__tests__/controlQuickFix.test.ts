@@ -65,6 +65,17 @@ describe('computeControlQuickFixes — wrap chained sugar arguments', () => {
         expect(apply(source, fix)).toContain(`$slider('level', 2.5, 0, 5)`);
     });
 
+    test('sugar on a $ pattern template resolves', () => {
+        const { source, fixes } = fixesAt('$`c3 e3`.amp(0.|3).out();');
+        expect(apply(source, wrapFix(fixes))).toContain(
+            `.amp($slider('factor', 0.3, 0, 10))`,
+        );
+    });
+
+    test('a $ pattern template takes no video methods', () => {
+        expect(fixesAt('$`c3 e3`.kaleid(|4);').fixes).toEqual([]);
+    });
+
     test('sugar on a deep chain still resolves', () => {
         const { source, fixes } = fixesAt(
             `$sine(0).lpf('100hz').amp(0.|3).out();`,
@@ -83,6 +94,13 @@ describe('computeControlQuickFixes — wrap chain module arguments', () => {
         expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
         expect(apply(source, fix)).toContain(
             `.lpf('100hz', $slider('resonance', 2.5, 0, 5))`,
+        );
+    });
+
+    test('a chain off a $ pattern template resolves', () => {
+        const { source, fixes } = fixesAt("$`c3 e3`.lpf('800hz', 2.|5).out();");
+        expect(apply(source, wrapFix(fixes))).toContain(
+            `.lpf('800hz', $slider('resonance', 2.5, 0, 5))`,
         );
     });
 

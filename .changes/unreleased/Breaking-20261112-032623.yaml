@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    Scale patterns are now made with `.scale(...)` on any pattern, and `$p.s` is gone. Transpose them with `.trans`, which now keeps working after `.fast`, `.slow`, `.struct`, `.beat` and `.glide`, and on a `$arrange` of scale patterns, where each section moves within its own scale. `.scale` on a scale pattern changes its scale. `$p.s(...).add(...)` becomes `.trans(...)`, and `.sub` is gone (use negative degrees). `.add` on a scale pattern adds to its signal instead.
+    Scale patterns are now made with `.scale(...)` on any pattern, and `$p.s` is gone. Transpose them with `.trans`, which works after `.fast`, `.slow`, `.struct`, `.beat` and `.glide`, and on a `$arrange` of scale patterns, where each section moves within its own scale. `.scale` on a scale pattern changes its scale. `$p.s(...).add(...)` becomes `.trans(...)`, and `.sub` is gone (use negative degrees). `.add` on a scale pattern adds to its signal instead.
 
     ```js
     // before

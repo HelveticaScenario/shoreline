@@ -402,13 +402,6 @@ impl SpAlignmentMode {
     }
 }
 
-/// Source span used as an editor argument-span anchor.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
-pub struct ArgumentSpan {
-    pub start: usize,
-    pub end: usize,
-}
-
 /// JSON payload for `pattern.scale(scale)`: read `pattern`'s atoms as
 /// 0-indexed degrees of `scale`. Every note under it resolves through this
 /// scale, replacing one an inner `.scale(...)` gave it.

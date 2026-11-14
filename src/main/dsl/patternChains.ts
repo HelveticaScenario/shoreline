@@ -6,6 +6,7 @@
 import ts from 'typescript';
 
 import { constInitializerOf } from '../../shared/dsl/ast/consts';
+import { isPatternTag } from '../../shared/dsl/ast/names';
 import { ALIGNMENT_MODES } from './alignmentModes';
 
 /** Pattern methods whose argument spans are recorded. */
@@ -64,11 +65,6 @@ function chainRoot(node: ts.Node): PatternRoot | null {
             return null;
         }
     }
-}
-
-/** A `` $`source` `` pattern literal. */
-export function isPatternTag(node: ts.TaggedTemplateExpression): boolean {
-    return ts.isIdentifier(node.tag) && node.tag.text === '$';
 }
 
 /**

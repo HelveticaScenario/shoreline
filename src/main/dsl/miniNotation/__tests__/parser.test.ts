@@ -43,6 +43,7 @@ describe('$', () => {
         expect(r.source).toBe('c4 e4 7');
         expect(r.ast).toEqual(patternPayload($('c4 e4 7')).ast);
         expect(patternPayload(tag`c\te4`).source).toBe('c\te4');
+        expect(() => tag`c4 \u e4`).toThrow(MiniParseError);
     });
 });
 

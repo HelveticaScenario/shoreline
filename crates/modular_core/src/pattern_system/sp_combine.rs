@@ -385,10 +385,8 @@ mod tests {
         }
     }
 
-    // Companion check: SqueezeOut was correct-by-accident before the fix
-    // because outer/inner were pre-swapped upstream. The fix must preserve
-    // this — `A.trans.squeezeout(B)` should still land A at pattern_idx 0
-    // and B at pattern_idx 1.
+    // `A.trans.squeezeout(B)` lands A at pattern_idx 0 and B at
+    // pattern_idx 1.
     #[test]
     fn test_squeeze_out_context_left_is_pattern_idx_0() {
         let a: Pattern<i32> = pure_with_span(1, SourceSpan::new(0, 1));

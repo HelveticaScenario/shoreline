@@ -71,6 +71,10 @@ function $Impl(
     source: string | TemplateStringsArray,
     ...values: unknown[]
 ): Pattern<ParsedPattern> {
+    if (isTemplateStrings(source) && source.some((s) => s === undefined)) {
+        // A tag receives an invalid escape (`\u` with no code) as undefined.
+        throw new MiniParseError('$`...` holds an invalid escape sequence');
+    }
     const text = isTemplateStrings(source)
         ? source.reduce((acc, str, i) => acc + String(values[i - 1]) + str)
         : source;

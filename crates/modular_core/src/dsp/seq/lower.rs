@@ -120,8 +120,8 @@ impl Domain for SeqValue {
         parse_source::<SeqValue>(payload)
     }
 
-    fn scale(payload: ScalePatternPayload) -> Lowered<Self> {
-        Self::lower(SeqPatternSource::Scale(payload))
+    fn scale(_payload: ScalePatternPayload) -> Lowered<Self> {
+        unreachable!("a .scale(...) node is scaled, so it lowers in the degree domain")
     }
 
     fn trans(_payload: TransPatternPayload) -> Lowered<Self> {

@@ -13,7 +13,7 @@
 import ts from 'typescript';
 
 import { negatableNumber } from '../../shared/dsl/ast/literals';
-import { dottedName } from '../../shared/dsl/ast/names';
+import { dottedName, isPatternTag } from '../../shared/dsl/ast/names';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { ApiIndex, Family } from './apiSignatures';
 import {
@@ -55,8 +55,8 @@ export function createCallResolver(
     const familyOf = createFamilyReader(api);
     let declared: Set<string> | undefined;
     /**
-     * Whether a property chain starts at a DSL value: a call, a `$` global,
-     * or a name the patch itself declares. Rules out JS globals like `Math`,
+     * Whether a property chain starts at a DSL value: a call, a `$` pattern
+     * template, a `$` global, or a name the patch itself declares. Rules out JS globals like `Math`,
      * whose methods (`Math.exp`) share names with DSL methods.
      */
     const hasDslRoot = (expr: ts.PropertyAccessExpression) => {
@@ -66,6 +66,9 @@ export function createCallResolver(
         }
         if (ts.isCallExpression(root)) {
             return true;
+        }
+        if (ts.isTaggedTemplateExpression(root)) {
+            return isPatternTag(root);
         }
         if (!ts.isIdentifier(root)) {
             return false;
