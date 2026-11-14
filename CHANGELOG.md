@@ -1,5 +1,232 @@
 # Changelog
 
+## v0.1.0 — November 14, 2026
+
+### Breaking
+
+- `accent` on `$mi.kick`, `$mi.synthKick`, `$mi.snare`, `$mi.synthSnare`, `$mi.hiHat`, `$mi.ringHat`, `$mi.modal`, `$mi.string`, `$mi.sixOp` and `$mi.speak` works like it does on the `$tr808` and `$tr909` drums: 0, now the default, sounds like an ordinary hit, and 5 hits up to twice as loud (up to ±10 V), read as each hit is struck. Accents below the old default of 4 no longer play softer, so a patch that sets `accent` gets louder; to get back the old default level, remove the accent:
+  
+  ```js
+  // before
+  $mi.kick('c1', { trigger, accent: 4 })
+  // after
+  $mi.kick('c1', { trigger })
+  ```
+- A module's named outputs now start with an underscore: `seq.trig` is `seq._trig` and `$clock.beatTrigger` is `$clock._beatTrigger`.
+  
+  ```js
+  // before
+  $tr808.kick($cycle($p('c*4')).trig).out()
+  // after
+  $tr808.kick($cycle($`c*4`)._trig).out()
+  ```
+- A pattern or multi-output module plugged straight into an input now uses the output that fits it: its trigger in a trigger input, its pitch in a pitch input. Before, it always used its main output, so `$perc(seq)` read the notes' pitch as its trigger. Name the output to keep the old behavior.
+  
+  ```js
+  const seq = $cycle($`c e g`)
+  // before: the envelope read the pitch
+  $saw('c3').amp($perc(seq)).out()
+  // after: name the output to keep that
+  $saw('c3').amp($perc(seq._cv)).out()
+  ```
+- `.$.` and `.$m.` are gone: chain a module directly, and follow it with `.wet(amount)` to blend it with the dry signal.
+  
+  ```js
+  // before
+  $saw('c3').$.lpf('800hz').out()
+  $saw('c3').$m.lpf(2.5, '800hz').out()
+  // after
+  $saw('c3').lpf('800hz').out()
+  $saw('c3').lpf('800hz').wet(2.5).out()
+  ```
+- `.mix(channels, mode)` is now `.setLanes(lanes, { mode })`. `$mix` is unchanged.
+  
+  ```js
+  // before
+  $c($sine('c3'), $sine('e3')).mix(1, 'average').out()
+  // after
+  $c($sine('c3'), $sine('e3')).setLanes(1, { mode: 'average' }).out()
+  ```
+- Scale patterns are now made with `.scale(...)` on any pattern, and `$p.s` is gone. Transpose them with `.trans`, which works after `.fast`, `.slow`, `.struct`, `.beat` and `.glide`, and on a `$arrange` of scale patterns, where each section moves within its own scale. `.scale` on a scale pattern changes its scale. `$p.s(...).add(...)` becomes `.trans(...)`, and `.sub` is gone (use negative degrees). `.add` on a scale pattern adds to its signal instead.
+  
+  ```js
+  // before
+  $sine($p.s('0 2 4', 'c(maj)').add('0 1')).out()
+  // after
+  $sine($`0 2 4`.scale('c(maj)').trans('0 1')).out()
+  ```
+- `$clock.playhead` is a single lane counting bars (2.5 is halfway through the third bar), and stays sample-accurate however long a song runs. It used to be two lanes: the position within the bar and the count of bars. An onset that falls exactly on a sample may now fire one sample later.
+  
+  ```js
+  // before: position within the bar
+  $saw('c3').amp($clock.playhead[0]).out()
+  // after
+  $saw('c3').amp($clock._playhead.wrap(0, 1)).out()
+  ```
+- Files load by their path in the workspace, starting with `/`. `$wavs()` is gone, so a wav can live anywhere in the workspace, and `$v.image` and `$v.video` paths gain a leading `/`.
+  
+  ```js
+  // before
+  $sampler($wavs().kick, $clock.beatTrigger).out()
+  $v.image('pictures/photo.png').out()
+  // after
+  $sampler('/wavs/kick.wav', $clock._beatTrigger).out()
+  $v.image('/pictures/photo.png').out()
+  ```
+- `$fold` follows the 4ms Ensemble Oscillator's fold, which is gentler at low and middle `amount` settings. Raise `amount` to get close to the old sound.
+  
+  ```js
+  // before
+  $fold($saw('c2'), 2.5).out()
+  // after: about the same fold
+  $fold($saw('c2'), 3.7).out()
+  ```
+- `$lpg` `decay` settings below 0.5 now give shorter plucks; before, they all sounded like 0.5. Set `decay` to 0.5 for the old shortest pluck.
+  
+  ```js
+  // before
+  $lpg($saw('c3'), $pulse('4hz'), { decay: 0.2 }).out()
+  // after: the same pluck
+  $lpg($saw('c3'), $pulse('4hz'), { decay: 0.5 }).out()
+  ```
+- `$scaleAndShift`, `.amplitude()` and `.shift()` are gone. Use `.amp()` to scale and `.add()` to offset; `$amp`, `$gain`, `$add`, `$sub`, `$mul`, `$div` and `$exp` also work as functions, like any other module.
+  
+  ```js
+  // before
+  $scaleAndShift(lfo, 2.5, 1)
+  $saw('c3').amplitude(2.5).out()
+  lfo.shift(1)
+  // after
+  lfo.amp(2.5).add(1)
+  $saw('c3').amp(2.5).out()
+  lfo.add(1)
+  ```
+- `$ott`'s `depth` holds at the ends of its 0–5 range: past 5 it stays fully compressed instead of overshooting louder with the dry signal inverted, and below 0 it stays dry.
+  
+  ```js
+  // before: depth past 5 pushed beyond the compressed signal
+  $ott(drums, { depth: 8 }).out()
+  // after: the same as depth 5
+  $ott(drums, { depth: 5 }).out()
+  ```
+- `.exp()` holds an exponent below 0 at 0, so its output only ever rises with its input. For the old reciprocal powers, divide 1 by the positive power.
+  
+  ```js
+  // before
+  lfo.exp(-2)
+  // after
+  $div(1, lfo.exp(2))
+  ```
+- `.erratic()` on a ranged signal blends toward random values within its range by default, instead of shifting and clamping. Pass `mode: 'clamp'` to keep the old movement. With `mode: 'shift'` the result can leave the range, so it no longer has one: give `.range()` the input range too.
+  
+  ```js
+  // before
+  $sine('0.2hz').range(0, 5).erratic(2)
+  // after
+  $sine('0.2hz').range(0, 5).erratic(2, { mode: 'clamp' })
+  
+  // before
+  $sine('0.2hz').range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1)
+  // after
+  $sine('0.2hz').range(0, 5).erratic(2, { mode: 'shift' }).range(0, 1, 0, 5)
+  ```
+- The docs and messages call the elements of a polyphonic signal lanes, and the names follow. `$midiCV`'s `channels` is `lanes`, `$supersaw`'s `voices` is `unison`, `$outLane` is `$trackTap`, and `$track` is `$keyframes`.
+  
+  ```js
+  // before
+  const midi = $midiCV({ channels: 4 })
+  $supersaw('c3', { voices: 7 }).out()
+  $signal($outLane('bass').level)
+  $track([[0, 0], [5, 1]])
+  // after
+  const midi = $midiCV({ lanes: 4 })
+  $supersaw('c3', { unison: 7 }).out()
+  $signal($trackTap('bass').level)
+  $keyframes([[0, 0], [5, 1]])
+  ```
+- `$supersaw` makes one stereo lane per note, its `unison` saws spread from left to right, instead of one lane per saw. A chord stays one lane per note, and filters after it run on each side.
+  
+  ```js
+  // before: seven lanes, spread by the out
+  $supersaw('a3', { unison: 7 }).out({ width: 5 })
+  // after: one stereo lane
+  $supersaw('a3', { unison: 7 }).out()
+  ```
+- `$p` is now `$`, and also works as a template tag, so a pattern can be written `` $`c e g` ``. `$p.arrange` is now `$arrange`.
+  
+  ```js
+  // before
+  $saw($p('c e g')).out()
+  $p.arrange([2, $p('c')], [1, $p('e')]).saw().out()
+  // after
+  $saw($`c e g`).out()
+  $arrange([2, $`c`], [1, $`e`]).saw().out()
+  ```
+- `$delay` and `.delay()` return only the delayed signal, without a `buffer` to read extra taps from. For more echo times, give `time` several values: each becomes its own feedback delay. For plain taps without feedback, read a `$buffer` with `$delayRead` at several times, as in `$delayRead($buffer(src, 1), [0.25, 0.5])`.
+  
+  ```js
+  // before
+  const echo = $delay(src, 0.25)
+  echo.out()
+  $delayRead(echo.buffer, 0.5).out()
+  // after
+  $delay(src, [0.25, 0.5]).out()
+  ```
+
+### New
+
+- Release notes now appear in the app. Before you update, you can read everything that changed since your version, with any changes that might affect your patches listed first. After an update, a "What's new" window shows what changed, and Help → Release Notes shows the full history at any time.
+- Experimental modules are now labeled in the editor: hover docs, autocomplete and the Reference pane mark them, so you know their sound and parameters may still change between releases. `$comp` and `$xover` are experimental.
+- The engines of Mutable Instruments Plaits arrive as `$mi.*` modules, each knob a patchable input. Oscillators: `$mi.twoOp`, `$mi.sixOp` (DX7-style FM with patch banks), `$mi.formant`, `$mi.zOsc`, `$mi.waveshaper`, `$mi.phaseDistortion`, `$mi.additive`, `$mi.waveTerrain`, `$mi.swarm`, `$mi.divideDown`. Struck and plucked: `$mi.modal`, `$mi.string`, `$mi.particles`. Drums: `$mi.kick`, `$mi.synthKick`, `$mi.snare`, `$mi.synthSnare`, `$mi.hiHat`, `$mi.ringHat`. Speech: `$mi.formantVowel`, `$mi.samVowel`, `$mi.lpcVowel`, `$mi.speak`. And `$mi.chorus`, a stereo ensemble. Patch `$lpg` after one for Plaits' plucked sound.
+- `$enosc` plays a bank of sine voices tuned to a scale, after the 4ms Ensemble Oscillator. Pick a scale from `$enosc.scale` or write your own with `$enosc.scale.custom('0 3 7 10', true)`, shape the voices with `spread`, `detune`, `crossFm`, `fold`, `cheby` and `segment`, and split them across the stereo field with outputs such as `_odd` and `_even`.
+- `$chord` has an `inversion` control that raises its lowest notes an octave (or drops its highest, for negative values), gliding smoothly between voicings. A new `_level` output gives each voice's loudness.
+- A pattern works like any other signal: chain modules and methods straight off it, scope it, or send it out, and every use of the same pattern shares one sequencer.
+  
+  ```js
+  const seq = $`c3 e3 g3`
+  seq.saw().amp($perc(seq)).out()
+  seq.scope()
+  ```
+  
+  When a pattern or multi-output module is plugged into an input, the editor shows which of its outputs that input takes; double-click the hint to write it into your code.
+- `$wavMeta('/wavs/loop.wav')` reads a wav's tempo, loops and cue points, so a patch can follow a loop's own tempo: `$setTempo($wavMeta('/wavs/loop.wav').bpm ?? 120)`.
+- Typing a path that starts with `/` completes the wavs, images and videos in your workspace, and dragging a file from the explorer into the editor writes its path. The explorer lists images and videos too.
+- New quick fixes: add a control for every param a module call leaves unset, turn a `$slider` back into `$c`, and extract a value to a constant or function, or inline a variable. Wrapping a single-value `$c` or `$signal` in a control now replaces the whole call.
+- `$remap` can leave out `inMin` and `inMax` to map from its input's own range: `$remap($adsr(gate), 0, 1)` maps the envelope's 0–5 onto 0–1. An input without a range maps from -5–5.
+- `.range(outMin, outMax)` works after any chain that keeps a signal's range, such as `.add()`, `.mul()`, `.div()` by a number, `.clamp()`, `.slew()`, `.round()` or `.erratic()`, mapping from the range that results. `$signal` takes `min` and `max` to give a value a range of its own:
+  
+  ```js
+  $sine('1hz').range(0, 2).add(1).range(-5, 5)
+  $signal(3, { min: 0, max: 10 }).range(0, 1)
+  ```
+- `$round`, `$floor` and `$ceil` are modules of their own, so you can call them directly, like `$floor($saw('0.5hz').range(0, 4))`, as well as through `.round()`, `.floor()` and `.ceil()`. `.wet()` after them blends the rounded signal with the original.
+- `$erratic` is a module of its own, so you can call it directly, like `$erratic($sine('2hz'), 1)`, as well as through `.erratic()`, and `.wet()` after it blends the varied signal with the original. Its `min`, `max` and `mode` now work on any signal: `'clamp'` and `'blend'` keep a signal without a range of its own within -5 to 5, or within `min` and `max`.
+- A lane can carry a stereo pair. `$stereo(left, right)` joins two signals into one, `$left`, `$right` and `$mono` take a side or the average back out, and filters, oscillators, envelopes and the other modules that work lane by lane run on each side. `.out()` still plays a stereo lane in the centre, so send the sides to their own outputs for now.
+  
+  ```js
+  const pair = $stereo($saw('c3'), $saw('g3')).lpf('c6')
+  $left(pair).outMono(0)
+  $right(pair).outMono(1)
+  ```
+- Every signal has a `.concat(other)` method that joins it with another of the same type, lane after lane. Modules with several outputs join output by output, so `$enosc().concat($enosc())._all` works and the joined result still plugs in as the output that fits; patterns join the same way.
+- Choose how Format Document quotes strings under **Quotes** in the Formatter settings (or `prettier.quotes` in your config): single, double or backtick. Backtick keeps quotes only where JavaScript requires them, such as import paths and object keys; single and double turn template literals with no `${}`, line break or tag into quoted strings. New installs start with backticks; existing setups keep their quotes. Controls such as `$slider` and `$btn` also accept backtick labels and values like `` $btn(`Kick`) ``.
+
+### Improved
+
+- Settings open in the sidebar, which can sit on the left or the right; click the active sidebar button to close it. If you rebound keys with the `inSettingsModal` condition, it is now `settingsVisible`.
+- A bottom bar opens the mixer and the docs in a resizable panel under the editor. The command `shoreline.toggleVuMeters` is now `shoreline.toggleMixer`.
+- The module reference has a list of module names to jump between and category filters, and shows whether each output is a gate, a trigger, or a signal with its voltage range.
+- Patches use less CPU, especially with many scopes or meters, and sounds that fade to silence no longer cost extra CPU on Intel and AMD computers.
+- `$macro` is deprecated and will be removed in a later release; its docs name the `$mi.*` module that replaces each of its engines.
+- Changing a `.wet()` or `.pipeMix()` amount, or `$ott`'s `depth`, while a patch plays glides to the new blend instead of jumping to it.
+- Changing the amount in `.add()`, `.sub()`, `.mul()`, `.div()` or `.exp()` while a patch plays glides to the new value instead of jumping to it.
+
+### Fixed
+
+- `$trackTap(...).level` follows an out whose gain is a `$deferred()`.
+- The mixer's mute, solo, pan and gain edit `.out()` calls correctly when the options use shorthand such as `{ mute }` or a ternary; mute no longer adds a second `mute: true`.
+- Sliders, quick fixes and step highlights work on `$tr808` drums, on quoted option keys such as `{ 'phase': 0.5 }`, and on constants declared inside functions.
+
 ## v0.0.142
 
 Releases up to and including 0.0.142 have no release notes.
