@@ -70,7 +70,6 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
             default: true,
             min_value: None,
             max_value: None,
-            lanes: None,
             mono: false,
             precision: crate::types::OutputPrecision::F32,
             bounds: crate::types::BoundsKind::Unbounded,

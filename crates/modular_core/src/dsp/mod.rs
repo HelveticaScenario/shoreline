@@ -97,8 +97,8 @@ pub fn schema() -> Vec<ModuleSchema> {
 }
 
 /// A module type's stereo mode and the output ports whose channels follow
-/// the module's, buffer ports among them. Fixed-width, single-value and
-/// `mono` outputs stay mono.
+/// the module's, buffer ports among them. Single-value and `mono` outputs
+/// stay mono.
 pub struct StereoLayout {
     pub mode: crate::types::StereoMode,
     pub following_ports: std::collections::HashSet<String>,
@@ -114,7 +114,7 @@ pub fn stereo_layouts() -> &'static HashMap<String, StereoLayout> {
                 let following_ports = module
                     .outputs
                     .into_iter()
-                    .filter(|output| output.polyphonic && output.lanes.is_none() && !output.mono)
+                    .filter(|output| output.polyphonic && !output.mono)
                     .map(|output| output.name)
                     .chain(module.buffer_outputs)
                     .collect();
