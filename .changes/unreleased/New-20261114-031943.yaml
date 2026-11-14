@@ -1,0 +1,3 @@
+kind: New
+body: Every signal has a `.concat(other)` method that joins it with another of the same type, lane after lane. Modules with several outputs join output by output, so `$enosc().concat($enosc())._all` works and the joined result still plugs in as the output that fits; patterns join the same way.
+time: 2026-11-14T03:19:43.248778-05:00

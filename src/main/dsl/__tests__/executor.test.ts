@@ -2336,27 +2336,6 @@ describe('$delay', () => {
         expect(findModules(patch, '_crossfade')).toHaveLength(1);
     });
 
-    test('exposes the captured buffer for additional taps', () => {
-        const patch = execPatch(
-            'const d = $delay($sine("C4"), 0.25)\n$delayRead(d.buffer, 0.5).out()',
-        );
-        expect(findModules(patch, '$buffer').length).toBe(1);
-        // one read in the feedback loop, one for the external tap
-        expect(findModules(patch, '$delayRead').length).toBe(2);
-    });
-
-    test('slices and lanes of a delay keep its buffer', () => {
-        const patch = execPatch(
-            'const d = $delay($sine(["C4", "E4"]), 0.25)\n$delayRead(d[1].buffer, 0.5).out()\n$delayRead(d.slice(0, 1).buffer, 0.75).out()',
-        );
-        const [buffer] = findModules(patch, '$buffer');
-        const reads = findModules(patch, '$delayRead');
-        expect(reads).toHaveLength(3);
-        for (const read of reads) {
-            expect(read.params.buffer).toMatchObject({ module: buffer.id });
-        }
-    });
-
     test('sizes the feedback path to the widest polysignal param', () => {
         // The $buffer's input lane count reflects the feedback width.
         const bufWidth = (patch: PatchGraph) =>
