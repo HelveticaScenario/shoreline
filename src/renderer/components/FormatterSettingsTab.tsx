@@ -109,7 +109,8 @@ export function FormatterSettingsTab({
                     ))}
                 </select>
                 <span className="settings-hint">
-                    Backticks apply wherever JavaScript allows them
+                    Backtick keeps quotes where JavaScript requires them, such
+                    as import paths and object keys
                 </span>
             </div>
 
