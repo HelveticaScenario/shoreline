@@ -66,21 +66,44 @@ test('a pattern types as the module that plays it', () => {
     expect(
         errors(
             [
-                `const seq = $p('c3 e3 g3')`,
+                `const seq = $('c3 e3 g3')`,
                 `$saw(seq).amp($perc(seq._trig)).lpf(seq.range(-1, 1, 'c4', 'c6')).out()`,
                 `seq.fast(2).glide(0.1).saw().out()`,
                 `seq[0].scope()`,
-                `$p.s('0 2 4', 'c(maj)').trans.squeeze('0 7').add(1).out()`,
-                `$p.arrange([2, seq], [1, seq.slow(2)]).mul(2).out()`,
+                `$('0 2 4').scale('c(maj)').trans.squeeze('0 7').add(1).out()`,
+                `$arrange([2, seq], [1, seq.slow(2)]).mul(2).out()`,
                 `$cycle(seq.struct('x ~ x x')).out()`,
             ].join('\n'),
         ),
     ).toEqual([]);
     // A lane, a slice or the receiver `.out()` returns is the sequencer's
     // signal, which has no pattern methods.
-    expect(errors(`$p('c3').scope().fast(2)`)).toHaveLength(1);
-    expect(errors(`$p('c3')[0].glide(0.1)`)).toHaveLength(1);
-    expect(errors(`$cycle($p('c3').out())`)).toHaveLength(1);
+    expect(errors(`$('c3').scope().fast(2)`)).toHaveLength(1);
+    expect(errors(`$('c3')[0].glide(0.1)`)).toHaveLength(1);
+    expect(errors(`$cycle($('c3').out())`)).toHaveLength(1);
+});
+
+test('a scale pattern keeps .trans through every pattern method', () => {
+    expect(
+        errors(
+            [
+                `const s = $('0 2 4').scale('c(maj)')`,
+                `s.trans('1').fast(2).trans('2').saw().out()`,
+                `s.slow(2).struct('x ~ x').beat('0,3', 8).glide(0.1).trans.squeeze('0 7').out()`,
+                `s.trans('1').scale('d(min)').trans('1').out()`,
+                `$arrange([2, s], [2, $('0 1').scale('a(min)')]).trans('<0 1>').out()`,
+                `$arrange([1, $('0')], [1, $('c4')]).scale('c(maj)').trans('1').fast(2).trans('1').out()`,
+            ].join('\n'),
+        ),
+    ).toEqual([]);
+    expect(errors(`$('c4').trans('1')`)).toHaveLength(1);
+    expect(errors(`$('c4').fast(2).trans('1')`)).toHaveLength(1);
+    expect(
+        errors(
+            `$arrange([1, $('c4')], [1, $('0').scale('c(maj)')]).trans('1')`,
+        ),
+    ).toHaveLength(1);
+    expect(errors(`$.s('0', 'c(maj)')`)).toHaveLength(1);
 });
 
 test('the generated lib names only types it declares', () => {

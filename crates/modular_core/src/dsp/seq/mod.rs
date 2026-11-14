@@ -2,8 +2,8 @@
 //!
 //! This module provides:
 //! - `Seq`: A Strudel/TidalCycles style sequencer using the pattern system.
-//!   Scale-degree patterns (`$p.s`) lower to a `Seq` via `seq_value`, using the
-//!   shared [`interval_value`] degree type.
+//!   Patterns lower to it through [`lower`]; scale patterns (`.scale(...)`)
+//!   read their atoms as the [`interval_value`] degree type.
 
 use std::collections::HashMap;
 
@@ -19,6 +19,7 @@ pub mod groove;
 pub mod highlight;
 pub mod interval_value;
 pub mod keyframes;
+mod lower;
 #[expect(
     clippy::module_inception,
     reason = "`$seq` shares the name of its directory"

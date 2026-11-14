@@ -204,7 +204,7 @@ const K35_LP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Snarling lead",
         code: r#"
-            const lead = $saw($p('c3 eb3 g3 bb3'))
+            const lead = $saw($`c3 eb3 g3 bb3`)
             const sweep = $sine('0.5hz').range('c4', 'c7')
             $unstable.filter
               .k35Lp(lead, sweep, 4, { saturation: 'heavy' })

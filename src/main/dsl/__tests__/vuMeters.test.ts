@@ -657,7 +657,7 @@ describe('$trackTap', () => {
 
     test('a sequenced gain reads its $cycle', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass', gain: $p('1 4') })
+            $saw('c2').out({ label: 'bass', gain: $('1 4') })
             $signal($trackTap('bass').level, { id: 'probe' })
         `);
         const cycles = patch.modules.filter((m) => m.moduleType === '$cycle');
@@ -748,7 +748,7 @@ describe('$trackTap', () => {
 
     test('a pattern gain plays through its $cycle', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass', gain: $p('1 4') })
+            $saw('c2').out({ label: 'bass', gain: $('1 4') })
             $signal($trackTap('bass').level, { id: 'probe' })
         `);
         expect(

@@ -7,7 +7,7 @@
 //!    surface (10 × 10 × {add, sub} × 7 modes = 1400 rows). `.trans` only
 //!    adds; `sub` exercises `combine_sp` with a second combiner.
 //! 2. `sp_combine_chain2.json` — two-op chain. Folds
-//!    `lhs._op1(rhs1)._op2(rhs2)` matching $p.s(...).trans(rhs1).trans(rhs2)
+//!    `lhs._op1(rhs1)._op2(rhs2)` matching $(...).scale(...).trans(rhs1).trans(rhs2)
 //!    style chains (4 × 4 × 4 × 2 × 7 × 2 × 7 = 12 544 rows).
 //!
 //! For every row: parse sources via `mini::convert::<IntervalValue>`,

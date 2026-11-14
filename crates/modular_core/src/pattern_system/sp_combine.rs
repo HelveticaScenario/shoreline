@@ -1,4 +1,4 @@
-//! Strudel-style alignment combiners for `$p.s(...).trans(...)`.
+//! Strudel-style alignment combiners for `.trans(...)` on scale patterns.
 //!
 //! Direct combiner functions that take a left pattern, a right pattern, and
 //! a binary value combiner, and produce a new pattern via one of the seven
@@ -345,7 +345,7 @@ mod tests {
     // (HapContext::modifier_spans[0]).
     #[test]
     fn test_squeeze_context_left_is_pattern_idx_0() {
-        // A = $p.s(1) at source span [0, 1); B = $p.s(2) at [10, 11).
+        // A = degree 1 at source span [0, 1); B = degree 2 at [10, 11).
         let a: Pattern<i32> = pure_with_span(1, SourceSpan::new(0, 1));
         let b: Pattern<i32> = pure_with_span(2, SourceSpan::new(10, 11));
         let c = combine_sp(&a, &b, SpAlignmentMode::Squeeze, |x, y| x + y);
@@ -353,7 +353,7 @@ mod tests {
 
         assert!(
             !haps.is_empty(),
-            "expected at least one hap from $p.s(A).squeeze(B)"
+            "expected at least one hap from A.trans.squeeze(B)"
         );
         for hap in &haps {
             // Left operand A is pattern_idx 0 → ends up as source_span.
@@ -387,7 +387,7 @@ mod tests {
 
     // Companion check: SqueezeOut was correct-by-accident before the fix
     // because outer/inner were pre-swapped upstream. The fix must preserve
-    // this — `$p.s(A).squeezeOut(B)` should still land A at pattern_idx 0
+    // this — `A.trans.squeezeout(B)` should still land A at pattern_idx 0
     // and B at pattern_idx 1.
     #[test]
     fn test_squeeze_out_context_left_is_pattern_idx_0() {
@@ -398,7 +398,7 @@ mod tests {
 
         assert!(
             !haps.is_empty(),
-            "expected at least one hap from $p.s(A).squeezeOut(B)"
+            "expected at least one hap from A.trans.squeezeout(B)"
         );
         for hap in &haps {
             let source = hap
@@ -413,24 +413,30 @@ mod tests {
         }
     }
 
-    // `$p.s('0 1 2 3', 'c(maj)').trans('0 5')`. Mirrors the pipeline in
-    // `SeqPatternParam::from_sp_payload`: parse each source into a
+    // `$('0 1 2 3').scale('c(maj)').trans('0 5')`: parse each source into a
     // `Pattern<IntervalValue>`, `strip_modifier_spans` each one, then
-    // `combine_sp` with `In` + `add_interval_values`. The right operand
+    // `combine_sp` with `In` and degree addition. The right operand
     // ("0 5") has the '5' leaf at source offsets [2, 3). After the fold,
     // that span should land at pattern_idx == 1 (modifier_spans[0]) in
     // every hap where the right pattern's value contributes — and across
     // the cycle, at least one such hap must exist.
     #[test]
     fn test_sp_trans_right_leaf_lands_at_pattern_idx_1() {
-        use crate::dsp::seq::interval_value::{IntervalValue, add_interval_values};
+        use crate::dsp::seq::interval_value::IntervalValue;
         use crate::pattern_system::mini;
+
+        fn add_interval_values(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
+            match (a.degree(), b.degree()) {
+                (Some(da), Some(db)) => IntervalValue::Degree(da + db),
+                _ => IntervalValue::Rest,
+            }
+        }
 
         // 1+2. Lower mini-notation to Pattern<IntervalValue>.
         let left: Pattern<IntervalValue> = mini::parse("0 1 2 3").expect("parse '0 1 2 3'");
         let right: Pattern<IntervalValue> = mini::parse("0 5").expect("parse '0 5'");
 
-        // 3. Strip modifier spans before combining (matches from_sp_payload).
+        // 3. Strip modifier spans before combining.
         let left = left.strip_modifier_spans();
         let right = right.strip_modifier_spans();
 

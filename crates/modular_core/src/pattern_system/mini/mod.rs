@@ -1,8 +1,8 @@
 //! Mini notation AST + pattern construction.
 //!
 //! Parsing (strings → `MiniAST`) now lives TypeScript-side in
-//! `src/main/dsl/miniNotation/`. The DSL's `$p(source)` helper parses the
-//! mini-notation string, then `$cycle` / `$p.s` serialize the resulting
+//! `src/main/dsl/miniNotation/`. The DSL's `$(source)` helper parses the
+//! mini-notation string, then `$cycle` patterns serialize the resulting
 //! `{ ast, source, all_spans }` payload in the patch graph. Rust receives
 //! that payload and lowers the AST to a `Pattern<T>` via [`convert`].
 //!
@@ -31,7 +31,7 @@ pub mod ast;
 pub mod convert;
 
 /// Tiny descent parser kept around only for test fixtures. Production
-/// parsing is done TypeScript-side (`$p()`). See `test_parser.rs` for
+/// parsing is done TypeScript-side (`$()`). See `test_parser.rs` for
 /// caveats. Always compiled (not `#[cfg(test)]`) because integration
 /// tests in `crates/modular_core/tests/` are a separate crate and
 /// couldn't otherwise see cfg-test items from this lib.

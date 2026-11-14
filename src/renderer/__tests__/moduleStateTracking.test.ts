@@ -1,5 +1,5 @@
 /**
- * Tests for pattern step highlighting ($p / $p.s) via startModuleStatePolling.
+ * Tests for pattern step highlighting ($ / .scale) via startModuleStatePolling.
  *
  * Invariants guarded:
  * - Tracked decorations anchor every leaf span on the first poll after a
@@ -321,7 +321,7 @@ describe('startModuleStatePolling anchor lifetime', () => {
         setActiveInterpolationResolutions(null);
     });
 
-    const DOC = "$p.arrange([8, 'a b'], [8, 'c d'])";
+    const DOC = "$arrange([8, 'a b'], [8, 'c d'])";
     const P0 = DOC.indexOf("'a b'");
     const P1 = DOC.indexOf("'c d'");
 
@@ -502,7 +502,7 @@ describe('startModuleStatePolling interpolation resolution', () => {
         // to 'c4' (2 chars), so positions in chord's literal tail sit 5 chars
         // later in the raw source than in the evaluated result.
         const DOC =
-            "const root = 'c4'; const chord = `${root} e4 g4`; $p(`${chord} b4`)";
+            "const root = 'c4'; const chord = `${root} e4 g4`; $(`${chord} b4`)";
         const rootStart = DOC.indexOf("'c4'");
         const chordStart = DOC.indexOf('`${root} e4 g4`');
         const argStart = DOC.indexOf('`${chord} b4`');
@@ -585,7 +585,7 @@ describe('startModuleStatePolling interpolation resolution', () => {
     });
 
     test('a span starting on the boundary of adjacent interpolations resolves into the const that begins there', async () => {
-        const DOC = "const a = 'c4 '; const b = 'e4'; $p(`${a}${b}`)";
+        const DOC = "const a = 'c4 '; const b = 'e4'; $(`${a}${b}`)";
         const aStart = DOC.indexOf("'c4 '");
         const bStart = DOC.indexOf("'e4'");
         const argStart = DOC.indexOf('`${a}${b}`');

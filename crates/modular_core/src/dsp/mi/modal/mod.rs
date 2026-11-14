@@ -125,7 +125,7 @@ const MODAL_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Marimba melody",
             code: r#"
-                const seq = $p('c3 e3 g3 <a3 b3>')
+                const seq = $`c3 e3 g3 <a3 b3>`
                 $mi.modal(seq, { trigger: seq, structure: 1.4 }).out()
             "#,
         },

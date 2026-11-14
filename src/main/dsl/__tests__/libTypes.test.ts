@@ -74,7 +74,7 @@ describe('generated DSL lib', () => {
                 const tap = $trackTap('bass');
                 tap[0].level.range(0, 1);
                 for (const c of tap) c.pan.range(-1, 1);
-                const seq = $p('[c4,e4] [g4,b4]');
+                const seq = $('[c4,e4] [g4,b4]');
                 $perc(seq[1]).out();
                 $perc(seq[1]._trig).out();
                 for (const voice of seq) voice._gate.scope();
@@ -85,8 +85,8 @@ describe('generated DSL lib', () => {
     test('arithmetic chains off collections, ranged collections and patterns', () => {
         const patchErrors = diagnostics(`
                 $sine('c3').add(1).sub(0.5).mul(2).div(4).exp(2).out();
-                $sine('1hz').range(0, 1).mul($p('1 2')).out();
-                $p('0 2 4').add(1).out();
+                $sine('1hz').range(0, 1).mul($('1 2')).out();
+                $('0 2 4').add(1).out();
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
     });

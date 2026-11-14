@@ -20,10 +20,9 @@ pub(crate) const MIN_HAPS_CAP_HINT: usize = 16;
 /// Initial span_arena sizing per cached cycle (`MIN_HAPS_CAP_HINT * this`).
 pub(crate) const SPANS_RESERVE_PER_HAP: usize = 4;
 
-/// Flat span entry tagged with the source pattern it belongs to. Used by
-/// `Seq`'s chained `$p.s` (`SpPattern`) payloads, which need per-source
-/// highlighting when one runtime hap was produced from multiple input
-/// pattern strings.
+/// Flat span entry tagged with the source pattern it belongs to, for
+/// per-source highlighting when one runtime hap was produced from several
+/// input pattern strings (`.trans`, `.struct`, `$arrange`, …).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct FlatSpan {
     pub pattern_idx: u32,

@@ -280,7 +280,7 @@ struct SeqOutputs {
 
 const CYCLE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Mini-notation pattern sequencer",
-    description: "Plays a `$p(...)` mini-notation pattern in time with the clock, putting out \
+    description: "Plays a `$(...)` mini-notation pattern in time with the clock, putting out \
                   pitch, gate, trigger and velocity for every note. The pattern repeats once \
                   per bar, overlapping notes get voices of their own so stacks play as \
                   chords, and note starts follow the global groove set with `$setGroove`. \
@@ -315,7 +315,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Plucked bass line",
                 code: r#"
-                    const seq = $p('c2 ~ eb2 g2 ~ c3 bb2 g2')
+                    const seq = $`c2 ~ eb2 g2 ~ c3 bb2 g2`
                     $saw(seq)
                       .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
                       .out()
@@ -348,7 +348,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Bass that changes every bar",
                 code: r#"
-                    const seq = $p('<c2 ab1 f1 g1> [~ c3] ~ c2')
+                    const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`
                     $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
                 "#,
             }],
@@ -361,7 +361,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Melody over a drone",
                 code: r#"
-                    const seq = $p('c4 eb4 g4 bb4, c3')
+                    const seq = $`c4 eb4 g4 bb4, c3`
                     $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
                 "#,
             }],
@@ -374,7 +374,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "A melody that never quite repeats",
                 code: r#"
-                    const seq = $p('c4 [eb4|g4|bb4] f4? [g4|c5]')
+                    const seq = $`c4 [eb4|g4|bb4] f4? [g4|c5]`
                     $sine(seq).amp($adsr(seq)).out()
                 "#,
             }],
@@ -423,7 +423,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             examples: &[DocExample {
                 title: "Euclidean rhythm",
                 code: r#"
-                    const seq = $p('c2(3,8) [g2 c3](5,8,2)')
+                    const seq = $`c2(3,8) [g2 c3](5,8,2)`
                     $pulse(seq).lpf('c5', 2).amp($adsr(seq)).out()
                 "#,
             }],
@@ -433,8 +433,8 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
         title: "Swung hats over a straight bass",
         code: r#"
             $setGroove($swing(0.6))
-            const hats = $p('c5*8')
-            const bass = $cycle($p('c2*4'), { groove: 0 })
+            const hats = $`c5*8`
+            const bass = $cycle($`c2*4`, { groove: 0 })
             $noise('white')
               .amp($perc(hats, { decay: 0.05 }))
               .amp(hats._velocity)

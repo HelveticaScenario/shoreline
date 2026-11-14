@@ -485,23 +485,23 @@ describe('modulation routing', () => {
 // ─── Sequencing & patterns ───────────────────────────────────────────────────
 
 describe('sequencing', () => {
-    test('$cycle with $p() pattern', () => {
-        const patch = execPatch('$cycle($p("c4 e4 g4 b4")).out()');
+    test('$cycle with $() pattern', () => {
+        const patch = execPatch('$cycle($("c4 e4 g4 b4")).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
     });
 
     test('.cycle() on every pattern kind builds a $cycle', () => {
         const patch = execPatch(`
-            $p("c4 e4").cycle().out();
-            $p.s("0 2 4", "C(major)").cycle().out();
-            $p.arrange([2, $p("c4")], [1, $p("e4")]).cycle().out();
-            $p("c4 e4").fast(2).slow(3).struct("x ~").beat("0", 4).cycle().out();
+            $("c4 e4").cycle().out();
+            $("0 2 4").scale("C(major)").cycle().out();
+            $arrange([2, $("c4")], [1, $("e4")]).cycle().out();
+            $("c4 e4").fast(2).slow(3).struct("x ~").beat("0", 4).cycle().out();
         `);
         expect(findModules(patch, '$cycle').length).toBe(4);
     });
 
     test('.cycle(config) forwards $cycle config', () => {
-        const patch = execPatch('$p("c4 e4").cycle({ ribbon: [0, 2] }).out()');
+        const patch = execPatch('$("c4 e4").cycle({ ribbon: [0, 2] }).out()');
         const [mod] = findModules(patch, '$cycle');
         expect((mod.params as { ribbon: unknown }).ribbon).toEqual([0, 2]);
     });
@@ -515,20 +515,34 @@ describe('sequencing', () => {
                         : v,
                 ),
             );
-        const viaMethod = execPatch('$p("c4 e4").cycle().out()');
-        const viaFactory = execPatch('$cycle($p("c4 e4")).out()');
+        const viaMethod = execPatch('$("c4 e4").cycle().out()');
+        const viaFactory = execPatch('$cycle($("c4 e4")).out()');
         const [a] = findModules(viaMethod, '$cycle');
         const [b] = findModules(viaFactory, '$cycle');
         expect(stripSpans(a.params)).toEqual(stripSpans(b.params));
         expect(
             (a.params as { pattern: { argument_span?: unknown } }).pattern
                 .argument_span,
-        ).toEqual({ start: 3, end: 10 });
+        ).toEqual({ start: 2, end: 9 });
+    });
+
+    test('a tagged $ template keeps its highlight spans', () => {
+        const source =
+            'const root = "c4"\n' +
+            'const seq = $`${root} e4`.fast("2 4")\nseq.out()';
+        const [cycle] = findModules(execPatch(source), '$cycle');
+        const { pattern } = cycle.params;
+        if (!isKind(pattern, 'FastPattern')) {
+            throw new Error('expected a FastPattern');
+        }
+        const [inner, factor] = pattern.argument_spans;
+        expect(source.slice(inner.start, inner.end)).toBe('`${root} e4`');
+        expect(source.slice(factor.start, factor.end)).toBe('"2 4"');
     });
 
     test('a lane of a sequence feeds each input its fitting output', () => {
         const patch = execPatch(`
-            const seq = $p('[c4,e4] [g4,b4]');
+            const seq = $('[c4,e4] [g4,b4]');
             $sine(seq[1]).amp($perc(seq[1])).out();
         `);
         const [cycle] = findModules(patch, '$cycle');
@@ -543,7 +557,7 @@ describe('sequencing', () => {
     });
 
     test('an array in a signal param spreads the collections inside it', () => {
-        const patch = execPatch('$sine([$p("c4, g4"), "e4"]).out()');
+        const patch = execPatch('$sine([$("c4, g4"), "e4"]).out()');
         const [sine] = findModules(patch, '$sine');
         expect(sine.params.freq).toHaveLength(3);
     });
@@ -554,7 +568,7 @@ describe('sequencing', () => {
     });
 
     test('$c lifts single values to $signal and takes a pattern', () => {
-        const patch = execPatch('$c($p("c4 e4"), "c4", 440).out()');
+        const patch = execPatch('$c($("c4 e4"), "c4", 440).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
         const lifted = findModules(patch, '$signal').filter(
             (m) => m.params.value === 'c4' || m.params.value === 440,
@@ -563,7 +577,7 @@ describe('sequencing', () => {
     });
 
     test('.outMono rejects a pattern in the channel position', () => {
-        expect(() => execPatch('$sine("c3").outMono($p("0.5 1"))')).toThrow(
+        expect(() => execPatch('$sine("c3").outMono($("0.5 1"))')).toThrow(
             /first argument is a channel number/,
         );
     });
@@ -582,22 +596,24 @@ describe('sequencing', () => {
         expect(findModules(patch, '$keyframes').length).toBe(1);
     });
 
-    test('$cycle($p.s(...)) builds a scale-degree pattern', () => {
-        const single = execPatch('$cycle($p.s("0 2 4 5 7", "C(major)")).out()');
+    test('$cycle($(...).scale(...)) builds a scale-degree pattern', () => {
+        const single = execPatch(
+            '$cycle($("0 2 4 5 7").scale("C(major)")).out()',
+        );
         expect(findModules(single, '$cycle').length).toBe(1);
         // Chained .add folds a second source additively.
         const chained = execPatch(
-            '$cycle($p.s("0 2 4", "C(major)").trans("0 3")).out()',
+            '$cycle($("0 2 4").scale("C(major)").trans("0 3")).out()',
         );
         expect(findModules(chained, '$cycle').length).toBe(1);
     });
 
-    test('$cycle($p.arrange(...)) builds an arrangement end-to-end', () => {
+    test('$cycle($arrange(...)) builds an arrangement end-to-end', () => {
         // Round-trips the ArrangePattern wire payload through the native
         // deserializer (via deriveLaneCount) — a clean build proves Rust
         // accepted it through from_arrange_payload.
         const patch = execPatch(
-            '$cycle($p.arrange([2, $p.s("0 2 4", "C(major)")], [2, $p.s("0 2 4", "A(min)")])).out()',
+            '$cycle($arrange([2, $("0 2 4").scale("C(major)")], [2, $("0 2 4").scale("A(min)")])).out()',
         );
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
@@ -611,12 +627,12 @@ describe('sequencing', () => {
         expect(pattern.__kind).toBe('ArrangePattern');
         expect(pattern.sections.length).toBe(2);
         expect(pattern.sections[0].cycles).toBe(2);
-        expect(pattern.sections[0].pattern.__kind).toBe('SpPattern');
+        expect(pattern.sections[0].pattern.__kind).toBe('ScalePattern');
     });
 
-    test('$p.arrange supports an Infinity tail and nesting', () => {
+    test('$arrange supports an Infinity tail and nesting', () => {
         const inf = execPatch(
-            '$cycle($p.arrange([2, $p("c4")], [Infinity, $p.s("0 2 4", "f(lydian)")])).out()',
+            '$cycle($arrange([2, $("c4")], [Infinity, $("0 2 4").scale("f(lydian)")])).out()',
         );
         const infPattern = findModules(inf, '$cycle')[0].params.pattern as {
             sections: Array<{ cycles: number | string }>;
@@ -624,32 +640,34 @@ describe('sequencing', () => {
         expect(infPattern.sections[1].cycles).toBe('Infinity');
 
         const nested = execPatch(
-            '$cycle($p.arrange([2, $p("c4")], [2, $p.arrange([1, $p("e4")], [1, $p("g4")])])).out()',
+            '$cycle($arrange([2, $("c4")], [2, $arrange([1, $("e4")], [1, $("g4")])])).out()',
         );
         expect(findModules(nested, '$cycle').length).toBe(1);
     });
 
-    test('$p.arrange surfaces a Rust validation error from a section', () => {
+    test('$arrange surfaces a Rust validation error from a section', () => {
         // A non-integer scale degree inside a section is rejected by the
         // native deserializer (round-tripped via deriveLaneCount).
         expect(() =>
-            execPatch('$cycle($p.arrange([2, $p.s("1.5", "C(major)")])).out()'),
+            execPatch(
+                '$cycle($arrange([2, $("1.5").scale("C(major)")])).out()',
+            ),
         ).toThrow(/IntervalValue requires integer scale degrees/);
     });
 
-    test('$p.arrange rejects an Infinity section that is not last', () => {
+    test('$arrange rejects an Infinity section that is not last', () => {
         expect(() =>
             execPatch(
-                '$cycle($p.arrange([Infinity, $p("c4")], [2, $p("e4")])).out()',
+                '$cycle($arrange([Infinity, $("c4")], [2, $("e4")])).out()',
             ),
         ).toThrow(/must be the last section/);
     });
 
-    test('$cycle($p(...).fast(n)) builds end-to-end', () => {
+    test('$cycle($(...).fast(n)) builds end-to-end', () => {
         // Round-trips the FastPattern wire payload through the native
         // deserializer — a clean build proves Rust accepted it through
         // from_fast_payload.
-        const patch = execPatch('$cycle($p("c4 e4").fast(2)).out()');
+        const patch = execPatch('$cycle($("c4 e4").fast(2)).out()');
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
@@ -669,7 +687,7 @@ describe('sequencing', () => {
         // argument_spans[1] (argument_spans[0] is the wrapped pattern), parallel
         // to the Rust per_source [inner, factor].
         const source =
-            'const pat = $p("c4 e4").fast("2 4")\n' +
+            'const pat = $("c4 e4").fast("2 4")\n' +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -701,7 +719,7 @@ describe('sequencing', () => {
     test('.fast with a number factor adds no factor highlight span', () => {
         // A bare number is a constant, not a highlightable source: the factor is
         // carried as a raw number and only the wrapped pattern contributes a span.
-        const patch = execPatch('$cycle($p("c4 e4").fast(2)).out()');
+        const patch = execPatch('$cycle($("c4 e4").fast(2)).out()');
         const pattern = findModules(patch, '$cycle')[0].params.pattern;
         expect(isKind(pattern, 'FastPattern')).toBe(true);
         if (!isKind(pattern, 'FastPattern')) return;
@@ -713,14 +731,14 @@ describe('sequencing', () => {
         // Patterned factor string.
         expect(
             findModules(
-                execPatch('$cycle($p("c4 e4").fast("2 4")).out()'),
+                execPatch('$cycle($("c4 e4").fast("2 4")).out()'),
                 '$cycle',
             ).length,
         ).toBe(1);
         // .slow on a scale-degree pattern.
         expect(
             findModules(
-                execPatch('$cycle($p.s("0 2 4", "C(major)").slow(2)).out()'),
+                execPatch('$cycle($("0 2 4").scale("C(major)").slow(2)).out()'),
                 '$cycle',
             ).length,
         ).toBe(1);
@@ -728,28 +746,26 @@ describe('sequencing', () => {
         expect(
             findModules(
                 execPatch(
-                    '$cycle($p.arrange([2, $p("c4")], [2, $p("e4")]).fast(2)).out()',
+                    '$cycle($arrange([2, $("c4")], [2, $("e4")]).fast(2)).out()',
                 ),
                 '$cycle',
             ).length,
         ).toBe(1);
     });
 
-    test('$cycle($p(...).fast(0)) is accepted (lowers to silence)', () => {
+    test('$cycle($(...).fast(0)) is accepted (lowers to silence)', () => {
         // Lenient edge behavior: factor 0 is not rejected at the wire layer.
         expect(
-            findModules(
-                execPatch('$cycle($p("c4 e4").fast(0)).out()'),
-                '$cycle',
-            ).length,
+            findModules(execPatch('$cycle($("c4 e4").fast(0)).out()'), '$cycle')
+                .length,
         ).toBe(1);
     });
 
-    test('$cycle($p(...).struct(s)) builds end-to-end', () => {
+    test('$cycle($(...).struct(s)) builds end-to-end', () => {
         // Round-trips the StructPattern wire payload through the native
         // deserializer — a clean build proves Rust accepted it through
         // from_struct_payload.
-        const patch = execPatch('$cycle($p("c4 e4").struct("x ~ x x")).out()');
+        const patch = execPatch('$cycle($("c4 e4").struct("x ~ x x")).out()');
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
@@ -765,7 +781,7 @@ describe('sequencing', () => {
         // it as argument_spans[1] — parallel to the Rust per_source
         // [inner, bool_pattern].
         const source =
-            'const pat = $p("c4 e4").struct("x ~ x x")\n' +
+            'const pat = $("c4 e4").struct("x ~ x x")\n' +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -784,8 +800,8 @@ describe('sequencing', () => {
         ).toBe(true);
     });
 
-    test('$cycle($p(...).beat(t, div)) builds end-to-end', () => {
-        const patch = execPatch('$cycle($p("c2").beat("0,7,10", 16)).out()');
+    test('$cycle($(...).beat(t, div)) builds end-to-end', () => {
+        const patch = execPatch('$cycle($("c2").beat("0,7,10", 16)).out()');
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
         const pattern = cycles[0].params.pattern;
@@ -802,7 +818,7 @@ describe('sequencing', () => {
 
     test('.beat captures string t and div argument spans for highlighting', () => {
         const source =
-            'const pat = $p("c2").beat("0,7", "<16 8>")\n' +
+            'const pat = $("c2").beat("0,7", "<16 8>")\n' +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -821,7 +837,7 @@ describe('sequencing', () => {
 
     test('.glide captures a string glide argument span for highlighting', () => {
         const source =
-            'const pat = $p("c4 e4").glide("0 0.25")\n' +
+            'const pat = $("c4 e4").glide("0 0.25")\n' +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
@@ -845,7 +861,7 @@ describe('sequencing', () => {
         expect(
             findModules(
                 execPatch(
-                    '$cycle($p.s("0 2 4", "C(major)").struct("x ~ x")).out()',
+                    '$cycle($("0 2 4").scale("C(major)").struct("x ~ x")).out()',
                 ),
                 '$cycle',
             ).length,
@@ -854,7 +870,7 @@ describe('sequencing', () => {
         expect(
             findModules(
                 execPatch(
-                    '$cycle($p.arrange([2, $p("c4")], [2, $p("e4")]).beat(0, 4)).out()',
+                    '$cycle($arrange([2, $("c4")], [2, $("e4")]).beat(0, 4)).out()',
                 ),
                 '$cycle',
             ).length,
@@ -863,67 +879,66 @@ describe('sequencing', () => {
         expect(
             findModules(
                 execPatch(
-                    '$cycle($p("c4 e4").fast(2).struct("x ~ x x").beat("0,2", 4)).out()',
+                    '$cycle($("c4 e4").fast(2).struct("x ~ x x").beat("0,2", 4)).out()',
                 ),
                 '$cycle',
             ).length,
         ).toBe(1);
     });
 
-    test('$cycle($p("x")) is rejected — x is struct-only', () => {
-        expect(() => execPatch('$cycle($p("x")).out()')).toThrow(/struct/);
+    test('$cycle($("x")) is rejected — x is struct-only', () => {
+        expect(() => execPatch('$cycle($("x")).out()')).toThrow(/struct/);
     });
 
-    test('$p rejects dropped atom kinds', () => {
-        expect(() => execPatch('$p("m60")')).toThrow();
-        expect(() => execPatch('$p("bd sd")')).toThrow();
-        expect(() => execPatch('$p("module(osc1:out:0)")')).toThrow();
-        expect(() => execPatch('$p("2v")')).toThrow();
+    test('$ rejects dropped atom kinds', () => {
+        expect(() => execPatch('$("m60")')).toThrow();
+        expect(() => execPatch('$("bd sd")')).toThrow();
+        expect(() => execPatch('$("module(osc1:out:0)")')).toThrow();
+        expect(() => execPatch('$("2v")')).toThrow();
     });
 
-    test('$p.s rejects non-integer atoms at patch-graph validation', () => {
+    test('.scale rejects non-integer atoms at patch-graph validation', () => {
         expect(() =>
-            execPatch('$cycle($p.s("1.5", "C(major)")).out()'),
+            execPatch('$cycle($("1.5").scale("C(major)")).out()'),
         ).toThrow(/IntervalValue requires integer scale degrees, got 1\.5/);
-        expect(() => execPatch('$cycle($p.s("c4", "C(major)")).out()')).toThrow(
-            /IntervalValue does not accept note atoms/,
-        );
         expect(() =>
-            execPatch('$cycle($p.s("440hz", "C(major)")).out()'),
-        ).toThrow(/IntervalValue does not accept Hz atoms/);
+            execPatch('$cycle($("c4").scale("C(major)")).out()'),
+        ).toThrow(/note names are not allowed under \.scale/);
+        expect(() =>
+            execPatch('$cycle($("440hz").scale("C(major)")).out()'),
+        ).toThrow(/Hz atoms are not allowed under \.scale/);
     });
 
     test('$cycle accepts mixed numeric, note, and hz atoms', () => {
-        const patch = execPatch('$cycle($p("0.5 c4 440hz -1")).out()');
+        const patch = execPatch('$cycle($("0.5 c4 440hz -1")).out()');
         expect(findModules(patch, '$cycle').length).toBe(1);
     });
 
-    test('$p.s(...).trans(...) wire payload preserves chain RHS argument_spans[1]', () => {
+    test('.scale(...).trans(...) wire payload preserves chain RHS argument_spans[1]', () => {
         // The chain RHS span is captured by the analyzer and carried
-        // through to the SpPattern wire payload as
+        // through to the TransPattern wire payload as
         // argument_spans[1], pointing at the literal '0 5' in the user
         // source so editor highlighting can follow it.
         const source =
-            "const pat = $p.s('0 1 2 3', 'c(maj)').trans('0 5')\n" +
+            "const pat = $('0 1 2 3').scale('c(maj)').trans('0 5')\n" +
             'const seq = $cycle(pat)\n' +
             'seq.out()';
         const patch = execPatch(source);
         const cycles = findModules(patch, '$cycle');
         expect(cycles.length).toBe(1);
 
-        // The SpPattern lives on $cycle.pattern as an opaque wire payload.
+        // The pattern lives on $cycle.pattern as an opaque wire payload.
         const pattern = cycles[0].params.pattern as {
             __kind: string;
-            sources: Array<{ source: string }>;
-            modes: string[];
+            rhs: { source: string };
+            mode: string;
             argument_spans: Array<{ start: number; end: number }>;
         };
-        expect(pattern.__kind).toBe('SpPattern');
-        expect(pattern.sources.length).toBe(2);
-        expect(pattern.sources[1].source).toBe('0 5');
-        expect(pattern.modes).toEqual(['in']);
+        expect(pattern.__kind).toBe('TransPattern');
+        expect(pattern.rhs.source).toBe('0 5');
+        expect(pattern.mode).toBe('in');
 
-        // argument_spans must be parallel to sources: one per source.
+        // One span per source: the degrees, then the RHS.
         expect(pattern.argument_spans.length).toBe(2);
 
         // argument_spans[1] should bracket the '0 5' literal in the
@@ -946,12 +961,12 @@ describe('sequencing', () => {
         expect(slice.includes('0 5')).toBe(true);
     });
 
-    test('$p.s chain on a const-bound pattern captures RHS argument_spans', () => {
+    test('scale chain on a const-bound pattern captures RHS argument_spans', () => {
         // A `.trans` link on a pattern stored in a const resolves its chain
-        // root back to `$p.s(...)`, so the analyzer registers the RHS literal
+        // root back to `$(...)`, so the analyzer registers the RHS literal
         // span and the editor highlights it.
         const source =
-            "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
+            "const p1 = $('0 1 2 3').scale('c(maj)')\n" +
             "const p2 = p1.trans('0,2')\n" +
             'const seq = $cycle(p2)\n' +
             'seq.out()';
@@ -961,11 +976,9 @@ describe('sequencing', () => {
 
         const pattern = cycles[0].params.pattern as {
             __kind: string;
-            sources: Array<{ source: string }>;
             argument_spans: Array<{ start: number; end: number }>;
         };
-        expect(pattern.__kind).toBe('SpPattern');
-        expect(pattern.sources.length).toBe(2);
+        expect(pattern.__kind).toBe('TransPattern');
         expect(pattern.argument_spans.length).toBe(2);
 
         const rhsSpan = pattern.argument_spans[1];
@@ -976,12 +989,12 @@ describe('sequencing', () => {
         );
     });
 
-    test('$p.s nested chain on a const-bound pattern captures every RHS span', () => {
+    test('scale nested chain on a const-bound pattern captures every RHS span', () => {
         // Multi-link chain (`.trans(...).trans.squeeze(...)`) rooted at a const
         // pattern, applied inline inside `$cycle`. Every chained RHS literal
         // must get a real span, not the {0,0} fallback.
         const source =
-            "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
+            "const p1 = $('0 1 2 3').scale('c(maj)')\n" +
             "const seq = $cycle(p1.trans('7').trans.squeeze('{0 1 2 3}%2'))\n" +
             'seq.out()';
         const patch = execPatch(source);
@@ -990,11 +1003,9 @@ describe('sequencing', () => {
 
         const pattern = cycles[0].params.pattern as {
             __kind: string;
-            sources: Array<{ source: string }>;
             argument_spans: Array<{ start: number; end: number }>;
         };
-        expect(pattern.__kind).toBe('SpPattern');
-        expect(pattern.sources.length).toBe(3);
+        expect(pattern.__kind).toBe('TransPattern');
         expect(pattern.argument_spans.length).toBe(3);
 
         const subSpan = pattern.argument_spans[1];
@@ -1013,11 +1024,11 @@ describe('sequencing', () => {
         ).toBe(true);
     });
 
-    test('$p.s chain rooted in a const-of-const resolves through both', () => {
+    test('scale chain rooted in a const-of-const resolves through both', () => {
         // The chain root walk must recurse through multiple const hops:
         // p2 derives from p1, p3 chains off p2.
         const source =
-            "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
+            "const p1 = $('0 1 2 3').scale('c(maj)')\n" +
             "const p2 = p1.trans('0,2')\n" +
             "const p3 = p2.trans('1')\n" +
             'const seq = $cycle(p3)\n' +
@@ -1045,7 +1056,7 @@ describe('sequencing', () => {
         // source highlighted. Assert every source's offset is present and
         // brackets the right literal.
         const source =
-            "const p1 = $p.s('0 1 2 3', 'c(maj)')\n" +
+            "const p1 = $('0 1 2 3').scale('c(maj)')\n" +
             "const seq = $cycle(p1.trans('7').trans.squeeze('{0 1 2 3}%2'))\n" +
             'seq.out()';
         const patch = execPatch(source);
@@ -1074,14 +1085,14 @@ describe('sequencing', () => {
         }
     });
 
-    test('$p.s accepts a reassigned string variable as source', () => {
-        // `$cycle($p.s(pat, key))` with a reassigned `pat` must consume the
+    test('.scale accepts a reassigned string variable as source', () => {
+        // `$cycle($(pat).scale(key))` with a reassigned `pat` must consume the
         // variable's runtime (last-assigned) value.
         const source =
             "const key = 'c(maj)'\n" +
             "let pat = '<0 2 4>*16'\n" +
             "pat = '<0 2 <4!2 5>>*16'\n" +
-            'const seq = $cycle($p.s(pat, key))\n' +
+            'const seq = $cycle($(pat).scale(key))\n' +
             'seq.out()';
         const patch = execPatch(source);
         const cycles = findModules(patch, '$cycle');
@@ -1089,11 +1100,11 @@ describe('sequencing', () => {
 
         const pattern = cycles[0].params.pattern as {
             __kind: string;
-            sources: Array<{ source: string }>;
+            pattern: { source: string };
         };
-        expect(pattern.__kind).toBe('SpPattern');
-        // The last assignment wins — $p.s parsed the reassigned value.
-        expect(pattern.sources[0].source).toBe('<0 2 <4!2 5>>*16');
+        expect(pattern.__kind).toBe('ScalePattern');
+        // The last assignment wins — $ parsed the reassigned value.
+        expect(pattern.pattern.source).toBe('<0 2 <4!2 5>>*16');
     });
 });
 
@@ -1955,7 +1966,7 @@ describe('complex patches', () => {
 
     test('sequenced subtractive synth', () => {
         const source = `
-            const seq = $cycle($p("c3 e3 g3 b3"))
+            const seq = $cycle($("c3 e3 g3 b3"))
             const osc = $saw(seq)
             const env = $adsr($clock._beatTrigger, { attack: 0.01, decay: 0.2, sustain: 2, release: 0.3 })
             $lpf(osc, env.range("C3", "C6")).out()

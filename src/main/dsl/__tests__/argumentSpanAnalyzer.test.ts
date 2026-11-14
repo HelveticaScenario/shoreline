@@ -43,12 +43,12 @@ describe('argument span registry', () => {
     test('a chain call is its module, with the receiver as first argument', () => {
         expect(
             entries(
-                "$saw('c3').lpf('800hz', 2).out()\n$p('c*4').tr808.kick({ decay: 2 }).out()\nfoo.notAModule(1)",
+                "$saw('c3').lpf('800hz', 2).out()\n$('c*4').tr808.kick({ decay: 2 }).out()\nfoo.notAModule(1)",
             ),
         ).toEqual([
             "1:16 module cutoff='800hz' resonance=2",
             "1:5 module freq='c3'",
-            '2:17 module decay=2',
+            '2:16 module decay=2',
             "2:1 pattern source='c*4'",
         ]);
     });
@@ -67,16 +67,27 @@ describe('argument span registry', () => {
         ]);
     });
 
-    test('only a bare $p call is the pattern builder', () => {
-        expect(entries("$p('a b')\nobj.$p('c d')")).toEqual([
+    test('only a bare $ call is the pattern builder', () => {
+        expect(entries("$('a b')\nobj.$('c d')")).toEqual([
             "1:5 pattern source='a b'",
         ]);
     });
 
+    test('a $ tagged template is keyed at its template', () => {
+        expect(
+            entries('$`a b`.fast(2)\nobj.$`c d`\nconst x = $ `e f`'),
+        ).toEqual([
+            '1:12 pattern factor=2',
+            '1:6 pattern source=`a b`',
+            '3:13 pattern source=`e f`',
+        ]);
+    });
+
     test('pattern methods are the ones the analyzer knows, not inherited names', () => {
-        expect(entries("$p('a b').fast(2).constructor(5).toString(3)")).toEqual(
-            ['1:15 pattern factor=2', "1:5 pattern source='a b'"],
-        );
+        expect(entries("$('a b').fast(2).constructor(5).toString(3)")).toEqual([
+            '1:14 pattern factor=2',
+            "1:5 pattern source='a b'",
+        ]);
     });
 });
 
@@ -93,14 +104,14 @@ function resolutions(source: string): string[] {
 describe('template interpolation', () => {
     test('a number written in place counts as the text it prints', () => {
         expect(
-            resolutions("const root = 'c4'\n$p(`${0x10} ${root} e4`)"),
+            resolutions("const root = 'c4'\n$(`${0x10} ${root} e4`)"),
         ).toEqual(["'c4'@3+2"]);
     });
 
     test('a const holding a number counts toward later offsets, unredirected', () => {
         expect(
             resolutions(
-                "const n = 0x10\nconst m = -2\nconst root = 'c4'\n$p(`${n} ${m} ${root}`)",
+                "const n = 0x10\nconst m = -2\nconst root = 'c4'\n$(`${n} ${m} ${root}`)",
             ),
         ).toEqual(["'c4'@6+2"]);
     });
@@ -108,12 +119,12 @@ describe('template interpolation', () => {
     test('a const template is redirected into only when all of it redirects', () => {
         expect(
             resolutions(
-                "const n = 4\nconst pat = `c${n} e4`\nconst root = 'g4'\n$p(`${pat} ${root}`)",
+                "const n = 4\nconst pat = `c${n} e4`\nconst root = 'g4'\n$(`${pat} ${root}`)",
             ),
         ).toEqual(["'g4'@6+2"]);
         expect(
             resolutions(
-                "const root = 'c4'\nconst pat = `${root} e4`\n$p(`${pat} g4`)",
+                "const root = 'c4'\nconst pat = `${root} e4`\n$(`${pat} g4`)",
             ),
         ).toEqual(['`${root} e4`@0+5']);
     });
@@ -121,7 +132,7 @@ describe('template interpolation', () => {
     test('a const inside a function resolves where it is in scope', () => {
         expect(
             resolutions(
-                "function voice() {\n  const inner = 'e4'\n  return $p(`${inner} c4`)\n}",
+                "function voice() {\n  const inner = 'e4'\n  return $(`${inner} c4`)\n}",
             ),
         ).toEqual(["'e4'@0+2"]);
     });
@@ -130,13 +141,13 @@ describe('template interpolation', () => {
         // A helper's own const of the same name hides nothing outside it.
         expect(
             entries(
-                "const notes = 'c4 e4'\nfunction f() { const notes = 'g4'; return notes }\n$p(notes)",
+                "const notes = 'c4 e4'\nfunction f() { const notes = 'g4'; return notes }\n$(notes)",
             ),
         ).toEqual(["3:1 pattern source='c4 e4'"]);
         // A `let` is no const, whatever a function elsewhere declares.
         expect(
             entries(
-                "let pat = 'x y'\nfunction v() { const pat = 'c4 e4' }\n$p(pat)",
+                "let pat = 'x y'\nfunction v() { const pat = 'c4 e4' }\n$(pat)",
             ),
         ).toEqual([]);
         // A loop variable hides the outer const of its name.

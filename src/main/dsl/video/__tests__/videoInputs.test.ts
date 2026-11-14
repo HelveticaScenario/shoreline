@@ -132,14 +132,14 @@ describe('$v inputs from the audio graph', () => {
 
     describe('patterns', () => {
         it('takes a pattern as an audio signal', () => {
-            const { video } = exec(`$v.out($v.hsv($p('0 1.25 2.5'), 5, 5));`);
+            const { video } = exec(`$v.out($v.hsv($('0 1.25 2.5'), 5, 5));`);
             expect(video!.uniforms.map((u) => u.kind)).toEqual(['tap']);
         });
 
         it.each([
-            `$v.out($v.hsv($v.fromAudio($p('0 1'))));`,
-            `$scopeXY($p('c3 e3'), $sine('c4'))`,
-            `$v.scopeXY($sine('c4'), $sine('g4'), { persistence: $p('0.2 0.9') }).out()`,
+            `$v.out($v.hsv($v.fromAudio($('0 1'))));`,
+            `$scopeXY($('c3 e3'), $sine('c4'))`,
+            `$v.scopeXY($sine('c4'), $sine('g4'), { persistence: $('0.2 0.9') }).out()`,
         ])('plays a pattern through its $cycle: %s', (source) => {
             const { patch } = exec(source);
             expect(

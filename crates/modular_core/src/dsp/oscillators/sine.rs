@@ -73,7 +73,7 @@ const SINE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Soft sine melody",
             code: r#"
-                const seq = $p('c4 e4 g4 <b4 a4>')
+                const seq = $`c4 e4 g4 <b4 a4>`
                 $sine(seq)
                   .amp($perc(seq, { decay: 0.3 }))
                   .out()

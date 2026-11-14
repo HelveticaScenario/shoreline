@@ -80,7 +80,7 @@ const JUP6F_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Squelchy bandpass bass",
             code: r#"
-                const seq = $p('c2 [c2 c3] eb2 [g1 bb1]')
+                const seq = $`c2 [c2 c3] eb2 [g1 bb1]`
                 $jup6f(
                   $saw(seq),
                   $perc(seq, { decay: 0.15 }).range('c3', 'c6'),

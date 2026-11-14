@@ -1,6 +1,6 @@
 /**
- * Recognising mini-notation pattern calls in the source: `$p(...)`,
- * `$p.s(...)`, `$p.arrange(...)`, and the chains built on them, followed
+ * Recognising mini-notation pattern calls in the source: `$(...)`,
+ * `` $`...` ``, `$arrange(...)`, and the chains built on them, followed
  * through `const` bindings.
  */
 import ts from 'typescript';
@@ -26,7 +26,7 @@ export const PATTERN_METHOD_ARGS: Record<
 
 const ALIGNMENTS: ReadonlySet<string> = new Set(ALIGNMENT_MODES);
 
-type PatternRoot = '$p' | '$p.s' | '$p.arrange';
+type PatternRoot = '$' | '$arrange';
 
 /**
  * The pattern builder a method chain starts from, walking back through
@@ -37,24 +37,20 @@ function chainRoot(node: ts.Node): PatternRoot | null {
     const visited = new Set<string>();
     let n = node;
     for (;;) {
+        if (ts.isTaggedTemplateExpression(n)) {
+            return isPatternTag(n) ? '$' : null;
+        }
         if (ts.isCallExpression(n)) {
             const callee = n.expression;
             if (ts.isIdentifier(callee)) {
-                return callee.text === '$p' ? '$p' : null;
+                return callee.text === '$' || callee.text === '$arrange'
+                    ? callee.text
+                    : null;
             }
             if (!ts.isPropertyAccessExpression(callee)) {
                 return null;
             }
-            const name = callee.name.text;
-            const receiver = callee.expression;
-            if (
-                (name === 's' || name === 'arrange') &&
-                ts.isIdentifier(receiver) &&
-                receiver.text === '$p'
-            ) {
-                return name === 's' ? '$p.s' : '$p.arrange';
-            }
-            n = receiver;
+            n = callee.expression;
         } else if (ts.isPropertyAccessExpression(n)) {
             n = n.expression;
         } else if (ts.isIdentifier(n)) {
@@ -70,20 +66,15 @@ function chainRoot(node: ts.Node): PatternRoot | null {
     }
 }
 
-/** A direct `$p.s(source, scale)` call. */
-export function isPsCall(call: ts.CallExpression): boolean {
-    const callee = call.expression;
-    return (
-        ts.isPropertyAccessExpression(callee) &&
-        callee.name.text === 's' &&
-        ts.isIdentifier(callee.expression) &&
-        callee.expression.text === '$p'
-    );
+/** A `` $`source` `` pattern literal. */
+export function isPatternTag(node: ts.TaggedTemplateExpression): boolean {
+    return ts.isIdentifier(node.tag) && node.tag.text === '$';
 }
 
 /**
  * A `.trans(rhs)` link, or one with a mode (`.trans.in(rhs)`,
- * `.trans.squeeze(rhs)`, …), on a chain rooted at `$p.s(...)`.
+ * `.trans.squeeze(rhs)`, …), on a pattern chain. Whether the chain is a
+ * scale pattern is the runtime's to check.
  */
 export function isTransCall(call: ts.CallExpression): boolean {
     const callee = call.expression;
@@ -102,7 +93,7 @@ export function isTransCall(call: ts.CallExpression): boolean {
     } else if (callee.name.text !== 'trans') {
         return false;
     }
-    return chainRoot(receiver) === '$p.s';
+    return chainRoot(receiver) !== null;
 }
 
 /** The pattern method a `.fast(…)`, `.slow(…)`, `.struct(…)`, `.beat(…)` or

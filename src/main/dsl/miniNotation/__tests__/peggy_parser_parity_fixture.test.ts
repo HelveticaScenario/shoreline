@@ -44,7 +44,7 @@ const FIXTURE_PATH = resolve(
 
 // Grammar surface covered by the Rust descent test_parser. The TS Peggy
 // parser supports a strict superset (e.g. `-` as Rest, polymeter `{...}`,
-// `$p()`-only sigils) — fixture rows are restricted to the intersection
+// `$()`-only sigils) — fixture rows are restricted to the intersection
 // so the Rust side can actually parse each input.
 //
 // Mirrors GRAMMAR_CASES in `sp.test.ts`, minus:

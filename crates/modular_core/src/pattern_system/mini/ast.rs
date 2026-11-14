@@ -4,8 +4,8 @@
 //! including source span information for editor highlighting.
 //!
 //! Parsing itself lives TypeScript-side (`src/main/dsl/miniNotation/`). The
-//! DSL ships each `$cycle` / `$p.s` pattern as a JSON `{ ast, source,
-//! all_spans }` payload built by `$p(...)`; the Rust side deserializes it
+//! DSL ships each `$cycle` pattern as a JSON `{ ast, source,
+//! all_spans }` payload built by `$(...)`; the Rust side deserializes it
 //! here and forwards the `MiniAST` to `convert::convert` to build the
 //! `Pattern<T>`.
 
@@ -265,7 +265,7 @@ pub enum MiniAST {
     },
 }
 
-/// Atomic value types produced by the `$p()` DSL parser.
+/// Atomic value types produced by the `$()` DSL parser.
 ///
 /// The reduced set from strudel's krill grammar: `Number` covers bare
 /// numeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`
@@ -277,7 +277,7 @@ pub enum MiniAST {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub enum AtomValue {
     /// Numeric value. Module-level semantics decide the interpretation:
-    /// `$cycle($p(...))` maps a bare `Number` to volts (1V/oct); `$p.s(...)`
+    /// `$cycle($(...))` maps a bare `Number` to volts (1V/oct); `.scale(...)`
     /// maps it to an integer scale degree.
     Number(f64),
 

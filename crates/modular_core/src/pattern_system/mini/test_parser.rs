@@ -1,8 +1,8 @@
 //! Minimal recursive-descent mini-notation parser for Rust test fixtures.
 //!
-//! The production mini-notation parser is the TypeScript `$p()` helper in
+//! The production mini-notation parser is the TypeScript `$()` helper in
 //! `src/main/dsl/miniNotation/` (a Peggy grammar). It produces the
-//! `{ ast, source, all_spans }` payload that `$cycle` / `$p.s` ship in
+//! `{ ast, source, all_spans }` payload that `$cycle` patterns ship in
 //! the patch graph, which Rust deserializes into a [`MiniAST`] and lowers
 //! through [`super::convert`].
 //!
@@ -11,7 +11,7 @@
 //! can build `MiniAST` values from compact source strings instead of
 //! hand-rolling deep enum trees. It implements only the subset of the TS
 //! grammar those fixtures exercise (e.g. for `sp_combine` parity coverage)
-//! and is not a substitute for `$p()` on the patch-graph path.
+//! and is not a substitute for `$()` on the patch-graph path.
 //!
 //! Compiled unconditionally (not under `#[cfg(test)]`) so the integration
 //! test crate — which can't see cfg-test items from this lib — can call it.

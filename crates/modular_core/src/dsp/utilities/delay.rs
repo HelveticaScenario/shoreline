@@ -45,7 +45,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Two-tap echo",
             code: r#"
-                const voice = $saw($p('c3 eb3 g3 ~')).amp(
+                const voice = $saw($`c3 eb3 g3 ~`).amp(
                   $perc($clock._beatTrigger, { decay: 0.15 }),
                 )
                 voice.out()
