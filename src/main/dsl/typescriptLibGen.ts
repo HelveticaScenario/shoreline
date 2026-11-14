@@ -2389,7 +2389,7 @@ export function generateDSL(schemas: Schemas): string {
         '',
         '`feedback` is 0-5 (5 = unity), clamped, default 2.5. `maxTime` (default',
         '5) sizes the buffer and caps how long `time` can be. Returns the wet',
-        'signal with the captured `buffer` attached for extra taps.',
+        'signal.',
         '',
         '```js',
         '// mix the dry signal back in for a classic echo',
@@ -2416,7 +2416,7 @@ export function generateDSL(schemas: Schemas): string {
     ];
     lines.push(...renderDelayDoc('', []));
     lines.push(
-        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
+        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
 
     // Chain methods. The qualifying set matches the runtime's exactly: both
@@ -2501,7 +2501,7 @@ export function generateDSL(schemas: Schemas): string {
     }
     lines.push(
         ...renderDelayDoc('  ', chainDelayHeader),
-        `  delay(time: Poly<Signal>, ${delayOpts}): Collection & { buffer: BufferOutputRef };`,
+        `  delay(time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
     lines.push('}');
 
