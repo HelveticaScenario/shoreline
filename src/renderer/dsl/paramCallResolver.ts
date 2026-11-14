@@ -249,7 +249,7 @@ export function asLiteral(
     if (value !== null) {
         return { kind: 'number', text: node.getText(file), value };
     }
-    if (ts.isStringLiteral(node)) {
+    if (ts.isStringLiteralLike(node)) {
         return { kind: 'string', text: node.getText(file), value: node.text };
     }
     return null;

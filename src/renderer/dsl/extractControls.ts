@@ -95,7 +95,7 @@ function rangeOf(node: ts.Node, sourceFile: ts.SourceFile): SourceRange {
 
 /** A numeric (optionally negated) or string literal's value, else null. */
 function sliderLiteral(node: ts.Expression): number | string | null {
-    return ts.isStringLiteral(node) ? node.text : negatableNumber(node);
+    return ts.isStringLiteralLike(node) ? node.text : negatableNumber(node);
 }
 
 /** Whether a call's argument count fits its required arguments plus an
@@ -254,7 +254,7 @@ export function extractControls(source: string): StaticControls {
         // panel gets its own copy of each path.
         const group = [...found.group];
         const label = call.arguments[0];
-        if (!label || !ts.isStringLiteral(label)) {
+        if (!label || !ts.isStringLiteralLike(label)) {
             continue;
         }
         const site: CallSite = {

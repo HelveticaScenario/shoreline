@@ -124,7 +124,7 @@ function groupPathOf(expr: ts.Expression, scopes: Scope[]): string[] | null {
         return null;
     }
     const label = expr.arguments[0];
-    if (!label || !ts.isStringLiteral(label)) {
+    if (!label || !ts.isStringLiteralLike(label)) {
         return null;
     }
     const parent = groupOfCall(expr, '$cGroup', scopes);

@@ -179,7 +179,7 @@ export const configSchema = {
         prettier: {
             additionalProperties: true,
             description:
-                "Prettier formatting options. Merged with defaults: singleQuote=true, trailingComma='all', semi=false, tabWidth=2, printWidth=60. The parser and plugins cannot be overridden.",
+                "Prettier formatting options. Merged with defaults: quotes='single', trailingComma='all', semi=false, tabWidth=2, printWidth=60. The parser and plugins cannot be overridden.",
             properties: {
                 printWidth: {
                     default: 60,
@@ -191,10 +191,12 @@ export const configSchema = {
                     description: 'Add semicolons at the end of statements',
                     type: 'boolean',
                 },
-                singleQuote: {
-                    default: true,
-                    description: 'Use single quotes instead of double quotes',
-                    type: 'boolean',
+                quotes: {
+                    default: 'single',
+                    description:
+                        'Quotes for strings; backtick uses template literals wherever JavaScript allows them',
+                    enum: ['single', 'double', 'backtick'],
+                    type: 'string',
                 },
                 tabWidth: {
                     default: 2,

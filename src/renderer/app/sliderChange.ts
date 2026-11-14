@@ -84,7 +84,7 @@ function sliderLiteral(
         unit === 'hz'
             ? formatHzLiteral(voltsToHz(volts))
             : voltsToNoteName(volts);
-    const q = quote === '"' ? '"' : "'";
+    const q = quote === '"' || quote === '`' ? quote : "'";
     return { text: `${q}${body}${q}`, volts: parseSliderValue(body).volts };
 }
 

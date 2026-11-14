@@ -29,8 +29,9 @@ export interface CodeStyle {
     bracketSpacing: boolean;
     /** Whether expanded objects end with a trailing comma. */
     trailingComma: boolean;
-    /** Delimiter for generated string literals. */
-    quote: "'" | '"';
+    /** Delimiter for generated string literals; never a backtick where a
+     *  quoted string is required, such as an object key. */
+    quote: "'" | '"' | '`';
 }
 
 /** Unset options fall back to Prettier's own defaults. */
@@ -38,7 +39,12 @@ export function codeStyleFromPrettier(config: PrettierConfig): CodeStyle {
     return {
         bracketSpacing: config.bracketSpacing !== false,
         printWidth: config.printWidth ?? 80,
-        quote: config.singleQuote === true ? "'" : '"',
+        quote:
+            config.quotes === 'backtick'
+                ? '`'
+                : config.singleQuote === true
+                  ? "'"
+                  : '"',
         tabWidth: config.tabWidth ?? 2,
         trailingComma: (config.trailingComma ?? 'all') !== 'none',
         useTabs: config.useTabs === true,

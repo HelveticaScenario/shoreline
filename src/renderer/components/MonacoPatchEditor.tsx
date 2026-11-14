@@ -33,6 +33,7 @@ import { createModelValueSync } from './monaco/modelValueSync';
 import { registerControlQuickFixProvider } from './monaco/controlQuickFixProvider';
 import { registerRefactorProvider } from './monaco/refactorProvider';
 import { apiIndexFor } from '../dsl/apiSignatures';
+import { codeStyleFromPrettier } from '../dsl/listEdits';
 import { registerKeybindingsCompletionProvider } from './monaco/keybindingsCompletion';
 import { registerKeybindingsDiagnostics } from './monaco/keybindingsDiagnostics';
 import {
@@ -460,16 +461,16 @@ export function MonacoPatchEditor({
         return () => provider.dispose();
     }, [monaco]);
 
-    const singleQuote = prettierConfig.singleQuote ?? true;
+    const quote = codeStyleFromPrettier(
+        resolvePrettierOptions(prettierConfig),
+    ).quote;
     useEffect(() => {
         if (!editor) {
             return;
         }
-        const drop = installWorkspacePathDrop(editor, () =>
-            singleQuote ? "'" : '"',
-        );
+        const drop = installWorkspacePathDrop(editor, () => quote);
         return () => drop.dispose();
-    }, [editor, singleQuote]);
+    }, [editor, quote]);
 
     // Quick fix: turn an API param into a control call chosen from its
     // metadata.

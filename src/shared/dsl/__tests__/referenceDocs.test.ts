@@ -1,11 +1,8 @@
-import * as prettier from 'prettier/standalone';
-import * as prettierBabel from 'prettier/plugins/babel';
-import * as prettierEstree from 'prettier/plugins/estree';
 import { describe, expect, test } from 'vitest';
 
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
-import { DEFAULT_PRETTIER_OPTIONS } from '../../../renderer/components/monaco/formattingProvider';
+import { formatDsl } from '../../../renderer/components/monaco/formattingProvider';
 import type { DocContent } from '../referenceDocs';
 import {
     moduleToReferenceEntry,
@@ -107,12 +104,7 @@ test('every module example is formatted the way Format Document prints it', asyn
             ...module.docs.sections.flatMap((s) => s.examples),
         ];
         for (const { code, title } of examples) {
-            const formatted = await prettier.format(code, {
-                ...DEFAULT_PRETTIER_OPTIONS,
-                parser: 'babel',
-                plugins: [prettierBabel, prettierEstree as never],
-            });
-            if (formatted.trimEnd() !== code) {
+            if ((await formatDsl(code)) !== code) {
                 unformatted.push(`${module.name} "${title}"`);
             }
         }

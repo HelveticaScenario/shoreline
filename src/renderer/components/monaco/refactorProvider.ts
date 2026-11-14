@@ -6,7 +6,7 @@
 import type { editor, languages } from 'monaco-editor';
 
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import type { PrettierConfig } from '../../../shared/ipcTypes';
+import type { ResolvedPrettierOptions } from './formattingProvider';
 import type { DslTypeScriptWorkerApi } from './dslTsWorker';
 import { LOCAL_REFACTOR_KINDS } from './localRefactors';
 import type { LocalRefactor } from './localRefactors';
@@ -29,7 +29,7 @@ interface RefactorCodeAction extends languages.CodeAction {
 
 export function registerRefactorProvider(
     monaco: Monaco,
-    getFormatOptions: () => PrettierConfig,
+    getFormatOptions: () => ResolvedPrettierOptions,
 ): { dispose: () => void } {
     const workerFor = async (model: editor.ITextModel) => {
         const getWorker = await monaco.typescript.getJavaScriptWorker();
@@ -129,7 +129,7 @@ export function registerRefactorProvider(
                     convertTabsToSpaces: options.insertSpaces,
                     eol: model.getEOL(),
                     semi: format.semi ?? true,
-                    singleQuote: format.singleQuote ?? true,
+                    singleQuote: format.singleQuote,
                     tabSize: options.tabSize,
                 },
             );

@@ -563,6 +563,9 @@ const configStore = createConfigStore(CONFIG_FILE);
 // Every release writes the config file at startup, so its absence here means
 // this is the app's first launch on this machine.
 const isFreshInstall = !fs.existsSync(CONFIG_FILE);
+// Seeded before any startup write, which would otherwise create the file
+// without the first-launch defaults.
+configStore.ensureExists();
 
 // Load saved config to pass to synthesizer. MODULAR_AUDIO_OUTPUT_DEVICE and
 // MODULAR_AUDIO_INPUT_DEVICE override the saved devices, so agents and tests
