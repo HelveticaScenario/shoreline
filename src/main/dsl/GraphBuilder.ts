@@ -409,7 +409,9 @@ export class BaseCollection<T extends ModuleOutput> {
      * The lanes of this collection followed by those of `other`, as a
      * collection of the same class. A multi-output module's outputs join
      * output by output, so the result is still a root standing for whichever
-     * fits the input it feeds, and carried properties join the same way.
+     * fits the input it feeds, and carried properties join the same way. An
+     * argument's outputs and carried properties the receiver lacks are left
+     * out, as its type has none of them.
      */
     concat(other: this): this {
         const that = patternSignal(other);
@@ -425,11 +427,10 @@ export class BaseCollection<T extends ModuleOutput> {
         const joined = new ctor(...this.items, ...(that.items as T[]));
         concatRoots(joined, this, that);
         const carried = carriedOf(this);
-        const otherCarried = carriedOf(that);
-        if (carried || otherCarried) {
+        if (carried) {
             withCarried(
                 joined,
-                concatFields(carried ?? {}, otherCarried ?? {}, ''),
+                concatFields(carried, carriedOf(that) ?? {}, ''),
             );
         }
         return joined;

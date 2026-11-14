@@ -115,6 +115,49 @@ describe('concat', () => {
         ).toEqual(['0:output:0', '1:all:0']);
     });
 
+    test('a signal without carried properties joins one with them', () => {
+        expect(
+            wiring(
+                cables(
+                    `$mix($c($saw('c')).concat($saw('e').delay(0.25))).out()`,
+                    '$mix',
+                    'inputs',
+                ).flat(),
+            ),
+        ).toEqual(['0:output:0', '1:output:0']);
+    });
+
+    test('carried properties join when both hold the same value', () => {
+        expect(
+            wiring(
+                cables(
+                    `const d = $saw('c').delay(0.25)
+                     $bufRead(d.concat(d).buffer, 0).out()`,
+                    '$bufRead',
+                    'buffer',
+                ),
+            ),
+        ).toHaveLength(1);
+        expect(() =>
+            run(`$saw('c').delay(0.25).concat($saw('e').delay(0.5)).out()`),
+        ).toThrow(/buffer/);
+    });
+
+    test('a $trackTap joins its audio and its controls', () => {
+        const { patch } = run(
+            `const tap = $trackTap('a').concat($trackTap('b'))
+             $mix(tap).out()
+             $mix(tap.level).outMono(2)
+             $saw('c').out({ label: 'a' })
+             $saw('e').out({ label: 'b' })`,
+        );
+        const mixes = patch.modules.filter((m) => m.moduleType === '$mix');
+        const lanes = mixes.map(
+            (m) => (m.params as { inputs: unknown[] }).inputs.flat().length,
+        );
+        expect(lanes.slice(0, 2)).toEqual([4, 2]);
+    });
+
     test('a ranged collection does not join one without a range', () => {
         expect(() =>
             run(`$sine('1hz').range(0, 5).concat($c($saw('c'))).out()`),
