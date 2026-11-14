@@ -194,7 +194,7 @@ export const configSchema = {
                 quotes: {
                     default: 'single',
                     description:
-                        'Quotes for strings; backtick uses template literals wherever JavaScript allows them',
+                        'Quotes for strings; backtick keeps quotes where JavaScript requires them, such as import paths and object keys',
                     enum: ['single', 'double', 'backtick'],
                     type: 'string',
                 },
