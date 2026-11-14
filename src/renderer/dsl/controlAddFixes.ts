@@ -308,7 +308,8 @@ function isKeywordLiteral(node: ts.Node): boolean {
 }
 
 function propertyKey(key: string, quote: string): string {
-    return /^[A-Za-z_$][\w$]*$/.test(key) ? key : `${quote}${key}${quote}`;
+    const q = quote === '`' ? "'" : quote;
+    return /^[A-Za-z_$][\w$]*$/.test(key) ? key : `${q}${key}${q}`;
 }
 
 /** The key an option object member sets, or null for a method, accessor,

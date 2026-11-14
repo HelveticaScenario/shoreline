@@ -1411,6 +1411,20 @@ describe('sliders', () => {
         );
     });
 
+    test('control literals may be backtick strings without interpolation', () => {
+        const result = exec(`
+            const g = $cGroup(\`Synth\`)
+            $saw($slider(\`Root\`, \`c3\`, \`c2\`, \`c5\`, g)).out()
+            $btn(\`Kick\`).out()
+        `);
+        expect(result.sliders.map((s) => [s.group, s.label])).toEqual([
+            [['Synth'], 'Root'],
+        ]);
+        expect(() => execPatch('const n = 1\n$btn(`Kick ${n}`).out()')).toThrow(
+            'label (argument 1) must be a string literal',
+        );
+    });
+
     test('$slider labels differing only in punctuation get distinct modules', () => {
         const result = exec(`
             $slider("run fast", 0, -1, 1).out()

@@ -97,6 +97,16 @@ describe('createConfigStore', () => {
         });
     });
 
+    test('a fresh install quotes strings in backticks; an existing config keeps its own quotes', () => {
+        const store = createConfigStore(configFile);
+        store.ensureExists();
+        expect(store.load().prettier).toEqual({ quotes: 'backtick' });
+
+        fs.writeFileSync(configFile, JSON.stringify({ theme: 'modular-dark' }));
+        store.ensureExists();
+        expect(store.load().prettier).toBeUndefined();
+    });
+
     test('update never rewrites an unparseable config file', () => {
         fs.writeFileSync(configFile, '{ not json');
         const store = createConfigStore(configFile);
