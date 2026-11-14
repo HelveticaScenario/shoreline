@@ -1202,11 +1202,27 @@ impl AudioState {
         }
     }
 
+    /// Drop the settlements no module can land in any more, leaving first the
+    /// one a module rebuilt now lands in, if any. The command queue delivers
+    /// a rebuilt module after every update sent before it, so it lands in the
+    /// newest update that applies at once, or else in the last applied one;
+    /// one waiting for a bar or beat has not taken over yet.
+    fn prune_settlements(
+        &self,
+        patches: &mut Vec<(u64, bool, modular_core::patch::Settlement)>,
+    ) -> bool {
+        let applied = self.transport_meter.read_applied_update_id();
+        let lands_in = patches
+            .iter()
+            .rposition(|(update_id, immediate, _)| *immediate || *update_id <= applied);
+        if let Some(lands_in) = lands_in {
+            patches.drain(..lands_in);
+        }
+        lands_in.is_some()
+    }
+
     /// Build module `id` on its own from `params`, settled as the patch it
-    /// lands in settled its predecessor, dropping older patches. The command
-    /// queue delivers it after every update sent before it, so it lands in
-    /// the newest update that applies at once, or else in the last applied
-    /// one; one waiting for a bar or beat has not taken over yet. Main thread.
+    /// lands in settled its predecessor. Main thread.
     pub fn rebuild_module(
         &self,
         id: &str,
@@ -1220,15 +1236,8 @@ impl AudioState {
         let constructor = constructors
             .get(module_type)
             .ok_or_else(|| format!("Unknown module type: {module_type}"))?;
-        let applied = self.transport_meter.read_applied_update_id();
         let mut patches = self.patch_settlements.lock();
-        let lands_in = patches
-            .iter()
-            .rposition(|(update_id, immediate, _)| *immediate || *update_id <= applied);
-        if let Some(lands_in) = lands_in {
-            patches.drain(..lands_in);
-        }
-        let settlement = lands_in.map(|_| &patches[0].2);
+        let settlement = self.prune_settlements(&mut patches).then(|| &patches[0].2);
         let mode = match settlement {
             Some(settlement) => settlement.prepare_rebuilt(id, &mut deserialized)?,
             None => modular_core::types::ProcessingMode::default(),
@@ -1679,11 +1688,14 @@ impl AudioState {
             .new_patch
             .insert_modules(to_construct, sample_rate, self.block_size)
             .map_err(napi::Error::from_reason)?;
-        self.patch_settlements.lock().push((
+        let mut patches = self.patch_settlements.lock();
+        patches.push((
             update.update_id,
             matches!(trigger, QueuedTrigger::Immediate),
             settlement,
         ));
+        self.prune_settlements(&mut patches);
+        drop(patches);
         block_ids.sort();
         sample_ids.sort();
         println!(
@@ -5212,6 +5224,93 @@ mod tests {
             .unwrap();
         assert_eq!(rebuilt.port_channels("output"), 2);
         assert_eq!(rebuilt.port_lanes("output"), 2);
+    }
+
+    #[test]
+    fn a_module_rebuilt_in_a_feedback_loop_keeps_sample_mode() {
+        let state = create_test_audio_state();
+        let cable = |module: &str| serde_json::json!({ "type": "cable", "module": module, "port": "output", "lane": 0 });
+        let module = |id: &str, params| modular_core::types::ModuleSpec {
+            id: id.into(),
+            module_type: "$add".into(),
+            id_is_explicit: None,
+            skip_state_transfer: None,
+            params,
+        };
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: vec![
+                    module(
+                        "a",
+                        serde_json::json!({ "input": cable("b"), "offset": 1.0 }),
+                    ),
+                    module(
+                        "b",
+                        serde_json::json!({ "input": cable("a"), "offset": 1.0 }),
+                    ),
+                    module(
+                        "tail",
+                        serde_json::json!({ "input": cable("a"), "offset": 1.0 }),
+                    ),
+                ],
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 1,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+        let mode = |id: &str| {
+            let mut deserialized = crate::params_cache::deserialize_params(
+                "$add",
+                serde_json::json!({ "input": cable("b"), "offset": 2.0 }),
+                false,
+            )
+            .unwrap();
+            let mut patches = state.patch_settlements.lock();
+            assert!(state.prune_settlements(&mut patches));
+            patches[0].2.prepare_rebuilt(id, &mut deserialized).unwrap()
+        };
+        assert_eq!(mode("a"), modular_core::types::ProcessingMode::Sample);
+        assert_eq!(mode("tail"), modular_core::types::ProcessingMode::Block);
+    }
+
+    #[test]
+    fn settlements_no_module_can_land_in_are_dropped() {
+        let state = create_test_audio_state();
+        let submit = |update_id, trigger| {
+            let errors = state.handle_set_patch(PatchSubmission {
+                graph: PatchGraph {
+                    modules: vec![],
+                    module_id_remaps: None,
+                    scopes: vec![],
+                    vu_meters: vec![],
+                },
+                sample_rate: 44_100.0,
+                trigger,
+                update_id,
+                wav_data: HashMap::new(),
+                transport_meta: None,
+                reset_clock: false,
+            });
+            assert!(errors.is_empty());
+        };
+        for update_id in 1..=5 {
+            submit(update_id, QueuedTrigger::Immediate);
+        }
+        submit(6, QueuedTrigger::NextBar);
+        let ids: Vec<u64> = state
+            .patch_settlements
+            .lock()
+            .iter()
+            .map(|(update_id, ..)| *update_id)
+            .collect();
+        assert_eq!(ids, [5, 6]);
     }
 
     #[test]
