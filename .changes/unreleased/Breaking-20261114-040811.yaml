@@ -1,14 +1,14 @@
 kind: Breaking
 body: |-
-    `$delay` and `.delay()` return only the delayed signal, without a `buffer` to read extra taps from. For more taps, write the signal into a `$buffer` and read it with `$delayRead`:
+    `$delay` and `.delay()` return only the delayed signal, without a `buffer` to read extra taps from. For another tap, write the signal into a `$buffer` and read it with `$delayRead`; that tap repeats the signal once, without the delay's feedback echoes:
 
     ```js
     // before
     const echo = $delay(src, 0.25)
+    echo.out()
     $delayRead(echo.buffer, 0.5).out()
     // after
-    const buf = $buffer(src, 1)
-    $delayRead(buf, 0.25).out()
-    $delayRead(buf, 0.5).out()
+    $delay(src, 0.25).out()
+    $delayRead($buffer(src, 1), 0.5).out()
     ```
 time: 2026-11-14T04:08:11.718556-05:00

@@ -123,8 +123,8 @@ describe('concat', () => {
                     '$mix',
                     'inputs',
                 ).flat(),
-            ).map((w) => w.split(':')[1]),
-        ).toEqual(['output', 'output']);
+            ),
+        ).toEqual(['0:output:0', '1:output:0']);
     });
 
     test('a $trackTap joins its audio and its controls', () => {
