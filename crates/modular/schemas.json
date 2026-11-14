@@ -2140,7 +2140,7 @@
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": true,
-        "readsSides": true
+        "readsSides": false
       },
       {
         "name": "pan",
@@ -7914,8 +7914,8 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": true
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "decay",
@@ -8497,8 +8497,8 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": true
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "bandwidth",
@@ -8941,8 +8941,8 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": true
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "decay",
@@ -9225,8 +9225,8 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": true
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "decay",
@@ -9678,8 +9678,8 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": true
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "amount",
@@ -10022,7 +10022,7 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10031,7 +10031,7 @@
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10040,7 +10040,7 @@
         "paramType": "gate",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10054,7 +10054,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10068,7 +10068,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10082,7 +10082,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10091,7 +10091,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10100,7 +10100,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10114,7 +10114,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10127,7 +10127,9 @@
         "controlMin": 0.0,
         "controlMax": 5.0,
         "carriesBounds": false,
-        "boundsNeedConstant": false
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "feedback",
@@ -10140,7 +10142,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10154,7 +10156,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
@@ -10446,7 +10448,7 @@
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10460,7 +10462,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10474,7 +10476,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10488,7 +10490,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10497,7 +10499,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10506,7 +10508,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10519,7 +10521,9 @@
         "controlMin": 0.0,
         "controlMax": 5.0,
         "carriesBounds": false,
-        "boundsNeedConstant": false
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "width",
@@ -10531,9 +10535,8 @@
         "controlMin": 0.0,
         "controlMax": 5.0,
         "carriesBounds": false,
-        "boundsNeedConstant": false
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
@@ -24661,7 +24664,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
@@ -24787,7 +24790,7 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
@@ -25995,7 +25998,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
@@ -33773,8 +33776,8 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": true
+        "fold": true,
+        "readsSides": false
       },
       {
         "name": "amount",
