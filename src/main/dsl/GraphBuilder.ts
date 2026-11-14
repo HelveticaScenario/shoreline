@@ -41,7 +41,7 @@ import {
     type OutputSet,
     outputSetOf,
 } from './outputResolution';
-import { isPatternPayload } from './patterns';
+import { isPatternPayload, patternSignal } from './patterns';
 import { isPlainObject } from './plainObject';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -406,6 +406,37 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 
     /**
+     * The lanes of this collection followed by those of `other`, as a
+     * collection of the same class. A multi-output module's outputs join
+     * output by output, so the result is still a root standing for whichever
+     * fits the input it feeds, and carried properties join the same way. An
+     * argument's outputs and carried properties the receiver lacks are left
+     * out, as its type has none of them.
+     */
+    concat(other: this): this {
+        const that = patternSignal(other);
+        const ctor = this.constructor as new (...args: T[]) => this;
+        if (
+            !(that instanceof BaseCollection) ||
+            !(that instanceof ctor || this.constructor === Collection)
+        ) {
+            throw new Error(
+                `concat() takes a signal of the same type as the one it is called on`,
+            );
+        }
+        const joined = new ctor(...this.items, ...(that.items as T[]));
+        concatRoots(joined, this, that);
+        const carried = carriedOf(this);
+        if (carried) {
+            withCarried(
+                joined,
+                concatFields(carried, carriedOf(that) ?? {}, ''),
+            );
+        }
+        return joined;
+    }
+
+    /**
      * Add scope visualization for all outputs in the collection
      */
     scope(config?: ScopeConfig): this {
@@ -530,8 +561,10 @@ export function withCarried<C extends AnyCollection, P extends object>(
     return Object.assign(collection, props);
 }
 
-function carriedOf(collection: AnyCollection): object | undefined {
-    return (collection as { [CARRIED]?: object })[CARRIED];
+function carriedOf(
+    collection: AnyCollection,
+): Readonly<Record<string, unknown>> | undefined {
+    return (collection as { [CARRIED]?: Record<string, unknown> })[CARRIED];
 }
 
 /**
@@ -561,6 +594,55 @@ function sliceRoot(
                 : value;
     }
     markRoot(sliced, { outputs: set.outputs, values });
+}
+
+/**
+ * Make `joined` a root standing for the outputs of the root `a` and those of
+ * `b`, each output's lanes those of `a` followed by those of `b`. When `a` is
+ * no root, `b` joins as the output it stands for read as a signal.
+ */
+function concatRoots(joined: object, a: object, b: object): void {
+    const set = outputSetOf(a);
+    if (!set) {
+        return;
+    }
+    const values = concatFields(set.values, outputSetOf(b)?.values ?? {}, '_');
+    markRoot(joined, { outputs: set.outputs, values });
+}
+
+/**
+ * The fields of `a` and `b` joined by name: collections concatenated, any
+ * other value kept when both hold the same one. Throws unless both have the
+ * same names, shown with `prefix` in the error.
+ */
+function concatFields(
+    a: Readonly<Record<string, unknown>>,
+    b: Readonly<Record<string, unknown>>,
+    prefix: string,
+): Record<string, unknown> {
+    const names = Object.keys(a);
+    const otherNames = Object.keys(b);
+    if (names.join() !== otherNames.join()) {
+        const list = (ns: string[]) =>
+            ns.length === 0 ? 'none' : ns.map((n) => prefix + n).join(', ');
+        throw new Error(
+            `concat() takes a signal of the same type as the one it is called on: one has ${list(names)}, the other ${list(otherNames)}`,
+        );
+    }
+    const joined: Record<string, unknown> = {};
+    for (const name of names) {
+        const value = a[name];
+        if (value instanceof BaseCollection) {
+            joined[name] = value.concat(b[name] as typeof value);
+        } else if (value === b[name]) {
+            joined[name] = value;
+        } else {
+            throw new Error(
+                `concat() cannot join two different \`${prefix}${name}\` values`,
+            );
+        }
+    }
+    return joined;
 }
 
 /**
