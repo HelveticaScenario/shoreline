@@ -1,13 +1,13 @@
 import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import { $p, MiniParseError } from '../index';
+import { $, $arrange, MiniParseError } from '../index';
 import { patternPayload } from '../../patterns';
 
-describe('$p.arrange builder', () => {
+describe('$arrange builder', () => {
     test('builds an ArrangePattern wire object from [cycles, pattern] tuples', () => {
         const r = patternPayload(
-            $p.arrange([2, $p('c4 e4')], [4, $p.s('0 2 4', 'c(major)')]),
+            $arrange([2, $('c4 e4')], [4, $('0 2 4').scale('c(major)')]),
         );
 
         expect(isKind(r, 'ArrangePattern')).toBe(true);
@@ -17,7 +17,7 @@ describe('$p.arrange builder', () => {
         expect(r.sections[0].cycles).toBe(2);
         expect(r.sections[0].pattern.__kind).toBe('ParsedPattern');
         expect(r.sections[1].cycles).toBe(4);
-        expect(r.sections[1].pattern.__kind).toBe('SpPattern');
+        expect(r.sections[1].pattern.__kind).toBe('ScalePattern');
 
         // Flat argument_spans: one per source across sections, in order.
         expect(r.argument_spans).toHaveLength(2);
@@ -25,56 +25,56 @@ describe('$p.arrange builder', () => {
 
     test('encodes Infinity as the string sentinel "Infinity"', () => {
         const r = patternPayload(
-            $p.arrange([2, $p('c4')], [Infinity, $p.s('0 2 4', 'a(min)')]),
+            $arrange([2, $('c4')], [Infinity, $('0 2 4').scale('a(min)')]),
         );
         expect(r.sections[0].cycles).toBe(2);
         expect(r.sections[1].cycles).toBe('Infinity');
     });
 
     test('nests: an ArrangePattern is a valid section, spans flatten', () => {
-        const nested = $p.arrange([1, $p('e4')], [1, $p('g4')]);
+        const nested = $arrange([1, $('e4')], [1, $('g4')]);
         expect(patternPayload(nested).argument_spans).toHaveLength(2);
 
-        const r = patternPayload($p.arrange([2, $p('c4')], [2, nested]));
+        const r = patternPayload($arrange([2, $('c4')], [2, nested]));
         expect(r.sections[1].pattern.__kind).toBe('ArrangePattern');
         // 1 (c4) + 2 (nested's two sources) = 3 flat spans.
         expect(r.argument_spans).toHaveLength(3);
     });
 
-    test('flattens chained $p.s argument spans across sections', () => {
-        // A chained $p.s contributes one span per source in the chain.
-        const chained = $p.s('0 2 4', 'c(maj)').trans('0 5');
+    test('flattens chained scale-pattern argument spans across sections', () => {
+        // A chained scale pattern contributes one span per source in the chain.
+        const chained = $('0 2 4').scale('c(maj)').trans('0 5');
         expect(patternPayload(chained).argument_spans).toHaveLength(2);
 
-        const r = patternPayload($p.arrange([1, $p('c4')], [1, chained]));
+        const r = patternPayload($arrange([1, $('c4')], [1, chained]));
         // 1 (c4) + 2 (chain) = 3.
         expect(r.argument_spans).toHaveLength(3);
     });
 
     test('rejects an empty arrangement', () => {
-        expect(() => ($p.arrange as () => unknown)()).toThrow(MiniParseError);
+        expect(() => ($arrange as () => unknown)()).toThrow(MiniParseError);
     });
 
     test('rejects non-integer, zero, and negative cycle counts', () => {
         for (const bad of [2.5, 0, -1]) {
-            expect(() => $p.arrange([bad, $p('c4')])).toThrow(MiniParseError);
+            expect(() => $arrange([bad, $('c4')])).toThrow(MiniParseError);
         }
     });
 
     test('rejects a non-[cycles, pattern] section', () => {
         expect(() =>
-            $p.arrange([2] as unknown as [number, ReturnType<typeof $p>]),
+            $arrange([2] as unknown as [number, ReturnType<typeof $>]),
         ).toThrow(MiniParseError);
     });
 
     test('rejects a non-pattern section payload', () => {
         expect(() =>
-            $p.arrange([2, 'c4' as unknown as ReturnType<typeof $p>]),
+            $arrange([2, 'c4' as unknown as ReturnType<typeof $>]),
         ).toThrow(MiniParseError);
     });
 
     test('rejects an Infinity section that is not last', () => {
-        expect(() => $p.arrange([Infinity, $p('c4')], [2, $p('e4')])).toThrow(
+        expect(() => $arrange([Infinity, $('c4')], [2, $('e4')])).toThrow(
             MiniParseError,
         );
     });

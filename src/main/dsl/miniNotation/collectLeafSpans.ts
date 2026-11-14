@@ -2,7 +2,7 @@
  * Collect all leaf source spans from a MiniAST.
  *
  * Direct TypeScript port of Rust's `collect_leaf_spans` in
- * `crates/modular_core/src/pattern_system/mini/ast.rs`. Used by `$p()` to
+ * `crates/modular_core/src/pattern_system/mini/ast.rs`. Used by `$()` to
  * pre-compute the `all_spans` field so Monaco can create tracked decorations
  * without round-tripping through the Rust side.
  *

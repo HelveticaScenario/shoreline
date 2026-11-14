@@ -198,7 +198,7 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Plucky filter envelope",
             code: r#"
-                const notes = $p('c3 eb3 g3 bb3')
+                const notes = $`c3 eb3 g3 bb3`
                 $saw(notes)
                   .lpf($adsr(notes, { decay: 0.2 }).range('c4', 'c7'), 2)
                   .out()

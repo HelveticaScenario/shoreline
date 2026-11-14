@@ -1,9 +1,8 @@
-//! Scale-degree value type shared by the `$p.s` pattern path.
+//! Scale-degree value type of scale patterns.
 //!
-//! `$p.s(source, scale)` parses integer scale degrees into [`IntervalValue`]s,
-//! folds chained sources through `sp_combine` with [`add_interval_values`],
-//! then resolves each degree to a V/Oct voltage. The
-//! `$cycle` seq runtime (`seq_value::from_sp_payload`) consumes the result.
+//! A pattern under `.scale(scale)` parses its integer atoms as
+//! [`IntervalValue`]s; `seq::lower` gives each its scale, adds `.trans`
+//! degrees with `sp_combine`, and resolves it to a V/Oct voltage.
 
 /// Value type for scale-degree patterns: either a degree or a rest.
 #[derive(Clone, Debug)]
@@ -39,10 +38,10 @@ impl crate::pattern_system::mini::convert::FromMiniAtom for IntervalValue {
                 Ok(IntervalValue::Degree(*n as i32))
             }
             AtomValue::Hz(_) => Err(ConvertError::InvalidAtom(
-                "IntervalValue does not accept Hz atoms; $p.s interprets atoms as scale-degree integers (use $p for unquantized pitch)".into(),
+                "a scale pattern reads its atoms as scale-degree integers, so Hz atoms are not allowed under .scale(...)".into(),
             )),
             AtomValue::Note { .. } => Err(ConvertError::InvalidAtom(
-                "IntervalValue does not accept note atoms; $p.s interprets atoms as scale-degree integers (use $p for unquantized pitch)".into(),
+                "a scale pattern reads its atoms as scale-degree integers, so note names are not allowed under .scale(...)".into(),
             )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() boolean patterns".into(),
@@ -86,11 +85,3 @@ impl crate::pattern_system::mini::convert::HasRest for IntervalValue {
 /// A rest (`~`) is a real atom and stays valid.
 pub(crate) const EMPTY_PATTERN_SOURCE_ERR: &str =
     "empty pattern source: a pattern string must contain at least one atom";
-
-/// Add two `IntervalValue`s. Rest + anything = Rest.
-pub(crate) fn add_interval_values(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
-    match (a.degree(), b.degree()) {
-        (Some(da), Some(db)) => IntervalValue::Degree(da + db),
-        _ => IntervalValue::Rest,
-    }
-}

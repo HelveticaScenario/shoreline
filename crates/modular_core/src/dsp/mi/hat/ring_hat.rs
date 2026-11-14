@@ -102,7 +102,7 @@ const RING_HAT_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Sixteenths",
             code: r#"
-                const trigger = $p('c*16').c
+                const trigger = $`c*16`.c
                 const hat = $mi.ringHat('a3', { trigger })
                 hat.out()
             "#,
@@ -110,7 +110,7 @@ const RING_HAT_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Choked open hat on the off-beat",
             code: r#"
-                const trigger = $p('~ c').c
+                const trigger = $`~ c`.c
                 const hat = $mi.ringHat('a3', {
                   trigger,
                   tone: 3.5,

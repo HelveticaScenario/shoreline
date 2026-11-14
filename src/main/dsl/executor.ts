@@ -44,7 +44,7 @@ import { createControls } from './controls';
 import { VIDEO_CV_RANGE } from '../../shared/dsl/controlRanges';
 import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
-import { $p } from './miniNotation';
+import { $, $arrange } from './miniNotation';
 import { DELAY_SITE } from './signalSiteTables';
 import { setActiveCycleFactory } from './patterns';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
@@ -905,10 +905,10 @@ export function executePatchScript(
         // Helper functions with $ prefix
         $hz,
         $note: note,
-        // Mini-notation patterns: $p(source), $p.s(source, scale) for scale
-        // degrees and $p.arrange(...) for sections. Each is the $cycle that
-        // plays it.
-        $p,
+        // Mini-notation patterns: $(source), $`source` and $arrange(...) of
+        // sections. Each is the $cycle that plays it.
+        $,
+        $arrange,
         // Phase-warp descriptors for $wavetable, $enosc and $pWarp
         $phase,
         // Collection helpers

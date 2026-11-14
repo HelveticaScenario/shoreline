@@ -41,6 +41,7 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "struct",
     "beat",
     "glide",
+    "scale",
     "trans",
     // JavaScript built-in property names
     "constructor",

@@ -2,7 +2,7 @@
  * Argument Span Analyzer
  *
  * Finds the character span of each literal argument passed to a module
- * factory, a pattern builder (`$p`, `$p.s`), a `$p.s` chain link, or a
+ * factory, the pattern builder `$`, a `.trans` chain link, or a
  * pattern method, keyed by the `line:column` V8 reports for the call so the
  * factory can look its spans up at runtime from `captureSourceLocation()`.
  * A `const` reference resolves to the const's literal, and a template that
@@ -19,13 +19,16 @@ import type {
     SourceSpan,
     SpanRegistry,
 } from './sourceAnalysisTypes';
-import { dottedName, propertyName } from '../../shared/dsl/ast/names';
+import {
+    dottedName,
+    isPatternTag,
+    propertyName,
+} from '../../shared/dsl/ast/names';
 import { callSiteKey, v8CallAnchor } from '../../shared/dsl/ast/position';
 import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import { findControlCalls } from '../../shared/dsl/controlCalls';
 import { validateControlCall } from './controlCallValidation';
 import {
-    isPsCall,
     isTransCall,
     PATTERN_METHOD_ARGS,
     patternMethodCallName,
@@ -138,6 +141,19 @@ export function analyzeArgumentSpans(
     };
 
     forEachDescendant(file, (node) => {
+        // `` $`source` ``: V8 places a tagged template at its template, not
+        // its tag.
+        if (ts.isTaggedTemplateExpression(node)) {
+            if (isPatternTag(node)) {
+                const argsMap = new Map<string, SourceSpan>();
+                record(argsMap, 'source', node.template);
+                registry.set(callSiteKey(file, node.template.getStart(file)), {
+                    args: argsMap,
+                    kind: 'pattern',
+                });
+            }
+            return;
+        }
         if (!ts.isCallExpression(node)) {
             return;
         }
@@ -150,13 +166,10 @@ export function analyzeArgumentSpans(
             return;
         }
 
-        // `$p(source)` and `$p.s(source, scale)`: the source literal's span
-        // rides on the returned pattern to whichever factory receives it.
-        // The scale is configuration, not highlighted.
+        // `$(source)`: the source literal's span rides on the returned
+        // pattern to whichever factory receives it.
         const funcName = calledName(call);
-        const isPs = isPsCall(call);
-        const isP = ts.isIdentifier(call.expression) && funcName === '$p';
-        if (isP || isPs) {
+        if (ts.isIdentifier(call.expression) && funcName === '$') {
             const argsMap = new Map<string, SourceSpan>();
             if (args.length < 1 || !record(argsMap, 'source', args[0])) {
                 return;
@@ -168,7 +181,7 @@ export function analyzeArgumentSpans(
             return;
         }
 
-        // `.trans(rhs)` links of a `$p.s` chain, read back by the
+        // `.trans(rhs)` links of a pattern chain, read back by the
         // chain method under `rhs`.
         if (isTransCall(call)) {
             const argsMap = new Map<string, SourceSpan>();

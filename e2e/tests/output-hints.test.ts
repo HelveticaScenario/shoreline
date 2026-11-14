@@ -43,7 +43,7 @@ test.describe('output resolution hints', () => {
     }) => {
         await setSource(
             window,
-            `const seq = $p('c e g')\n$saw(seq).amp($perc(seq)).out()`,
+            `const seq = $('c e g')\n$saw(seq).amp($perc(seq)).out()`,
         );
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
@@ -51,10 +51,10 @@ test.describe('output resolution hints', () => {
     });
 
     test('a chain shows the hint after its receiver', async ({ window }) => {
-        await setSource(window, `$p('0*8').perc().out()`);
+        await setSource(window, `$('0*8').perc().out()`);
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
-            .toContain(`$p('0*8')._trig.perc().out()`);
+            .toContain(`$('0*8')._trig.perc().out()`);
     });
 
     test('an array built in a loop shows hints before the patch runs', async ({
@@ -62,7 +62,7 @@ test.describe('output resolution hints', () => {
     }) => {
         await setSource(
             window,
-            `const seqs = []\nfor (let i = 0; i < 5; i++) {\n    seqs.push($p('c e g'))\n}\n$sine(seqs).amp($perc(seqs)).out()`,
+            `const seqs = []\nfor (let i = 0; i < 5; i++) {\n    seqs.push($('c e g'))\n}\n$sine(seqs).amp($perc(seqs)).out()`,
         );
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
@@ -72,7 +72,7 @@ test.describe('output resolution hints', () => {
     test('an untyped helper parameter is hinted once the patch has run', async ({
         window,
     }) => {
-        const source = `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nvoice($p('c e g')).out()`;
+        const source = `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nvoice($('c e g')).out()`;
         await setSource(window, source);
         // Nothing can be known about `s` until the patch runs.
         await window.waitForTimeout(3000);
@@ -109,14 +109,14 @@ test.describe('output resolution hints', () => {
         window,
     }) => {
         const patterns = [
-            `$p.s('0 2', 'c(maj)')`,
-            `$p.s('0 2', 'c(maj)').trans('1')`,
-            `$p.arrange([2, $p('c')], [1, $p('e')])`,
-            `$p('c e').fast(2)`,
-            `$p('c e').slow(2)`,
-            `$p('c e').struct('x ~ x x')`,
-            `$p('c').beat('0,7', 16)`,
-            `$p('c e').glide(0.1)`,
+            `$('0 2').scale('c(maj)')`,
+            `$('0 2').scale('c(maj)').trans('1')`,
+            `$arrange([2, $('c')], [1, $('e')])`,
+            `$('c e').fast(2)`,
+            `$('c e').slow(2)`,
+            `$('c e').struct('x ~ x x')`,
+            `$('c').beat('0,7', 16)`,
+            `$('c e').glide(0.1)`,
         ];
         await setSource(
             window,
@@ -134,21 +134,21 @@ test.describe('output resolution hints', () => {
     }) => {
         await setSource(
             window,
-            `const seq = $cycle($p('c e g'))\n$adsr(seq).out()\n$perc($clock).out()`,
+            `const seq = $cycle($('c e g'))\n$adsr(seq).out()\n$perc($clock).out()`,
         );
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
             .toContain(`$adsr(seq._gate).out()`);
         const text = await renderedText(window);
         // The pattern is `$cycle`'s pattern here, not a signal.
-        expect(text).toContain(`const seq = $cycle($p('c e g'))`);
+        expect(text).toContain(`const seq = $cycle($('c e g'))`);
         expect(text).toMatch(/\$perc\(\$clock\._\w+\)\.out\(\)/);
     });
 
     test('a named output shows no hint', async ({ window }) => {
         await setSource(
             window,
-            `const seq = $p('c e g')\n$saw(seq).amp($perc(seq._gate)).out()`,
+            `const seq = $('c e g')\n$saw(seq).amp($perc(seq._gate)).out()`,
         );
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
@@ -158,7 +158,7 @@ test.describe('output resolution hints', () => {
     test('double-clicking a hint writes the output into the code', async ({
         window,
     }) => {
-        await setSource(window, `const seq = $p('c e g')\n$perc(seq).out()`);
+        await setSource(window, `const seq = $('c e g')\n$perc(seq).out()`);
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
             .toContain('$perc(seq._trig).out()');

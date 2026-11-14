@@ -2,7 +2,7 @@ import { patternPayload } from '../../patterns';
 import { isKind } from './kinds';
 import { describe, expect, test } from 'vitest';
 
-import { $p, MiniParseError } from '../index';
+import { $, MiniParseError } from '../index';
 import type { MiniAST } from '../ast';
 
 function firstPureAtom(ast: MiniAST): MiniAST {
@@ -21,9 +21,9 @@ function firstPureAtom(ast: MiniAST): MiniAST {
     throw new Error('No Pure atom found');
 }
 
-describe('$p', () => {
+describe('$', () => {
     test('returns a ParsedPattern wrapper', () => {
-        const r = patternPayload($p('0'));
+        const r = patternPayload($('0'));
         expect(isKind(r, 'ParsedPattern')).toBe(true);
         expect(r.__kind).toBe('ParsedPattern');
         expect(r.source).toBe('0');
@@ -32,55 +32,66 @@ describe('$p', () => {
 
     test('rejects non-string input', () => {
         // @ts-expect-error intentional runtime check
-        expect(() => $p(42)).toThrow(MiniParseError);
+        expect(() => $(42)).toThrow(MiniParseError);
+    });
+
+    test('as a template tag, parses the template as it prints', () => {
+        // knip reads any `$` tag as a Bun shell command, so the tag is aliased.
+        const tag = $;
+        const root = 'c4';
+        const r = patternPayload(tag`${root} e4 ${7}`);
+        expect(r.source).toBe('c4 e4 7');
+        expect(r.ast).toEqual(patternPayload($('c4 e4 7')).ast);
+        expect(patternPayload(tag`c\te4`).source).toBe('c\te4');
+        expect(() => tag`c4 \u e4`).toThrow(MiniParseError);
     });
 });
 
 describe('atom kinds', () => {
     test('Number', () => {
-        const r = patternPayload($p('42'));
+        const r = patternPayload($('42'));
         expect(r.ast).toEqual({
             Pure: { node: { Number: 42 }, span: { start: 0, end: 2 } },
         });
     });
 
     test('negative Number', () => {
-        const r = patternPayload($p('-1.5'));
+        const r = patternPayload($('-1.5'));
         expect(r.ast).toEqual({
             Pure: { node: { Number: -1.5 }, span: { start: 0, end: 4 } },
         });
     });
 
     test('leading-dot Number', () => {
-        const r = patternPayload($p('.5'));
+        const r = patternPayload($('.5'));
         expect(r.ast).toEqual({
             Pure: { node: { Number: 0.5 }, span: { start: 0, end: 2 } },
         });
     });
 
     test('negative leading-dot Number', () => {
-        const r = patternPayload($p('-.5'));
+        const r = patternPayload($('-.5'));
         expect(r.ast).toEqual({
             Pure: { node: { Number: -0.5 }, span: { start: 0, end: 3 } },
         });
     });
 
     test('Hz', () => {
-        const r = patternPayload($p('440hz'));
+        const r = patternPayload($('440hz'));
         expect(r.ast).toEqual({
             Pure: { node: { Hz: 440 }, span: { start: 0, end: 5 } },
         });
     });
 
     test('Hz is case-insensitive', () => {
-        const r = patternPayload($p('880Hz'));
+        const r = patternPayload($('880Hz'));
         expect(r.ast).toEqual({
             Pure: { node: { Hz: 880 }, span: { start: 0, end: 5 } },
         });
     });
 
     test('Note with octave', () => {
-        const r = patternPayload($p('c4'));
+        const r = patternPayload($('c4'));
         expect(r.ast).toEqual({
             Pure: {
                 node: {
@@ -92,7 +103,7 @@ describe('atom kinds', () => {
     });
 
     test('Note with sharp', () => {
-        const r = patternPayload($p('d#4'));
+        const r = patternPayload($('d#4'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -103,7 +114,7 @@ describe('atom kinds', () => {
     });
 
     test('Note with flat', () => {
-        const r = patternPayload($p('eb4'));
+        const r = patternPayload($('eb4'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -114,7 +125,7 @@ describe('atom kinds', () => {
     });
 
     test('Note with s-alias sharp', () => {
-        const r = patternPayload($p('cs4'));
+        const r = patternPayload($('cs4'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -125,7 +136,7 @@ describe('atom kinds', () => {
     });
 
     test('Note with flat, no octave', () => {
-        const r = patternPayload($p('eb'));
+        const r = patternPayload($('eb'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -136,7 +147,7 @@ describe('atom kinds', () => {
     });
 
     test('Note b-flat, no octave (b-letter / b-accidental collision)', () => {
-        const r = patternPayload($p('bb'));
+        const r = patternPayload($('bb'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -147,7 +158,7 @@ describe('atom kinds', () => {
     });
 
     test('Note with f-alias flat, no octave', () => {
-        const r = patternPayload($p('cf'));
+        const r = patternPayload($('cf'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -158,7 +169,7 @@ describe('atom kinds', () => {
     });
 
     test('bare note letter b stays a plain note (no accidental)', () => {
-        const r = patternPayload($p('b'));
+        const r = patternPayload($('b'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: {
@@ -169,34 +180,34 @@ describe('atom kinds', () => {
     });
 
     test('Rest', () => {
-        const r = patternPayload($p('~'));
+        const r = patternPayload($('~'));
         expect(r.ast).toEqual({ Rest: { start: 0, end: 1 } });
     });
 
     test('Truthy structure marker x', () => {
-        const r = patternPayload($p('x'));
+        const r = patternPayload($('x'));
         expect(r.ast).toEqual({
             Pure: { node: 'Truthy', span: { start: 0, end: 1 } },
         });
     });
 
     test('Truthy accepts uppercase X', () => {
-        const r = patternPayload($p('X'));
+        const r = patternPayload($('X'));
         expect(r.ast).toEqual({
             Pure: { node: 'Truthy', span: { start: 0, end: 1 } },
         });
     });
 
     test('x must stand alone (ident-continuation guard)', () => {
-        expect(() => $p('x4')).toThrow(MiniParseError);
-        expect(() => $p('xx')).toThrow(MiniParseError);
-        expect(() => $p('x_')).toThrow(MiniParseError);
+        expect(() => $('x4')).toThrow(MiniParseError);
+        expect(() => $('xx')).toThrow(MiniParseError);
+        expect(() => $('x_')).toThrow(MiniParseError);
     });
 });
 
 describe('sequences and groupings', () => {
     test('space-separated sequence', () => {
-        const r = patternPayload($p('0 1 2'));
+        const r = patternPayload($('0 1 2'));
         expect('Sequence' in r.ast).toBe(true);
         if ('Sequence' in r.ast) {
             expect(r.ast.Sequence.length).toBe(3);
@@ -207,17 +218,17 @@ describe('sequences and groupings', () => {
     });
 
     test('fast subsequence [...]', () => {
-        const r = patternPayload($p('[0 1]'));
+        const r = patternPayload($('[0 1]'));
         expect('FastCat' in r.ast).toBe(true);
     });
 
     test('slow subsequence <...>', () => {
-        const r = patternPayload($p('<0 1 2>'));
+        const r = patternPayload($('<0 1 2>'));
         expect('SlowCat' in r.ast).toBe(true);
     });
 
     test('stack via comma', () => {
-        const r = patternPayload($p('0 1, 2 3'));
+        const r = patternPayload($('0 1, 2 3'));
         expect('Stack' in r.ast).toBe(true);
         if ('Stack' in r.ast) {
             expect(r.ast.Stack.length).toBe(2);
@@ -225,24 +236,24 @@ describe('sequences and groupings', () => {
     });
 
     test('nested stack inside subsequence', () => {
-        const r = patternPayload($p('[0 1, 2 3]'));
+        const r = patternPayload($('[0 1, 2 3]'));
         expect('FastCat' in r.ast).toBe(true);
     });
 });
 
 describe('modifiers', () => {
     test('fast *n with integer', () => {
-        const r = patternPayload($p('0*4'));
+        const r = patternPayload($('0*4'));
         expect('Fast' in r.ast).toBe(true);
     });
 
     test('slow /n', () => {
-        const r = patternPayload($p('0/2'));
+        const r = patternPayload($('0/2'));
         expect('Slow' in r.ast).toBe(true);
     });
 
     test('replicate !n', () => {
-        const r = patternPayload($p('0!3'));
+        const r = patternPayload($('0!3'));
         expect('Replicate' in r.ast).toBe(true);
         if ('Replicate' in r.ast) {
             expect(r.ast.Replicate[1]).toBe(3);
@@ -250,7 +261,7 @@ describe('modifiers', () => {
     });
 
     test('replicate ! defaults to 2', () => {
-        const r = patternPayload($p('0!'));
+        const r = patternPayload($('0!'));
         if ('Replicate' in r.ast) {
             expect(r.ast.Replicate[1]).toBe(2);
         } else {
@@ -260,26 +271,26 @@ describe('modifiers', () => {
 
     test('replicate !! accumulates to 3 (one flat Replicate, not nested)', () => {
         // Tidal `pRepeat = 1 + sum es` / krill: `0!!` is 3 copies, not 4.
-        const r = patternPayload($p('0!!'));
+        const r = patternPayload($('0!!'));
         if (!('Replicate' in r.ast)) return expect.fail('expected Replicate');
         expect(r.ast.Replicate[1]).toBe(3);
         expect('Replicate' in r.ast.Replicate[0]).toBe(false);
     });
 
     test('replicate `! !` with spaces also accumulates to 3', () => {
-        const r = patternPayload($p('0 ! !'));
+        const r = patternPayload($('0 ! !'));
         if (!('Replicate' in r.ast)) return expect.fail('expected Replicate');
         expect(r.ast.Replicate[1]).toBe(3);
     });
 
     test('replicate !2!3 accumulates to 4', () => {
-        const r = patternPayload($p('0!2!3'));
+        const r = patternPayload($('0!2!3'));
         if (!('Replicate' in r.ast)) return expect.fail('expected Replicate');
         expect(r.ast.Replicate[1]).toBe(4);
     });
 
     test('degrade ? with probability', () => {
-        const r = patternPayload($p('0?0.3'));
+        const r = patternPayload($('0?0.3'));
         expect('Degrade' in r.ast).toBe(true);
         if ('Degrade' in r.ast) {
             expect(r.ast.Degrade[1]).toBeCloseTo(0.3);
@@ -287,7 +298,7 @@ describe('modifiers', () => {
     });
 
     test('degrade ? default probability (null)', () => {
-        const r = patternPayload($p('0?'));
+        const r = patternPayload($('0?'));
         if ('Degrade' in r.ast) {
             expect(r.ast.Degrade[1]).toBeNull();
         } else {
@@ -296,7 +307,7 @@ describe('modifiers', () => {
     });
 
     test('euclidean (k,n)', () => {
-        const r = patternPayload($p('0(3,8)'));
+        const r = patternPayload($('0(3,8)'));
         expect('Euclidean' in r.ast).toBe(true);
         if ('Euclidean' in r.ast) {
             expect(r.ast.Euclidean.rotation).toBeNull();
@@ -304,7 +315,7 @@ describe('modifiers', () => {
     });
 
     test('euclidean with rotation', () => {
-        const r = patternPayload($p('0(3,8,2)'));
+        const r = patternPayload($('0(3,8,2)'));
         expect('Euclidean' in r.ast).toBe(true);
         if ('Euclidean' in r.ast) {
             expect(r.ast.Euclidean.rotation).not.toBeNull();
@@ -312,14 +323,14 @@ describe('modifiers', () => {
     });
 
     test('fast factor as subsequence c*[1 2]', () => {
-        const r = patternPayload($p('c*[1 2]'));
+        const r = patternPayload($('c*[1 2]'));
         if (!('Fast' in r.ast)) return expect.fail('expected Fast');
         const [, factor] = r.ast.Fast;
         expect('FastCat' in factor).toBe(true);
     });
 
     test('weight @n as positional metadata', () => {
-        const r = patternPayload($p('0@3 1'));
+        const r = patternPayload($('0@3 1'));
         if (!('Sequence' in r.ast)) return expect.fail('expected Sequence');
         const entries = r.ast.Sequence;
         expect(entries.length).toBe(2);
@@ -329,7 +340,7 @@ describe('modifiers', () => {
 
     test('bare `@` defaults weight to 2', () => {
         // Matches Tidal `pElongate = 1 + sum` / krill, and `_` elongation.
-        const r = patternPayload($p('0@'));
+        const r = patternPayload($('0@'));
         if (!('Sequence' in r.ast)) return expect.fail('expected Sequence');
         expect(r.ast.Sequence).toHaveLength(1);
         expect(r.ast.Sequence[0][1]).toBe(2);
@@ -345,7 +356,7 @@ describe('modifiers', () => {
 describe('whitespace around modifiers', () => {
     test('space before and after the slow sigil attaches to preceding element', () => {
         for (const src of ['0/2', '0 /2', '0/ 2', '0 / 2']) {
-            const r = patternPayload($p(src));
+            const r = patternPayload($(src));
             if (!('Slow' in r.ast))
                 return expect.fail(`expected Slow for "${src}"`);
             expect(r.ast.Slow[1]).toEqual({
@@ -355,7 +366,7 @@ describe('whitespace around modifiers', () => {
     });
 
     test('slow modifier applies to a slowcat group with surrounding spaces', () => {
-        const r = patternPayload($p('<1 -1> / 4'));
+        const r = patternPayload($('<1 -1> / 4'));
         if (!('Slow' in r.ast)) return expect.fail('expected Slow');
         expect('SlowCat' in r.ast.Slow[0]).toBe(true);
         expect(r.ast.Slow[1]).toEqual({
@@ -365,27 +376,27 @@ describe('whitespace around modifiers', () => {
 
     test('fast *n tolerates whitespace', () => {
         for (const src of ['0 *4', '0* 4', '0 * 4']) {
-            expect('Fast' in patternPayload($p(src)).ast).toBe(true);
+            expect('Fast' in patternPayload($(src)).ast).toBe(true);
         }
     });
 
     test('weight @n tolerates whitespace', () => {
-        const r = patternPayload($p('0 @ 3 1'));
+        const r = patternPayload($('0 @ 3 1'));
         if (!('Sequence' in r.ast)) return expect.fail('expected Sequence');
         expect(r.ast.Sequence[0][1]).toBeCloseTo(3);
         expect(r.ast.Sequence[1][1]).toBeNull();
     });
 
     test('replicate / degrade / euclidean tolerate whitespace before the sigil', () => {
-        expect('Replicate' in patternPayload($p('0 !3')).ast).toBe(true);
-        expect('Degrade' in patternPayload($p('0 ?0.3')).ast).toBe(true);
-        expect('Euclidean' in patternPayload($p('0 (3,8)')).ast).toBe(true);
+        expect('Replicate' in patternPayload($('0 !3')).ast).toBe(true);
+        expect('Degrade' in patternPayload($('0 ?0.3')).ast).toBe(true);
+        expect('Euclidean' in patternPayload($('0 (3,8)')).ast).toBe(true);
     });
 
     test('degrade binds its probability only when adjacent', () => {
         // `1? 2`: the 2 is a sequence event, not the degrade probability —
         // matching Tidal/krill and the Rust descent parser.
-        const r = patternPayload($p('1? 2'));
+        const r = patternPayload($('1? 2'));
         if (!('Sequence' in r.ast)) return expect.fail('expected Sequence');
         expect(r.ast.Sequence).toHaveLength(2);
         const [first, second] = r.ast.Sequence;
@@ -398,7 +409,7 @@ describe('whitespace around modifiers', () => {
 
     test('replicate binds its count only when adjacent', () => {
         // `1! 2`: two copies of 1 followed by the event 2 ("1 1 2").
-        const r = patternPayload($p('1! 2'));
+        const r = patternPayload($('1! 2'));
         if (!('Sequence' in r.ast)) return expect.fail('expected Sequence');
         expect(r.ast.Sequence).toHaveLength(2);
         const [first, second] = r.ast.Sequence;
@@ -413,7 +424,7 @@ describe('whitespace around modifiers', () => {
     test('a slowcat group divided by 4', () => {
         const src =
             '<[[1,-1,-4]@7 [[1,-1,-4] [1,-3,-4]@3]] [[1,-3,-4]@7 [[1,-3,-4] [1,-1,-4]@3]]> / 4';
-        const r = patternPayload($p(src));
+        const r = patternPayload($(src));
         if (!('Slow' in r.ast)) return expect.fail('expected top-level Slow');
         expect('SlowCat' in r.ast.Slow[0]).toBe(true);
     });
@@ -421,7 +432,7 @@ describe('whitespace around modifiers', () => {
 
 describe('modifiers inside operand subsequences', () => {
     test('replicate !n inside a euclidean pulses subsequence', () => {
-        const r = patternPayload($p('0(<16!2 12>,8)'));
+        const r = patternPayload($('0(<16!2 12>,8)'));
         if (!('Euclidean' in r.ast)) return expect.fail('expected Euclidean');
         const pulses = r.ast.Euclidean.pulses;
         if (!('SlowCat' in pulses))
@@ -434,13 +445,13 @@ describe('modifiers inside operand subsequences', () => {
     });
 
     test('full reported pattern parses', () => {
-        expect(() => $p('0(<16!2 12>,[16 <8 12> 16])')).not.toThrow();
+        expect(() => $('0(<16!2 12>,[16 <8 12> 16])')).not.toThrow();
     });
 });
 
 describe('random choice', () => {
     test('|-separated choices collapse into RandomChoice', () => {
-        const r = patternPayload($p('0|1|2'));
+        const r = patternPayload($('0|1|2'));
         expect('RandomChoice' in r.ast).toBe(true);
         if ('RandomChoice' in r.ast) {
             expect(r.ast.RandomChoice[0].length).toBe(3);
@@ -449,7 +460,7 @@ describe('random choice', () => {
     });
 
     test('rest allowed inside choice', () => {
-        const r = patternPayload($p('0|~'));
+        const r = patternPayload($('0|~'));
         if (!('RandomChoice' in r.ast))
             return expect.fail('expected RandomChoice');
         expect('Rest' in r.ast.RandomChoice[0][1]).toBe(true);
@@ -458,7 +469,7 @@ describe('random choice', () => {
     test('| chooses between whole bracketed subsequences', () => {
         // `|` alternates whole subsequences; it does not bind to a single
         // neighbouring atom. `[0,0,0]` / `[0,-7,0]` are comma-chords.
-        const r = patternPayload($p('[0,0,0] | [0,-7,0]'));
+        const r = patternPayload($('[0,0,0] | [0,-7,0]'));
         if (!('RandomChoice' in r.ast))
             return expect.fail('expected RandomChoice');
         const [choices] = r.ast.RandomChoice;
@@ -471,7 +482,7 @@ describe('random choice', () => {
     });
 
     test('| chooses between whole space-separated sequences', () => {
-        const r = patternPayload($p('0 1 | 2 3'));
+        const r = patternPayload($('0 1 | 2 3'));
         if (!('RandomChoice' in r.ast))
             return expect.fail('expected RandomChoice');
         const [choices] = r.ast.RandomChoice;
@@ -483,7 +494,7 @@ describe('random choice', () => {
     test('seeds are assigned depth-first, left-to-right', () => {
         // `[0|1]` is parsed before `2?`, so the choice gets seed 0 and the
         // degrade gets seed 1.
-        const r = patternPayload($p('[0|1] 2?'));
+        const r = patternPayload($('[0|1] 2?'));
         if (!('Sequence' in r.ast)) return expect.fail('expected Sequence');
         const [first, second] = r.ast.Sequence;
         if (!('FastCat' in first[0]))
@@ -500,7 +511,7 @@ describe('random choice', () => {
 
 describe('leaf spans', () => {
     test('"c*[1 2]" collects c, 1, 2 spans', () => {
-        const r = patternPayload($p('c*[1 2]'));
+        const r = patternPayload($('c*[1 2]'));
         expect(r.all_spans).toContainEqual([0, 1]);
         expect(r.all_spans).toContainEqual([3, 4]);
         expect(r.all_spans).toContainEqual([5, 6]);
@@ -508,7 +519,7 @@ describe('leaf spans', () => {
     });
 
     test('"0 1 2" collects three spans', () => {
-        const r = patternPayload($p('0 1 2'));
+        const r = patternPayload($('0 1 2'));
         expect(r.all_spans.length).toBe(3);
         expect(r.all_spans).toContainEqual([0, 1]);
         expect(r.all_spans).toContainEqual([2, 3]);
@@ -516,61 +527,61 @@ describe('leaf spans', () => {
     });
 
     test('"~ 0 ~ 1" collects four spans including rests', () => {
-        const r = patternPayload($p('~ 0 ~ 1'));
+        const r = patternPayload($('~ 0 ~ 1'));
         expect(r.all_spans.length).toBe(4);
     });
 });
 
 describe('negative cases (dropped atom kinds)', () => {
     test('midi shorthand m60 is a parse error', () => {
-        expect(() => $p('m60')).toThrow(MiniParseError);
+        expect(() => $('m60')).toThrow(MiniParseError);
     });
 
     test('identifier bd is a parse error', () => {
-        expect(() => $p('bd')).toThrow(MiniParseError);
+        expect(() => $('bd')).toThrow(MiniParseError);
     });
 
     test('module reference is a parse error', () => {
-        expect(() => $p('module(osc1:out:0)')).toThrow(MiniParseError);
+        expect(() => $('module(osc1:out:0)')).toThrow(MiniParseError);
     });
 
     test('voltage shorthand 2v is a parse error', () => {
-        expect(() => $p('2v')).toThrow(MiniParseError);
+        expect(() => $('2v')).toThrow(MiniParseError);
     });
 });
 
 describe('whitespace and edge cases', () => {
     test('leading/trailing whitespace is tolerated', () => {
-        const r = patternPayload($p('  0 1  '));
+        const r = patternPayload($('  0 1  '));
         expect('Sequence' in r.ast).toBe(true);
     });
 
     test('empty source is rejected', () => {
-        expect(() => $p('')).toThrow(MiniParseError);
+        expect(() => $('')).toThrow(MiniParseError);
     });
 
     test('whitespace-only source is rejected', () => {
-        expect(() => $p('   ')).toThrow(MiniParseError);
+        expect(() => $('   ')).toThrow(MiniParseError);
     });
 
     test('unclosed bracket is rejected', () => {
-        expect(() => $p('[0 1')).toThrow(MiniParseError);
+        expect(() => $('[0 1')).toThrow(MiniParseError);
     });
 
     test('unknown operator is rejected', () => {
-        expect(() => $p('0 & 1')).toThrow(MiniParseError);
+        expect(() => $('0 & 1')).toThrow(MiniParseError);
     });
 });
 
 describe('rest alternatives', () => {
     test('`-` parses as a rest', () => {
-        const r = patternPayload($p('-'));
+        const r = patternPayload($('-'));
         expect(r.ast).toEqual({ Rest: { start: 0, end: 1 } });
     });
 
     test('`-` and `~` rests interchangeable inside a sequence', () => {
-        const r1 = patternPayload($p('c4 - e4'));
-        const r2 = patternPayload($p('c4 ~ e4'));
+        const r1 = patternPayload($('c4 - e4'));
+        const r2 = patternPayload($('c4 ~ e4'));
         expect('Sequence' in r1.ast).toBe(true);
         expect('Sequence' in r2.ast).toBe(true);
         if ('Sequence' in r1.ast && 'Sequence' in r2.ast) {
@@ -580,7 +591,7 @@ describe('rest alternatives', () => {
     });
 
     test('`-` followed by digit is a negative number, not a rest', () => {
-        const r = patternPayload($p('-1'));
+        const r = patternPayload($('-1'));
         const atom = firstPureAtom(r.ast);
         expect(atom).toEqual({
             Pure: { node: { Number: -1 }, span: { start: 0, end: 2 } },
@@ -590,8 +601,8 @@ describe('rest alternatives', () => {
 
 describe('elongation `_`', () => {
     test('`_` extends preceding step weight by 1 (equivalent to @n)', () => {
-        const elongated = patternPayload($p('0 _ _'));
-        const weighted = patternPayload($p('0@3'));
+        const elongated = patternPayload($('0 _ _'));
+        const weighted = patternPayload($('0@3'));
         // Both should yield the same effective duration via different shapes.
         // Cheap structural check: elongated is a Sequence whose first entry
         // carries weight 3.
@@ -604,7 +615,7 @@ describe('elongation `_`', () => {
     });
 
     test('multiple `_` after a step', () => {
-        const r = patternPayload($p('c4 _ _ _'));
+        const r = patternPayload($('c4 _ _ _'));
         expect('Sequence' in r.ast).toBe(true);
         if ('Sequence' in r.ast) {
             expect(r.ast.Sequence[0][1]).toBe(4);
@@ -614,7 +625,7 @@ describe('elongation `_`', () => {
 
 describe('polymeter `{...}`', () => {
     test('basic polymeter wraps children in Polymeter node', () => {
-        const r = patternPayload($p('{c4 e4, g4 b4 d5}'));
+        const r = patternPayload($('{c4 e4, g4 b4 d5}'));
         expect('Polymeter' in r.ast).toBe(true);
         if ('Polymeter' in r.ast) {
             expect(r.ast.Polymeter.children.length).toBe(2);
@@ -623,7 +634,7 @@ describe('polymeter `{...}`', () => {
     });
 
     test('polymeter with explicit step count `%n`', () => {
-        const r = patternPayload($p('{c4 e4 g4}%4'));
+        const r = patternPayload($('{c4 e4 g4}%4'));
         expect('Polymeter' in r.ast).toBe(true);
         if ('Polymeter' in r.ast) {
             expect(r.ast.Polymeter.steps_per_cycle).not.toBe(null);
@@ -635,7 +646,7 @@ describe('feet `.`', () => {
     test('feet split sequence elements at `.` boundaries', () => {
         // `.` alignment is mainly meaningful inside polymeter children, but
         // parser should accept it without error.
-        const r = patternPayload($p('{c4 . e4 g4, f4 a4 . b4}'));
+        const r = patternPayload($('{c4 . e4 g4, f4 a4 . b4}'));
         expect('Polymeter' in r.ast).toBe(true);
     });
 
@@ -644,7 +655,7 @@ describe('feet `.`', () => {
         // future FastCat-vs-Sequence change here would silently mis-render
         // feet (the Rust descent parser cannot parse `.`, so the parity gate
         // does not cover this construct).
-        const r = patternPayload($p('0 1 . 2 3'));
+        const r = patternPayload($('0 1 . 2 3'));
         expect('Sequence' in r.ast).toBe(true);
         if ('Sequence' in r.ast) {
             expect(r.ast.Sequence).toHaveLength(2);
@@ -660,7 +671,7 @@ describe('feet `.`', () => {
 // krill. `<...>`/`{...}` are comma-only voices.
 describe('separator model (Tidal/krill parity)', () => {
     test('`|` binds looser than feet: `0 | 1 . 2` is choose(0, feet(1,2))', () => {
-        const r = patternPayload($p('0 | 1 . 2'));
+        const r = patternPayload($('0 | 1 . 2'));
         if (!('RandomChoice' in r.ast))
             return expect.fail('expected RandomChoice');
         const [choices] = r.ast.RandomChoice;
@@ -672,10 +683,10 @@ describe('separator model (Tidal/krill parity)', () => {
     });
 
     test('mixing `,` and `|` at the top level is a parse error', () => {
-        expect(() => $p('0 , 1 | 2')).toThrow(MiniParseError);
+        expect(() => $('0 , 1 | 2')).toThrow(MiniParseError);
     });
 
     test('`|` inside `<...>` is a parse error (comma-only voices)', () => {
-        expect(() => $p('<0 | 1>')).toThrow(MiniParseError);
+        expect(() => $('<0 | 1>')).toThrow(MiniParseError);
     });
 });

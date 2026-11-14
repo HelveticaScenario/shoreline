@@ -66,7 +66,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `const seq = $p('c e').concat($p('g b'))
+                    `const seq = $('c e').concat($('g b'))
                      $perc(seq).out()`,
                     '$perc',
                     'trigger',
@@ -88,7 +88,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `const seq = $p('c e').concat($p('g b'))
+                    `const seq = $('c e').concat($('g b'))
                      $perc(seq[1]).out()`,
                     '$perc',
                     'trigger',

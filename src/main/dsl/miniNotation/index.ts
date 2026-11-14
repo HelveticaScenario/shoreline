@@ -1,9 +1,8 @@
 /**
  * Public entry point for the TypeScript mini-notation implementation.
  *
- * `$p(source)`, `$p.s(source, scale)`, `$p.arrange(...)` and the pattern
- * methods each build a pattern: a wire payload (`ParsedPattern`, `SpPattern`,
- * …) that `$cycle`'s `pattern` param takes, where the Rust side dispatches
+ * `$(source)`, `$arrange(...)` and the pattern methods each build a
+ * pattern: a wire payload (`ParsedPattern`, `ScalePattern`, …) that `$cycle`'s `pattern` param takes, where the Rust side dispatches
  * on its `__kind` (`SeqPatternSource`) and lowers it to a runtime
  * `Pattern<SeqValue>`.
  *
@@ -48,13 +47,18 @@ export { MiniParseError } from './parser';
  * `ParsedPattern`.
  *
  * Entry point for all mini-notation usage in the DSL: every mini-notation
- * literal flows through `$p()`. Examples:
+ * literal flows through `$`, called with a string or as a template tag.
+ * Examples:
  *
  * ```js
- * $saw($p("c4 e4 g4")).out()
- * const bass = $p("c2 [c2 g2] c2 e2");
+ * $saw($`c4 e4 g4`).out()
+ * const bass = $("c2 [c2 g2] c2 e2");
  * $saw(bass).amp($perc(bass)).out()
  * ```
+ *
+ * A tagged template reads as the untagged template would: its cooked strings
+ * with each value interpolated, so `` $`${root} e4` `` and `$(`${root} e4`)`
+ * parse the same source.
  *
  * The payload matches the Rust `{ ast, source, all_spans }` shape expected
  * during patch-graph deserialization. It also embeds an `argument_span`
@@ -63,20 +67,30 @@ export { MiniParseError } from './parser';
  *
  * Throws `MiniParseError` if `source` is not a string or fails to parse.
  */
-function $pImpl(source: string): Pattern<ParsedPattern> {
-    if (typeof source !== 'string') {
+function $Impl(
+    source: string | TemplateStringsArray,
+    ...values: unknown[]
+): Pattern<ParsedPattern> {
+    if (isTemplateStrings(source) && source.some((s) => s === undefined)) {
+        // A tag receives an invalid escape (`\u` with no code) as undefined.
+        throw new MiniParseError('$`...` holds an invalid escape sequence');
+    }
+    const text = isTemplateStrings(source)
+        ? source.reduce((acc, str, i) => acc + String(values[i - 1]) + str)
+        : source;
+    if (typeof text !== 'string') {
         throw new MiniParseError(
-            `$p() expects a string argument, got ${typeof source}`,
+            `$() expects a string argument, got ${typeof text}`,
         );
     }
-    const ast: MiniAST = parseMini(source);
+    const ast: MiniAST = parseMini(text);
     const all_spans = collectLeafSpans(ast);
     const sourceLocation = captureSourceLocation();
     const argument_span = lookupArgumentSpan(sourceLocation, 'source');
     const pattern: ParsedPattern = {
         __kind: 'ParsedPattern',
         ast,
-        source,
+        source: text,
         all_spans,
     };
     if (argument_span) {
@@ -85,26 +99,26 @@ function $pImpl(source: string): Pattern<ParsedPattern> {
     return patternHandle(pattern);
 }
 
-/**
- * The mini-notation factory. Callable as `$p(source)` for a plain
- * `ParsedPattern`, carries `$p.s(source, scale)` for scale-degree patterns
- * (see `$spImpl`) and `$p.arrange([cycles, pattern], …)` for multi-cycle
- * arrangements (see `$arrangeImpl`). All three are hoisted, so the assignment
- * can reference them here.
- */
-export const $p: typeof $pImpl & {
-    s: typeof $spImpl;
-    arrange: typeof $arrangeImpl;
-} = Object.assign($pImpl, { s: $spImpl, arrange: $arrangeImpl });
+/** The strings array a tag function receives: an array carrying `raw`. */
+function isTemplateStrings(value: unknown): value is TemplateStringsArray {
+    return (
+        Array.isArray(value) && Array.isArray((value as { raw?: unknown }).raw)
+    );
+}
 
-// ─── $p.s chainable + alignment ─────────────────────────────────────────
+/** The mini-notation factory: `$(source)` or `` $`source` ``. */
+export const $ = $Impl;
 
-/** Discriminator string the Rust side matches against. */
-const SP_KIND = 'SpPattern' as const;
+// ─── .scale / .trans (scale patterns) ──────────────────────────────────
+
+/** Discriminator strings the Rust `SeqPatternSource` untagged enum matches. */
+const SCALE_KIND = 'ScalePattern' as const;
+const TRANS_KIND = 'TransPattern' as const;
 
 /**
  * A parsed mini-notation source: a `ParsedPattern` without its kind and
- * call-site span. Used as elements of `SpPattern.sources`.
+ * call-site span. Carried by pattern-method arguments (`.trans` RHS, `.fast`
+ * factor, …).
  */
 export interface ParsedPatternPayload {
     ast: MiniAST;
@@ -113,74 +127,72 @@ export interface ParsedPatternPayload {
 }
 
 /** `.trans`: callable, with a method for each alignment mode. */
-export type Transpose = ((rhs: string) => ScalePattern) & {
-    [M in AlignmentMode]: (rhs: string) => ScalePattern;
+export type Transpose = ((rhs: string) => ScalePattern<TransPatternPayload>) & {
+    [M in AlignmentMode]: (rhs: string) => ScalePattern<TransPatternPayload>;
 };
 
 /**
- * Wire shape for chained scale-degree patterns. `$cycle`'s Rust-side
- * deserializer recognises `__kind === 'SpPattern'` via the
- * `SeqPatternSource` untagged enum and lowers the chain to a
- * `Pattern<SeqValue>` at param ingestion time.
+ * Wire shape for `pattern.scale(scale)`: `pattern`'s atoms read as degrees of
+ * `scale`, which replaces any scale an inner `.scale(...)` gave a note.
+ * `argument_spans` is the wrapped pattern's.
  */
-export interface SpPattern {
-    __kind: typeof SP_KIND;
-    sources: Array<ParsedPatternPayload>;
+export interface ScalePatternPayload {
+    __kind: typeof SCALE_KIND;
+    pattern: PatternPayload;
     scale: string;
-    /** The alignment of each `.trans` link: `modes[i]` adds `sources[i + 1]`. */
-    modes: Array<AlignmentMode>;
     argument_spans: Array<SourceSpan>;
 }
 
-/** What `$p.s` and `.trans` return: a pattern that can be transposed. */
-export type ScalePattern = Pattern<SpPattern> & {
-    readonly trans: Transpose;
-};
+/**
+ * Wire shape for `pattern.trans.<mode>(rhs)` on a scale pattern: `rhs`'s
+ * degrees added to `pattern`'s. `argument_spans` is the wrapped pattern's,
+ * then the RHS's.
+ */
+export interface TransPatternPayload {
+    __kind: typeof TRANS_KIND;
+    pattern: PatternPayload;
+    rhs: ParsedPatternPayload;
+    mode: AlignmentMode;
+    argument_spans: Array<SourceSpan>;
+}
 
 /**
- * Parse a scale-degree mini-notation source against `scale` into a pattern
- * whose payload is an `SpPattern`. Exposed to the DSL as
- * `$p.s(source, scale)`. Chain via
- * `.trans(...)` (defaults to `.in` alignment) or any of the seven explicit
- * modes (`.trans.in`, `.trans.out`, `.trans.mix`, `.trans.squeeze`,
- * `.trans.squeezeout`, `.trans.reset`, `.trans.restart`). Each chained RHS
- * is itself a mini-notation source of integer scale degrees, added to this
- * pattern's.
- *
- * Atoms are 0-indexed scale degrees: `0` is the scale's root, `1` the
- * second tone, `2` the third, etc. Negative degrees move downward;
- * degrees beyond the scale length wrap into higher/lower octaves
- * automatically. Hz / note atoms are rejected at `$cycle` ingestion.
- *
- * Mini-notation grammar (groups, stacks, modifiers, euclidean, etc.) is
- * the same as `$p`; only the atom vocabulary differs.
- *
- * Scale string accepts `"c(major)"`, `"D#3(min)"`, custom intervals
- * `"c(0 2 4 5 7 9 11)"`, just-intonation tunings `"c(just)"` /
- * `"c(pythagorean)"`, the bare `"chromatic"` ladder, and chords in
- * brackets (`"c[maj7]"`, `"a3[m9 inv1]"`) whose degrees step through the
- * chord tones.
+ * Methods a scale pattern adds or narrows: `.trans`, and every pattern
+ * method returning a scale pattern again.
  */
-function $spImpl(source: string, scale: string): ScalePattern {
-    if (typeof source !== 'string') {
-        throw new MiniParseError(
-            `$p.s() expects a string source, got ${typeof source}`,
-        );
+export interface ScalePatternMethods {
+    readonly trans: Transpose;
+    fast(factor: number | string): ScalePattern<FastPattern>;
+    slow(factor: number | string): ScalePattern<SlowPattern>;
+    struct(boolPattern: string): ScalePattern<StructPattern>;
+    beat(t: number | string, div: number | string): ScalePattern<BeatPattern>;
+    glide(
+        g: number | string,
+        curve?: GlideCurve,
+        mode?: GlideMode,
+    ): ScalePattern<GlidePattern>;
+}
+
+/**
+ * A pattern whose atoms are scale degrees: one made by `.scale(...)`, any
+ * pattern method or `.trans` on one, or an arrangement whose every section
+ * is one.
+ */
+export type ScalePattern<T extends PatternPayload = PatternPayload> =
+    ScalePatternMethods & Pattern<T>;
+
+/** Whether `payload` is a scale pattern, so it takes `.trans`. */
+function isScalePayload(payload: PatternPayload): boolean {
+    switch (payload.__kind) {
+        case SCALE_KIND:
+            return true;
+        case ARRANGE_KIND:
+            return payload.sections.every((s) => isScalePayload(s.pattern));
+        case 'ParsedPattern':
+            return false;
+        default:
+            return isScalePayload(payload.pattern);
     }
-    if (typeof scale !== 'string') {
-        throw new MiniParseError(
-            `$p.s() expects a string scale, got ${typeof scale}`,
-        );
-    }
-    const payload = parsePayload(source);
-    const loc = captureSourceLocation();
-    const argSpan = lookupArgumentSpan(loc, 'source');
-    return buildSpPattern(
-        [payload],
-        scale,
-        [],
-        argSpan ? [argSpan] : [{ start: 0, end: 0 }],
-    );
 }
 
 function parsePayload(source: string): ParsedPatternPayload {
@@ -189,45 +201,47 @@ function parsePayload(source: string): ParsedPatternPayload {
     return { ast, source, all_spans };
 }
 
-function buildSpPattern(
-    sources: ParsedPatternPayload[],
+/** Build a `ScalePatternPayload` around `inner`. */
+function makeScale(
+    inner: PatternPayload,
     scale: string,
-    modes: AlignmentMode[],
-    argument_spans: SourceSpan[],
-): ScalePattern {
-    const payload: SpPattern = {
-        __kind: SP_KIND,
-        sources,
+): ScalePattern<ScalePatternPayload> {
+    if (typeof scale !== 'string') {
+        throw new MiniParseError(
+            `scale() expects a scale string, got ${typeof scale}`,
+        );
+    }
+    return patternHandle({
+        __kind: SCALE_KIND,
+        pattern: inner,
         scale,
-        modes,
-        argument_spans,
-    };
-    return patternHandle(payload, {
-        get trans() {
-            return transposer(payload);
-        },
-    });
+        argument_spans: collectPatternSpans(inner, '$(...).scale()'),
+    }) as ScalePattern<ScalePatternPayload>;
 }
 
-function transposer(pat: SpPattern): Transpose {
-    const apply = (mode: AlignmentMode, rhs: string): ScalePattern => {
+/** `.trans` on the scale pattern `inner`. */
+function transposer(inner: PatternPayload): Transpose {
+    const apply = (
+        mode: AlignmentMode,
+        rhs: string,
+    ): ScalePattern<TransPatternPayload> => {
         if (typeof rhs !== 'string') {
             throw new MiniParseError(
-                `$p.s().trans.${mode}() expects a string RHS, got ${typeof rhs}`,
+                `trans.${mode}() expects a string RHS, got ${typeof rhs}`,
             );
         }
-        const payload = parsePayload(rhs);
-        // Capture argument span at the chain method's call site. The
-        // argument-span analyzer registers each chain RHS under the
-        // method's source location, keyed by the param name `rhs`.
+        const innerSpans = collectPatternSpans(inner, '$(...).trans()');
+        // The argument-span analyzer registers each `.trans` RHS under the
+        // chain method's source location, keyed by the param name `rhs`.
         const loc = captureSourceLocation();
         const argSpan = lookupArgumentSpan(loc, 'rhs') ?? { start: 0, end: 0 };
-        return buildSpPattern(
-            [...pat.sources, payload],
-            pat.scale,
-            [...pat.modes, mode],
-            [...pat.argument_spans, argSpan],
-        );
+        return patternHandle({
+            __kind: TRANS_KIND,
+            pattern: inner,
+            rhs: parsePayload(rhs),
+            mode,
+            argument_spans: [...innerSpans, argSpan],
+        }) as ScalePattern<TransPatternPayload>;
     };
 
     // Bare invocation defaults to `.in` (strudel's default alignment).
@@ -240,15 +254,16 @@ function transposer(pat: SpPattern): Transpose {
     return builder;
 }
 
-// ─── $p.arrange ─────────────────────────────────────────────────────────
+// ─── $arrange ─────────────────────────────────────────────────────────
 
 /** Discriminator string the Rust `SeqPatternSource` untagged enum matches. */
 const ARRANGE_KIND = 'ArrangePattern' as const;
 
-/** A pattern usable as an `$p.arrange` section (and as a `$cycle` argument). */
+/** A pattern usable as an `$arrange` section (and as a `$cycle` argument). */
 export type PatternPayload =
     | ParsedPattern
-    | SpPattern
+    | ScalePatternPayload
+    | TransPatternPayload
     | ArrangePattern
     | FastPattern
     | SlowPattern
@@ -256,8 +271,11 @@ export type PatternPayload =
     | BeatPattern
     | GlidePattern;
 
-/** One `[cycles, pattern]` tuple accepted by `$p.arrange`. */
+/** One `[cycles, pattern]` tuple accepted by `$arrange`. */
 export type ArrangeSectionArg = readonly [number, Pattern];
+
+/** One `[cycles, pattern]` tuple of an arrangement of scale patterns. */
+export type ScaleArrangeSectionArg = readonly [number, ScalePattern];
 
 /**
  * Wire shape for one arrange section. `cycles` is a positive integer, or the
@@ -277,7 +295,7 @@ export interface ArrangeSectionWire {
  * order) that `$cycle`'s factory maps to `pattern.0`, `pattern.1`, … for editor
  * highlighting — matching the flat `per_source` order the Rust side builds.
  *
- * An `ArrangePattern` is itself a valid `$p.arrange` section and `$cycle`
+ * An `ArrangePattern` is itself a valid `$arrange` section and `$cycle`
  * argument, so arrangements nest.
  */
 export interface ArrangePattern {
@@ -288,24 +306,31 @@ export interface ArrangePattern {
 
 /**
  * Arrange multiple patterns over multiple cycles, mirroring Strudel's
- * `arrange`. Each argument is a `[cycles, pattern]` tuple: `pattern` (a
- * `$p(...)`, `$p.s(...)`, or nested `$p.arrange(...)`) plays for `cycles`
- * cycles, and the sections play back-to-back, looping with period `Σ cycles`.
+ * `arrange`. Each argument is a `[cycles, pattern]` tuple: `pattern` (any
+ * pattern, including a nested `$arrange(...)`) plays for `cycles` cycles,
+ * and the sections play back-to-back, looping with period `Σ cycles`.
  *
- * Because each `$p.s` section is resolved through its own scale, an arrangement
- * can switch scales between sections. Cycle counts must be positive integers,
+ * Each scale-pattern section resolves through its own scale, so an
+ * arrangement can switch keys between sections; one whose every section is a
+ * scale pattern is one too. Cycle counts must be positive integers,
  * except a single trailing section may use `Infinity` to loop forever once
  * reached (later sections would never play and are rejected).
  *
  * The result is a pattern like any other, so arrangements nest as sections
- * of another `$p.arrange(...)`.
+ * of another `$arrange(...)`.
  */
-function $arrangeImpl(
+export function $arrange(
+    ...sections: ScaleArrangeSectionArg[]
+): ScalePattern<ArrangePattern>;
+export function $arrange(
+    ...sections: ArrangeSectionArg[]
+): Pattern<ArrangePattern>;
+export function $arrange(
     ...sections: ArrangeSectionArg[]
 ): Pattern<ArrangePattern> {
     if (sections.length === 0) {
         throw new MiniParseError(
-            '$p.arrange() requires at least one [cycles, pattern] section',
+            '$arrange() requires at least one [cycles, pattern] section',
         );
     }
 
@@ -315,7 +340,7 @@ function $arrangeImpl(
     sections.forEach((sectionArg, i) => {
         if (!Array.isArray(sectionArg) || sectionArg.length !== 2) {
             throw new MiniParseError(
-                `$p.arrange() section ${i} must be a [cycles, pattern] tuple`,
+                `$arrange() section ${i} must be a [cycles, pattern] tuple`,
             );
         }
         const [cyclesRaw, sectionPattern] = sectionArg;
@@ -323,21 +348,21 @@ function $arrangeImpl(
 
         if (typeof cyclesRaw !== 'number' || Number.isNaN(cyclesRaw)) {
             throw new MiniParseError(
-                `$p.arrange() section ${i}: cycles must be a number, got ${typeof cyclesRaw}`,
+                `$arrange() section ${i}: cycles must be a number, got ${typeof cyclesRaw}`,
             );
         }
         let cycles: number | 'Infinity';
         if (cyclesRaw === Infinity) {
             if (i !== sections.length - 1) {
                 throw new MiniParseError(
-                    '$p.arrange(): an Infinity section must be the last section ' +
+                    '$arrange(): an Infinity section must be the last section ' +
                         '(sections after it can never play)',
                 );
             }
             cycles = 'Infinity';
         } else if (!Number.isInteger(cyclesRaw) || cyclesRaw <= 0) {
             throw new MiniParseError(
-                `$p.arrange() section ${i}: cycles must be a positive integer or Infinity, got ${cyclesRaw}`,
+                `$arrange() section ${i}: cycles must be a positive integer or Infinity, got ${cyclesRaw}`,
             );
         } else {
             cycles = cyclesRaw;
@@ -346,7 +371,7 @@ function $arrangeImpl(
         // Collect each section's flat argument spans in order so the factory can
         // map them to `pattern.0`, `pattern.1`, … (mirroring the Rust per_source).
         argument_spans.push(
-            ...collectPatternSpans(pattern, `$p.arrange() section ${i}`),
+            ...collectPatternSpans(pattern, `$arrange() section ${i}`),
         );
         wireSections.push({ cycles, pattern });
     });
@@ -401,6 +426,9 @@ export type Pattern<T extends PatternPayload = PatternPayload> =
  * `'linear'`) and mode (`'in'`, `'out'` or `'inOut'`, default `'in'`) shape
  * the ramp.
  *
+ * `.scale`: reads the pattern's atoms as degrees of a scale, making a
+ * `ScalePattern`.
+ *
  * `.cycle(...rest)`: shorthand for `$cycle(pattern, ...rest)`, forwarding
  * every argument after the pattern to the `$cycle` factory. The `$cycle` it
  * makes is its own, apart from the one the pattern plays through as a
@@ -408,6 +436,7 @@ export type Pattern<T extends PatternPayload = PatternPayload> =
  */
 export interface PatternMethods {
     cycle(...rest: unknown[]): unknown;
+    scale(scale: string): ScalePattern<ScalePatternPayload>;
     fast(factor: number | string): Pattern<FastPattern>;
     slow(factor: number | string): Pattern<SlowPattern>;
     struct(boolPattern: string): Pattern<StructPattern>;
@@ -493,7 +522,7 @@ export interface GlidePattern {
 
 /**
  * Collect a pattern's flat per-source argument spans in the same order the Rust
- * side flattens `per_source`: of each `$p.arrange` section, and of the pattern
+ * side flattens `per_source`: of each `$arrange` section, and of the pattern
  * a pattern method wraps. Throws on a non-pattern value.
  */
 function collectPatternSpans(
@@ -502,8 +531,8 @@ function collectPatternSpans(
 ): SourceSpan[] {
     if (!isPatternPayload(pattern)) {
         throw new MiniParseError(
-            `${context}: pattern must be a $p(...), $p.s(...), $p.arrange(...), ` +
-                `or .fast(...)/.slow(...)/.struct(...)/.beat(...)/.glide(...) value`,
+            `${context}: pattern must be a $(...) or $arrange(...) value, ` +
+                `or a pattern method's result`,
         );
     }
     return 'argument_spans' in pattern
@@ -600,7 +629,7 @@ function makeStruct(
             `struct() expects a mini-notation string, got ${typeof boolPattern}`,
         );
     }
-    const innerSpans = collectPatternSpans(inner, '$p(...).struct()');
+    const innerSpans = collectPatternSpans(inner, '$(...).struct()');
     // The bool pattern is always a string source, so unlike a numeric factor
     // it always appends its own span.
     const loc = captureSourceLocation();
@@ -622,7 +651,7 @@ function makeBeat(
     t: number | string,
     div: number | string,
 ): Pattern<BeatPattern> {
-    const innerSpans = collectPatternSpans(inner, '$p(...).beat()');
+    const innerSpans = collectPatternSpans(inner, '$(...).beat()');
     // Span order must match the Rust `per_source` push order: inner sources,
     // then t (string only), then div (string only).
     const loc = captureSourceLocation();
@@ -656,7 +685,7 @@ function factorArgumentSpans(
     factor: number | string,
     methodName: 'fast' | 'slow' | 'glide',
 ): SourceSpan[] {
-    const innerSpans = collectPatternSpans(inner, `$p(...).${methodName}()`);
+    const innerSpans = collectPatternSpans(inner, `$(...).${methodName}()`);
     if (typeof factor !== 'string') {
         return innerSpans;
     }
@@ -680,6 +709,7 @@ export const PATTERN_METHODS = [
     'struct',
     'beat',
     'glide',
+    'scale',
     'trans',
 ] as const;
 
@@ -718,15 +748,12 @@ function isCycleMember(prop: string | symbol): boolean {
 
 /**
  * The value a patch script holds for the pattern `payload`: a proxy with the
- * pattern methods (`extra` adds a kind's own) that otherwise is the pattern's
+ * pattern methods (and `.trans` on a scale pattern) that otherwise is the pattern's
  * `$cycle`. Reading a collection member, or using the pattern where a signal
  * belongs, makes that `$cycle`. The payload is what crosses to the engine:
  * `patternPayload` gives it to host code, and the script cannot reach it.
  */
-function patternHandle<T extends PatternPayload, E extends object = object>(
-    pattern: T,
-    extra?: E,
-): Pattern<T> & E {
+function patternHandle<T extends PatternPayload>(pattern: T): Pattern<T> {
     const shared = {
         beat: (t: number | string, div: number | string) =>
             makeBeat(pattern, t, div),
@@ -734,22 +761,31 @@ function patternHandle<T extends PatternPayload, E extends object = object>(
         fast: (factor: number | string) => makeFast(pattern, factor),
         glide: (g: number | string, curve?: GlideCurve, mode?: GlideMode) =>
             makeGlide(pattern, g, curve, mode),
+        scale: (scale: string) => makeScale(pattern, scale),
         slow: (factor: number | string) => makeSlow(pattern, factor),
         struct: (boolPattern: string) => makeStruct(pattern, boolPattern),
     } satisfies Record<
         Exclude<(typeof PATTERN_METHODS)[number], 'trans'>,
         unknown
     >;
-    const methods = Object.defineProperties(
-        shared,
-        Object.getOwnPropertyDescriptors(extra ?? {}),
-    );
+    const methods: object = isScalePayload(pattern)
+        ? Object.defineProperty(shared, 'trans', {
+              enumerable: true,
+              get: () => transposer(pattern),
+          })
+        : shared;
     const handle = new Proxy(
         {},
         {
             get: (target, prop) => {
                 if (Object.hasOwn(methods, prop)) {
                     return Reflect.get(methods, prop);
+                }
+                if (prop === 'trans') {
+                    throw new MiniParseError(
+                        '.trans transposes scale degrees, so it needs a scale ' +
+                            'pattern: add .scale(...) before it',
+                    );
                 }
                 if (isCycleMember(prop)) {
                     const cycle = cycleOf(pattern) as object;
@@ -770,7 +806,7 @@ function patternHandle<T extends PatternPayload, E extends object = object>(
                 isCycleMember(prop) ||
                 Reflect.has(target, prop),
         },
-    ) as Pattern<T> & E;
+    ) as Pattern<T>;
     registerPattern(handle, pattern);
     return handle;
 }

@@ -206,6 +206,7 @@ export function collectSignalSites(
         ts.isPropertyAccessExpression(value) ||
         ts.isElementAccessExpression(value) ||
         ts.isCallExpression(value) ||
+        ts.isTaggedTemplateExpression(value) ||
         ts.isParenthesizedExpression(value);
 
     /** A value written at `slot` of the call at `call`. */

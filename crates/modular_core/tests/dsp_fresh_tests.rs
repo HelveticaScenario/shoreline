@@ -15,7 +15,7 @@ use serde_json::{Value, json};
 mod common;
 use common::from_graph;
 
-/// Helper — build a mini-notation payload shaped like what `$p(source)`
+/// Helper — build a mini-notation payload shaped like what `$(source)`
 /// would emit on the DSL side. `$cycle` takes a parsed payload, never a bare
 /// string; the wire shape is `{ ast, source, all_spans }`.
 fn mini_payload(source: &str) -> Value {
@@ -1711,18 +1711,26 @@ fn tah_holds_voltage_across_state_transfer() {
 
 // ─── Seq stale cached_hap survives transfer_state_from (highlight pin) ────────
 
-/// Build the `$p.s(...)` chained payload wire shape that the TS `$p.s` helper
-/// emits: `{ __kind: "SpPattern", sources, scale, modes, argument_spans }`.
+/// Build the wire shape the TS builders emit for
+/// `$(sources[0]).scale(scale).trans.<modes[0]>(sources[1])…`.
 /// Each source is a `ParsedPatternPayload` (`{ ast, source, all_spans }`).
 fn sp_payload(sources: &[&str], scale: &str, modes: Vec<&str>) -> Value {
-    let srcs: Vec<Value> = sources.iter().map(|s| mini_payload(s)).collect();
-    json!({
-        "__kind": "SpPattern",
-        "sources": srcs,
+    let mut pattern = json!({
+        "__kind": "ScalePattern",
+        "pattern": mini_payload(sources[0]),
         "scale": scale,
-        "modes": modes,
         "argument_spans": [],
-    })
+    });
+    for (rhs, mode) in sources[1..].iter().zip(modes) {
+        pattern = json!({
+            "__kind": "TransPattern",
+            "pattern": pattern,
+            "rhs": mini_payload(rhs),
+            "mode": mode,
+            "argument_spans": [],
+        });
+    }
+    pattern
 }
 
 /// Total active highlight spans across every pattern source in a snapshot.
@@ -1752,8 +1760,8 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
     // A held voice keeps its highlight across a state transfer that changes
     // the pattern's source count.
     //
-    // On a live edit that turns `$cycle($p('[0 1 2 3 4 5 6] 5'))` into the
-    // chained `$cycle($p.s('0 5').trans('2 4'))`, patchSimilarityRemap reuses the
+    // On a live edit that turns `$cycle($('[0 1 2 3 4 5 6] 5'))` into the
+    // chained `$cycle($('0 5').scale('c(maj)').trans('2 4'))`, patchSimilarityRemap reuses the
     // Seq module. apply_patch_update rebuilds it with FRESH multi-source params
     // (is_multi_source=true, per_source=2, a freshly baked multi-source
     // cached_haps), but transfer_state_from std::mem::swaps the OLD SeqState
@@ -1775,7 +1783,7 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
     // matching the step the voice is actually playing. No re-latch needed.
     // The equal-geometry single-source case is kept as a negative control.
 
-    // --- Patch A: single-source $cycle($p('[0 1 2 3 4 5 6] 5')). ---
+    // --- Patch A: single-source $cycle($('[0 1 2 3 4 5 6] 5')). ---
     // The left group packs 7 sub-haps into 0.0..0.5; the trailing `5` occupies
     // 0.5..1.0. Latching on `5` gives a hap_index well past the 2 haps the new
     // multi-source pattern will hold, so the transferred index is out of range.
@@ -1816,7 +1824,7 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
         .unwrap()
         .get_value_at("cv", 0, 0);
 
-    // --- Patch B: chained $cycle($p.s('0 5').trans('2 4')) in c(maj). ---
+    // --- Patch B: chained $cycle($('0 5').scale('c(maj)').trans('2 4')) in c(maj). ---
     // 2 steps: step0 = 0+2 = 2, step1 = 5+4 = 9 — both non-rest degrees.
     // step1's geometry (0.5..1.0) matches the held voice's scalars; its
     // storage index (1) differs from the stale transferred index.
@@ -1880,7 +1888,7 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
     // both must carry spans.
     assert_eq!(
         healed_active_sources, 2,
-        "expected two pattern sources to carry spans after the chained `$p.s` swap"
+        "expected two pattern sources to carry spans after the chained scale-pattern swap"
     );
     for source_idx in 0..2 {
         assert!(
@@ -1893,7 +1901,7 @@ fn seq_highlight_survives_state_transfer_from_single_to_multi_source() {
 
     // Audio path untouched: get_state is read-only, so the held voice's CV is
     // still the value it was producing before (and after) the highlight read.
-    // (`5` in c(maj) `$p.s('0 5').trans('2 4')` step1 = degree 9; we only check
+    // (`5` in c(maj) `$('0 5').scale('c(maj)').trans('2 4')` step1 = degree 9; we only check
     // the CV did not collapse to 0 — the resolver must not perturb voice
     // scalars.) The pre-transfer CV is the old single-source `5` = 5 V.
     let new_cv = seq_b.get_value_at("cv", 0, 0);

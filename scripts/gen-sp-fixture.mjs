@@ -9,7 +9,7 @@
 //   sp_combine_chain2.json
 //     Two-op chain. (lhs, rhs1, rhs2, op1, mode1, op2, mode2) over a
 //     reduced grammar surface — 4 × 4 × 4 × 2 × 7 × 2 × 7 = 12 544 rows.
-//     Mirrors $p.s(...).trans(rhs1).trans(rhs2) folds; `sub` exercises
+//     Mirrors $(...).scale(...).trans(rhs1).trans(rhs2) folds; `sub` exercises
 //     `combine_sp` with a second combiner.
 //
 // Run from modular repo root:

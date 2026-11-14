@@ -58,7 +58,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Gliding bassline",
             code: r#"
-                $saw($slew($p('c2 c3 eb2 g2'), { fall: 0.1 }))
+                $saw($slew($`c2 c3 eb2 g2`, { fall: 0.1 }))
                   .lpf('c5', 2)
                   .out()
             "#,

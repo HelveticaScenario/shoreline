@@ -377,12 +377,13 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
 
 /**
- * A mini-notation pattern, as \`$p\`, \`$p.s\`, \`$p.arrange\` and the
- * pattern methods return it. A pattern is the \`$cycle\` sequencer that
+ * A mini-notation pattern, as \`$\`, \`$arrange\` and the pattern
+ * methods return it. A pattern is the \`$cycle\` sequencer that
  * plays it: use it wherever a module goes, read its outputs (\`_gate\`,
  * \`_trig\`) and chain any collection method. Every such use of one pattern
  * shares one sequencer. \`.fast\`, \`.slow\`, \`.struct\`, \`.beat\` and
- * \`.glide\` each give a new pattern; \`$cycle(pattern, …)\` and
+ * \`.glide\` each give a new pattern, a {@link ScalePattern} when called on
+ * one; \`$cycle(pattern, …)\` and
  * \`.cycle(…)\` play it through a sequencer of its own with other settings.
  */
 interface Pattern extends PatternModule {
@@ -393,13 +394,13 @@ interface Pattern extends PatternModule {
    * (\`fast(0)\` or negative) is silence. Chains and nests with the other
    * pattern builders.
    */
-  fast(factor: number | string): Pattern;
+  fast(factor: number | string): this;
   /**
    * Slow this pattern down by \`factor\` — the time-inverse of \`fast\`.
    * \`slow(n)\` equals \`fast(1 / n)\`. The factor may be a constant or a
    * mini-notation number pattern.
    */
-  slow(factor: number | string): Pattern;
+  slow(factor: number | string): this;
   /**
    * Impose a rhythmic structure on this pattern, mirroring Strudel's
    * \`struct\`: event timing comes from the boolean pattern, and this
@@ -415,10 +416,10 @@ interface Pattern extends PatternModule {
    * euclidean structure, and so on.
    *
    * \`\`\`js
-   * $p("c4 e4").struct("x ~ x x").saw().out()
+   * $\`c4 e4\`.struct("x ~ x x").saw().out()
    * \`\`\`
    */
-  struct(boolPattern: string): Pattern;
+  struct(boolPattern: string): this;
   /**
    * Place this pattern's value at chosen beats of a divided cycle,
    * mirroring Strudel's \`beat\`. \`t\` lists beat indices — a comma stack
@@ -431,10 +432,10 @@ interface Pattern extends PatternModule {
    * the grid per cycle).
    *
    * \`\`\`js
-   * $p("c2").beat("0,7,10", 16).saw().out()
+   * $\`c2\`.beat("0,7,10", 16).saw().out()
    * \`\`\`
    */
-  beat(t: number | string, div: number | string): Pattern;
+  beat(t: number | string, div: number | string): this;
   /**
    * Give each note a glide (portamento) of \`g\` cycles. \`$cycle\` ramps
    * its CV from the previous pitch, starting \`g\` cycles before the
@@ -448,18 +449,61 @@ interface Pattern extends PatternModule {
    * Every curve stays between the two pitches.
    *
    * \`\`\`js
-   * $sine($p("c4 e4 g4").glide("0 0.1 0.25")).out()
-   * $sine($p("c3 g3").glide(0.25, 'expo', 'out')).out()
+   * $sine($\`c4 e4 g4\`.glide("0 0.1 0.25")).out()
+   * $sine($\`c3 g3\`.glide(0.25, 'expo', 'out')).out()
    * \`\`\`
    */
-  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): Pattern;
+  glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): this;
+  /**
+   * Read this pattern's atoms as **0-indexed degrees** of \`scale\`, making a
+   * {@link ScalePattern}: \`0\` is the scale's root, \`1\` its second tone,
+   * \`2\` its third, and so on. Negative degrees move downward, and degrees
+   * past the scale's length wrap into the octaves above and below. Note and
+   * Hz atoms are errors under a scale.
+   *
+   * On a scale pattern, \`.scale\` changes the scale of every note. On an
+   * arrangement it scales every section, plain or scaled.
+   *
+   * \`\`\`js
+   * $\`0 2 4 7\`.scale("c(major)").saw().out()       // C-major arpeggio
+   * $\`-1 0 2 4\`.scale("a3(min)").saw().out()       // negative degrees wrap below the root
+   * $\`0 1 2 3 4\`.scale("c(0 2 4 7 9)").saw().out() // custom intervals (pentatonic)
+   * $\`0 4 7\`.scale("c(just)").saw().out()          // just intonation
+   * \`\`\`
+   *
+   * ### Atoms
+   *
+   * | Form | Meaning | Example |
+   * |------|---------|---------|
+   * | Bare integer | Scale degree (0-indexed) | \`0\`, \`2\`, \`-1\` |
+   * | \`~\` or \`-\` | Rest (gate low, no pitch change) | \`'0 ~ 2 ~'\`, \`'0 - 2 -'\` |
+   *
+   * ### Scale strings
+   *
+   * | Form | Example | Meaning |
+   * |------|---------|---------|
+   * | \`tonic(name)\` | \`"c(major)"\`, \`"d#(min)"\`, \`"f(dorian)"\` | Named scale type rooted at the tonic |
+   * | \`tonic<octave>(name)\` | \`"c3(major)"\`, \`"D#4(min)"\` | Same with an explicit octave (default 4 → root = C4 = 0 V) |
+   * | \`tonic(custom intervals)\` | \`"c(0 2 4 5 7 9 11)"\` | Custom semitone offsets from the tonic |
+   * | \`tonic(just)\` / \`tonic(pythagorean)\` | \`"c(just)"\`, \`"a(pythag)"\` | Non-equal 12-tone tunings |
+   * | \`tonic[chord]\` | \`"c[maj7]"\`, \`"a3[m9]"\` | Chord tones; degrees step through the chord |
+   * | \`tonic[chord invN]\` | \`"c[maj inv1]"\` | Inverted chord; degree 0 is the lowest note |
+   * | \`chromatic\` | \`"chromatic"\` | All 12 semitones, 12-TET |
+   *
+   * Degrees wrap by an octave for scales. A chord wraps by its span rounded up
+   * to whole octaves, so \`"c[9]"\` repeats every two octaves. See
+   * {@link ScaleSpec} for the full list of scale and chord names.
+   *
+   * @param scale scale string, e.g. "c(major)", "D#3(min)", "a(just)"
+   */
+  scale(scale: string): ScalePattern;
   /**
    * Shorthand for \`$cycle(pattern, ...rest)\`: plays this pattern through
    * a \`$cycle\` of its own, with the arguments \`$cycle\` takes after its
    * \`pattern\`.
    *
    * \`\`\`js
-   * $p("c4 e4 g4").cycle({ ribbon: [0, 2] }).saw().out()
+   * $\`c4 e4 g4\`.cycle({ ribbon: [0, 2] }).saw().out()
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
@@ -468,7 +512,7 @@ interface Pattern extends PatternModule {
    * sequencer signal with each of their outputs joined lane by lane.
    *
    * \`\`\`js
-   * const seq = $p("c4 e4").concat($p("g3 b3"))
+   * const seq = $\`c4 e4\`.concat($\`g3 b3\`)
    * $saw(seq).amp($perc(seq)).out()
    * \`\`\`
    */
@@ -477,12 +521,12 @@ interface Pattern extends PatternModule {
 
 /**
  * Parse a mini-notation source string into a {@link Pattern}. Every
- * mini-notation literal in the DSL flows through \`$p()\` — \`$cycle\`
- * accepts a pattern, not a raw string.
+ * mini-notation literal in the DSL flows through \`$\`, called with a string
+ * or as a template tag — \`$cycle\` accepts a pattern, not a raw string.
  *
  * \`\`\`js
- * $p("c4 e4 g4").saw().out()               // basic sequence
- * const bass = $p("c2 [c2 g2] c2 e2");      // reuse a parsed pattern
+ * $\`c4 e4 g4\`.saw().out()                 // basic sequence
+ * const bass = $("c2 [c2 g2] c2 e2")      // the same, called with a string
  * $saw(bass).amp($perc(bass)).out()
  * \`\`\`
  *
@@ -528,122 +572,35 @@ interface Pattern extends PatternModule {
  *
  * @param source mini-notation source string
  */
-declare function $p(source: string): Pattern;
-
-declare namespace $p {
+declare function $(source: string): Pattern;
 /**
- * Parse a scale-degree mini-notation source and resolve each integer
- * degree to its V/Oct voltage against \`scale\`, returning a
- * {@link ScalePattern}. Invoked as \`$p.s(source, scale)\`.
- *
- * Atoms are **0-indexed scale degrees** rather than absolute pitches:
- * \`0\` is the scale's root, \`1\` is the second scale tone, \`2\` the third,
- * and so on. Negative values move downward. Values beyond the scale
- * length wrap into higher/lower octaves automatically. Hz and note
- * atoms are rejected.
- *
- * \`\`\`js
- * $p.s("0 2 4 7", "c(major)").saw().out()       // C-major arpeggio
- * $p.s("-1 0 2 4", "a3(min)").saw().out()       // negative degrees wrap below the root
- * $p.s("0 1 2 3 4", "c(0 2 4 7 9)").saw().out() // custom intervals (pentatonic)
- * $p.s("0 4 7", "c(just)").saw().out()          // just intonation
- * \`\`\`
- *
- * ### Atoms
- *
- * | Form | Meaning | Example |
- * |------|---------|---------|
- * | Bare integer | Scale degree (0-indexed) | \`0\`, \`2\`, \`-1\` |
- * | \`~\` or \`-\` | Rest (gate low, no pitch change) | \`'0 ~ 2 ~'\`, \`'0 - 2 -'\` |
- *
- * ### Mini-notation
- *
- * | Syntax | Meaning | Example |
- * |--------|---------|---------|
- * | \`a b c\` | Sequence — one degree per time slot | \`'0 2 4'\` |
- * | \`[a b c]\` | Fast subsequence — subdivides parent slot | \`'0 [2 4]'\` |
- * | \`<a b c>\` | Slow / alternating — one element per cycle | \`'<0 4 7>'\` |
- * | \`a|b|c\` | Random choice each time the slot is reached | \`'0|2|4'\` |
- * | \`a, b\` | Stack — comma-separated patterns play simultaneously | \`'0 2, 4 7'\` |
- * | \`{a b, c d e}\` | Polymeter — children scaled to a shared step count, then stacked. \`%n\` overrides the step count: \`{a b c}%4\` | \`'{0 2, 4 5 7}'\` |
- * | \`a . b c\` | Feet — split the slot at \`.\` boundaries (useful for aligning polymeter children) | \`'{0 . 2 4, 5 7 . 9}'\` |
- *
- * Grouping, stacks, polymeter, and random choice nest arbitrarily.
- * Modifiers attach directly to an element (no spaces) and chain in any
- * order:
- *
- * | Modifier | Syntax | Meaning |
- * |----------|--------|---------|
- * | Weight | \`@n\` | Relative duration within a sequence (default 1) |
- * | Elongate | \`_\` | Bare \`_\` extends the preceding step's weight by 1; \`'0 _ _'\` is the same as \`'0@3'\` |
- * | Speed up | \`*n\` | Repeat \`n\` times within the slot |
- * | Slow down | \`/n\` | Stretch over \`n\` cycles |
- * | Replicate | \`!n\` | Duplicate the element \`n\` times (default 2) |
- * | Degrade | \`?\` or \`?n\` | Randomly drop the element (\`?\` ≈ 50 %) |
- * | Euclidean | \`(k,n)\` or \`(k,n,offset)\` | Distribute \`k\` pulses over \`n\` steps |
- *
- * ### Scale strings
- *
- * | Form | Example | Meaning |
- * |------|---------|---------|
- * | \`tonic(name)\` | \`"c(major)"\`, \`"d#(min)"\`, \`"f(dorian)"\` | Named scale type rooted at the tonic |
- * | \`tonic<octave>(name)\` | \`"c3(major)"\`, \`"D#4(min)"\` | Same with an explicit octave (default 4 → root = C4 = 0 V) |
- * | \`tonic(custom intervals)\` | \`"c(0 2 4 5 7 9 11)"\` | Custom semitone offsets from the tonic |
- * | \`tonic(just)\` / \`tonic(pythagorean)\` | \`"c(just)"\`, \`"a(pythag)"\` | Non-equal 12-tone tunings |
- * | \`tonic[chord]\` | \`"c[maj7]"\`, \`"a3[m9]"\` | Chord tones; degrees step through the chord |
- * | \`tonic[chord invN]\` | \`"c[maj inv1]"\` | Inverted chord; degree 0 is the lowest note |
- * | \`chromatic\` | \`"chromatic"\` | All 12 semitones, 12-TET |
- *
- * Degrees wrap by an octave for scales. A chord wraps by its span rounded up
- * to whole octaves, so \`"c[9]"\` repeats every two octaves. See
- * {@link ScaleSpec} for the full list of scale and chord names.
- *
- * ### Chaining
- *
- * The returned pattern is chainable with \`.trans(...)\`, which
- * transposes it by another scale-degree mini-notation string: the two
- * patterns' degrees are added, so negative degrees transpose down.
- * \`.add(...)\` and \`.sub(...)\` are the collection's: they add to and
- * subtract from the sequencer's output signal, in volts.
- * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
- * mode methods cover all seven Strudel alignments:
- *
- * | Mode | Behaviour |
- * |------|-----------|
- * | \`.in\` (default) | Left pattern's onsets drive timing; right is sampled at each left event. |
- * | \`.out\` | Right pattern's onsets drive timing; left is sampled at each right event. |
- * | \`.mix\` | Output events at every intersection of left + right onsets. |
- * | \`.squeeze\` | Each left event nests a full cycle of the right pattern. |
- * | \`.squeezeout\` | Each right event nests a full cycle of the left pattern. |
- * | \`.reset\` | Right pattern retriggers the left, aligned to cycle position. |
- * | \`.restart\` | Right pattern retriggers the left, aligned to cycle 0. |
- *
- * \`\`\`js
- * $p.s("0 1 2", "c(maj)").trans("0 2").saw().out()   // .trans defaults to .trans.in
- * $p.s("0 1 2", "d#(min)").trans.in("10 20").saw().out()
- * $p.s("0 1 2", "c(maj)").trans.squeeze("-1 -2 -3").saw().out()
- * \`\`\`
- *
- * @param source integer scale-degree mini-notation source
- * @param scale scale string, e.g. "c(major)", "D#3(min)", "a(just)"
+ * Parse a mini-notation template into a {@link Pattern}:
+ * \`\` $\`c4 e4 g4\` \`\` is \`$("c4 e4 g4")\`, and interpolated values join
+ * the source as the untagged template would print them.
  */
-function s(source: string, scale: string): ScalePattern;
+declare function $(
+  strings: TemplateStringsArray,
+  ...values: unknown[]
+): Pattern;
 
 /**
  * Arrange patterns over multiple cycles, mirroring Strudel's \`arrange\`.
- * Each argument is a \`[cycles, pattern]\` tuple: the \`pattern\` (a \`$p(...)\`,
- * \`$p.s(...)\`, or nested \`$p.arrange(...)\`) plays for \`cycles\` cycles, and
- * the sections play back-to-back, looping with period \`Σ cycles\`.
+ * Each argument is a \`[cycles, pattern]\` tuple: the \`pattern\` (any pattern,
+ * including a nested \`$arrange(...)\`) plays for \`cycles\` cycles, and the
+ * sections play back-to-back, looping with period \`Σ cycles\`.
  *
- * Because each \`$p.s\` section resolves through its own scale, an arrangement
- * can switch scales (or keys) between sections.
+ * Each scale-pattern section resolves through its own scale, so an
+ * arrangement can switch keys between sections. When every section is a
+ * scale pattern, the arrangement is one, and \`.trans\` moves each section
+ * within its own scale; \`.scale(...)\` on an arrangement puts every section
+ * in one scale.
  *
  * \`\`\`js
  * // 4 cycles of a C-major arp, then 2 of an A-minor arp, looping every 6
- * $p.arrange(
- *   [4, $p.s("0 2 4 7", "c(major)")],
- *   [2, $p.s("0 2 4",   "a(min)")],
- * ).saw().out()
+ * $arrange(
+ *   [4, $\`0 2 4 7\`.scale("c(major)")],
+ *   [2, $\`0 2 4\`.scale("a(min)")],
+ * ).trans("<0 1>").saw().out()
  * \`\`\`
  *
  * Cycle counts must be **positive integers**, except a single **trailing**
@@ -651,21 +608,23 @@ function s(source: string, scale: string): ScalePattern;
  * an \`Infinity\` section could never play and is rejected):
  *
  * \`\`\`js
- * $p.arrange(
- *   [2, $p("c4 e4 g4")],            // intro, played once
- *   [Infinity, $p.s("0 2 4", "f(lydian)")],  // then loops forever
+ * $arrange(
+ *   [2, $\`c4 e4 g4\`],            // intro, played once
+ *   [Infinity, $\`0 2 4\`.scale("f(lydian)")],  // then loops forever
  * ).saw().out()
  * \`\`\`
  *
  * The result is a pattern like any other, so arrangements nest as sections
- * of another \`$p.arrange(...)\`.
+ * of another \`$arrange(...)\`.
  *
  * @param sections \`[cycles, pattern]\` tuples, in play order
  */
-function arrange(
+declare function $arrange(
+  ...sections: [number, ScalePattern][]
+): ScalePattern;
+declare function $arrange(
   ...sections: [number, Pattern][]
 ): Pattern;
-}
 
 /**
  * One Strudel-style alignment for \`.trans\`.
@@ -681,18 +640,43 @@ type Transpose = ((rhs: string) => ScalePattern) & {
 };
 
 /**
- * A scale-degree pattern, returned by \`$p.s()\`: a {@link Pattern} that
- * \`.trans\` also transposes.
+ * A scale-degree pattern, made by \`.scale(...)\`: a {@link Pattern} that
+ * \`.trans\` also transposes. It stays one through every pattern method,
+ * and an arrangement whose every section is one is one too.
  */
 interface ScalePattern extends Pattern {
-  /** Transpose by a scale-degree pattern. See \`$p.s\`. */
+  /**
+   * \`.trans(...)\` transposes a scale pattern by another scale-degree
+   * mini-notation string: the two patterns' degrees are added, so negative
+   * degrees transpose down, and each note keeps its own scale.
+   * \`.add(...)\` and \`.sub(...)\` are the collection's: they add to and
+   * subtract from the sequencer's output signal, in volts.
+   * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
+   * mode methods cover all seven Strudel alignments:
+   *
+   * | Mode | Behaviour |
+   * |------|-----------|
+   * | \`.in\` (default) | Left pattern's onsets drive timing; right is sampled at each left event. |
+   * | \`.out\` | Right pattern's onsets drive timing; left is sampled at each right event. |
+   * | \`.mix\` | Output events at every intersection of left + right onsets. |
+   * | \`.squeeze\` | Each left event nests a full cycle of the right pattern. |
+   * | \`.squeezeout\` | Each right event nests a full cycle of the left pattern. |
+   * | \`.reset\` | Right pattern retriggers the left, aligned to cycle position. |
+   * | \`.restart\` | Right pattern retriggers the left, aligned to cycle 0. |
+   *
+   * \`\`\`js
+   * $\`0 1 2\`.scale("c(maj)").trans("0 2").saw().out()   // .trans defaults to .trans.in
+   * $\`0 1 2\`.scale("d#(min)").trans.in("10 20").saw().out()
+   * $\`0 1 2\`.scale("c(maj)").trans("<0 3>").fast(2).trans.squeeze("0 -1").saw().out()
+   * \`\`\`
+   */
   trans: Transpose;
 }
 
-/** Shape of a glide ramp. See \`$p(...).glide\`. */
+/** Shape of a glide ramp. See \`$(...).glide\`. */
 type GlideCurve = ${literalUnion(GLIDE_CURVES)};
 
-/** Which end of a glide ramp its curve eases. See \`$p(...).glide\`. */
+/** Which end of a glide ramp its curve eases. See \`$(...).glide\`. */
 type GlideMode = ${literalUnion(GLIDE_MODES)};
 
 /**
@@ -1068,7 +1052,7 @@ function $note(noteName: string): number;
  * @returns A {@link Collection} of their lanes
  * @example $c($sine('c3'), $sine('e3')).amp(0.5).out()
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
- * @example $c($p('c4 e4'), 'g4')      // A pattern contributes its voices
+ * @example $c($\`c4 e4\`, 'g4')      // A pattern contributes its voices
  * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-lane Collection
  * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to an array of one-lane Collections
  * @see {@link $r} - for ranged signals
@@ -1591,7 +1575,7 @@ interface VideoFile extends VideoSignal {
  * A constant, a {@link VideoSignal}, or an audio signal whose live value drives
  * the input: a \`$slider\` / \`$btn\` / \`$toggleBtn\`, or any module output
  * such as an LFO or envelope, with several lanes summed to one. A
- * pattern's values are used as they are, so \`$p('0 0.5 1')\` steps from 0
+ * pattern's values are used as they are, so \`\` $\`0 0.5 1\` \`\` steps from 0
  * to 1.
  */
 type VideoValue = number | VideoSignal | Collection | CollectionWithRange;

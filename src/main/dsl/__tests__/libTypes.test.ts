@@ -74,7 +74,7 @@ describe('generated DSL lib', () => {
                 const tap = $trackTap('bass');
                 tap[0].level.range(0, 1);
                 for (const c of tap) c.pan.range(-1, 1);
-                const seq = $p('[c4,e4] [g4,b4]');
+                const seq = $('[c4,e4] [g4,b4]');
                 $perc(seq[1]).out();
                 $perc(seq[1]._trig).out();
                 for (const voice of seq) voice._gate.scope();
@@ -85,8 +85,8 @@ describe('generated DSL lib', () => {
     test('arithmetic chains off collections, ranged collections and patterns', () => {
         const patchErrors = diagnostics(`
                 $sine('c3').add(1).sub(0.5).mul(2).div(4).exp(2).out();
-                $sine('1hz').range(0, 1).mul($p('1 2')).out();
-                $p('0 2 4').add(1).out();
+                $sine('1hz').range(0, 1).mul($('1 2')).out();
+                $('0 2 4').add(1).out();
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
     });
@@ -98,9 +98,9 @@ describe('generated DSL lib', () => {
                 const oscs = $enosc('c3').concat($enosc('g3'));
                 oscs._all.out();
                 $saw(oscs).out();
-                const seq = $p('c4 e4').concat($p('g3 b3'));
+                const seq = $('c4 e4').concat($('g3 b3'));
                 $perc(seq._trig).out();
-                seq.concat($p('c5'))._gate.scope();
+                seq.concat($('c5'))._gate.scope();
                 const tap = $trackTap('bass').concat($trackTap('lead'));
                 tap.level.range(0, 1);
             `).filter((d) => d.startsWith(PATCH_FILE));
@@ -110,7 +110,7 @@ describe('generated DSL lib', () => {
     test('concat rejects a collection of another type', () => {
         const patchErrors = diagnostics(`
                 $enosc('c3').concat($sine('c3'));
-                $p('c4').concat($enosc('c3'));
+                $('c4').concat($enosc('c3'));
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toHaveLength(2);
     });

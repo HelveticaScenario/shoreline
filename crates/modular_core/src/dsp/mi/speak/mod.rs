@@ -156,7 +156,7 @@ const SPEAK_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Hello",
             code: r#"
-                const word = $p('7 4 11 11 14')
+                const word = $`7 4 11 11 14`
                 $mi.speak('c3', { trigger: word, bank: 2, word }).out()
             "#,
         },

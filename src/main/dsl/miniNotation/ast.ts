@@ -4,7 +4,7 @@
  *
  * The JSON shape matches serde's default (externally-tagged) representation
  * so the Rust side can `Deserialize` these objects directly from the
- * `$cycle` / `$p.s` params carried in the patch graph.
+ * `$cycle` pattern params carried in the patch graph.
  *
  * Tuple variants like `Pure(Located<AtomValue>)` serialize as
  * `{ "Pure": { "node": ..., "span": ... } }`. Struct variants like
@@ -29,7 +29,7 @@ export interface Located<T> {
     span: SourceSpan;
 }
 
-/** Atomic value types that survive `$p()` parsing. */
+/** Atomic value types that survive `$()` parsing. */
 export type AtomValue =
     | { Number: number }
     | { Hz: number }
@@ -165,19 +165,19 @@ export type MiniASTI32 =
           };
       };
 
-/** `$p()` output — a parsed pattern with source + pre-computed leaf spans. */
+/** `$()` output — a parsed pattern with source + pre-computed leaf spans. */
 export interface ParsedPattern {
     __kind: 'ParsedPattern';
     ast: MiniAST;
     source: string;
     all_spans: [number, number][];
     /**
-     * Document span of the literal `$p()` parsed (outer quotes included).
+     * Document span of the literal `$()` parsed (outer quotes included).
      * Module factories receiving this `ParsedPattern` use this span as the
      * `argument_spans` entry for whatever param the pattern was passed as,
-     * so pattern highlighting stays attached to the original `$p(...)` call
+     * so pattern highlighting stays attached to the original `$(...)` call
      * site regardless of how many `const` indirections sit between the two.
-     * `undefined` when `$p()` was called outside a tracked DSL source file.
+     * `undefined` when `$()` was called outside a tracked DSL source file.
      */
     argument_span?: { start: number; end: number };
 }

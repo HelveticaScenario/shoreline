@@ -67,8 +67,8 @@ const RS909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Ticking rim shots",
         code: r#"
-            $tr909.kick($p('c*4')).out()
-            $tr909.rimShot($p('~ c ~ c c ~ ~ c')).out()
+            $tr909.kick($`c*4`).out()
+            $tr909.rimShot($`~ c ~ c c ~ ~ c`).out()
         "#,
     }],
 };

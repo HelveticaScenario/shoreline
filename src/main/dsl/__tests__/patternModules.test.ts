@@ -7,7 +7,7 @@ import { describe, expect, test } from 'vitest';
 import type { PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { executePatchScript } from '../executor';
-import { $p } from '../miniNotation';
+import { $, $arrange } from '../miniNotation';
 import { patternPayload } from '../patterns';
 import { serializeForIPC } from '../../serializeForIPC';
 
@@ -71,8 +71,8 @@ describe('a pattern builds the graph of its $cycle', () => {
         [`$quantizer($sine('c4'), SEQ).out()`],
     ])('%s', (body) => {
         for (const pattern of [
-            `$p('c3 e3 [g3, b3]')`,
-            `$p.s('0 2 4', 'c(maj)').trans.squeeze('0 7').fast(2)`,
+            `$('c3 e3 [g3, b3]')`,
+            `$('0 2 4').scale('c(maj)').trans.squeeze('0 7').fast(2)`,
         ]) {
             const implicit = graph(
                 `const SEQ = ${pattern}\n${body}`.replaceAll('SEQ', 'seq'),
@@ -91,13 +91,13 @@ describe('a pattern builds the graph of its $cycle', () => {
     });
 
     test.each([
-        [`$p('c3 e3')`, { pattern: `'c3 e3'` }],
+        [`$('c3 e3')`, { pattern: `'c3 e3'` }],
         [
-            `$p('c3 e3').fast('2 4')`,
+            `$('c3 e3').fast('2 4')`,
             { 'pattern.0': `'c3 e3'`, 'pattern.1': `'2 4'` },
         ],
         [
-            `$p.s('0 2', 'c(maj)').trans('0 7')`,
+            `$('0 2').scale('c(maj)').trans('0 7')`,
             { 'pattern.0': `'0 2'`, 'pattern.1': `'0 7'` },
         ],
     ])(
@@ -128,14 +128,14 @@ describe('a pattern builds the graph of its $cycle', () => {
 
     test('each pattern built at one call site plays through its own $cycle', () => {
         const { patch } = exec(
-            `for (const note of ['c3', 'e3', 'g3']) $saw($p(note)).out()`,
+            `for (const note of ['c3', 'e3', 'g3']) $saw($(note)).out()`,
         );
         expect(cycles(patch)).toHaveLength(3);
     });
 
     test('each output resolution is recorded where the pattern is used', () => {
         const { outputResolutions } = exec(
-            `const seq = $p('c e')\n$saw(seq).amp($perc(seq)).out()`,
+            `const seq = $('c e')\n$saw(seq).amp($perc(seq)).out()`,
         );
         expect(outputResolutions.map((r) => `${r.slot} ${r.output}`)).toEqual([
             'freq cv',
@@ -146,14 +146,14 @@ describe('a pattern builds the graph of its $cycle', () => {
 
 describe('a pattern where a signal or a pattern belongs', () => {
     test.each([
-        '$p("c4 e4")',
-        '$p.s("0 2 4", "C(major)")',
-        '$p.arrange([2, $p("c4")], [1, $p("e4")])',
-        '$p("c4").fast(2)',
-        '$p("c4").slow(2)',
-        '$p("c4").struct("x ~")',
-        '$p("c4").beat("0,7", 16)',
-        '$p("c4 e4").glide(0.25)',
+        '$("c4 e4")',
+        '$("0 2 4").scale("C(major)")',
+        '$arrange([2, $("c4")], [1, $("e4")])',
+        '$("c4").fast(2)',
+        '$("c4").slow(2)',
+        '$("c4").struct("x ~")',
+        '$("c4").beat("0,7", 16)',
+        '$("c4 e4").glide(0.25)',
     ])('%s is its $cycle', (pattern) => {
         const patch = patchOf(
             `const p = ${pattern}; $sine(p).out(); p.mul(2).out(); p[0]; [...p]; p._gate`,
@@ -163,7 +163,7 @@ describe('a pattern where a signal or a pattern belongs', () => {
 
     test('a pattern passed to $cycle stays a pattern', () => {
         const patch = patchOf(
-            'const p = $p("c4 e4"); $sine($cycle(p)).out(); $p.arrange([2, p]).out()',
+            'const p = $("c4 e4"); $sine($cycle(p)).out(); $arrange([2, p]).out()',
         );
         const made = cycles(patch);
         expect(made.length).toBe(2);
@@ -177,7 +177,7 @@ describe('a pattern where a signal or a pattern belongs', () => {
     });
 
     test('a pattern kept between runs plays through a new $cycle each run', () => {
-        const source = '$p.kept ??= $p("c4 e4"); $sine($p.kept).out()';
+        const source = '$.kept ??= $("c4 e4"); $sine($.kept).out()';
         patchOf(source);
         expect(cycles(exec(source).patch).length).toBe(1);
     });
@@ -193,19 +193,19 @@ describe('the payload a pattern sends the engine', () => {
         );
 
     test.each([
-        [`$p('c ~ [e, g]')`, () => $p('c ~ [e, g]')],
+        [`$('c ~ [e, g]')`, () => $('c ~ [e, g]')],
         [
-            `$p.s('0 ~ 2', 'c(maj)').trans.squeeze('0 7')`,
-            () => $p.s('0 ~ 2', 'c(maj)').trans.squeeze('0 7'),
+            `$('0 ~ 2').scale('c(maj)').trans.squeeze('0 7')`,
+            () => $('0 ~ 2').scale('c(maj)').trans.squeeze('0 7'),
         ],
         [
-            `$p.arrange([2, $p('c ~')], [1, $p('e').fast('2 4')])`,
-            () => $p.arrange([2, $p('c ~')], [1, $p('e').fast('2 4')]),
+            `$arrange([2, $('c ~')], [1, $('e').fast('2 4')])`,
+            () => $arrange([2, $('c ~')], [1, $('e').fast('2 4')]),
         ],
         [
-            `$p('c ~ e').slow(2).struct('x ~ x').beat('0,3', 8).glide('0 0.1')`,
+            `$('c ~ e').slow(2).struct('x ~ x').beat('0,3', 8).glide('0 0.1')`,
             () =>
-                $p('c ~ e')
+                $('c ~ e')
                     .slow(2)
                     .struct('x ~ x')
                     .beat('0,3', 8)
@@ -228,7 +228,7 @@ describe('the payload a pattern sends the engine', () => {
 
 describe('the modules a pattern feeds', () => {
     test('a chain call on a pattern keeps its own argument spans', () => {
-        const source = `$p('c*4').tr808.kick({ decay: 2 }).out()`;
+        const source = `$('c*4').tr808.kick({ decay: 2 }).out()`;
         const { patch } = exec(source);
         const [kick] = patch.modules.filter(
             (m) => m.moduleType === '$tr808.kick',
@@ -246,14 +246,14 @@ describe('the modules a pattern feeds', () => {
 
     test('are attributed to their own call after a pattern fails to play', () => {
         const { patch, sourceLocationMap } = exec(
-            `try { $sine($p.s('0', 'c(bogus)')) } catch {}\n\n$sine('c4').out()`,
+            `try { $sine($('0').scale('c(bogus)')) } catch {}\n\n$sine('c4').out()`,
         );
         const [sine] = patch.modules.filter((m) => m.moduleType === '$sine');
         expect(sourceLocationMap.get(sine.id)?.line).toBe(3);
     });
 
     test('a pattern in the options position is refused', () => {
-        expect(() => exec(`$sine('c3', $p('0 1')).out()`)).toThrow(
+        expect(() => exec(`$sine('c3', $('0 1')).out()`)).toThrow(
             /\$sine takes 1 positional argument; the one after is its options/,
         );
     });
@@ -261,28 +261,28 @@ describe('the modules a pattern feeds', () => {
 
 describe('a pattern that is not played', () => {
     test.each([
-        `$p('c e')`,
-        `const p = $p('c e'); p.fast(2).slow(2).struct('x').beat(0, 4).glide(0.1)`,
-        `const p = $p.s('0 2', 'c(maj)'); p.trans('1'); p.trans.squeeze('1')`,
-        `$p.arrange([1, $p('c')])`,
-        `console.log($p('c e').beat(0, 4), $p('c e').glide(0.1))`,
-        `JSON.stringify($p('c e').glide(0.1)); Object.keys($p('c'))`,
-        `const p = $p('c e'); p.then; p.constructor; p.nope; String(Symbol.iterator in p)`,
+        `$('c e')`,
+        `const p = $('c e'); p.fast(2).slow(2).struct('x').beat(0, 4).glide(0.1)`,
+        `const p = $('0 2').scale('c(maj)'); p.trans('1'); p.trans.squeeze('1')`,
+        `$arrange([1, $('c')])`,
+        `console.log($('c e').beat(0, 4), $('c e').glide(0.1))`,
+        `JSON.stringify($('c e').glide(0.1)); Object.keys($('c'))`,
+        `const p = $('c e'); p.then; p.constructor; p.nope; String(Symbol.iterator in p)`,
     ])('makes no $cycle: %s', (source) => {
         expect(cycles(exec(`${source}\n$sine('c3').out()`).patch)).toEqual([]);
     });
 
     test.each([
-        [$p('c e'), ['__kind', 'ast', 'source', 'all_spans']],
+        [$('c e'), ['__kind', 'ast', 'source', 'all_spans']],
         [
-            $p.s('0 2', 'c(maj)').trans('1'),
-            ['__kind', 'sources', 'scale', 'modes', 'argument_spans'],
+            $('0 2').scale('c(maj)').trans('1'),
+            ['__kind', 'pattern', 'rhs', 'mode', 'argument_spans'],
         ],
-        [$p.arrange([1, $p('c')]), ['__kind', 'sections']],
-        [$p('c e').fast(2), ['__kind', 'pattern', 'factor']],
-        [$p('c e').struct('x ~'), ['__kind', 'pattern', 'bool_pattern']],
-        [$p('c').beat(0, 4), ['__kind', 'pattern', 't']],
-        [$p('c e').glide(0.1), ['__kind', 'pattern', 'mode']],
+        [$arrange([1, $('c')]), ['__kind', 'sections']],
+        [$('c e').fast(2), ['__kind', 'pattern', 'factor']],
+        [$('c e').struct('x ~'), ['__kind', 'pattern', 'bool_pattern']],
+        [$('c').beat(0, 4), ['__kind', 'pattern', 't']],
+        [$('c e').glide(0.1), ['__kind', 'pattern', 'mode']],
     ])('keeps its wire fields out of reach: %#', (pattern, fields) => {
         const handle = pattern as unknown as Record<string, unknown>;
         const payload = patternPayload(pattern) as unknown as Record<
@@ -297,12 +297,12 @@ describe('a pattern that is not played', () => {
     });
 
     test('takes no properties of the script', () => {
-        expect(() => exec(`const p = $p('c e'); p.fast = 2`)).toThrow();
-        expect(() => exec(`const p = $p('c e'); p._gate = 2`)).toThrow();
+        expect(() => exec(`const p = $('c e'); p.fast = 2`)).toThrow();
+        expect(() => exec(`const p = $('c e'); p._gate = 2`)).toThrow();
     });
 
     test('has no keys of its own and gives its payload to no serializer', () => {
-        const pattern = $p('c e').glide(0.1);
+        const pattern = $('c e').glide(0.1);
         expect(Object.keys(pattern)).toEqual([]);
         expect(JSON.stringify(pattern)).toBe('{}');
         expect(serializeForIPC(pattern)).toEqual({});
@@ -312,7 +312,7 @@ describe('a pattern that is not played', () => {
 describe('a pattern as a collection', () => {
     test('has the members of the sequencer it plays through', () => {
         const { patch } = exec(`
-            const seq = $p('c3, e3, g3')
+            const seq = $('c3, e3, g3')
             if (seq.length !== 3) throw new Error('length ' + seq.length)
             if ([...seq].length !== 3) throw new Error('spread')
             if (!('out' in seq) || !('_gate' in seq)) throw new Error('in')
@@ -329,9 +329,11 @@ describe('a pattern as a collection', () => {
 
     test('.add and .sub on a scale pattern are signal arithmetic', () => {
         const { patch } = exec(
-            `$sine($p.s('0 2', 'c(maj)').add(1).sub('c3')).out()`,
+            `$sine($('0 2').scale('c(maj)').add(1).sub('c3')).out()`,
         );
-        expect(cycles(patch)[0].params.pattern).toMatchObject({ modes: [] });
+        expect(cycles(patch)[0].params.pattern).toMatchObject({
+            __kind: 'ScalePattern',
+        });
         expect(patch.modules.map((m) => m.moduleType)).toEqual(
             expect.arrayContaining(['$add', '$sub']),
         );
@@ -339,13 +341,13 @@ describe('a pattern as a collection', () => {
 
     test('an error in the sequencer points at the call that built the pattern', () => {
         expect(() =>
-            exec(`const p = $p.s('0 2', 'c(bogus)')\n\n\n$sine(p).out()`),
+            exec(`const p = $('0 2').scale('c(bogus)')\n\n\n$sine(p).out()`),
         ).toThrow(/\$cycle at line 1\b/);
     });
 
     test('separately built patterns and .cycle() each get their own $cycle', () => {
         const { patch } = exec(`
-            const p = $p('c e')
+            const p = $('c e')
             $sine(p).out(); $sine(p).out()
             $sine(p.fast(2)).out(); $sine(p.fast(2)).out()
             $sine(p.cycle()).out(); $sine($cycle(p)).out()

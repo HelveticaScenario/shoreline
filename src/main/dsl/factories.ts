@@ -68,7 +68,7 @@ function isWavRef(value: unknown): boolean {
 /**
  * The editor spans of the sources of a pattern in param `paramName`, under
  * the keys the engine reports its highlights by: the param's name for a
- * `$p(...)`, and `<param>.<i>` for source `i` of any other pattern, whose
+ * `$(...)`, and `<param>.<i>` for source `i` of any other pattern, whose
  * flat `argument_spans` follow the engine's per-source order.
  */
 function patternArgumentSpans(

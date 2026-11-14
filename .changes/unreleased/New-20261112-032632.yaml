@@ -3,7 +3,7 @@ body: |-
     A pattern works like any other signal: chain modules and methods straight off it, scope it, or send it out, and every use of the same pattern shares one sequencer.
 
     ```js
-    const seq = $p('c3 e3 g3')
+    const seq = $`c3 e3 g3`
     seq.saw().amp($perc(seq)).out()
     seq.scope()
     ```

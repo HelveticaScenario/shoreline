@@ -101,7 +101,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Eighths",
             code: r#"
-                const trigger = $p('c*8').c
+                const trigger = $`c*8`.c
                 const hat = $mi.hiHat('a3', { trigger })
                 hat.out()
             "#,
@@ -109,7 +109,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Open, noisy hat on the off-beat",
             code: r#"
-                const trigger = $p('~ c').c
+                const trigger = $`~ c`.c
                 const hat = $mi.hiHat('a3', {
                   trigger,
                   tone: 4,

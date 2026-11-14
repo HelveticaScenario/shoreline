@@ -30,3 +30,8 @@ export function propertyName(p: ts.ObjectLiteralElementLike): string | null {
         ? p.name.text
         : null;
 }
+
+/** A `` $`source` `` pattern literal. */
+export function isPatternTag(node: ts.TaggedTemplateExpression): boolean {
+    return ts.isIdentifier(node.tag) && node.tag.text === '$';
+}

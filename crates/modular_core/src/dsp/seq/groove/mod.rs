@@ -117,7 +117,7 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
               velocity: [1, 0.6],
               grid: 8,
             })
-            const seq = $cycle($p('c4 e4 g4 c5 g4 e4 c4 g3'), {
+            const seq = $cycle($`c4 e4 g4 c5 g4 e4 c4 g3`, {
               groove: g,
               velocity: g._velocity,
             })
