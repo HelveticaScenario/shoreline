@@ -1,3 +1,0 @@
-kind: Improved
-body: Changing the amount in `.add()`, `.sub()`, `.mul()`, `.div()` or `.exp()` while a patch plays glides to the new value instead of jumping to it.
-time: 2026-11-12T06:28:29.568425-05:00

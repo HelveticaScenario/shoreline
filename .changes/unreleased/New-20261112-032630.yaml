@@ -1,3 +1,0 @@
-kind: New
-body: '`$enosc` plays a bank of sine voices tuned to a scale, after the 4ms Ensemble Oscillator. Pick a scale from `$enosc.scale` or write your own with `$enosc.scale.custom(''0 3 7 10'', true)`, shape the voices with `spread`, `detune`, `crossFm`, `fold`, `cheby` and `segment`, and split them across the stereo field with outputs such as `_odd` and `_even`.'
-time: 2026-11-12T03:26:30.472889-05:00
