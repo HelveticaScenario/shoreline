@@ -340,11 +340,17 @@ fn settle_channels(
     };
     let mut channels: HashMap<String, usize> = modules
         .iter()
-        .map(|(id, ..)| {
-            (
-                id.clone(),
-                if mode(id) == StereoMode::Stereo { 2 } else { 1 },
-            )
+        .map(|(id, _, params, _)| {
+            let stereo = match mode(id) {
+                StereoMode::Stereo => true,
+                StereoMode::Derived => {
+                    let mut files = Vec::new();
+                    params.params.collect_stereo_files(&mut files);
+                    !files.is_empty()
+                }
+                StereoMode::Lift | StereoMode::Mono => false,
+            };
+            (id.clone(), if stereo { 2 } else { 1 })
         })
         .collect();
     let lane_cables: Vec<(String, Vec<crate::types::CableSource>)> = modules

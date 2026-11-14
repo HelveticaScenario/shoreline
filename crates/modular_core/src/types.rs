@@ -652,6 +652,11 @@ pub trait Connect {
     /// channels are settled (see [`LaneExpansion`]). Main thread, before
     /// construction; may allocate. Containers forward; leaf types are no-op.
     fn expand_lanes(&mut self, expansion: &LaneExpansion);
+
+    /// Push a source for every file whose two channels make a `derived`
+    /// module stereo. Params structs forward to their fields; only [`Wav`]
+    /// pushes.
+    fn collect_stereo_files(&self, _sink: &mut Vec<CableSource>) {}
 }
 
 /// How a module's inputs map onto their producers' physical lanes once each
@@ -1478,6 +1483,13 @@ impl Wav {
         self.channels
     }
 
+    /// The lanes the file plays as: a two-channel file is one stereo lane,
+    /// any other one mono lane per channel. A player's lane `l` side `c`
+    /// (`l * channels + c`) reads channel `l * channels + c` either way.
+    pub fn lanes(&self) -> usize {
+        if self.channels == 2 { 1 } else { self.channels }
+    }
+
     pub fn mtime(&self) -> Option<f64> {
         self.mtime
     }
@@ -1530,6 +1542,14 @@ impl Connect for Wav {
     }
     fn collect_lane_cables(&self, _sink: &mut Vec<CableSource>) {
         // Wav references a file path, not a module — no graph edge.
+    }
+    fn collect_stereo_files(&self, sink: &mut Vec<CableSource>) {
+        if self.channels == 2 {
+            sink.push(CableSource {
+                module: self.path.clone(),
+                port: String::new(),
+            });
+        }
     }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
         // No cables — nothing to back-point.
@@ -3088,6 +3108,9 @@ pub enum StereoMode {
     /// Always stereo whatever its inputs: the module writes both sides of
     /// each lane itself.
     Stereo,
+    /// Stereo when a file it plays has two channels: its lanes carry the
+    /// file's sides and every input folds.
+    Derived,
 }
 
 /// The precision of an output's values, named in `#[output(precision = …)]`.

@@ -778,7 +778,12 @@ export type StereoMode = /**
  * Always stereo whatever its inputs: the module writes both sides of
  * each lane itself.
  */
-'stereo';
+'stereo'|
+/**
+ * Stereo when a file it plays has two channels: its lanes carry the
+ * file's sides and every input folds.
+ */
+'derived';
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */
 export interface VuMeterFrame {
