@@ -6935,7 +6935,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+          "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "decay": {
@@ -7096,7 +7096,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -7177,9 +7177,9 @@
         "name": "input"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$overdrive",
@@ -7518,7 +7518,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; all lanes are mixed to mono",
+          "description": "signal to reverberate; all lanes and both sides are mixed to mono",
           "$ref": "#/$defs/PolySignal"
         },
         "bandwidth": {
@@ -7657,7 +7657,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; all lanes are mixed to mono",
+        "description": "signal to reverberate; all lanes and both sides are mixed to mono",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -7714,9 +7714,9 @@
         "name": "input"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$quantNoise",
@@ -7922,7 +7922,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+          "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "decay": {
@@ -8083,7 +8083,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -8166,9 +8166,9 @@
         "name": "input"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$unstable.reverb2",
@@ -8192,7 +8192,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+          "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "decay": {
@@ -8353,7 +8353,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -8436,9 +8436,9 @@
         "name": "input"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$segment",
@@ -8656,7 +8656,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+          "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "amount": {
@@ -8786,7 +8786,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -8836,9 +8836,9 @@
         "name": "amount"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$granular",
@@ -32111,7 +32111,7 @@
       "type": "object",
       "properties": {
         "input": {
-          "description": "signal to thicken; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+          "description": "signal to thicken: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
           "$ref": "#/$defs/PolySignal"
         },
         "amount": {
@@ -32228,7 +32228,7 @@
     "signalParams": [
       {
         "name": "input",
-        "description": "signal to thicken; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "description": "signal to thicken: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false
@@ -32263,9 +32263,9 @@
         "name": "input"
       }
     ],
-    "lanes": 2,
+    "lanes": 1,
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$mi.divideDown",

@@ -14,7 +14,7 @@ use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::types::SwapGlide;
 
 // ─── Reference sample rate ───────────────────────────────────────────────────
@@ -89,10 +89,10 @@ fn scale_samples(ref_samples: usize, sample_rate: f32) -> usize {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PlateParams {
     #[input(
-        "signal to reverberate; all lanes are mixed to mono",
+        "signal to reverberate; all lanes and both sides are mixed to mono",
         type = audio,
     )]
-    input: PolySignal,
+    input: PairSignal,
     #[input(
         "how much treble enters the reverb: -5 dull, +5 full bandwidth",
         type = control,
@@ -241,9 +241,9 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$plate", stereo = mono,
+    name = "$plate", stereo = stereo,
     docs = PLATE_DOCS,
-    lanes = 2,
+    lanes = 1,
     has_init,
     args(input)
 )]
@@ -356,7 +356,6 @@ impl Plate {
 
     fn update(&mut self, sample_rate: f32) {
         let lens = self.state.lengths;
-        let num_input_lanes = self.params.input.lanes();
 
         // ── Read parameters ──────────────────────────────────────────────
 
@@ -390,21 +389,7 @@ impl Plate {
 
         // ── Sum input lanes to mono ───────────────────────────────────
 
-        let mut left_in = 0.0f32;
-        let mut right_in = 0.0f32;
-        for lane in 0..num_input_lanes {
-            let sample = self.params.input.get_value(lane);
-            if lane % 2 == 0 {
-                left_in += sample;
-            } else {
-                right_in += sample;
-            }
-        }
-        // With an odd lane count the final lane has no stereo partner,
-        // so feed it to both sides (a mono input drives left and right equally).
-        if num_input_lanes % 2 == 1 {
-            right_in += self.params.input.get_value(num_input_lanes - 1);
-        }
+        let [left_in, right_in] = self.params.input.sum_sides();
         let mono_in = (left_in + right_in) * 0.5;
 
         // ── Input bandwidth filter ───────────────────────────────────────
@@ -573,11 +558,13 @@ mod tests {
         let deserializers = get_params_deserializers();
         let deserializer = deserializers.get("$plate").unwrap();
         let cached = deserializer(params).unwrap();
+        // Built as a patch builds a stereo module: one lane of two sides. An
+        // `input` of `[L, R]` is read as that lane's two sides.
         let deserialized = DeserializedParams {
             params: cached.params,
-            lane_count: cached.lane_count,
+            lane_count: cached.lane_count * 2,
             f64_inputs: false,
-            channels: 1,
+            channels: 2,
         };
         constructors.get("$plate").unwrap()(
             "test-plate",
@@ -629,14 +616,14 @@ mod tests {
             outputs,
             state: Default::default(),
             params: super::PlateParams {
-                input: PolySignal::mono(Signal::Volts(f32::NAN)),
+                input: PolySignal::mono(Signal::Volts(f32::NAN)).into(),
                 bandwidth: None,
                 damping: None,
                 decay: None,
                 modulation: None,
             },
             _lane_count: 2,
-            _channels: 1,
+            _channels: 2,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);
@@ -644,7 +631,7 @@ mod tests {
             m.update(SAMPLE_RATE);
         }
 
-        m.params.input = PolySignal::mono(Signal::Volts(1.0));
+        m.params.input = PolySignal::mono(Signal::Volts(1.0)).into();
         let mut energy = 0.0f32;
         for _ in 0..48000 {
             m.update(SAMPLE_RATE);
