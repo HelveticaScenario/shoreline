@@ -111,6 +111,8 @@ struct InputAttr {
     /// variants the `bounds = input` outputs are unbounded; set to a listed
     /// one or unset, they are bounded when the tagged inputs give a range.
     bounding: Option<Vec<Ident>>,
+    /// `fold`: a stereo or file-derived module reads this input folded.
+    fold: bool,
 }
 
 fn parse_number(input: ParseStream) -> syn::Result<Number> {
@@ -192,6 +194,7 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
             carries_bounds: false,
             bounds_need_constant: false,
             bounding: None,
+            fold: false,
         };
         while !input.is_empty() {
             input.parse::<Token![,]>()?;
@@ -214,6 +217,12 @@ fn parse_input_attr(attr: &Attribute) -> syn::Result<InputAttr> {
                         ));
                     }
                     parsed.bounds_need_constant = true;
+                }
+                continue;
+            }
+            if key == "fold" {
+                if std::mem::replace(&mut parsed.fold, true) {
+                    return Err(syn::Error::new(key.span(), "duplicate `fold`"));
                 }
                 continue;
             }
@@ -690,6 +699,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         let type_variant = param_type.variant();
         let carries_bounds = parsed.carries_bounds;
         let bounds_need_constant = parsed.bounds_need_constant;
+        let fold = parsed.fold;
         let declared_default = match &parsed.default {
             Some((DocumentedDefault::Number(n), _)) => Some(n.value),
             _ => None,
@@ -728,6 +738,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                 control_max: #control_max,
                 carries_bounds: #carries_bounds,
                 bounds_need_constant: #bounds_need_constant,
+                fold: #fold,
             }
         });
         if is_option_poly_signal_type(&field.ty) {

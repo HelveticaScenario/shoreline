@@ -544,3 +544,33 @@ fn quantizer_snaps_each_side() {
     .unwrap();
     assert_eq!(step(&patch, "q"), [0.0, 1.0]);
 }
+
+/// The inputs a stereo module reads side by side. Every other input of such
+/// a module must be marked `#[input(…, fold)]`, so the editor can show where
+/// a stereo signal folds.
+const PER_SIDE: &[(&str, &[&str])] = &[
+    ("$pan", &["input"]),
+    ("$supersaw", &["freq", "detune", "fm", "sync"]),
+];
+
+#[test]
+fn every_input_of_a_stereo_module_folds_or_reads_by_side() {
+    use modular_core::types::StereoMode;
+    for module in schema() {
+        if module.stereo != StereoMode::Stereo {
+            continue;
+        }
+        let per_side = PER_SIDE
+            .iter()
+            .find(|(name, _)| *name == module.name)
+            .map_or(&[][..], |(_, inputs)| inputs);
+        for param in &module.signal_params {
+            assert!(
+                param.fold != per_side.contains(&param.name.as_str()),
+                "{}.{}: mark it `fold`, or list it in PER_SIDE",
+                module.name,
+                param.name
+            );
+        }
+    }
+}

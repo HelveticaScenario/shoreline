@@ -20,6 +20,7 @@ struct PanParams {
         "where each lane sits: -5 left, 0 centre, +5 right",
         type = control,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     pan: Option<PolySignal>,
@@ -28,6 +29,7 @@ struct PanParams {
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     spread: Option<LaneSum>,

@@ -759,6 +759,11 @@ export interface SignalParamSchema {
    * constant (`#[input(…, bounds = constant)]`).
    */
   boundsNeedConstant: boolean
+  /**
+   * Whether a stereo or file-derived module reads this input folded to
+   * `(L + R) / 2` (`#[input(…, fold)]`). A mono module folds every input.
+   */
+  fold: boolean
 }
 
 /** How a module's lanes carry stereo, from `#[module(stereo = …)]`. */
