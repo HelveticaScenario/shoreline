@@ -534,3 +534,72 @@ fn enosc_plays_odd_voices_left_and_even_voices_right() {
     assert_eq!(patch.sampleables["e"].port_lanes("odd"), 1);
     assert_eq!(step(&patch, "odd").len(), 1);
 }
+
+fn buffer_ref(module: &str) -> Value {
+    json!({ "type": "buffer_ref", "module": module, "port": "buffer", "lanes": 1 })
+}
+
+#[test]
+fn a_stereo_buffer_records_and_plays_each_side() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(1.0))),
+        ("r", "$signal", signal(json!(2.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("st", 0), "length": 0.01 }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": 0.001 }),
+        ),
+        (
+            "scrub",
+            "$bufRead",
+            json!({ "buffer": buffer_ref("buf"), "frame": 0.0 }),
+        ),
+    ])
+    .unwrap();
+    let mut tap = Vec::new();
+    for _ in 0..200 {
+        tap = step(&patch, "tap");
+    }
+    assert_eq!(tap, [1.0, 2.0]);
+    assert_eq!(step(&patch, "scrub"), [1.0, 2.0]);
+}
+
+#[test]
+fn a_mono_buffer_feeds_both_sides_of_a_stereo_reader() {
+    let patch = build(&[
+        ("x", "$signal", signal(json!(3.0))),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("x", 0), "length": 0.01 }),
+        ),
+        ("l", "$signal", signal(json!(0.001))),
+        ("r", "$signal", signal(json!(0.002))),
+        (
+            "time",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": cable("time", 0) }),
+        ),
+    ])
+    .unwrap();
+    let mut tap = Vec::new();
+    for _ in 0..200 {
+        tap = step(&patch, "tap");
+    }
+    assert_eq!(tap, [3.0, 3.0]);
+}

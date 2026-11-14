@@ -68,7 +68,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$delayRead", stereo = mono, docs = DELAY_READ_DOCS, lanes_derive = delay_read_derive_lane_count, args(buffer, time))]
+#[module(name = "$delayRead", docs = DELAY_READ_DOCS, lanes_derive = delay_read_derive_lane_count, args(buffer, time))]
 pub struct DelayRead {
     outputs: DelayReadOutputs,
     params: DelayReadParams,
@@ -105,8 +105,7 @@ impl DelayRead {
                 (delay_time_secs * (sample_rate as f64)).min(frame_count.saturating_sub(1) as f64);
             let back = (delay_frames - unwritten as f64).max(0.0);
 
-            let buf_lanes = self.params.buffer.lane_count().max(1);
-            let buf_lane = lane % buf_lanes;
+            let buf_lane = self.params.buffer.lane_for(lane, self.channels());
             let value = self
                 .params
                 .buffer

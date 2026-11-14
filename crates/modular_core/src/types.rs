@@ -1920,6 +1920,17 @@ impl Buffer {
         self.lanes
     }
 
+    /// The buffer lane a reader with `channels` sides reads for its lane
+    /// `lane` (`l * channels + c`): the same side of the same lane, cycling
+    /// the buffer's lanes, with a mono buffer feeding both sides.
+    pub fn lane_for(&self, lane: usize, channels: usize) -> usize {
+        let lanes = self.lanes.max(1);
+        let stored = self.buffer_ref().map_or(lanes, BufferData::lane_count);
+        let buffer_channels = (stored / lanes).max(1);
+        let channels = channels.max(1);
+        (lane / channels % lanes) * buffer_channels + (lane % channels).min(buffer_channels - 1)
+    }
+
     pub fn frame_count(&self) -> usize {
         self.buffer_ref().map(|b| b.frame_count()).unwrap_or(0)
     }
