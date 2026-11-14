@@ -115,32 +115,16 @@ describe('concat', () => {
         ).toEqual(['0:output:0', '1:all:0']);
     });
 
-    test('a signal without carried properties joins one with them', () => {
+    test('joins two delays', () => {
         expect(
             wiring(
                 cables(
-                    `$mix($c($saw('c')).concat($saw('e').delay(0.25))).out()`,
+                    `$mix($saw('c').delay(0.25).concat($saw('e').delay(0.5))).out()`,
                     '$mix',
                     'inputs',
                 ).flat(),
-            ),
-        ).toEqual(['0:output:0', '1:output:0']);
-    });
-
-    test('carried properties join when both hold the same value', () => {
-        expect(
-            wiring(
-                cables(
-                    `const d = $saw('c').delay(0.25)
-                     $bufRead(d.concat(d).buffer, 0).out()`,
-                    '$bufRead',
-                    'buffer',
-                ),
-            ),
-        ).toHaveLength(1);
-        expect(() =>
-            run(`$saw('c').delay(0.25).concat($saw('e').delay(0.5)).out()`),
-        ).toThrow(/buffer/);
+            ).map((w) => w.split(':')[1]),
+        ).toEqual(['output', 'output']);
     });
 
     test('a $trackTap joins its audio and its controls', () => {

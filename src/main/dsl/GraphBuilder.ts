@@ -381,10 +381,6 @@ export class BaseCollection<T extends ModuleOutput> {
         if (set) {
             sliceRoot(sliced, set, this.items.length, start, end);
         }
-        const carried = carriedOf(this);
-        if (carried) {
-            withCarried(sliced, carried);
-        }
         return sliced;
     }
 
@@ -409,9 +405,8 @@ export class BaseCollection<T extends ModuleOutput> {
      * The lanes of this collection followed by those of `other`, as a
      * collection of the same class. A multi-output module's outputs join
      * output by output, so the result is still a root standing for whichever
-     * fits the input it feeds, and carried properties join the same way. An
-     * argument's outputs and carried properties the receiver lacks are left
-     * out, as its type has none of them.
+     * fits the input it feeds. A plain receiver takes a multi-output argument
+     * as the output it stands for read as a signal.
      */
     concat(other: this): this {
         const that = patternSignal(other);
@@ -426,13 +421,6 @@ export class BaseCollection<T extends ModuleOutput> {
         }
         const joined = new ctor(...this.items, ...(that.items as T[]));
         concatRoots(joined, this, that);
-        const carried = carriedOf(this);
-        if (carried) {
-            withCarried(
-                joined,
-                concatFields(carried, carriedOf(that) ?? {}, ''),
-            );
-        }
         return joined;
     }
 
@@ -547,26 +535,6 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 }
 
-const CARRIED = Symbol('carried');
-
-/**
- * `collection` with `props` assigned, which its slices, lanes and chunks
- * keep too.
- */
-export function withCarried<C extends AnyCollection, P extends object>(
-    collection: C,
-    props: P,
-): C & P {
-    Object.defineProperty(collection, CARRIED, { value: props });
-    return Object.assign(collection, props);
-}
-
-function carriedOf(
-    collection: AnyCollection,
-): Readonly<Record<string, unknown>> | undefined {
-    return (collection as { [CARRIED]?: Record<string, unknown> })[CARRIED];
-}
-
 /**
  * Make `sliced` a root standing for the same lanes of every output of the
  * root `set` came from, so each input still takes the output that fits it:
@@ -606,43 +574,22 @@ function concatRoots(joined: object, a: object, b: object): void {
     if (!set) {
         return;
     }
-    const values = concatFields(set.values, outputSetOf(b)?.values ?? {}, '_');
-    markRoot(joined, { outputs: set.outputs, values });
-}
-
-/**
- * The fields of `a` and `b` joined by name: collections concatenated, any
- * other value kept when both hold the same one. Throws unless both have the
- * same names, shown with `prefix` in the error.
- */
-function concatFields(
-    a: Readonly<Record<string, unknown>>,
-    b: Readonly<Record<string, unknown>>,
-    prefix: string,
-): Record<string, unknown> {
-    const names = Object.keys(a);
-    const otherNames = Object.keys(b);
+    const other = outputSetOf(b)?.values ?? {};
+    const names = Object.keys(set.values);
+    const otherNames = Object.keys(other);
     if (names.join() !== otherNames.join()) {
         const list = (ns: string[]) =>
-            ns.length === 0 ? 'none' : ns.map((n) => prefix + n).join(', ');
+            ns.length === 0 ? 'none' : ns.map((n) => `_${n}`).join(', ');
         throw new Error(
             `concat() takes a signal of the same type as the one it is called on: one has ${list(names)}, the other ${list(otherNames)}`,
         );
     }
-    const joined: Record<string, unknown> = {};
+    const values: Record<string, unknown> = {};
     for (const name of names) {
-        const value = a[name];
-        if (value instanceof BaseCollection) {
-            joined[name] = value.concat(b[name] as typeof value);
-        } else if (value === b[name]) {
-            joined[name] = value;
-        } else {
-            throw new Error(
-                `concat() cannot join two different \`${prefix}${name}\` values`,
-            );
-        }
+        const value = set.values[name] as AnyCollection;
+        values[name] = value.concat(other[name] as AnyCollection);
     }
-    return joined;
+    markRoot(joined, { outputs: set.outputs, values });
 }
 
 /**
