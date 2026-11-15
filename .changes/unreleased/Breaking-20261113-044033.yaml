@@ -1,13 +1,15 @@
 kind: Breaking
 body: |-
-    `$sampler` plays a two-channel file as one stereo lane instead of a left lane and a right lane, and `$grains` gives each of its voices both sides of a two-channel file instead of one channel each. Files with one channel, or more than two, keep one mono lane per channel.
+    `$sampler` and `$v.video(...).audio` play a two-channel file as one stereo lane instead of a left lane and a right lane, so `[1]` no longer picks the right side: use `$right(...)`. `$grains` plays both sides of a two-channel file in every voice, where each voice played one of its channels. Files with one channel, or more than two, play as before.
 
     ```js
     // before
-    const drums = $sampler('/wavs/break.wav', $clock._beatTrigger)
+    const drums = $sampler('/wavs/break.wav', $clock.o.beatTrigger)
     $signal(drums[1]).outMono(1)
+    $signal($v.video('/clips/loop.mp4').audio[1]).outMono(2)
     // after
     const drums = $sampler('/wavs/break.wav', $clock._beatTrigger)
     $right(drums).outMono(1)
+    $right($v.video('/clips/loop.mp4').audio).outMono(2)
     ```
 time: 2026-11-13T04:40:33.984697-05:00

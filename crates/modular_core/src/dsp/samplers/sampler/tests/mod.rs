@@ -22,9 +22,11 @@ fn make_module(module_type: &str, id: &str, params: serde_json::Value) -> Box<dy
     let cached = deserializer(params)
         .unwrap_or_else(|e| panic!("params deserialization for '{module_type}' failed: {e}"));
     // As the patch settles a `derived` player: a stereo file makes it stereo.
-    let mut files = Vec::new();
-    cached.params.collect_stereo_files(&mut files);
-    let channels = if files.is_empty() { 1 } else { 2 };
+    let channels = if cached.params.has_stereo_file() {
+        2
+    } else {
+        1
+    };
     let deserialized = DeserializedParams {
         params: cached.params,
         lane_count: cached.lane_count * channels,

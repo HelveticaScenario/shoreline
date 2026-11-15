@@ -1288,6 +1288,7 @@ fn impl_module_macro_attr(
                         }
                         params
                     },
+                    nested_folds: <#params_struct_name as crate::types::SignalParamMeta>::nested_fold_params(),
                     positional_args: vec![
                         #(#positional_args_exprs),*
                     ],
