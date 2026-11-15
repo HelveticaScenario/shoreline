@@ -88,7 +88,7 @@ fn default_count() -> usize {
 struct EnoscParams {
     #[input("pitch of the scale's first note; every voice moves with it", type = pitch)]
     pitch: PolySignal,
-    #[input("the scale the voices sit on, built with `$enosc.scale.*`; every semitone if omitted")]
+    #[input("the scale the voices sit on, built with `$enosc.scale.*`; octave and fifth if omitted")]
     #[deserr(default)]
     scale: Option<EnoscScale>,
     #[input(
@@ -359,7 +359,7 @@ impl Enosc {
         let scale = params
             .scale
             .as_ref()
-            .map_or(&ScaleNotes::CHROMATIC, |s| &s.0);
+            .map_or(&ScaleNotes::OCTAVE_FIFTH, |s| &s.0);
 
         let count = state.count;
 

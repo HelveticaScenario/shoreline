@@ -111,7 +111,7 @@ impl JsonSchema for EnoscScale {
         enum EnoscScaleSchema {
             /// 12-TET: octaves only.
             Octave,
-            /// 12-TET: octave and fifth.
+            /// 12-TET: octave and fifth. The default.
             OctaveFifth,
             /// 12-TET: major triad.
             Major,
@@ -127,7 +127,7 @@ impl JsonSchema for EnoscScale {
             Fifths,
             /// 12-TET: 0 3 5, repeating every fifth.
             FifthsMinor,
-            /// 12-TET: every semitone. The default.
+            /// 12-TET: every semitone.
             Chromatic,
             /// Octave: harmonics 2–3 (just fifth).
             Harm2to3,
@@ -233,13 +233,14 @@ pub(super) struct ScaleNotes {
 }
 
 impl ScaleNotes {
-    /// Every semitone, the scale when none is given.
-    pub const CHROMATIC: ScaleNotes = {
+    /// Octave and fifth, the scale when none is given.
+    pub const OCTAVE_FIFTH: ScaleNotes = {
         let mut notes = [0.0; MAX_NOTES];
-        notes[1] = 1.0 / 12.0;
+        notes[1] = 7.0 / 12.0;
+        notes[2] = 1.0;
         ScaleNotes {
             notes,
-            len: 1,
+            len: 2,
             generation: 0,
         }
     };
@@ -408,7 +409,8 @@ mod tests {
             ),
             (preset("harmOdd"), vec![7.019_55 / 12.0, 3.0]),
             (preset("fifths"), vec![7.0 / 12.0, 14.0 / 12.0]),
-            (ScaleNotes::CHROMATIC, vec![1.0 / 12.0, 2.0 / 12.0]),
+            (preset("chromatic"), vec![1.0 / 12.0, 2.0 / 12.0]),
+            (ScaleNotes::OCTAVE_FIFTH, vec![7.0 / 12.0, 1.0, 19.0 / 12.0]),
         ] {
             for note in at {
                 let below = notes.pitch_pair(note - 1e-4);
@@ -494,7 +496,7 @@ mod tests {
     #[test]
     fn every_scale_is_its_own_generation() {
         assert_ne!(preset("major").generation, preset("major").generation);
-        assert_ne!(preset("major").generation, ScaleNotes::CHROMATIC.generation);
+        assert_ne!(preset("major").generation, ScaleNotes::OCTAVE_FIFTH.generation);
     }
 
     #[test]
