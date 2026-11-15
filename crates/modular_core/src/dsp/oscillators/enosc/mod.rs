@@ -143,7 +143,10 @@ struct EnoscParams {
     )]
     #[deserr(default)]
     balance: Option<PolySignal>,
-    #[input("phase warp applied to every oscillator before its sine, built with `$phase.*`")]
+    #[input(
+        "phase warp applied to every oscillator before its sine, built with `$phase.*`",
+        fold
+    )]
     #[deserr(default)]
     phase: Option<PhaseWarp>,
     #[input("wavefold amount", type = control, default = 0.0, range = (0.0, 5.0), fold)]

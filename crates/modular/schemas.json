@@ -10198,7 +10198,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10558,7 +10558,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
@@ -14413,7 +14413,9 @@
         "readsSides": false
       }
     ],
-    "nestedFolds": [],
+    "nestedFolds": [
+      "phase"
+    ],
     "positionalArgs": [
       {
         "name": "pitch"

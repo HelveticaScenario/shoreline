@@ -560,15 +560,13 @@ const PER_SIDE: &[(&str, &[&str])] = &[
     (
         "$granular",
         &[
-            "input", "trigger", "freeze", "time", "size", "shape", "freq", "rootFreq", "spread",
-            "feedback", "mix",
+            "input", "trigger", "freeze", "time", "size", "shape", "freq", "rootFreq", "feedback",
+            "mix",
         ],
     ),
     (
         "$granularSampler",
-        &[
-            "trigger", "time", "size", "shape", "freq", "rootFreq", "spread",
-        ],
+        &["trigger", "time", "size", "shape", "freq", "rootFreq"],
     ),
     ("$supersaw", &["freq", "detune", "fm", "sync"]),
 ];

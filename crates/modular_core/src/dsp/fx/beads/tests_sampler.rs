@@ -260,3 +260,17 @@ fn a_one_channel_file_plays_each_lane_from_one_voice() {
     );
     assert!(!stereo.params.mono);
 }
+
+#[test]
+fn a_file_with_more_than_two_channels_plays_one_on_each_lane() {
+    let n = SR as usize;
+    let wav = wav_data(vec![vec![0.1; n], vec![0.2; n], vec![0.3; n]], SR);
+    let m = make(sampler_params(GranularQuality::Digital, 3), &wav);
+    assert_eq!(m.lane_state.len(), 6);
+    for lane in 0..3 {
+        // Both sides of a lane play its channel.
+        assert!(buffer(&m, 2 * lane).shares_with(buffer(&m, 2 * lane + 1)));
+    }
+    assert!(!buffer(&m, 0).shares_with(buffer(&m, 2)));
+    assert!(!buffer(&m, 2).shares_with(buffer(&m, 4)));
+}
