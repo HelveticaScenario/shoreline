@@ -71,10 +71,10 @@ const MARKDOWN_COMPONENTS: Components = {
             {children}
         </a>
     ),
-    pre: ({ node }) => {
+    pre: ({ node, children }) => {
         const code = node?.children[0];
         if (code?.type !== 'element' || code.tagName !== 'code') {
-            return null;
+            return <pre>{children}</pre>;
         }
         return <ColorizedCode code={textOf(code).replace(/\n$/, '')} />;
     },
