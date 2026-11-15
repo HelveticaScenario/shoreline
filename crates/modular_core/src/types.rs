@@ -2707,12 +2707,12 @@ impl Signal {
 impl Signal {
     /// The bounds of the value [`get_value`](Self::get_value) reads, at the
     /// same slot: a constant holds still, a cable reads its producer's, and
-    /// a fold averages its two sides' (see [`Bounds::midpoint`]).
+    /// a fold folds its two sides' (see [`Bounds::fold`]).
     pub fn get_bounds(&self) -> crate::bounds::Bounds {
         use crate::bounds::Bounds;
         match self {
             Signal::Volts(v) => Bounds::point(*v),
-            Signal::Cable { fold: true, .. } => self.cable_bounds(0).midpoint(self.cable_bounds(1)),
+            Signal::Cable { fold: true, .. } => self.cable_bounds(0).fold(self.cable_bounds(1)),
             Signal::Cable { .. } => self.cable_bounds(0),
         }
     }
@@ -2763,7 +2763,7 @@ impl Signal {
             Signal::Cable { fold: true, .. } => {
                 let left = self.cable_uniform_bounds(range.clone(), 0)?;
                 let right = self.cable_uniform_bounds(range, 1)?;
-                Some(left.midpoint(right))
+                Some(left.fold(right))
             }
             Signal::Cable { .. } => self.cable_uniform_bounds(range, 0),
         }

@@ -790,3 +790,80 @@ fn pan_has_a_lane_for_each_input_lane() {
     assert_eq!(out.len(), 2);
     assert!(out[1].abs() < 1e-6, "{out:?}");
 }
+
+/// `id`'s bounds at lane `lane`, read once a `$remap` that maps from them has
+/// made them stored.
+fn bounds_of(modules: &[(&str, &str, Value)], id: &str, lane: usize) -> (f32, f32) {
+    let mut modules = modules.to_vec();
+    let reader = json!({ "input": cable(id, 0), "outMin": 0.0, "outMax": 1.0 });
+    modules.push(("reader", "$remap", reader));
+    let patch = build(&modules).unwrap();
+    step(&patch, id);
+    let bounds = patch.sampleables[id].get_bounds_at(
+        &default_port(patch.sampleables[id].get_module_type()),
+        lane,
+        0,
+    );
+    (bounds.start, bounds.end)
+}
+
+#[test]
+fn the_channel_tools_carry_their_inputs_bounds() {
+    // Left swings 0 to 4, right 6 down to 2.
+    let pair = [
+        (
+            "l",
+            "$signal",
+            json!({ "value": 1.0, "min": 0.0, "max": 4.0 }),
+        ),
+        (
+            "r",
+            "$signal",
+            json!({ "value": 3.0, "min": 6.0, "max": 2.0 }),
+        ),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+    ];
+    let with = |id: &'static str, module_type: &'static str| {
+        let mut modules = pair.to_vec();
+        modules.push((id, module_type, json!({ "input": cable("st", 0) })));
+        modules
+    };
+    assert_eq!(bounds_of(&pair, "st", 0), (0.0, 4.0));
+    assert_eq!(bounds_of(&pair, "st", 1), (6.0, 2.0));
+    assert_eq!(bounds_of(&with("left", "$left"), "left", 0), (0.0, 4.0));
+    assert_eq!(bounds_of(&with("right", "$right"), "right", 0), (6.0, 2.0));
+    // Opposite swings fold to every value the average can reach.
+    assert_eq!(bounds_of(&with("folded", "$mono"), "folded", 0), (1.0, 5.0));
+    assert_eq!(bounds_of(&with("mid", "$mid"), "mid", 0), (1.0, 5.0));
+    assert_eq!(bounds_of(&with("side", "$side"), "side", 0), (-3.0, 1.0));
+}
+
+#[test]
+fn an_explicit_fold_has_the_bounds_of_an_implicit_one() {
+    use modular_core::bounds::Bounds;
+    let (l, r) = (Bounds::new(0.0, 4.0), Bounds::new(6.0, 2.0));
+    let pair = [
+        (
+            "l",
+            "$signal",
+            json!({ "value": 1.0, "min": 0.0, "max": 4.0 }),
+        ),
+        (
+            "r",
+            "$signal",
+            json!({ "value": 3.0, "min": 6.0, "max": 2.0 }),
+        ),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        ("folded", "$mono", json!({ "input": cable("st", 0) })),
+    ];
+    let folded = l.fold(r);
+    assert_eq!(bounds_of(&pair, "folded", 0), (folded.start, folded.end));
+}

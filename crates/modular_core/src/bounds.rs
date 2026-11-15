@@ -49,15 +49,18 @@ impl Bounds {
         Self::new(value, value)
     }
 
-    /// The bounds of the average of two signals that swing together, such
-    /// as a stereo pair's sides: starts and ends averaged, so the direction
-    /// of the swing is kept.
+    /// The bounds of `(L + R) / 2`, a stereo pair's sides folded to mono,
+    /// which hold every value it can take. Sides that swing the same way
+    /// keep that direction; sides that swing opposite ways can still swing
+    /// independently, so each is taken low to high.
     #[inline]
-    pub fn midpoint(self, other: Self) -> Self {
-        Self::new(
-            0.5 * (self.start + other.start),
-            0.5 * (self.end + other.end),
-        )
+    pub fn fold(self, other: Self) -> Self {
+        let (a, b) = if (self.start <= self.end) == (other.start <= other.end) {
+            (self, other)
+        } else {
+            (self.sorted(), other.sorted())
+        };
+        Self::new(0.5 * (a.start + b.start), 0.5 * (a.end + b.end))
     }
 
     #[inline]
@@ -167,13 +170,19 @@ unsafe impl Send for PortBounds {}
 #[cfg(test)]
 mod tests {
     #[test]
-    fn midpoint_keeps_the_direction_of_the_swing() {
+    fn a_fold_keeps_a_shared_direction() {
         let falling = Bounds::new(5.0, 0.0);
+        assert_eq!(falling.fold(Bounds::new(3.0, 1.0)), Bounds::new(4.0, 0.5));
+        assert_eq!(falling.fold(Bounds::UNBOUNDED).start, f32::NEG_INFINITY);
+    }
+
+    #[test]
+    fn a_fold_of_opposite_swings_holds_every_value() {
+        // Left at 0 and right at 0, or both at 5, reach 0 and 5.
         assert_eq!(
-            falling.midpoint(Bounds::new(3.0, 1.0)),
-            Bounds::new(4.0, 0.5)
+            Bounds::new(0.0, 5.0).fold(Bounds::new(5.0, 0.0)),
+            Bounds::new(0.0, 5.0)
         );
-        assert_eq!(falling.midpoint(Bounds::UNBOUNDED).start, f32::NEG_INFINITY);
     }
 
     use super::*;

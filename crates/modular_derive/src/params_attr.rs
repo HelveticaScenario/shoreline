@@ -645,10 +645,12 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
                         inputs.push(signal);
                     }
                 });
+            } else if crate::utils::is_pair_signal_type(&field.ty) {
+                bounds_checks.push(quote! { inputs.push(self.#ident.poly()); });
             } else {
                 return Err(syn::Error::new(
                     field.ty.span(),
-                    "`bounds` applies to `PolySignal` and `Option<PolySignal>` inputs",
+                    "`bounds` applies to `PolySignal`, `Option<PolySignal>` and `PairSignal` inputs",
                 ));
             }
         }
