@@ -10,13 +10,13 @@ use crate::types::PatchUpdateHandler;
 
 use super::chain::Media;
 use super::fresh::FreshBuffers;
-use super::grains_chain::{GrainsChain, GrainsVoice};
+use super::grains_chain::{GrainsChain, GrainsVoice, sounding};
 use super::player::{GrainParams, GrainTrigger};
 use super::queue::TriggerQueue;
 use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::silent_buffer;
-use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, input_value, unit};
+use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, input_value, sides_match, unit};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
@@ -108,6 +108,11 @@ struct GranularParams {
     #[deserr(skip)]
     #[schemars(skip)]
     fresh: Option<FreshBuffers>,
+    /// Whether each lane plays from its left voice alone, set by `init`.
+    #[serde(skip)]
+    #[deserr(skip)]
+    #[schemars(skip)]
+    mono: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -170,7 +175,8 @@ pub struct Granular {
     outputs: GranularOutputs,
     state: GranularState,
     params: GranularParams,
-    /// One voice per side of each lane of the widest input.
+    /// One voice per side of each lane of the widest input. When both sides
+    /// of every input match, the right voices idle without a recording.
     lane_state: Box<[GrainsVoice]>,
 }
 
@@ -181,13 +187,20 @@ impl Granular {
     fn init(&mut self, sample_rate: f32) {
         let seed = seed_base(self);
         self.state.chain.allocate();
+        let mono = sides_match(&self.params);
+        self.params.mono = mono;
         let media = self.params.quality.media();
         let silence = silent_buffer(media);
         for voice in self.lane_state.iter_mut() {
             voice.allocate();
             voice.voice.granular.buffer = silence.clone();
         }
-        self.params.fresh = Some(FreshBuffers::allocate(self.lane_state.len(), media));
+        self.params.fresh = Some(FreshBuffers::allocate_sounding(
+            self.lane_state.len(),
+            media,
+            |v| mono && v % 2 == 1,
+            &silence,
+        ));
         let state = &mut self.state;
         state.engine_sample_rate = sample_rate;
         state.resampler.allocate(sample_rate);
@@ -219,7 +232,8 @@ impl Granular {
 
         let index = state.resampler.input_index();
         let converts = state.resampler.converts();
-        for (i, v) in voices.iter_mut().enumerate() {
+        let mono = params.mono;
+        for (i, v) in sounding(voices, mono) {
             let onset = v.voice.sense(
                 input_value(&params.input, i),
                 converts,
@@ -257,7 +271,7 @@ impl Granular {
 
         let tap = resampler.tick(|inner, out_index| {
             if converts {
-                for v in voices.iter_mut() {
+                for (_, v) in sounding(voices, mono) {
                     v.voice.input = inner.read(&v.voice.history);
                 }
             }
@@ -280,12 +294,18 @@ impl PatchUpdateHandler for Granular {
         // A quality change clears every voice, and a voice new to this
         // module still holds the silent stand-in: both take a fresh buffer,
         // which needs no clearing here. Other voices keep recording into
-        // their own.
+        // their own. An idle voice gives up its recording.
+        let mono = self.params.mono;
+        self.state.chain.set_mono(mono);
         let media = self.params.quality.media();
         let reconfigure = media != self.state.media;
         if let Some(fresh) = &mut self.params.fresh {
             for (i, v) in self.lane_state.iter_mut().enumerate() {
-                if fresh.hand_out(i, &mut v.voice.granular.buffer, reconfigure) && !reconfigure {
+                if mono && i % 2 == 1 {
+                    fresh.release(i, &mut v.voice.granular.buffer);
+                } else if fresh.hand_out(i, &mut v.voice.granular.buffer, reconfigure)
+                    && !reconfigure
+                {
                     v.configure(media);
                 }
             }

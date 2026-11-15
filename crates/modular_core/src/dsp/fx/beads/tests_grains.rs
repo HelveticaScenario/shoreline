@@ -17,6 +17,7 @@ fn grains_params(quality: GranularQuality) -> GranularParams {
         mix: None,
         quality,
         fresh: None,
+        mono: false,
     }
 }
 
@@ -355,8 +356,10 @@ fn new_voices_get_their_own_buffers() {
     p.freq = poly_volts(&[0.0, 0.5]);
     let mut new = construct(p, SR);
     transfer(&mut old, &mut new);
+    // Each lane plays from its left voice, which keeps its recording or
+    // takes a fresh one.
     assert!(recording_level(&new, 0) > 0);
-    assert!(recording_level(&new, 1) > 0);
+    assert!(!records(&new, 1));
     assert_eq!(recording_level(&new, 2), 0);
     let buffer = &new.lane_state[2].voice.granular.buffer;
     assert_eq!(buffer.max_delay() as usize, Media::Digital.max_delay());
@@ -496,7 +499,8 @@ fn no_grain_leaves_above_the_limit_from_the_first() {
 fn each_side_records_and_passes_its_own_input() {
     let mut p = grains_params(GranularQuality::Digital);
     p.mix = poly_volts(&[0.0]);
-    let mut m = make_grains(p, SR);
+    let mut m = construct_stereo(p, SR);
+    m.on_patch_update();
     let (mut l, mut r) = (Vec::new(), Vec::new());
     for n in 0..20_000 {
         let x = sine(440.0, n, SR, 2.0);
@@ -616,4 +620,84 @@ fn spread_places_each_grain_across_both_sides() {
     }
     assert!(rms(&l) > 0.05 && rms(&r) > 0.05, "{} {}", rms(&l), rms(&r));
     assert!(l.iter().zip(&r).any(|(a, b)| (a - b).abs() > 0.1));
+}
+
+/// A module whose input reads a stereo producer, so it plays both voices of
+/// each lane even when `step` later feeds both sides alike.
+fn construct_stereo(mut params: GranularParams, sample_rate: f32) -> Granular {
+    params.input = PolySignal::mono(Signal::cable("src", "output", 0));
+    params.expand_lanes(&LaneExpansion {
+        channels: 2,
+        producer: &|_, _| 2,
+    });
+    let mut outputs = GranularOutputs::default();
+    outputs.set_all_lanes(2);
+    let mut m = Granular {
+        outputs,
+        state: Default::default(),
+        params,
+        lane_state: (0..2).map(|_| Default::default()).collect(),
+        _lane_count: 2,
+        _channels: 2,
+        _block_index: Default::default(),
+    };
+    m.init(sample_rate);
+    m
+}
+
+fn records(m: &Granular, voice: usize) -> bool {
+    m.lane_state[voice].voice.granular.buffer.records()
+}
+
+#[test]
+fn matching_sides_play_from_one_voice_as_both_voices_would() {
+    for quality in ALL_QUALITIES {
+        let mut p = grains_params(quality);
+        p.mix = poly_volts(&[3.5]);
+        p.feedback = poly_volts(&[2.0]);
+        p.size = poly_volts(&[1.25]);
+        let mut one = make_grains(p.clone(), SR);
+        let mut both = construct_stereo(p, SR);
+        both.on_patch_update();
+        assert!(one.params.mono && !both.params.mono);
+        assert!(records(&one, 0) && !records(&one, 1), "{quality:?}");
+        assert!(records(&both, 0) && records(&both, 1), "{quality:?}");
+        // Each module seeds its own random pans, so the grains stay centred.
+        let mut heard = 0.0f32;
+        for n in 0..30_000 {
+            let x = sine(330.0, n, SR, 3.0);
+            let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+            let (l1, r1) = step(&mut one, x, trig, SR);
+            let (l2, r2) = step(&mut both, x, trig, SR);
+            assert!((l1 - l2).abs() < 1e-4, "{quality:?} left at {n}: {l1} {l2}");
+            assert!(
+                (r1 - r2).abs() < 1e-4,
+                "{quality:?} right at {n}: {r1} {r2}"
+            );
+            heard = heard.max(l1.abs());
+        }
+        assert!(heard > 0.1, "{quality:?}: silent");
+    }
+}
+
+#[test]
+fn a_voice_that_falls_idle_gives_up_its_recording() {
+    let p = grains_params(GranularQuality::Digital);
+    let mut old = construct_stereo(p.clone(), SR);
+    old.on_patch_update();
+    record(&mut old);
+    let mut new = construct(p.clone(), SR);
+    transfer(&mut old, &mut new);
+    assert!(recording_level(&new, 0) > 0);
+    assert!(!records(&new, 1));
+
+    // Widening again hands the idle voice a fresh recording.
+    let mut wide = construct_stereo(p, SR);
+    transfer(&mut new, &mut wide);
+    assert!(recording_level(&wide, 0) > 0);
+    assert!(records(&wide, 1));
+    for n in 0..4800 {
+        let (l, r) = step(&mut wide, sine(220.0, n, SR, 1.0), 0.0, SR);
+        assert!(l.is_finite() && r.is_finite());
+    }
 }

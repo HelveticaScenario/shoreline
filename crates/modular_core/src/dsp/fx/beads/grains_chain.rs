@@ -4,6 +4,8 @@
 //! Voices come in pairs, one per side of a stereo lane (`l * 2 + c`), each
 //! recording its own side. The pair's grains start together with one pan, so
 //! summing the pair's placed grains plays each grain as a stereo image.
+//! When both sides of every input match, the left voice alone plays the lane,
+//! placed in the centre, and the right voice idles.
 
 use super::chain::{BlockClock, Limiters, Media};
 use super::granular::GrainStartRequest;
@@ -15,6 +17,8 @@ use crate::dsp::utils::rng::LcgRng;
 
 /// Where each side's voice sits in the stereo image: its own side only.
 const SIDE_PLACE: [[f32; 2]; 2] = [[1.0, 0.0], [0.0, 1.0]];
+/// Where a voice playing both sides of its lane sits.
+const MONO_PLACE: [f32; 2] = [1.0, 1.0];
 
 #[derive(Default)]
 pub struct GrainsVoice {
@@ -57,6 +61,20 @@ pub struct GrainsChain {
     clock: BlockClock,
     /// Position within the current pair of hardware samples (clean tape).
     pair_pos: usize,
+    /// Whether each lane's left voice plays both sides.
+    mono: bool,
+}
+
+/// The voices that sound, with their indices: every voice, or each lane's
+/// left voice when `mono`.
+pub fn sounding(
+    voices: &mut [GrainsVoice],
+    mono: bool,
+) -> impl Iterator<Item = (usize, &mut GrainsVoice)> {
+    voices
+        .iter_mut()
+        .enumerate()
+        .step_by(if mono { 2 } else { 1 })
 }
 
 impl GrainsChain {
@@ -73,6 +91,11 @@ impl GrainsChain {
             voice.configure(media);
         }
         self.pair_pos = 0;
+    }
+
+    /// Play each lane from its left voice alone when `mono`.
+    pub fn set_mono(&mut self, mono: bool) {
+        self.mono = mono;
     }
 
     /// Queue a grain start for its voice; false when that voice already has
@@ -110,19 +133,21 @@ impl GrainsChain {
         }
         let block = self.clock.size();
         let grain_block = block / self.media.granular_ratio();
-        for (i, v) in voices.iter_mut().enumerate() {
+        let mono = self.mono;
+        for (i, v) in sounding(voices, mono) {
             v.voice.start_block(controls(i), block, grain_block);
-            v.voice.start_place(SIDE_PLACE[i % 2], block);
+            let place = if mono { MONO_PLACE } else { SIDE_PLACE[i % 2] };
+            v.voice.start_place(place, block);
         }
     }
 
     /// Resolve each voice's waiting grain start. A voice's grain levels and
     /// stereo spread follow the number of its own grains sounding, and the
     /// two sides of a lane draw one pan for grains they start together.
-    fn start_grains(voices: &mut [GrainsVoice], rng: &mut LcgRng) {
+    fn start_grains(voices: &mut [GrainsVoice], rng: &mut LcgRng, mono: bool) {
         for lane in voices.chunks_mut(2) {
             let mut pan = None;
-            for v in lane {
+            for (_, v) in sounding(lane, mono) {
                 let voice = &mut v.voice;
                 if let Some(trigger) = voice.trigger.take() {
                     let active = (voice.granular.player.active_count() + 1) as f32;
@@ -140,8 +165,8 @@ impl GrainsChain {
     }
 
     /// Run every voice's grain engine for one grain-engine sample.
-    fn render(voices: &mut [GrainsVoice], clean_tape: bool) {
-        for v in voices.iter_mut() {
+    fn render(voices: &mut [GrainsVoice], clean_tape: bool, mono: bool) {
+        for (_, v) in sounding(voices, mono) {
             let voice = &mut v.voice;
             let place = voice.place();
             let start = voice.start.take();
@@ -172,19 +197,21 @@ impl GrainsChain {
         mut emit: impl FnMut(&mut GrainsVoice, f32),
     ) {
         let media = self.media;
+        let mono = self.mono;
         for lane in voices.chunks_mut(2) {
             let mut out = Frame::ZERO;
-            for (side, v) in lane.iter_mut().enumerate() {
+            for (side, v) in sounding(lane, mono) {
                 let voice = &mut v.voice;
-                // The ramps advance every sample; a voice's place is its own
-                // side, so its dry signal goes to that side alone.
+                // The ramps advance every sample; a voice's dry signal goes
+                // to the sides it plays.
                 voice.place[0].next();
                 voice.place[1].next();
                 let d = media.colour(voice.pair_input[k]) * voice.dry.next();
                 out += voice.pair_wet[k] * voice.wet.next();
-                if side == 0 {
+                if mono || side == 0 {
                     out.l += d;
-                } else {
+                }
+                if mono || side == 1 {
                     out.r += d;
                 }
             }
@@ -212,17 +239,18 @@ impl GrainsChain {
         rng: &mut LcgRng,
         index: u64,
     ) {
+        let mono = self.mono;
         if self.media.granular_ratio() == 1 {
             self.begin_sample(voices, controls);
-            Self::start_grains(voices, rng);
-            Self::render(voices, false);
+            Self::start_grains(voices, rng, mono);
+            Self::render(voices, false, mono);
             self.finish_sample(voices, 0, |v, x| v.output.write(index, x));
             return;
         }
 
         // Clean tape: the grain engine runs at half rate between the
         // hardware's 2× decimation and interpolation filters.
-        for v in voices.iter_mut() {
+        for (_, v) in sounding(voices, mono) {
             let voice = &mut v.voice;
             voice.pair_input[self.pair_pos] = voice.input;
             voice.pair_freeze |= voice.freeze;
@@ -236,14 +264,14 @@ impl GrainsChain {
         }
         self.pair_pos = 0;
 
-        for v in voices.iter_mut() {
+        for (_, v) in sounding(voices, mono) {
             let voice = &mut v.voice;
             voice.decimator.push(voice.pair_input[0]);
             voice.decimator.push(voice.pair_input[1]);
         }
         self.begin_sample(voices, controls);
-        Self::start_grains(voices, rng);
-        Self::render(voices, true);
+        Self::start_grains(voices, rng, mono);
+        Self::render(voices, true, mono);
 
         self.finish_sample(voices, 0, |v, x| v.output.write(index, x));
         self.begin_sample(voices, controls);

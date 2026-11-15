@@ -415,6 +415,16 @@ impl PolySignal {
         &self.lanes
     }
 
+    /// Whether every lane reads the same source on both sides, so a stereo
+    /// module can run one side for both.
+    pub fn sides_match(&self) -> bool {
+        self.channels < 2
+            || self
+                .lanes
+                .chunks(self.channels)
+                .all(|sides| sides.iter().all(|s| *s == sides[0]))
+    }
+
     /// The single-port view, when the lanes resolved to one.
     pub(crate) fn cable_view(&self) -> Option<&PolyCableView> {
         self.cable.as_ref()

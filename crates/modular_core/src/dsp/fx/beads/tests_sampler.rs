@@ -31,6 +31,7 @@ fn sampler_params(quality: GranularQuality, channels: usize) -> GranularSamplerP
         spread: None,
         quality,
         loaded: None,
+        mono: false,
     }
 }
 
@@ -239,4 +240,23 @@ fn negative_sizes_play_grains_reversed() {
     };
     assert!(slope(3.0) > 0.01, "forward {}", slope(3.0));
     assert!(slope(-3.0) < -0.01, "reversed {}", slope(-3.0));
+}
+
+#[test]
+fn a_one_channel_file_plays_each_lane_from_one_voice() {
+    let wav = sine_wav(1, SR);
+    let mut p = sampler_params(GranularQuality::Digital, 1);
+    p.spread = poly_volts(&[0.0]);
+    let mut m = make(p, &wav);
+    assert!(m.params.mono);
+    let out = play(&mut m);
+    assert!(rms(&out[0]) > 0.2, "{}", rms(&out[0]));
+    for (l, r) in out[0].iter().zip(&out[1]) {
+        assert!((l - r).abs() < 1e-6, "{l} {r}");
+    }
+    let stereo = make(
+        sampler_params(GranularQuality::Digital, 2),
+        &sine_wav(2, SR),
+    );
+    assert!(!stereo.params.mono);
 }

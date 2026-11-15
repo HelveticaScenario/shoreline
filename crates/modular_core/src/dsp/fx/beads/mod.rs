@@ -106,6 +106,12 @@ fn grain_params(
 
 /// Lane `lane` of an audio input in hardware units.
 #[inline]
+/// Whether every signal input reads the same on both sides of each lane, so
+/// a grain module can play each lane from one voice. Main thread only.
+fn sides_match(params: &impl crate::types::PolySignalFields) -> bool {
+    params.poly_signal_fields().iter().all(|p| p.sides_match())
+}
+
 fn input_value(input: &PolySignal, lane: usize) -> f32 {
     sanitize(input.get_value(lane)) * (1.0 / FULL_SCALE_VOLTS)
 }

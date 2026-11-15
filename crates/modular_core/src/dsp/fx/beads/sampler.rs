@@ -15,13 +15,13 @@ use crate::types::{PatchUpdateHandler, PolySignalFields, WavData};
 
 use super::buffer::GrainBuffer;
 use super::chain::Media;
-use super::grains_chain::{GrainsChain, GrainsVoice};
+use super::grains_chain::{GrainsChain, GrainsVoice, sounding};
 use super::player::{GrainParams, GrainTrigger};
 use super::queue::TriggerQueue;
 use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::cached_load;
-use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, unit};
+use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, sides_match, unit};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
@@ -92,6 +92,13 @@ struct GranularSamplerParams {
     #[deserr(skip)]
     #[schemars(skip)]
     loaded: Option<Loaded>,
+    /// Whether each lane plays from its left voice alone: the file isn't
+    /// stereo and every input matches on both sides. Set by
+    /// `prepare_resources`.
+    #[serde(skip)]
+    #[deserr(skip)]
+    #[schemars(skip)]
+    mono: bool,
 }
 
 /// Every voice's loaded buffer, each tagged with the identity of its
@@ -241,6 +248,7 @@ impl GranularSampler {
         // A two-channel file gives each side its own channel; any other
         // gives each lane one channel on both sides.
         let channels = per_channel.len();
+        self.params.mono = channels != 2 && sides_match(&self.params);
         let buffers = (0..self.lane_state.len())
             .map(|v| {
                 let channel = if channels == 2 {
@@ -262,7 +270,7 @@ impl GranularSampler {
         let voices = &mut self.lane_state;
 
         let index = state.resampler.input_index();
-        for (i, v) in voices.iter_mut().enumerate() {
+        for (i, v) in sounding(voices, params.mono) {
             let trigger = params.trigger.as_ref().map(|t| t.get_value(i));
             let onset = v.voice.sense(0.0, false, index, trigger, None);
             if let Some(age) = onset {
@@ -313,6 +321,7 @@ impl GranularSampler {
 
 impl PatchUpdateHandler for GranularSampler {
     fn on_patch_update(&mut self) {
+        self.state.chain.set_mono(self.params.mono);
         let media = self.params.quality.media();
         if media != self.state.media {
             self.configure(media);
