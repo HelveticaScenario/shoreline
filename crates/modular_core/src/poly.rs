@@ -459,11 +459,13 @@ impl PolySignal {
     }
 
     /// Whether this input is bounded in a patch as `settled` so far: every
-    /// lane a constant or a cable from a bounded output. Main thread,
-    /// while the patch is analysed.
+    /// lane a constant or a cable from a bounded output that it does not
+    /// fold, as a fold to mono carries no bounds. Main thread, while the
+    /// patch is analysed.
     pub fn statically_bounded(&self, settled: &dyn crate::bounds::Settled) -> bool {
         self.lanes.iter().all(|signal| match signal {
             Signal::Volts(_) => true,
+            Signal::Cable { fold: true, .. } => false,
             Signal::Cable { module, port, .. } => settled.bounded(module, port),
         })
     }
@@ -473,7 +475,7 @@ impl PolySignal {
     /// has none. Main thread, while the patch is analysed.
     pub fn statically_ranged(&self, settled: &dyn crate::bounds::Settled) -> bool {
         self.lanes.iter().all(|signal| match signal {
-            Signal::Volts(_) => false,
+            Signal::Volts(_) | Signal::Cable { fold: true, .. } => false,
             Signal::Cable { module, port, .. } => settled.ranged(module, port),
         })
     }
@@ -1032,6 +1034,26 @@ mod tests {
 
     use super::*;
     use crate::types::{Connect, SameIds};
+
+    #[test]
+    fn a_fold_to_mono_carries_no_bounds() {
+        use crate::bounds::Settled;
+        use crate::patch::PatchBounds;
+        use crate::types::LaneExpansion;
+        let mut signal = PolySignal::mono(Signal::cable("st", "output", 0));
+        signal.expand_lanes(&LaneExpansion {
+            channels: 1,
+            producer: &|_, _| 2,
+        });
+        let mut settled = PatchBounds::default();
+        settled
+            .outputs
+            .insert(("st".to_string(), "output".to_string()), true);
+        assert!(settled.bounded("st", "output"));
+        assert!(!signal.statically_bounded(&settled));
+        assert!(!signal.statically_ranged(&settled));
+        assert_eq!(signal.get_bounds(0), Bounds::UNBOUNDED);
+    }
 
     #[test]
     fn mark_glides_flags_only_changed_lanes() {
