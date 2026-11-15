@@ -1,11 +1,12 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
-import Markdown, { type Components } from 'react-markdown';
+import Markdown, { type Components, type ExtraProps } from 'react-markdown';
 import {
     combineReleaseNotes,
     compareVersions,
     RELEASE_NOTE_KINDS,
     type ReleaseNotes,
 } from '../../shared/releaseNotes';
+import { ColorizedCode } from './ColorizedCode';
 import './ReleaseNotesDialog.css';
 
 export interface ReleaseNotesAction {
@@ -70,7 +71,44 @@ const MARKDOWN_COMPONENTS: Components = {
             {children}
         </a>
     ),
+    pre: ({ node }) => {
+        const code = node?.children[0];
+        if (code?.type !== 'element' || code.tagName !== 'code') {
+            return null;
+        }
+        return (
+            <ColorizedCode
+                code={textOf(code).replace(/\n$/, '')}
+                language={fenceLanguage(code.properties.className)}
+            />
+        );
+    },
+    // Block code renders through `pre`, so `code` here is always inline.
+    code: ({ node }) =>
+        node ? <ColorizedCode code={textOf(node)} inline /> : null,
 };
+
+function textOf(element: NonNullable<ExtraProps['node']>): string {
+    return element.children
+        .map((child) => (child.type === 'text' ? child.value : ''))
+        .join('');
+}
+
+const LANGUAGE_ALIASES: Record<string, string> = {
+    js: 'javascript',
+    ts: 'typescript',
+};
+
+/** The Monaco language of a fence's `language-*` class; JavaScript, the
+ *  patch language, when the fence names none. */
+function fenceLanguage(className: unknown): string {
+    const classes = Array.isArray(className) ? className : [];
+    const tag = classes
+        .map(String)
+        .find((c) => c.startsWith('language-'))
+        ?.slice('language-'.length);
+    return tag ? (LANGUAGE_ALIASES[tag] ?? tag) : 'javascript';
+}
 
 function NoteMarkdown({ text }: { text: string }) {
     return (
