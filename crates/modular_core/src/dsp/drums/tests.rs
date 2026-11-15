@@ -349,7 +349,7 @@ mod parking {
             // As a patch update does, lanes past the last count start
             // afresh.
             lanes[last..].fill(Voices::default());
-            groups.layout::<Script>(&mut lanes, count);
+            groups.layout::<Script>(&mut lanes, count, 1);
             last = count;
             for sample in segment * samples..(segment + 1) * samples {
                 let mut values = [0.0; 6];

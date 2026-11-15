@@ -143,6 +143,7 @@ impl Bd909 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -169,6 +170,7 @@ impl Bd909 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Bd909ParamsBlockInputs {
@@ -276,7 +278,7 @@ impl crate::types::PatchUpdateHandler for Bd909 {
         let count = self.lane_count();
         self.state
             .groups
-            .layout::<BdInputs<&[f32]>>(&mut self.lane_state, count);
+            .layout::<BdInputs<&[f32]>>(&mut self.lane_state, count, self._channels);
     }
 }
 

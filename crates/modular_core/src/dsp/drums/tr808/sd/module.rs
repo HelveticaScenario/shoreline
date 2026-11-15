@@ -139,6 +139,7 @@ impl Sd808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -164,6 +165,7 @@ impl Sd808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Sd808ParamsBlockInputs {
@@ -266,7 +268,7 @@ impl crate::types::PatchUpdateHandler for Sd808 {
         let count = self.lane_count();
         self.state
             .groups
-            .layout::<SdInputs<&[f32]>>(&mut self.lane_state, count);
+            .layout::<SdInputs<&[f32]>>(&mut self.lane_state, count, self._channels);
     }
 }
 

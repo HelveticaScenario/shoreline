@@ -190,6 +190,23 @@ impl Voice {
         self.pair_wet = other.pair_wet;
     }
 
+    /// Clear what the voice holds of its grains after placing them: the
+    /// clean-tape interpolators and the pair's waiting sample. A voice
+    /// copied from one placed in the centre starts so, since the original
+    /// keeps that history, and the filters being linear, the two add up to
+    /// it exactly.
+    pub fn clear_placed(&mut self) {
+        self.interpolator = Default::default();
+        self.pair_wet = [Frame::ZERO; 2];
+    }
+
+    /// Ramp the voice's placement to `place` over `samples` samples.
+    pub fn glide_place(&mut self, place: [f32; 2], samples: usize) {
+        for (ramp, &target) in self.place.iter_mut().zip(&place) {
+            ramp.start(target, samples.max(1));
+        }
+    }
+
     /// Place the voice at `place` at once.
     pub fn snap_place(&mut self, place: [f32; 2]) {
         for (ramp, &target) in self.place.iter_mut().zip(&place) {

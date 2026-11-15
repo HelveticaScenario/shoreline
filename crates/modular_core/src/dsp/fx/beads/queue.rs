@@ -68,6 +68,35 @@ impl TriggerQueue {
         }
     }
 
+    /// Give voice `v + 1` a copy of each queued start for an even voice `v`,
+    /// just after it, for lanes that go from playing each side from their
+    /// left voice to playing each from its own. When the copies would not
+    /// fit, the queue is left as it is. Allocation-free.
+    pub fn mirror_left_voices(&mut self) {
+        let n = self.len;
+        let extra = (0..n)
+            .filter(|&i| self.items[self.slot(i)].grain.voice.is_multiple_of(2))
+            .count();
+        if n + extra > CAPACITY {
+            return;
+        }
+        // Writing from the back, each start lands at or after where it is
+        // read, so no start is overwritten before it is read.
+        let mut write = n + extra;
+        for read in (0..n).rev() {
+            let p = self.items[self.slot(read)];
+            if p.grain.voice.is_multiple_of(2) {
+                write -= 1;
+                let mut right = p;
+                right.grain.voice += 1;
+                self.items[self.slot(write)] = right;
+            }
+            write -= 1;
+            self.items[self.slot(write)] = p;
+        }
+        self.len = n + extra;
+    }
+
     /// Hand `accept` the triggers whose onset the inner sample `ago` engine
     /// samples before engine sample `now` has reached, oldest first. A
     /// trigger `accept` declines stays queued in order for a later sample,
@@ -123,6 +152,21 @@ mod tests {
             voice,
             ..Default::default()
         }
+    }
+
+    #[test]
+    fn mirroring_gives_each_right_voice_its_left_voices_starts() {
+        let mut q = TriggerQueue::default();
+        for (i, voice) in [0, 2, 0].into_iter().enumerate() {
+            q.push(i as u64, 1.0, trigger(voice));
+        }
+        q.mirror_left_voices();
+        let mut taken = Vec::new();
+        q.take_due(10, 0.0, 0.0, 1.0, |t| {
+            taken.push(t.voice);
+            true
+        });
+        assert_eq!(taken, vec![0, 1, 2, 3, 0, 1]);
     }
 
     #[test]

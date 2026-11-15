@@ -67,11 +67,16 @@ struct Line {
 
 impl crate::types::SeedSide for Line {
     fn seed_side(&mut self, left: &Self) {
+        let Self {
+            line: _,
+            write_ptr: _,
+            lp_state: _,
+        } = left;
         if self.line.len() == left.line.len() {
             self.line.copy_from_slice(&left.line);
             self.write_ptr = left.write_ptr;
-            self.lp_state = left.lp_state;
         }
+        self.lp_state = left.lp_state;
     }
 }
 

@@ -60,7 +60,29 @@ pub(super) struct NoiseLaneState {
 /// unseeded, so `on_patch_update` seeds it a sequence of its own and starts
 /// it from scratch.
 impl crate::types::SeedSide for NoiseLaneState {
-    fn seed_side(&mut self, _left: &Self) {}
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            generator: _,
+            seeded: _,
+            pink: _,
+            pink_prev: _,
+            white_prev: _,
+            brown: _,
+            lfsr: _,
+            lfsr_loop: _,
+            phase: _,
+            history: _,
+            curve: _,
+            telegraph_high: _,
+            impulse_at: _,
+            impulse_sign: _,
+            impulse_pending: _,
+            next_impulse_at: _,
+            next_impulse_sign: _,
+            pulse: _,
+            dust_wait: _,
+        } = left;
+    }
 }
 
 impl NoiseLaneState {

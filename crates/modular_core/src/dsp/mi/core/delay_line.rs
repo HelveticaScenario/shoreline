@@ -12,6 +12,11 @@ pub struct DelayLine {
 /// Lines of different lengths keep their own contents.
 impl crate::types::SeedSide for DelayLine {
     fn seed_side(&mut self, left: &Self) {
+        let Self {
+            line: _,
+            mask: _,
+            write_ptr: _,
+        } = left;
         if self.line.len() == left.line.len() {
             self.line.copy_from_slice(&left.line);
             self.write_ptr = left.write_ptr;

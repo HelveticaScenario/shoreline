@@ -338,6 +338,9 @@ impl PatchUpdateHandler for GranularSampler {
                 }
             }
         }
+        if self.state.chain.mono() && !self.params.mono {
+            self.state.pending.mirror_left_voices();
+        }
         self.state
             .chain
             .set_mono(&mut self.lane_state, self.params.mono);

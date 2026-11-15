@@ -19,6 +19,9 @@ use crate::dsp::utils::rng::LcgRng;
 const SIDE_PLACE: [[f32; 2]; 2] = [[1.0, 0.0], [0.0, 1.0]];
 /// Where a voice playing both sides of its lane sits.
 const MONO_PLACE: [f32; 2] = [1.0, 1.0];
+/// Control blocks over which a lane that stops playing from both voices
+/// crossfades its right voice's grains into the left voice's.
+const NARROW_BLOCKS: usize = 8;
 
 #[derive(Default)]
 pub struct GrainsVoice {
@@ -63,6 +66,9 @@ pub struct GrainsChain {
     pair_pos: usize,
     /// Whether each lane's left voice plays both sides.
     mono: bool,
+    /// Hardware samples left of the crossfade after a lane stops playing
+    /// from both voices; its right voice sounds until it ends.
+    fade: usize,
 }
 
 /// The voices that sound, with their indices: every voice, or each lane's
@@ -93,26 +99,44 @@ impl GrainsChain {
         self.pair_pos = 0;
     }
 
+    /// Whether each lane's left voice plays both sides.
+    pub fn mono(&self) -> bool {
+        self.mono
+    }
+
     /// Play each lane from its left voice alone when `mono`. A lane that
-    /// gains its right voice starts it as a copy of the left, and a lane
-    /// that loses it moves its left voice to the centre, so neither change
-    /// drops a side's recording or sounding grains. Allocation-free.
+    /// gains its right voice starts it as a copy of the left, carrying on
+    /// its recording, grains and output exactly. A lane that loses it
+    /// crossfades the right voice's grains into the left voice's, placed in
+    /// the centre, over a few control blocks. Allocation-free.
     pub fn set_mono(&mut self, voices: &mut [GrainsVoice], mono: bool) {
         if mono != self.mono {
+            let fade = NARROW_BLOCKS * self.clock.size();
             for lane in voices.chunks_mut(2) {
                 let [left, rest @ ..] = lane else {
                     continue;
                 };
                 if mono {
-                    left.voice.snap_place(MONO_PLACE);
+                    left.voice.glide_place(MONO_PLACE, fade);
+                    if let [right] = rest {
+                        right.voice.glide_place([0.0, 0.0], fade);
+                    }
                 } else if let [right] = rest {
                     right.voice.copy_from(&left.voice);
+                    right.voice.clear_placed();
                     left.voice.snap_place(SIDE_PLACE[0]);
                     right.voice.snap_place(SIDE_PLACE[1]);
                 }
             }
+            self.fade = if mono { fade } else { 0 };
         }
         self.mono = mono;
+    }
+
+    /// Whether only each lane's left voice runs: playing mono, with no
+    /// crossfade left.
+    fn left_only(&self) -> bool {
+        self.mono && self.fade == 0
     }
 
     /// Queue a grain start for its voice; false when that voice already has
@@ -153,11 +177,14 @@ impl GrainsChain {
         }
         let block = self.clock.size();
         let grain_block = block / self.media.granular_ratio();
-        let mono = self.mono;
-        for (i, v) in sounding(voices, mono) {
+        let (mono, fading) = (self.mono, self.fade > 0);
+        for (i, v) in sounding(voices, self.left_only()) {
             v.voice.start_block(controls(i), block, grain_block);
-            let place = if mono { MONO_PLACE } else { SIDE_PLACE[i % 2] };
-            v.voice.start_place(place, block);
+            // A crossfade's place ramps run to its end.
+            if !fading {
+                let place = if mono { MONO_PLACE } else { SIDE_PLACE[i % 2] };
+                v.voice.start_place(place, block);
+            }
         }
     }
 
@@ -217,22 +244,26 @@ impl GrainsChain {
         mut emit: impl FnMut(&mut GrainsVoice, f32),
     ) {
         let media = self.media;
-        let mono = self.mono;
+        let (mono, left_only) = (self.mono, self.left_only());
         for lane in voices.chunks_mut(2) {
             let mut out = Frame::ZERO;
-            for (side, v) in sounding(lane, mono) {
+            for (side, v) in sounding(lane, left_only) {
                 let voice = &mut v.voice;
-                // The ramps advance every sample; a voice's dry signal goes
-                // to the sides it plays.
+                // The ramps advance every sample. A voice's dry signal goes
+                // to the sides it plays; in mono the left voice plays both,
+                // and a right voice fading out plays only its grains.
                 voice.place[0].next();
                 voice.place[1].next();
                 let d = media.colour(voice.pair_input[k]) * voice.dry.next();
                 out += voice.pair_wet[k] * voice.wet.next();
-                if mono || side == 0 {
-                    out.l += d;
-                }
-                if mono || side == 1 {
-                    out.r += d;
+                match (mono, side) {
+                    (true, 0) => {
+                        out.l += d;
+                        out.r += d;
+                    }
+                    (true, _) => {}
+                    (false, 0) => out.l += d,
+                    (false, _) => out.r += d,
                 }
             }
             let [left, rest @ ..] = lane else {
@@ -243,6 +274,14 @@ impl GrainsChain {
             emit(left, out.l);
             if let [right] = rest {
                 emit(right, out.r);
+            }
+        }
+        if self.fade > 0 {
+            self.fade -= 1;
+            if self.fade == 0 {
+                for lane in voices.chunks_mut(2) {
+                    lane[0].voice.snap_place(MONO_PLACE);
+                }
             }
         }
     }
@@ -259,7 +298,7 @@ impl GrainsChain {
         rng: &mut LcgRng,
         index: u64,
     ) {
-        let mono = self.mono;
+        let mono = self.left_only();
         if self.media.granular_ratio() == 1 {
             self.begin_sample(voices, controls);
             Self::start_grains(voices, rng, mono);

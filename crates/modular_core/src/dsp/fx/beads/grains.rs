@@ -294,16 +294,24 @@ impl PatchUpdateHandler for Granular {
         // A quality change clears every voice, and a voice new to this
         // module still holds the silent stand-in: both take a fresh buffer,
         // which needs no clearing here. Other voices keep recording into
-        // their own. An idle voice gives up its recording.
+        // their own. A voice idle since the last update gives up its
+        // recording; one that just fell idle keeps it while it fades out. A
+        // right voice that starts playing again becomes a copy of its left
+        // voice, so it keeps the output it played while idle.
         let mono = self.params.mono;
+        let was_mono = self.state.chain.mono();
         let media = self.params.quality.media();
         let reconfigure = media != self.state.media;
         if let Some(fresh) = &mut self.params.fresh {
             for (i, v) in self.lane_state.iter_mut().enumerate() {
-                if mono && i % 2 == 1 {
-                    fresh.release(i, &mut v.voice.granular.buffer);
+                let right = i % 2 == 1;
+                if mono && right {
+                    if was_mono {
+                        fresh.release(i, &mut v.voice.granular.buffer);
+                    }
                 } else if fresh.hand_out(i, &mut v.voice.granular.buffer, reconfigure)
                     && !reconfigure
+                    && !(was_mono && right)
                 {
                     v.configure(media);
                 }
@@ -311,6 +319,9 @@ impl PatchUpdateHandler for Granular {
         }
         if reconfigure {
             self.configure(media);
+        }
+        if was_mono && !mono {
+            self.state.pending.mirror_left_voices();
         }
         self.state.chain.set_mono(&mut self.lane_state, mono);
     }

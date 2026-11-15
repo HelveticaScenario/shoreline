@@ -77,15 +77,15 @@ struct LaneState {
     /// Per-lane dither source.
     #[seed_side(keep)]
     rng: LcgRng,
+    /// Whether `rng` has this lane's stream; unset on a lane or side new to
+    /// the module.
+    #[seed_side(keep)]
+    seeded: bool,
 }
 
 /// Module-level state for the quantization-noise effect.
 #[derive(Default)]
-struct QuantNoiseState {
-    /// Set once the per-lane dither RNGs have been seeded off the module's
-    /// stable heap address (see `seed`).
-    seeded: bool,
-}
+struct QuantNoiseState;
 
 const QUANT_NOISE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Digital grit",
@@ -124,16 +124,17 @@ impl QuantNoise {
     /// identically. By `on_patch_update` the module sits at its stable
     /// per-instance heap address.
     ///
-    /// Guarded by `seeded` (which, with the RNG state, rides
-    /// `transfer_state_from`): `on_patch_update` runs after the state swap, so
-    /// re-seeding unconditionally would clobber the stream carried over from the
-    /// previous patch on every edit. Seeding once keeps the dither continuous.
+    /// Only lanes without a stream are seeded: each lane's `seeded` rides
+    /// `transfer_state_from` with its RNG, so a running lane keeps its dither
+    /// continuous across edits while a new lane or side gets its own stream.
     fn seed(&mut self) {
         let base = seed_base(self);
         for (lane, state) in self.lane_state.iter_mut().enumerate() {
-            state.rng.seed(base, lane);
+            if !state.seeded {
+                state.rng.seed(base, lane);
+                state.seeded = true;
+            }
         }
-        self.state.seeded = true;
     }
 
     fn update(&mut self, sample_rate: f32) {
@@ -183,9 +184,7 @@ impl QuantNoise {
 
 impl crate::types::PatchUpdateHandler for QuantNoise {
     fn on_patch_update(&mut self) {
-        if !self.state.seeded {
-            self.seed();
-        }
+        self.seed();
     }
 }
 
@@ -210,7 +209,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
-            state: QuantNoiseState::default(),
+            state: QuantNoiseState,
             lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };
         m.on_patch_update();

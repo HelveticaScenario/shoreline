@@ -88,6 +88,15 @@ pub struct Diffuser {
 /// Buffers of different lengths keep their own contents.
 impl crate::types::SeedSide for Diffuser {
     fn seed_side(&mut self, left: &Self) {
+        let Self {
+            buffer: _,
+            mask: _,
+            write_ptr: _,
+            lp_decay: _,
+            lfo_y0: _,
+            lfo_y1: _,
+            lfo_value: _,
+        } = left;
         if self.buffer.len() == left.buffer.len() {
             self.buffer.copy_from_slice(&left.buffer);
             self.write_ptr = left.write_ptr;

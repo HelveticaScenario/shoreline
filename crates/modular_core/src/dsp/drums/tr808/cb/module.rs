@@ -140,6 +140,7 @@ impl Cb808 {
 
     fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -165,6 +166,7 @@ impl Cb808 {
         sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Cb808ParamsBlockInputs {

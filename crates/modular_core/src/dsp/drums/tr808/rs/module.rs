@@ -142,6 +142,7 @@ impl Rs808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -166,6 +167,7 @@ impl Rs808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Rs808ParamsBlockInputs {
@@ -321,6 +323,7 @@ impl Cl808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -346,6 +349,7 @@ impl Cl808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Cl808ParamsBlockInputs {

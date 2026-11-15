@@ -889,3 +889,53 @@ fn a_two_channel_file_makes_its_players_stereo() {
     // What reads a stereo player lifts to stereo.
     assert_eq!(lanes("filtered"), 2);
 }
+
+#[test]
+fn a_widened_drum_rings_on_in_every_lane_and_side() {
+    // Two kick lanes ringing in one group, widened to stereo mid-hit by a
+    // stereo accent: each lane's left side rings on as before and its right
+    // side rings with it, holding the same controls.
+    for hold in [false, true] {
+        let mono_modules = |accent: Value| {
+            vec![
+                ("clk", "$pulse", json!({ "freq": [2.0, 3.0] })),
+                ("a", "$signal", signal(json!(2.5))),
+                (
+                    "st",
+                    "$stereo",
+                    json!({ "left": cable("a", 0), "right": cable("a", 0) }),
+                ),
+                (
+                    "kick",
+                    "$tr808.kick",
+                    json!({ "trigger": [cable("clk", 0), cable("clk", 1)], "accent": accent, "hold": hold }),
+                ),
+            ]
+        };
+        let kept = build(&mono_modules(cable("a", 0))).unwrap();
+        let old = build(&mono_modules(cable("a", 0))).unwrap();
+        for _ in 0..3000 {
+            assert_eq!(step(&kept, "kick"), step(&old, "kick"));
+        }
+        let (wide, _) = insert(&mono_modules(cable("st", 0))).unwrap();
+        swap(&old, &wide);
+        let mut heard = 0.0f32;
+        for n in 0..2000 {
+            let expected = step(&kept, "kick");
+            let got = step(&wide, "kick");
+            assert_eq!(got.len(), 4);
+            for lane in 0..2 {
+                for side in 0..2 {
+                    let v = got[lane * 2 + side];
+                    assert!(
+                        (v - expected[lane]).abs() < 1e-4,
+                        "sample {n}, lane {lane} side {side}: {v} vs {}",
+                        expected[lane]
+                    );
+                }
+            }
+            heard = heard.max(expected[1].abs());
+        }
+        assert!(heard > 0.1, "the kicks ring");
+    }
+}

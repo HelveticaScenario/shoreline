@@ -87,6 +87,10 @@ pub struct Hold<const T: usize, const N: usize> {
     /// Whether each lane's `values` have been taken since holding began.
     taken: [bool; PORT_MAX_LANES],
     holding: bool,
+    /// Lanes and channels per lane the slots are laid out for; 0 channels
+    /// before the first sample.
+    lanes: usize,
+    channels: usize,
 }
 
 impl<const T: usize, const N: usize> Default for Hold<T, N> {
@@ -96,6 +100,8 @@ impl<const T: usize, const N: usize> Default for Hold<T, N> {
             values: [[0.0; N]; PORT_MAX_LANES],
             taken: [false; PORT_MAX_LANES],
             holding: false,
+            lanes: 0,
+            channels: 0,
         }
     }
 }
@@ -131,6 +137,49 @@ impl<const T: usize, const N: usize> Hold<T, N> {
             }
         }
         std::array::from_fn(|k| Held::Stored(&self.values, k))
+    }
+}
+
+impl<const T: usize, const N: usize> Hold<T, N> {
+    /// Lays the slots out for `lanes` sides at `channels` per lane, the
+    /// module's layout; called before each sample's [`Self::apply`]. When a
+    /// patch update widens or narrows the module, each side's slots move
+    /// with it, a side it gains taking its lane's left side, and a side
+    /// whose lane the old layout lacked takes its controls afresh.
+    /// Allocation-free.
+    #[inline(always)]
+    pub fn lay_out(&mut self, lanes: usize, channels: usize) {
+        let (old, new) = (self.channels, channels.max(1));
+        if old != new {
+            self.move_sides(lanes, old, new);
+        }
+        self.lanes = lanes;
+    }
+
+    #[cold]
+    fn move_sides(&mut self, lanes: usize, old: usize, new: usize) {
+        self.channels = new;
+        if old == 0 {
+            return;
+        }
+        let source = |k: usize| (k / new) * old + (k % new).min(old - 1);
+        let mut relay = |k: usize| {
+            let from = source(k);
+            if from < self.lanes {
+                self.edges[k] = self.edges[from];
+                self.values[k] = self.values[from];
+                self.taken[k] = self.taken[from];
+            } else {
+                self.taken[k] = false;
+            }
+        };
+        // A widening reads each slot at or below where it lands, a
+        // narrowing at or above, so the order never reads a moved slot.
+        if new > old {
+            (0..lanes.min(PORT_MAX_LANES)).rev().for_each(&mut relay);
+        } else {
+            (0..lanes.min(PORT_MAX_LANES)).for_each(&mut relay);
+        }
     }
 }
 

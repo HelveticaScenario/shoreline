@@ -1,34 +1,39 @@
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::spanned::Spanned;
-use syn::{Data, DeriveInput, Fields};
+use syn::{Data, DeriveInput};
 
 /// `#[derive(SeedSide)]`: a new side copies the left side's state, except
 /// fields marked `#[seed_side(keep)]`, which keep the new side's own value.
 /// The type must be `Copy`, so the copy cannot allocate.
 pub fn impl_seed_side_macro(ast: &DeriveInput) -> TokenStream {
     let name = &ast.ident;
-    let kept: Vec<_> = match &ast.data {
-        Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => fields
-                .named
-                .iter()
-                .filter(|f| {
-                    f.attrs.iter().any(|a| {
-                        a.path().is_ident("seed_side")
-                            && a.parse_args::<syn::Ident>().is_ok_and(|i| i == "keep")
-                    })
-                })
-                .filter_map(|f| f.ident.clone())
-                .collect(),
-            Fields::Unit | Fields::Unnamed(_) => Vec::new(),
-        },
-        _ => {
-            return syn::Error::new(ast.span(), "#[derive(SeedSide)] only supports structs")
+    let Data::Struct(data) = &ast.data else {
+        return syn::Error::new(ast.span(), "#[derive(SeedSide)] only supports structs")
+            .to_compile_error()
+            .into();
+    };
+    let mut kept = Vec::new();
+    for field in data.fields.iter() {
+        for attr in field
+            .attrs
+            .iter()
+            .filter(|a| a.path().is_ident("seed_side"))
+        {
+            let keep = attr.parse_args::<syn::Ident>().is_ok_and(|i| i == "keep");
+            let error = match (&field.ident, keep) {
+                (Some(ident), true) => {
+                    kept.push(ident.clone());
+                    continue;
+                }
+                (None, true) => "#[seed_side(keep)] needs a named field",
+                (_, false) => "expected #[seed_side(keep)]",
+            };
+            return syn::Error::new(attr.span(), error)
                 .to_compile_error()
                 .into();
         }
-    };
+    }
     let mut generics = ast.generics.clone();
     generics
         .make_where_clause()
