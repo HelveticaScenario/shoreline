@@ -184,6 +184,41 @@ struct Lane {
     held: [f32; 3],
 }
 
+/// A new side keeps its own `random`, so the sides' particles stay
+/// independent.
+impl crate::types::SeedSide for Lane {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            particles: _,
+            random: _,
+            seeded: _,
+            trigger: _,
+            post_filter: _,
+            post_filter_pitch: _,
+            diffuser: _,
+            limiter: _,
+            countdown: _,
+            position: _,
+            density_48k: _,
+            sum: _,
+            count: _,
+            held: _,
+        } = left;
+        self.particles = left.particles;
+        self.trigger = left.trigger;
+        self.post_filter = left.post_filter;
+        self.post_filter_pitch = left.post_filter_pitch;
+        self.diffuser.seed_side(&left.diffuser);
+        self.limiter = left.limiter;
+        self.countdown = left.countdown;
+        self.position = left.position;
+        self.density_48k = left.density_48k;
+        self.sum = left.sum;
+        self.count = left.count;
+        self.held = left.held;
+    }
+}
+
 impl Lane {
     /// A lane with its diffuser sized for `state`'s rate. Allocates.
     fn new(state: &ParticlesState) -> Self {

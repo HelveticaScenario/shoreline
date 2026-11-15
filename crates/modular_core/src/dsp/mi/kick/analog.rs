@@ -166,6 +166,7 @@ pub(super) struct Knobs {
 }
 
 /// One lane: the drum, then the overdrive.
+#[derive(Clone, Copy, SeedSide)]
 pub(super) struct Lane {
     drum: AnalogBassDrum,
     overdrive: Overdrive,

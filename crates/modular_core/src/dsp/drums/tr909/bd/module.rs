@@ -109,9 +109,10 @@ struct BdState {
     groups: Groups<KickDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Kick>,
+    #[seed_side(keep)]
     noise: Noise,
     rate: Cached<f32, f32>,
     /// The sweep and decay pots' conductances at their knobs' travel.

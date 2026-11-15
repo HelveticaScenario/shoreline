@@ -142,7 +142,7 @@ struct Controls {
     blend: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     path: QuadratureOscillator,
     controls: Controls,

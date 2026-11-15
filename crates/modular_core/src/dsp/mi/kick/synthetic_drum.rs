@@ -75,7 +75,7 @@ pub struct SyntheticKnobs {
 }
 
 /// The controls derived from the pitch, tone, decay and FM decay.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Controls {
     tone_f: f32,
     body_env_decay: f32,
@@ -102,7 +102,7 @@ fn transistor_vca(s: f32, gain: f32) -> f32 {
 }
 
 /// The click: a slewed step, high-passed and then low-passed at 5 kHz.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Click {
     lp: f32,
     hp: f32,
@@ -119,7 +119,7 @@ impl Click {
 }
 
 /// The attack noise: white noise band-passed by two one-poles.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct AttackNoise {
     lp: f32,
     hp: f32,
@@ -137,6 +137,7 @@ impl AttackNoise {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct SyntheticBassDrum {
     /// Plaits' one-sample interpolators of the pitch and the drone's level,
     /// which land a hair off their targets.

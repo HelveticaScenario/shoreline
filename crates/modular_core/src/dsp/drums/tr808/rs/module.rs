@@ -96,7 +96,7 @@ struct ClState {
 
 /// A rim shot lane: its circuits, and its resonators tuned to its
 /// `freq` with the output gain levelling it.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct RimLane {
     voices: Voices<Rim>,
     controls: Cached<f32, (RimControls, f32)>,
@@ -104,7 +104,7 @@ struct RimLane {
 
 /// A claves lane: its circuits, and its resonator tuned to its `freq`
 /// and `decay` with the output gain levelling `freq`.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct ClavesLane {
     voices: Voices<Claves>,
     t: Cached<(f32, f32), (BridgedT, f32)>,

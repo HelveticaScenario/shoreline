@@ -73,9 +73,10 @@ struct CpState {
     groups: Groups<ClapDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Clap>,
+    #[seed_side(keep)]
     noise: Noise,
 }
 

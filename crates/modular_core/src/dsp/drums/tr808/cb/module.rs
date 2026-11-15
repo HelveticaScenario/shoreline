@@ -93,7 +93,7 @@ struct CbState {
     hold: Hold<1, 1>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Bell>,
     /// The oscillators' phases, in cycles.

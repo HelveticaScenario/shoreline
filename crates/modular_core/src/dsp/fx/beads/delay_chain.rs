@@ -74,6 +74,66 @@ pub struct DelayVoice {
     pair_wet: [f32; 2],
     /// Second output of the last pair, emitted on the next hardware sample.
     pair_output: f32,
+    /// Set on a new side that carries on from its lane's left side but has
+    /// no recording to copy that side's into yet; it copies it once
+    /// `on_patch_update` hands it a buffer.
+    pub awaits_left_recording: bool,
+}
+
+impl crate::types::SeedSide for DelayVoice {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            buffer: _,
+            feedback: _,
+            multitap: _,
+            controller: _,
+            speed: _,
+            bandwidth: _,
+            history: _,
+            input: _,
+            freeze: _,
+            freeze_schmitt: _,
+            feedback_amount: _,
+            dry_wet: _,
+            groove_amount: _,
+            started: _,
+            dry: _,
+            wet: _,
+            limiters: _,
+            output: _,
+            decimator: _,
+            interpolator: _,
+            pair_input: _,
+            pair_freeze: _,
+            pair_wet: _,
+            pair_output: _,
+            awaits_left_recording: _,
+        } = left;
+        self.awaits_left_recording = !self.buffer.copy_from(&left.buffer);
+        self.feedback = left.feedback;
+        self.multitap = left.multitap;
+        self.controller = left.controller;
+        self.speed = left.speed;
+        self.bandwidth = left.bandwidth;
+        self.history.copy_from(&left.history);
+        self.input = left.input;
+        self.freeze = left.freeze;
+        self.freeze_schmitt = left.freeze_schmitt;
+        self.feedback_amount = left.feedback_amount;
+        self.dry_wet = left.dry_wet;
+        self.groove_amount = left.groove_amount;
+        self.started = left.started;
+        self.dry = left.dry;
+        self.wet = left.wet;
+        self.limiters = left.limiters;
+        self.output.copy_from(&left.output);
+        self.decimator = left.decimator;
+        self.interpolator = left.interpolator;
+        self.pair_input = left.pair_input;
+        self.pair_freeze = left.pair_freeze;
+        self.pair_wet = left.pair_wet;
+        self.pair_output = left.pair_output;
+    }
 }
 
 impl DelayVoice {

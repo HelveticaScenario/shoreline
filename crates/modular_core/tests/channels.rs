@@ -300,10 +300,10 @@ fn a_stereo_signal_carries_half_the_lanes() {
 }
 
 #[test]
-fn widening_to_stereo_keeps_the_left_side_running() {
-    // A slow slew settled at 0 V, then swapped to a stereo 5 V input: its left
-    // side carries on from 0 V and climbs, while its right side is new and,
-    // like any fresh slew, starts at its input.
+fn widening_to_stereo_carries_both_sides_on_from_the_left() {
+    // A slow slew settled at 0 V, then swapped to a stereo 5 V input: both
+    // sides carry on from 0 V and climb, the new right side starting from
+    // the left side's state.
     let mono = build(&[
         ("k", "$signal", signal(json!(0.0))),
         (
@@ -341,7 +341,31 @@ fn widening_to_stereo_keeps_the_left_side_running() {
         after[0] > 0.0 && after[0] < 0.1,
         "left carries on: {after:?}"
     );
-    assert_eq!(after[1], 5.0, "right starts fresh: {after:?}");
+    assert_eq!(after[1], after[0], "right carries on: {after:?}");
+}
+
+#[test]
+fn a_widened_oscillator_keeps_its_phase_on_both_sides() {
+    let mono = build(&[("osc", "$sine", json!({ "freq": 0.0 }))]).unwrap();
+    for _ in 0..1234 {
+        step(&mono, "osc");
+    }
+    let (stereo, _) = insert(&[
+        ("k", "$signal", signal(json!(0.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("k", 0), "right": cable("k", 0) }),
+        ),
+        ("osc", "$sine", json!({ "freq": cable("st", 0) })),
+    ])
+    .unwrap();
+    let before = step(&mono, "osc")[0];
+    swap(&mono, &stereo);
+    let after = step(&stereo, "osc");
+    let delta = (after[0] - before).abs();
+    assert!(delta < 0.1, "left carries on: {before} {after:?}");
+    assert_eq!(after[0], after[1], "right carries on: {after:?}");
 }
 
 #[test]

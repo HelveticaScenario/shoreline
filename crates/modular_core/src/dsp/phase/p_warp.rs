@@ -33,7 +33,7 @@ struct PWarpOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     warp: PhaseWarpState,
     glides: PhaseWarpGlides,

@@ -72,6 +72,7 @@ struct Grain {
 
 // ── Per-lane state ──────────────────────────────────────────────────────────
 
+#[derive(Clone, Copy, SeedSide)]
 struct GrainLane {
     grains: [Grain; GRAINS_PER_LANE],
     /// Bit `i` is set while `grains[i]` is playing.
@@ -84,6 +85,7 @@ struct GrainLane {
     /// Asymmetrically smoothed active-grain count (Clouds SLOPE: fast rise,
     /// slow fall) used for Clouds-style amplitude normalisation.
     smoothed_count: f32,
+    #[seed_side(keep)]
     rng: LcgRng,
 }
 

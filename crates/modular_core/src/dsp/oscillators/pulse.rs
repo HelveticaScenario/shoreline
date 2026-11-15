@@ -66,7 +66,7 @@ struct PulseOscillatorOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct PulseLaneState {
     phase: f32,
     width: SwapGlide,

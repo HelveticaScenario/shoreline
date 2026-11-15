@@ -56,7 +56,7 @@ impl Grid {
 }
 
 /// Crossfades between the old and new interval when the delay time changes.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct IntervalClock {
     /// Old and new interval in samples.
     interval: [f32; 2],
@@ -168,7 +168,7 @@ pub struct DelayControls {
     pub shape: f32,
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct DelayController {
     min_delay: f32,
     max_delay: f32,

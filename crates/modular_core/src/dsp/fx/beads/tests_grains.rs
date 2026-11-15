@@ -701,3 +701,75 @@ fn a_voice_that_falls_idle_gives_up_its_recording() {
         assert!(l.is_finite() && r.is_finite());
     }
 }
+
+/// Run `a` and `b` side by side over a sine and a steady trigger, asserting
+/// they agree on both sides.
+fn assert_play_alike(a: &mut Granular, b: &mut Granular, from: usize, samples: usize) {
+    for n in from..from + samples {
+        let x = sine(330.0, n, SR, 3.0);
+        let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+        let (l1, r1) = step(a, x, trig, SR);
+        let (l2, r2) = step(b, x, trig, SR);
+        assert!((l1 - l2).abs() < 1e-4, "left at {n}: {l1} {l2}");
+        assert!((r1 - r2).abs() < 1e-4, "right at {n}: {r1} {r2}");
+    }
+}
+
+fn wet_params() -> GranularParams {
+    let mut p = grains_params(GranularQuality::Digital);
+    p.mix = poly_volts(&[3.5]);
+    p.feedback = poly_volts(&[2.0]);
+    p.size = poly_volts(&[1.25]);
+    p
+}
+
+#[test]
+fn widening_starts_the_right_voice_where_the_left_is() {
+    // A module kept mono beside one widened to stereo mid-grain: with both
+    // sides fed alike, the widened one plays on exactly as before.
+    let mut kept = make_grains(wet_params(), SR);
+    let mut widened = make_grains(wet_params(), SR);
+    assert_play_alike(&mut kept, &mut widened, 0, 20_000);
+    let mut stereo = construct_stereo(wet_params(), SR);
+    transfer(&mut widened, &mut stereo);
+    assert_eq!(recording_level(&stereo, 1), recording_level(&stereo, 0));
+    assert_play_alike(&mut kept, &mut stereo, 20_000, 10_000);
+}
+
+#[test]
+fn widening_a_frozen_recording_keeps_it_on_both_sides() {
+    let mut p = wet_params();
+    p.freeze = poly_volts(&[5.0]);
+    let mut m = make_grains(wet_params(), SR);
+    record(&mut m);
+    let mut stereo = construct_stereo(p, SR);
+    transfer(&mut m, &mut stereo);
+    let (mut l, mut r) = (Vec::new(), Vec::new());
+    for n in 0..24_000 {
+        let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+        stereo.params.freeze = poly_volts(&[5.0]);
+        let (a, b) = step(&mut stereo, 0.0, trig, SR);
+        l.push(a);
+        r.push(b);
+    }
+    assert!(rms(&l) > 0.05, "left {}", rms(&l));
+    assert!(
+        rms(&r) > 0.9 * rms(&l),
+        "right {} left {}",
+        rms(&r),
+        rms(&l)
+    );
+}
+
+#[test]
+fn narrowing_plays_the_lane_on_from_its_left_voice() {
+    let mut kept = construct_stereo(wet_params(), SR);
+    kept.on_patch_update();
+    let mut narrowed = construct_stereo(wet_params(), SR);
+    narrowed.on_patch_update();
+    assert_play_alike(&mut kept, &mut narrowed, 0, 20_000);
+    let mut mono = construct(wet_params(), SR);
+    transfer(&mut narrowed, &mut mono);
+    assert!(mono.params.mono);
+    assert_play_alike(&mut kept, &mut mono, 20_000, 10_000);
+}

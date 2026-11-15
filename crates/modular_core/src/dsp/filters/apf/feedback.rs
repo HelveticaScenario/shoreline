@@ -70,6 +70,7 @@ pub(super) fn input_gain(gain: f32) -> f32 {
 /// Loop gain up to 1 feeds the whole output back. Gain past 1 passes only
 /// through a bandpass around the cutoff, so self-oscillation builds there
 /// rather than on the chain's short-delay modes toward Nyquist.
+#[derive(Clone, Copy, SeedSide)]
 pub(super) struct FeedbackLoop {
     /// `feedback` the gains were computed for.
     feedback: f32,
@@ -81,6 +82,7 @@ pub(super) struct FeedbackLoop {
     excess_coeffs: StageCoeffs,
     /// Noise floor in the bandpass, which lets self-oscillation start from
     /// silence.
+    #[seed_side(keep)]
     noise: LcgRng,
     /// The chain's last output.
     last: f32,

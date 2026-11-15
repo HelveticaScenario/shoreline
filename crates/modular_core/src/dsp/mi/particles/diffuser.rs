@@ -85,6 +85,20 @@ pub struct Diffuser {
     lfo_value: f32,
 }
 
+/// Buffers of different lengths keep their own contents.
+impl crate::types::SeedSide for Diffuser {
+    fn seed_side(&mut self, left: &Self) {
+        if self.buffer.len() == left.buffer.len() {
+            self.buffer.copy_from_slice(&left.buffer);
+            self.write_ptr = left.write_ptr;
+        }
+        self.lp_decay = left.lp_decay;
+        self.lfo_y0 = left.lfo_y0;
+        self.lfo_y1 = left.lfo_y1;
+        self.lfo_value = left.lfo_value;
+    }
+}
+
 impl Diffuser {
     /// A silent diffuser sized for `rates`. Allocates.
     pub fn new(rates: &DiffuserRates) -> Self {

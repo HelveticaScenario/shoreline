@@ -27,6 +27,13 @@ pub struct CombExtra {
     wp: usize,
 }
 
+impl crate::types::SeedSide for CombExtra {
+    fn seed_side(&mut self, left: &Self) {
+        self.delay.copy_from_slice(&left.delay);
+        self.wp = left.wp;
+    }
+}
+
 impl Default for CombExtra {
     fn default() -> Self {
         sinc::prime();

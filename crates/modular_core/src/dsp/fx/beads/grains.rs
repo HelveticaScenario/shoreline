@@ -296,7 +296,6 @@ impl PatchUpdateHandler for Granular {
         // which needs no clearing here. Other voices keep recording into
         // their own. An idle voice gives up its recording.
         let mono = self.params.mono;
-        self.state.chain.set_mono(mono);
         let media = self.params.quality.media();
         let reconfigure = media != self.state.media;
         if let Some(fresh) = &mut self.params.fresh {
@@ -313,6 +312,7 @@ impl PatchUpdateHandler for Granular {
         if reconfigure {
             self.configure(media);
         }
+        self.state.chain.set_mono(&mut self.lane_state, mono);
     }
 }
 

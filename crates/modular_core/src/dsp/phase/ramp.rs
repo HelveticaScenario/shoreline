@@ -27,7 +27,7 @@ struct RampOutputs {
 }
 
 /// Per-lane phasor state
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     phase: f32,
 }

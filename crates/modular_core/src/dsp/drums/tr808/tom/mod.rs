@@ -178,9 +178,10 @@ impl TomShared {
 
 /// One output lane: its voices, noise generator, and the bridged-T tuned
 /// for the current `freq` and `decay`.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Tom>,
+    #[seed_side(keep)]
     noise: WhiteNoise,
     network: Cached<(f32, f32), Network>,
 }

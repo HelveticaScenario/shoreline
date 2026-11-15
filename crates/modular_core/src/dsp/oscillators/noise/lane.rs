@@ -56,6 +56,13 @@ pub(super) struct NoiseLaneState {
     dust_wait: f64,
 }
 
+/// A side a widening patch update adds keeps its own fresh state: it is
+/// unseeded, so `on_patch_update` seeds it a sequence of its own and starts
+/// it from scratch.
+impl crate::types::SeedSide for NoiseLaneState {
+    fn seed_side(&mut self, _left: &Self) {}
+}
+
 impl NoiseLaneState {
     /// Seed this lane's RNG from a [`seed_base`] and its lane index, set
     /// where its LFSR starts, then start `kind` fresh.

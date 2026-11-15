@@ -93,15 +93,35 @@ impl GrainsChain {
         self.pair_pos = 0;
     }
 
-    /// Play each lane from its left voice alone when `mono`.
-    pub fn set_mono(&mut self, mono: bool) {
+    /// Play each lane from its left voice alone when `mono`. A lane that
+    /// gains its right voice starts it as a copy of the left, and a lane
+    /// that loses it moves its left voice to the centre, so neither change
+    /// drops a side's recording or sounding grains. Allocation-free.
+    pub fn set_mono(&mut self, voices: &mut [GrainsVoice], mono: bool) {
+        if mono != self.mono {
+            for lane in voices.chunks_mut(2) {
+                let [left, rest @ ..] = lane else {
+                    continue;
+                };
+                if mono {
+                    left.voice.snap_place(MONO_PLACE);
+                } else if let [right] = rest {
+                    right.voice.copy_from(&left.voice);
+                    left.voice.snap_place(SIDE_PLACE[0]);
+                    right.voice.snap_place(SIDE_PLACE[1]);
+                }
+            }
+        }
         self.mono = mono;
     }
 
     /// Queue a grain start for its voice; false when that voice already has
-    /// one waiting. A trigger for a voice the module no longer has, carried
-    /// over from a wider module, is dropped.
+    /// one waiting. A trigger for a voice the module no longer has or no
+    /// longer plays, carried over from before a patch update, is dropped.
     pub fn offer(&mut self, voices: &mut [GrainsVoice], t: GrainTrigger) -> bool {
+        if self.mono && t.voice % 2 == 1 {
+            return true;
+        }
         let Some(v) = voices.get_mut(t.voice) else {
             return true;
         };

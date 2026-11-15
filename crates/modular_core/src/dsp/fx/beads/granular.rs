@@ -34,6 +34,14 @@ impl GranularCore {
             .reset(sample_rate, resolution, MAX_FEEDBACK_GAIN);
     }
 
+    /// Become a copy of `other`'s recording, grains and feedback, writing
+    /// into the storage this core holds. Allocation-free.
+    pub fn copy_from(&mut self, other: &GranularCore) {
+        self.buffer.copy_from(&other.buffer);
+        self.player = other.player;
+        self.feedback = other.feedback;
+    }
+
     /// Allocate a buffer of `frames` samples. Main thread only.
     pub fn allocate_frames(&mut self, frames: usize) {
         self.buffer.allocate_frames(frames);

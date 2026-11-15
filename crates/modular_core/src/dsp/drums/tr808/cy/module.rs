@@ -98,7 +98,7 @@ struct CyState {
     groups: Groups<CymbalDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Cymbal>,
     bank: MetalBank,

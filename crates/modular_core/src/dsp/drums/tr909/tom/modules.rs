@@ -40,9 +40,10 @@ struct TomState {
     groups: Groups<TomDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Tom>,
+    #[seed_side(keep)]
     noise: Noise,
     rate: Cached<f32, f32>,
 }

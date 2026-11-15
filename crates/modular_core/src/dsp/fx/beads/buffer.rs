@@ -184,6 +184,32 @@ impl GrainBuffer {
         self.clean = true;
     }
 
+    /// Become a copy of `other`, writing into the storage this buffer holds.
+    /// A recording copies `other`'s samples when both hold as many; a loaded
+    /// buffer copies only when both share the same contents. Returns whether
+    /// it copied; otherwise the buffer is left as it was. Allocation-free.
+    pub fn copy_from(&mut self, other: &GrainBuffer) -> bool {
+        match (&mut self.items, &other.items) {
+            (Items::Recorded(mine), Items::Recorded(theirs)) if mine.len() == theirs.len() => {
+                mine.copy_from_slice(theirs);
+            }
+            (Items::Loaded(mine), Items::Loaded(theirs)) if Arc::ptr_eq(mine, theirs) => {}
+            _ => return false,
+        }
+        self.freeze_tail = other.freeze_tail;
+        self.resolution = other.resolution;
+        self.max_delay = other.max_delay;
+        self.write_ptr = other.write_ptr;
+        self.tail_write_ptr = other.tail_write_ptr;
+        self.tail_xfade_duration = other.tail_xfade_duration;
+        self.written_since_last_frozen = other.written_since_last_frozen;
+        self.duration = other.duration;
+        self.frozen = other.frozen;
+        self.source = other.source;
+        self.clean = other.clean;
+        true
+    }
+
     /// Samples of storage, without the interpolation tail.
     pub fn frames(&self) -> usize {
         self.items().len().saturating_sub(INTERPOLATION_TAIL)

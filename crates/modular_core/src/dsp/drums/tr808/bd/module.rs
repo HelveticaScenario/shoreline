@@ -113,7 +113,7 @@ struct BdState {
     groups: Groups<KickDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Kick>,
     /// The bridged-T for the lane's `freq` and `decay`.

@@ -143,7 +143,7 @@ struct Controls {
     feedback: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     carrier_phase: u32,
     modulator_phase: u32,

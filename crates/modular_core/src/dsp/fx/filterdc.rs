@@ -24,7 +24,7 @@ struct FilterDcOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     /// One-pole high-pass state — `y[n] = x[n] - x[n-1] + R · y[n-1]`.
     dc_blocker: DcBlocker,

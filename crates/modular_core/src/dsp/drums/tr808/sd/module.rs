@@ -66,9 +66,10 @@ struct Sd808Outputs {
     sample: PolyOutput,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Snare>,
+    #[seed_side(keep)]
     noise: WhiteNoise,
     /// The resonators tuned for the lane's `freq`.
     tuning: Cached<f32, Tuning>,

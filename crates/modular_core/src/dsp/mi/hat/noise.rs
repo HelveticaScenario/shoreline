@@ -19,7 +19,7 @@ const SQUARE_RATIOS: [f32; 6] = [1.0, 1.304, 1.466, 1.787, 1.932, 2.536];
 
 /// Six naive square waves summed, as the 808's six Schmitt trigger
 /// oscillators.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct SquareNoise {
     phase: [u32; 6],
     increment: [u32; 6],
@@ -49,7 +49,7 @@ impl MetallicNoise for SquareNoise {
 const RING_HZ: [f32; 6] = [200.0, 7530.0, 510.0, 8075.0, 730.0, 10500.0];
 
 /// Three products of a square and a saw, summed.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct RingModNoise {
     oscillators: [BlepOscillator; 6],
     frequency: [f32; 6],

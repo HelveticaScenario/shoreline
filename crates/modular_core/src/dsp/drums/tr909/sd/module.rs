@@ -103,9 +103,10 @@ struct SdState {
     groups: Groups<SnareDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Snare>,
+    #[seed_side(keep)]
     noise: Noise,
     rate: Cached<f32, f32>,
     /// C67's per-sample fall through the tone pot at its knob's travel.

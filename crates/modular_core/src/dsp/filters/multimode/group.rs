@@ -64,6 +64,13 @@ pub(super) struct GroupState {
     pub(super) pre_emphasis: PreEmphasis,
 }
 
+/// A group holds four lanes, not one side, so a new side has no left side of
+/// its own here: it starts from rest when `on_patch_update` clears the
+/// elements new to the patch.
+impl crate::types::SeedSide for GroupState {
+    fn seed_side(&mut self, _left: &Self) {}
+}
+
 impl GroupState {
     /// Sets the core's rate-dependent coefficients, clearing the oversampling
     /// filters and integrator caches when the rate changes.

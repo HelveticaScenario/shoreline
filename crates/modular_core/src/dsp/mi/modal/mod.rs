@@ -218,11 +218,12 @@ impl ExcitationFilter {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     excitation: ExcitationFilter,
     resonator: Resonator,
     limiter: Limiter,
+    #[seed_side(keep)]
     random: Random,
     trigger: SchmittTrigger,
     structure_lp: f32,
@@ -235,6 +236,7 @@ struct Voice {
     held: [f32; 4],
     /// Whether `random` has its per-instance seed. Transfers with the voice,
     /// so a voice's grains stay continuous across patch updates.
+    #[seed_side(keep)]
     seeded: bool,
 }
 

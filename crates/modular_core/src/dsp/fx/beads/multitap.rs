@@ -55,7 +55,7 @@ impl PitchShifter {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 pub struct MultitapDelay {
     shifters: [PitchShifter; RENDERED_TAPS],
     filter: Svf,

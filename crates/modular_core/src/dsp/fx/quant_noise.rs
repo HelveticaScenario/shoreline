@@ -63,7 +63,7 @@ struct QuantNoiseOutputs {
 /// grid from collapsing onto a single level (which would emit silence).
 const MIN_STEP: f32 = 1.0e-4;
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     amount: SwapGlide,
     step: SwapGlide,
@@ -75,6 +75,7 @@ struct LaneState {
     /// already primed and keeps its running `prev_q`.
     primed: bool,
     /// Per-lane dither source.
+    #[seed_side(keep)]
     rng: LcgRng,
 }
 

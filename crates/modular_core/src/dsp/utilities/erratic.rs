@@ -148,13 +148,21 @@ struct ErraticOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct ErraticLaneState {
+    #[seed_side(keep)]
     rng: LcgRng,
     /// Drives `sparse_points` only, so `rng`'s sequence is the same with
     /// sparse on or off.
+    #[seed_side(keep)]
     sparse_rng: LcgRng,
+    /// Whether `rng` and `sparse_rng` have this lane's streams. A side a
+    /// widening patch update adds keeps it unset, so it seeds its own
+    /// streams while carrying on the left side's curve.
+    #[seed_side(keep)]
     seeded: bool,
+    /// Whether `points` and `sparse_points` hold this lane's first draws.
+    drawn: bool,
     /// Position between `points[1]` and `points[2]`, in [0, 1). f64, so the
     /// tiny increments of low speeds still advance it near 1.
     phase: f64,
@@ -226,16 +234,20 @@ struct LaneInputs {
 }
 
 impl ErraticLaneState {
-    /// Seed this lane's RNG from a [`seed_base`] and its lane index, and
-    /// draw its first four points.
+    /// Seed this lane's RNGs from a [`seed_base`] and its lane index.
     fn seed(&mut self, base: u64, lane: usize) {
         self.rng.seed(base, lane);
         self.sparse_rng.seed(base ^ SPARSE_SEED_SALT, lane);
+        self.seeded = true;
+    }
+
+    /// Draw this lane's first four points.
+    fn draw(&mut self) {
         self.points = std::array::from_fn(|_| self.rng.next_bipolar());
         self.sparse_points = std::array::from_fn(|_| self.sparse_rng.next_unit());
         self.curve = CatmullRom::new(self.points);
         self.sparse_curve = CatmullRom::new(self.sparse_points);
-        self.seeded = true;
+        self.drawn = true;
     }
 
     /// Advance one sample and return the randomised input.
@@ -454,15 +466,18 @@ impl Erratic {
 }
 
 impl crate::types::PatchUpdateHandler for Erratic {
-    /// Seeds each unseeded lane off the module's stable heap address. The
-    /// per-lane `seeded` flag rides `transfer_state_from`, so a running
-    /// lane keeps its sequence across patch updates while newly added
-    /// lanes still get distinct streams.
+    /// Seeds each unseeded lane off the module's stable heap address, then
+    /// draws the first points of a lane with none. The per-lane flags ride
+    /// `transfer_state_from`, so a running lane keeps its sequence across
+    /// patch updates while newly added lanes still get distinct streams.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
         for (lane, state) in self.lane_state.iter_mut().enumerate() {
             if !state.seeded {
                 state.seed(base, lane);
+            }
+            if !state.drawn {
+                state.draw();
             }
         }
     }
