@@ -162,7 +162,10 @@ fn split_outputs_sum_to_the_mix() {
     let peak = mix.iter().fold(0.0f32, |m, v| m.max(v.abs()));
     assert!(peak > 0.1, "mix is silent");
     for i in 0..mix.len() {
-        assert!((low[i] + high[i] - mix[i]).abs() < 1e-3, "low + high at {i}");
+        assert!(
+            (low[i] + high[i] - mix[i]).abs() < 1e-3,
+            "low + high at {i}"
+        );
         let rebuilt = root[i] / 0.7 * mix_gain + other[i] / 0.6;
         assert!((rebuilt - mix[i]).abs() < 1e-3, "root + other at {i}");
     }
