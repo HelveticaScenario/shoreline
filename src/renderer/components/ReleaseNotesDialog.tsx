@@ -76,12 +76,7 @@ const MARKDOWN_COMPONENTS: Components = {
         if (code?.type !== 'element' || code.tagName !== 'code') {
             return null;
         }
-        return (
-            <ColorizedCode
-                code={textOf(code).replace(/\n$/, '')}
-                language={fenceLanguage(code.properties.className)}
-            />
-        );
+        return <ColorizedCode code={textOf(code).replace(/\n$/, '')} />;
     },
     // Block code renders through `pre`, so `code` here is always inline.
     code: ({ node }) =>
@@ -92,22 +87,6 @@ function textOf(element: NonNullable<ExtraProps['node']>): string {
     return element.children
         .map((child) => (child.type === 'text' ? child.value : ''))
         .join('');
-}
-
-const LANGUAGE_ALIASES: Record<string, string> = {
-    js: 'javascript',
-    ts: 'typescript',
-};
-
-/** The Monaco language of a fence's `language-*` class; JavaScript, the
- *  patch language, when the fence names none. */
-function fenceLanguage(className: unknown): string {
-    const classes = Array.isArray(className) ? className : [];
-    const tag = classes
-        .map(String)
-        .find((c) => c.startsWith('language-'))
-        ?.slice('language-'.length);
-    return tag ? (LANGUAGE_ALIASES[tag] ?? tag) : 'javascript';
 }
 
 function NoteMarkdown({ text }: { text: string }) {

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import { useTheme } from '../themes/ThemeContext';
 
-/** Colorized HTML by theme, language and source, so code scrolled or opened
+/** Colorized HTML by theme and source, so code scrolled or opened
  *  back into view keeps its colours without a flash of plain text. Monaco's
  *  token classes index the active theme's colours, so each theme has its own
  *  entries. */
@@ -10,8 +10,6 @@ const colorized = new Map<string, string>();
 
 interface ColorizedCodeProps {
     code: string;
-    /** A Monaco language id. */
-    language?: string;
     /** A `<code>` inside running text rather than a `<pre>` block. */
     inline?: boolean;
 }
@@ -19,12 +17,11 @@ interface ColorizedCodeProps {
 /** Code in the editor's colours, plain until Monaco has tokenized it. */
 export const ColorizedCode: React.FC<ColorizedCodeProps> = ({
     code,
-    language = 'javascript',
     inline = false,
 }) => {
     const monaco = useCustomMonaco();
     const themeId = useTheme().theme.id;
-    const key = `${themeId}\n${language}\n${code}`;
+    const key = `${themeId}\n${code}`;
     const [colored, setColored] = useState(() => {
         const html = colorized.get(key);
         return html === undefined ? undefined : { html, key };
@@ -39,7 +36,7 @@ export const ColorizedCode: React.FC<ColorizedCodeProps> = ({
         // task later reads that theme's colours.
         const timer = setTimeout(() => {
             monaco.editor
-                .colorize(code, language, { tabSize: 2 })
+                .colorize(code, 'javascript', { tabSize: 2 })
                 .then((result) => {
                     // Plain spaces, so copied code parses as it reads. Every
                     // line ends in a `<br/>`; the last one would break an
@@ -60,7 +57,7 @@ export const ColorizedCode: React.FC<ColorizedCodeProps> = ({
             live = false;
             clearTimeout(timer);
         };
-    }, [monaco, code, language, key]);
+    }, [monaco, code, key]);
     const content = html ? (
         // Monaco escapes the source it tokenizes.
         <code dangerouslySetInnerHTML={{ __html: html }} />
