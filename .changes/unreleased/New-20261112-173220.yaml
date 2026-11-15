@@ -1,0 +1,4 @@
+kind: New
+body: |-
+    `$erratic` is a module of its own, so you can call it directly, like `$erratic($sine('2hz'), 1)`, as well as through `.erratic()`, and `.wet()` after it blends the varied signal with the original. Its `min`, `max` and `mode` now work on any signal: `'clamp'` and `'blend'` keep a signal without a range of its own within -5 to 5, or within `min` and `max`.
+time: 2026-11-12T17:32:20.947659-05:00

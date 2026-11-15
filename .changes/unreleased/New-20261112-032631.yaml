@@ -1,0 +1,3 @@
+kind: New
+body: '`$chord` has an `inversion` control that raises its lowest notes an octave (or drops its highest, for negative values), gliding smoothly between voicings. A new `_level` output gives each voice''s loudness.'
+time: 2026-11-12T03:26:31.617409-05:00

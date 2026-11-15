@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'Sliders, quick fixes and step highlights work on `$tr808` drums, on quoted option keys such as `{ ''phase'': 0.5 }`, and on constants declared inside functions.'
+time: 2026-11-12T03:26:46.559706-05:00

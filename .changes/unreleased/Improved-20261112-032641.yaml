@@ -1,0 +1,3 @@
+kind: Improved
+body: Patches use less CPU, especially with many scopes or meters, and sounds that fade to silence no longer cost extra CPU on Intel and AMD computers.
+time: 2026-11-12T03:26:41.949664-05:00

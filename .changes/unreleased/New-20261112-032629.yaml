@@ -1,0 +1,3 @@
+kind: New
+body: 'The engines of Mutable Instruments Plaits arrive as `$mi.*` modules, each knob a patchable input. Oscillators: `$mi.twoOp`, `$mi.sixOp` (DX7-style FM with patch banks), `$mi.formant`, `$mi.zOsc`, `$mi.waveshaper`, `$mi.phaseDistortion`, `$mi.additive`, `$mi.waveTerrain`, `$mi.swarm`, `$mi.divideDown`. Struck and plucked: `$mi.modal`, `$mi.string`, `$mi.particles`. Drums: `$mi.kick`, `$mi.synthKick`, `$mi.snare`, `$mi.synthSnare`, `$mi.hiHat`, `$mi.ringHat`. Speech: `$mi.formantVowel`, `$mi.samVowel`, `$mi.lpcVowel`, `$mi.speak`. And `$mi.chorus`, a stereo ensemble. Patch `$lpg` after one for Plaits'' plucked sound.'
+time: 2026-11-12T03:26:29.324781-05:00
