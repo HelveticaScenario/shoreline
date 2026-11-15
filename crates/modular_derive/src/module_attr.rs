@@ -1224,6 +1224,7 @@ fn impl_module_macro_attr(
                 #(#module_field_inits),*
             };
             crate::types::OutputStruct::set_all_lanes(&mut inner.outputs, deserialized.lane_count);
+            crate::types::OutputStruct::narrow_mono_outputs(&mut inner.outputs, deserialized.channels.max(1));
             crate::types::OutputStruct::make_f64_outputs(&mut inner.outputs, deserialized.f64_inputs);
             // Fill `#[default_connection]` inputs here, on the main thread:
             // the audio-thread `connect` must stay allocation-free, so it only
@@ -1235,7 +1236,11 @@ fn impl_module_macro_attr(
                 sample_rate,
                 module: std::cell::UnsafeCell::new(inner),
                 index: std::cell::Cell::new(0),
-                block_outputs: std::cell::UnsafeCell::new(<#block_outputs_ty>::new(_block_size, deserialized.lane_count, deserialized.f64_inputs)),
+                block_outputs: std::cell::UnsafeCell::new({
+                    let mut ports = <#block_outputs_ty>::new(_block_size, deserialized.lane_count, deserialized.f64_inputs);
+                    ports.narrow_mono_ports(deserialized.channels.max(1));
+                    ports
+                }),
                 glide_generation: std::cell::Cell::new(0),
                 block_size: _block_size,
                 mode: _mode,

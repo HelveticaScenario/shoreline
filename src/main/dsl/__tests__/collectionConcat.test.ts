@@ -81,7 +81,7 @@ describe('concat', () => {
                     'freq',
                 ),
             ),
-        ).toEqual(['0:all:0', '1:all:0']);
+        ).toEqual(['0:output:0', '1:output:0']);
     });
 
     test('a slice of a joined module keeps its outputs', () => {
@@ -112,7 +112,7 @@ describe('concat', () => {
                     'inputs',
                 ).flat(),
             ),
-        ).toEqual(['0:output:0', '1:all:0']);
+        ).toEqual(['0:output:0', '1:output:0']);
     });
 
     test('joins two delays', () => {

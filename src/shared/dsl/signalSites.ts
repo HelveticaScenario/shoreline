@@ -37,6 +37,8 @@ export interface ModuleSiteInfo {
     folds: string[];
     /** The `$buffer` params whose channels the module lifts with, as with an input. */
     buffers: string[];
+    /** Outputs that carry one value per lane, mono whatever the module is. */
+    monoOutputs: string[];
 }
 
 /**
@@ -489,7 +491,17 @@ export function collectSignalSites(
         if (ts.isIdentifier(value)) {
             return identifierChannels(value);
         }
-        // An output, a lane or a slice carries its module's channels.
+        // An output, a lane or a slice carries its module's channels, but a
+        // `mono` output is mono.
+        if (
+            ts.isPropertyAccessExpression(value) &&
+            value.name.text.startsWith('_') &&
+            moduleOf(value.expression)?.monoOutputs.includes(
+                value.name.text.slice(1),
+            )
+        ) {
+            return 'mono';
+        }
         if (
             ts.isPropertyAccessExpression(value) ||
             ts.isElementAccessExpression(value)
@@ -500,6 +512,39 @@ export function collectSignalSites(
             return callChannels(value);
         }
         return 'unknown';
+    };
+
+    /** The module a value is a call to, through parentheses and `const` bindings. */
+    const moduleOf = (
+        expression: TS.Expression,
+    ): ModuleSiteInfo | undefined => {
+        let value = expression;
+        while (ts.isParenthesizedExpression(value)) {
+            value = value.expression;
+        }
+        if (ts.isIdentifier(value)) {
+            const declaration =
+                checker.getSymbolAtLocation(value)?.valueDeclaration;
+            return declaration &&
+                ts.isVariableDeclaration(declaration) &&
+                declaration.initializer &&
+                declaration.getSourceFile() === sourceFile &&
+                ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const &&
+                !following.has(declaration)
+                ? moduleOf(declaration.initializer)
+                : undefined;
+        }
+        if (!ts.isCallExpression(value)) {
+            return undefined;
+        }
+        const name = dottedName(value.expression);
+        const module = name ? own(tables.modules, name) : undefined;
+        if (module) {
+            return module;
+        }
+        return ts.isPropertyAccessExpression(value.expression)
+            ? chainCall(value.expression)?.module
+            : undefined;
     };
 
     const identifierChannels = (name: TS.Identifier): Channels => {

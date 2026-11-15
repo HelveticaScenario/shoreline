@@ -47,6 +47,11 @@ describe('scopes', () => {
         ).toEqual(['0:0', '0:1']);
     });
 
+    test("a stereo module's mono output draws one trace", () => {
+        expect(traces(`$enosc('c3')._odd.scope()`)).toEqual(['0:0']);
+        expect(traces(`$enosc('c3').scope()`)).toEqual(['0:0', '0:1']);
+    });
+
     test('a mono lane draws one', () => {
         expect(traces(`$saw(['c3', 'e3']).scope()`)).toEqual(['0:0', '1:0']);
     });

@@ -890,7 +890,16 @@ export class GraphBuilder implements ChainHost {
         if (value instanceof DeferredModuleOutput) {
             yield 'unknown';
         } else if (value instanceof ModuleOutput) {
-            yield this.moduleChannels.get(value.moduleId) ?? 'mono';
+            // A `mono` output carries one value per lane whatever its module.
+            const spec = this.modules.get(value.moduleId);
+            const output = spec
+                ? this.schemaByName
+                      .get(spec.moduleType)
+                      ?.outputs.find((o) => o.name === value.portName)
+                : undefined;
+            yield output?.mono
+                ? 'mono'
+                : (this.moduleChannels.get(value.moduleId) ?? 'mono');
         } else if (value instanceof BaseCollection) {
             for (const item of value.items) {
                 yield* this.laneChannels(item);
