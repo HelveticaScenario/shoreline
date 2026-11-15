@@ -1743,19 +1743,19 @@ impl BufferData {
 
     /// Copy the most recent `min(old_size, new_size)` frames from `other` into `self`,
     /// placing each frame at the correct circular position for the new buffer size.
+    /// Lane `i` of `self` takes lane `source_lane(i)` of `other`, when it has one.
     /// Preserves the monotonic write index so that `$delayRead`'s offset math continues
     /// working after a resize.
     ///
     /// Runs on the audio thread — no heap allocation. Uses at most 4 `copy_from_slice`
     /// (memcpy) calls per lane (2 source segments × 2 possible destination wraps)
     /// by decomposing the circular regions into contiguous segments.
-    pub fn copy_overlap_from(&self, other: &Self) {
+    pub fn copy_overlap_from(&self, other: &Self, source_lane: impl Fn(usize) -> usize) {
         let write_idx = other.read_write_index();
 
         self.with_data_mut(|dst| {
             other.with_data(|src| {
-                let lane_count = dst.len().min(src.len());
-                if lane_count == 0 {
+                if dst.is_empty() || src.is_empty() {
                     return;
                 }
 
@@ -1794,9 +1794,10 @@ impl BufferData {
                         )
                     };
 
-                for lane_idx in 0..lane_count {
-                    let dst_ch = &mut dst[lane_idx];
-                    let src_ch = &src[lane_idx];
+                for (lane_idx, dst_ch) in dst.iter_mut().enumerate() {
+                    let Some(src_ch) = src.get(source_lane(lane_idx)) else {
+                        continue;
+                    };
 
                     for &(src_start, len, age_of_first) in &segments[..seg_count] {
                         debug_assert!(len <= age_of_first + 1);
@@ -3882,7 +3883,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         for age in 0..5 {
@@ -3900,7 +3901,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(1, 8);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         // Ages 0..4 should have data
@@ -3921,7 +3922,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(1, 8);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         for age in 0..8 {
@@ -3938,7 +3939,7 @@ mod tests {
         fill_buffer_sequential(&old, 0);
 
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 0);
         // Age 0 (the one frame written) should be preserved
@@ -3961,7 +3962,7 @@ mod tests {
         fill_buffer_sequential(&old, write_idx);
 
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), write_idx);
         for age in 0..5 {
@@ -3976,7 +3977,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(3, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         for lane in 0..3 {
@@ -3996,7 +3997,7 @@ mod tests {
     fn test_copy_overlap_zero_size_old() {
         let old = BufferData::new_zeroed(1, 0);
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
         // Should not panic, write index should be 0
         assert_eq!(new.read_write_index(), 0);
     }
@@ -4006,7 +4007,7 @@ mod tests {
         let old = BufferData::new_zeroed(1, 8);
         fill_buffer_sequential(&old, 42);
         let new = BufferData::new_zeroed(1, 0);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
         // Should not panic, write index preserved
         assert_eq!(new.read_write_index(), 42);
     }
@@ -4025,7 +4026,7 @@ mod tests {
             fill_buffer_sequential(&old, write_idx);
 
             let new = BufferData::new_zeroed(2, buf_size);
-            new.copy_overlap_from(&old);
+            new.copy_overlap_from(&old, |lane| lane);
 
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 
@@ -4056,7 +4057,7 @@ mod tests {
             fill_buffer_sequential(&old, write_idx);
 
             let new = BufferData::new_zeroed(1, new_size);
-            new.copy_overlap_from(&old);
+            new.copy_overlap_from(&old, |lane| lane);
 
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 
@@ -4085,7 +4086,7 @@ mod tests {
             fill_buffer_sequential(&old, write_idx);
 
             let new = BufferData::new_zeroed(1, new_size);
-            new.copy_overlap_from(&old);
+            new.copy_overlap_from(&old, |lane| lane);
 
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 
