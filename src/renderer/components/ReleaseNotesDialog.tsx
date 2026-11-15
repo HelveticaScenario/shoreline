@@ -1,11 +1,12 @@
 import { useEffect, useMemo, type ReactNode } from 'react';
-import Markdown, { type Components } from 'react-markdown';
+import Markdown, { type Components, type ExtraProps } from 'react-markdown';
 import {
     combineReleaseNotes,
     compareVersions,
     RELEASE_NOTE_KINDS,
     type ReleaseNotes,
 } from '../../shared/releaseNotes';
+import { ColorizedCode } from './ColorizedCode';
 import './ReleaseNotesDialog.css';
 
 export interface ReleaseNotesAction {
@@ -70,7 +71,23 @@ const MARKDOWN_COMPONENTS: Components = {
             {children}
         </a>
     ),
+    pre: ({ node, children }) => {
+        const code = node?.children[0];
+        if (code?.type !== 'element' || code.tagName !== 'code') {
+            return <pre>{children}</pre>;
+        }
+        return <ColorizedCode code={textOf(code).replace(/\n$/, '')} />;
+    },
+    // Block code renders through `pre`, so `code` here is always inline.
+    code: ({ node }) =>
+        node ? <ColorizedCode code={textOf(node)} inline /> : null,
 };
+
+function textOf(element: NonNullable<ExtraProps['node']>): string {
+    return element.children
+        .map((child) => (child.type === 'text' ? child.value : ''))
+        .join('');
+}
 
 function NoteMarkdown({ text }: { text: string }) {
     return (
