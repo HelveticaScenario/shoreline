@@ -1035,7 +1035,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1044,7 +1044,7 @@
         "name": "left",
         "description": "the left side",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": true,
         "readsSides": true
@@ -1053,7 +1053,7 @@
         "name": "right",
         "description": "the right side",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": true,
         "readsSides": true
@@ -1167,7 +1167,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1176,7 +1176,7 @@
         "name": "input",
         "description": "the signal to fold",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": true
@@ -1287,7 +1287,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1296,7 +1296,7 @@
         "name": "input",
         "description": "the stereo signal",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": true
@@ -1407,7 +1407,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1416,7 +1416,7 @@
         "name": "input",
         "description": "the stereo signal",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": true
@@ -1527,7 +1527,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1536,7 +1536,7 @@
         "name": "input",
         "description": "the signal to fold",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": true
@@ -1647,7 +1647,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1656,7 +1656,7 @@
         "name": "input",
         "description": "the stereo signal",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": true
@@ -1772,7 +1772,7 @@
         "polyphonic": true,
         "default": true,
         "precision": "f32",
-        "bounds": "input"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -1781,7 +1781,7 @@
         "name": "mid",
         "description": "what both sides share",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": true,
         "readsSides": true
@@ -1790,7 +1790,7 @@
         "name": "side",
         "description": "what makes the signal wide",
         "paramType": "audio",
-        "carriesBounds": true,
+        "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": true,
         "readsSides": true

@@ -1,7 +1,4 @@
-//! Join, split and fold the two sides of a stereo signal. Each carries its
-//! inputs' bounds through; a fold's are those an input folding a stereo
-//! signal reads ([`Bounds::fold`](crate::bounds::Bounds::fold)), so
-//! `x.mono()` keeps the range `x` has when folded implicitly.
+//! Join, split and fold the two sides of a stereo signal.
 
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -15,16 +12,16 @@ use crate::poly::{PairSignal, PolyOutput};
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct StereoParams {
-    #[input("the left side", type = audio, fold, bounds)]
+    #[input("the left side", type = audio, fold)]
     left: PairSignal,
-    #[input("the right side", type = audio, fold, bounds)]
+    #[input("the right side", type = audio, fold)]
     right: PairSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct StereoOutputs {
-    #[output("output", "the stereo signal", type = cv, bounds = input, default)]
+    #[output("output", "the stereo signal", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -61,11 +58,6 @@ impl Stereo {
                 &self.params.right
             };
             self.outputs.sample.set(lane, input.get_folded(lane / 2));
-            if self.outputs.sample.stores_bounds() {
-                self.outputs
-                    .sample
-                    .set_bounds(lane, input.get_folded_bounds(lane / 2));
-            }
         }
     }
 }
@@ -77,14 +69,14 @@ message_handlers!(impl Stereo {});
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MonoParams {
-    #[input("the signal to fold", type = audio, bounds)]
+    #[input("the signal to fold", type = audio)]
     input: PairSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MonoOutputs {
-    #[output("output", "each lane's sides averaged", type = cv, bounds = input, default)]
+    #[output("output", "each lane's sides averaged", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -112,11 +104,6 @@ impl Mono {
             self.outputs
                 .sample
                 .set(lane, self.params.input.get_folded(lane));
-            if self.outputs.sample.stores_bounds() {
-                self.outputs
-                    .sample
-                    .set_bounds(lane, self.params.input.get_folded_bounds(lane));
-            }
         }
     }
 }
@@ -128,14 +115,14 @@ message_handlers!(impl Mono {});
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SideParams {
-    #[input("the stereo signal", type = audio, bounds)]
+    #[input("the stereo signal", type = audio)]
     input: PairSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SideOutputs {
-    #[output("output", "one side of each lane", type = cv, bounds = input, default)]
+    #[output("output", "one side of each lane", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -174,11 +161,6 @@ impl Left {
             self.outputs
                 .sample
                 .set(lane, self.params.input.get_value(lane, 0));
-            if self.outputs.sample.stores_bounds() {
-                self.outputs
-                    .sample
-                    .set_bounds(lane, self.params.input.get_bounds(lane, 0));
-            }
         }
     }
 }
@@ -214,11 +196,6 @@ impl Right {
             self.outputs
                 .sample
                 .set(lane, self.params.input.get_value(lane, 1));
-            if self.outputs.sample.stores_bounds() {
-                self.outputs
-                    .sample
-                    .set_bounds(lane, self.params.input.get_bounds(lane, 1));
-            }
         }
     }
 }
@@ -254,11 +231,6 @@ impl Mid {
             self.outputs
                 .sample
                 .set(lane, self.params.input.get_folded(lane));
-            if self.outputs.sample.stores_bounds() {
-                self.outputs
-                    .sample
-                    .set_bounds(lane, self.params.input.get_folded_bounds(lane));
-            }
         }
     }
 }
@@ -293,12 +265,6 @@ impl SideOf {
                 lane,
                 0.5 * (input.get_value(lane, 0) - input.get_value(lane, 1)),
             );
-            if self.outputs.sample.stores_bounds() {
-                let bounds = input
-                    .get_bounds(lane, 0)
-                    .combine(input.get_bounds(lane, 1), |l, r| 0.5 * (l - r));
-                self.outputs.sample.set_bounds(lane, bounds);
-            }
         }
     }
 }
@@ -310,16 +276,16 @@ message_handlers!(impl SideOf {});
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct FromMidSideParams {
-    #[input("what both sides share", type = audio, fold, bounds)]
+    #[input("what both sides share", type = audio, fold)]
     mid: PairSignal,
-    #[input("what makes the signal wide", type = audio, fold, bounds)]
+    #[input("what makes the signal wide", type = audio, fold)]
     side: PairSignal,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct FromMidSideOutputs {
-    #[output("output", "the stereo signal: mid plus side on the left, mid minus side on the right", type = cv, bounds = input, default)]
+    #[output("output", "the stereo signal: mid plus side on the left, mid minus side on the right", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -352,15 +318,6 @@ impl FromMidSide {
             let side = self.params.side.get_folded(lane);
             self.outputs.sample.set(lane * 2, mid + side);
             self.outputs.sample.set(lane * 2 + 1, mid - side);
-            if self.outputs.sample.stores_bounds() {
-                let (mid, side) = (
-                    self.params.mid.get_folded_bounds(lane),
-                    self.params.side.get_folded_bounds(lane),
-                );
-                let sample = &mut self.outputs.sample;
-                sample.set_bounds(lane * 2, mid.combine(side, |m, s| m + s));
-                sample.set_bounds(lane * 2 + 1, mid.combine(side, |m, s| m - s));
-            }
         }
     }
 }

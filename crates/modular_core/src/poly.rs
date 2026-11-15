@@ -842,19 +842,6 @@ impl PairSignal {
     pub fn get_folded(&self, lane: usize) -> f32 {
         0.5 * (self.get_value(lane, 0) + self.get_value(lane, 1))
     }
-
-    /// The bounds of side `side` of lane `lane`, at the slot `get_value` reads.
-    #[inline]
-    pub fn get_bounds(&self, lane: usize, side: usize) -> Bounds {
-        self.inner.get_bounds(lane * 2 + side)
-    }
-
-    /// The bounds of [`get_folded`](Self::get_folded), as an input folding
-    /// the lane reads them.
-    #[inline]
-    pub fn get_folded_bounds(&self, lane: usize) -> Bounds {
-        self.get_bounds(lane, 0).fold(self.get_bounds(lane, 1))
-    }
 }
 
 impl crate::types::Connect for PairSignal {
