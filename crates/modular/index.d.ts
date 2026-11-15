@@ -572,6 +572,13 @@ export interface ModuleSchema {
    */
   bufferOutputs: Array<string>
   signalParams: Array<SignalParamSchema>
+  /**
+   * The params that nest signals (`[points, signal]`, arrays of signals)
+   * and that a stereo module reads folded (`#[input(…, fold)]` on a param
+   * with no `type`). A mono module folds every signal it reads. Always
+   * serialized, like `buffer_outputs`.
+   */
+  nestedFolds: Array<string>
   positionalArgs: Array<PositionalArg>
   /** If set, this module always produces exactly this many lanes (no inference needed) */
   lanes?: number

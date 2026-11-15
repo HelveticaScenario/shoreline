@@ -111,7 +111,8 @@ struct InputAttr {
     /// variants the `bounds = input` outputs are unbounded; set to a listed
     /// one or unset, they are bounded when the tagged inputs give a range.
     bounding: Option<Vec<Ident>>,
-    /// `fold`: a stereo module reads this input folded.
+    /// `fold`: a stereo module reads this input folded. On a param with no
+    /// `type`, it marks one that nests signals (`[points, signal]`).
     fold: bool,
 }
 
@@ -575,6 +576,7 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
     };
 
     let mut schemas = Vec::new();
+    let mut nested_folds = Vec::new();
     let mut defaults = Vec::new();
     let mut bounds_checks = Vec::new();
     let mut constant_checks = Vec::new();
@@ -659,6 +661,9 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             .insert(i, syn::parse_quote! { #[doc = #description] });
 
         let Some((param_type, _)) = parsed.param_type else {
+            if parsed.fold {
+                nested_folds.push(ident.to_string().to_case(Case::Camel));
+            }
             if let Some(range) = &parsed.range {
                 let parts = [
                     range.min.as_ref().map(|n| {
@@ -857,6 +862,9 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
             #[allow(clippy::approx_constant)]
             fn signal_param_schemas() -> Vec<crate::types::SignalParamSchema> {
                 vec![#(#schemas,)*]
+            }
+            fn nested_fold_params() -> Vec<String> {
+                vec![#(#nested_folds.to_string(),)*]
             }
         }
     })
