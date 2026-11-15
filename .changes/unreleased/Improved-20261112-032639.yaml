@@ -1,3 +1,0 @@
-kind: Improved
-body: A bottom bar opens the mixer and the docs in a resizable panel under the editor. The command `shoreline.toggleVuMeters` is now `shoreline.toggleMixer`.
-time: 2026-11-12T03:26:39.653162-05:00
