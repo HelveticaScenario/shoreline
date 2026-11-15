@@ -78,9 +78,13 @@ export function buildSignalSiteTables(
                 ...(schema.signalParams ?? [])
                     .filter((param) => param.fold)
                     .map((param) => param.name),
-                ...(schema.stereo === 'mono'
-                    ? nested.map((param) => param.name)
-                    : []),
+                ...nested
+                    .filter(
+                        (param) =>
+                            schema.stereo === 'mono' ||
+                            schema.nestedFolds.includes(param.name),
+                    )
+                    .map((param) => param.name),
             ],
             inputs: Object.fromEntries([
                 ...flat.map((p) => [p.name, p.inputClass] as const),

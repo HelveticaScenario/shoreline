@@ -572,6 +572,13 @@ export interface ModuleSchema {
    */
   bufferOutputs: Array<string>
   signalParams: Array<SignalParamSchema>
+  /**
+   * The params that nest signals (`[points, signal]`, arrays of signals)
+   * and that a stereo module reads folded (`#[input(…, fold)]` on a param
+   * with no `type`). A mono module folds every signal it reads. Always
+   * serialized, like `buffer_outputs`.
+   */
+  nestedFolds: Array<string>
   positionalArgs: Array<PositionalArg>
   /** If set, this module always produces exactly this many lanes (no inference needed) */
   lanes?: number
@@ -791,7 +798,12 @@ export type StereoMode = /**
  * Always stereo whatever its inputs: the module writes both sides of
  * each lane itself.
  */
-'stereo';
+'stereo'|
+/**
+ * Stereo when a file it plays has two channels: its lanes carry the
+ * file's sides and every input folds.
+ */
+'derived';
 
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */
 export interface VuMeterFrame {
