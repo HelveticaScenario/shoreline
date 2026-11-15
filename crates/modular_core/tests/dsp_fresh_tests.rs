@@ -1496,6 +1496,9 @@ fn supersaw_saws_carry_across_a_patch_update() {
     // stride, so the element-wise state transfer keeps every saw's runtime
     // state at its own coordinates: a stereo lane carries on from where it
     // was across an update, and a change of voice count keeps running.
+    // A pinned seed places no saw on its wrap at the compared sample, where
+    // a continuous saw still jumps.
+    modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
     let supersaw_params = |voices: u32, detune: f32| {
         json!({
             // Two notes (~C2): two stereo lanes, so a stride mismatch would

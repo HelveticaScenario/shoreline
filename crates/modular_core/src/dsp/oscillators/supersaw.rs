@@ -1,3 +1,4 @@
+use crate::bounds::Bounds;
 use std::ops::Range;
 
 use deserr::Deserr;
@@ -74,7 +75,7 @@ fn default_true() -> bool {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SupersawOutputs {
-    #[output("output", "the stacked saws, one stereo lane per note", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the stacked saws, one stereo lane per note", type = cv, bounds = params, default)]
     sample: PolyOutput,
 }
 
@@ -155,6 +156,9 @@ struct SupersawState {
     /// left to right with equal-power panning that keeps a centred voice at
     /// unity.
     pan: [[f32; PORT_MAX_LANES]; 2],
+    /// Each side's loudest swing, every saw at its peak at once: the output
+    /// bounds.
+    peak: [f32; 2],
     /// Per-lane edge detector for the sync input.
     sync_schmitt: [SchmittTrigger; PORT_MAX_LANES],
     /// Per-lane previous sync sample, for subsample edge interpolation.
@@ -173,6 +177,7 @@ impl Default for SupersawState {
             gain: 0.0,
             voice_t: [0.0; PORT_MAX_LANES],
             pan: [[0.0; PORT_MAX_LANES]; 2],
+            peak: [0.0; 2],
             sync_schmitt: [SchmittTrigger::default(); PORT_MAX_LANES],
             sync_prev: [0.0; PORT_MAX_LANES],
         }
@@ -264,6 +269,15 @@ impl Supersaw {
             self.state.pan[0][v] = (2.0 * (1.0 - p)).sqrt();
             self.state.pan[1][v] = (2.0 * p).sqrt();
         }
+        for (peak, pan) in self.state.peak.iter_mut().zip(&self.state.pan) {
+            *peak = self.state.gain * pan[..voices].iter().sum::<f32>();
+        }
+    }
+
+    /// Lane `lane`'s bounds: its side's peak either way.
+    fn bounds(&self, lane: usize) -> Bounds {
+        let peak = self.state.peak[lane % 2];
+        Bounds::new(-peak, peak)
     }
 
     fn update(&mut self, _sample_rate: f32) {
@@ -301,6 +315,12 @@ impl Supersaw {
                 accum += cell.step(dt, frac) * gain;
             }
             self.outputs.sample.set(lane, accum * self.state.gain);
+        }
+        if self.outputs.sample.stores_bounds() {
+            for lane in 0..lanes {
+                let bounds = self.bounds(lane);
+                self.outputs.sample.set_bounds(lane, bounds);
+            }
         }
     }
 
@@ -344,6 +364,10 @@ impl Supersaw {
         if held {
             fill(&mut increments, range.start);
         }
+        let peak = self.state.peak;
+        outputs.sample.fill_bounds_with(range.clone(), |lane| {
+            Some(Bounds::new(-peak[lane % 2], peak[lane % 2]))
+        });
 
         for i in range {
             if !held {

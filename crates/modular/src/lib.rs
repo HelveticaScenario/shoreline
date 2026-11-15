@@ -1405,7 +1405,7 @@ impl Synthesizer {
             .map(|builder| builder(&params));
 
         // Uncached: slider values would pollute the params cache.
-        let module = self
+        let (module, update_id) = self
             .state
             .rebuild_module(&module_id, &module_type, params, self.sample_rate)
             .map_err(napi::Error::from_reason)?;
@@ -1413,6 +1413,7 @@ impl Synthesizer {
         self.state.send_command(GraphCommand::SingleModuleUpdate {
             module_id: module_id.clone(),
             module,
+            update_id,
         })?;
 
         // Reconcile editor state to the new params (no-op for stateless types).

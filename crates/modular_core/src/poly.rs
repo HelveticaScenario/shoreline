@@ -285,6 +285,11 @@ pub struct PolySignal {
     /// Bit `i` is set when lane `i` differs from the matching lane of the
     /// replaced module's signal. All set until a swap compares them.
     changed: u64,
+    /// Channels per lane of the reader, from [`expand_lanes`]: lane `l` side
+    /// `c` is lane `l * channels + c`.
+    ///
+    /// [`expand_lanes`]: crate::types::Connect::expand_lanes
+    channels: usize,
 }
 
 // Hand-written rather than `#[derive(Connect)]`: deriving would require a
@@ -339,13 +344,20 @@ impl crate::types::Connect for PolySignal {
             }
         }
         *self = Self::from_lanes(lanes.into_boxed_slice());
+        self.channels = channels;
     }
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds) {
         self.glide_generation = generation;
         self.changed = 0;
+        // Lane `i` is compared with the old lane at its logical lane and side,
+        // where a lane's carried-over state comes from; a side the old signal
+        // lacks compares with its left side.
+        let channels = self.channels.max(1);
+        let old_channels = old.map_or(1, |o| o.channels.max(1));
         for (i, signal) in self.lanes.iter().enumerate() {
+            let j = (i / channels) * old_channels + (i % channels).min(old_channels - 1);
             let same = old
-                .and_then(|o| o.lanes.get(i))
+                .and_then(|o| o.lanes.get(j))
                 .is_some_and(|o| signal.same_source(o, ids));
             if !same {
                 self.changed |= crate::types::GlideMark::bit(i);
@@ -387,6 +399,7 @@ impl PolySignal {
             cable: None,
             glide_generation: 0,
             changed: u64::MAX,
+            channels: 1,
         }
     }
 
@@ -1006,7 +1019,23 @@ mod tests {
     use crate::dsp::utils::hz_to_voct;
 
     use super::*;
-    use crate::types::{Connect, SameIds};
+    use crate::types::{Connect, LaneExpansion, SameIds};
+
+    #[test]
+    fn widening_compares_each_side_with_its_old_lane() {
+        let expand = |channels| {
+            let mut signal = PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0)]);
+            signal.expand_lanes(&LaneExpansion {
+                channels,
+                producer: &|_, _| 1,
+            });
+            signal
+        };
+        let old = expand(1);
+        let mut new = expand(2);
+        new.mark_glides(Some(&old), 1, &SameIds);
+        assert_eq!(new.changed, 0, "every side kept its lane's source");
+    }
 
     #[test]
     fn mark_glides_flags_only_changed_lanes() {

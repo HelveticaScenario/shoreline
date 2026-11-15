@@ -127,6 +127,7 @@ impl PolySignal {
             }
             if let Some((data, stride)) = self
                 .cable_view()
+                .filter(|cable| cable.repeat() == 1)
                 .and_then(|cable| cable.rendered_to(range.end))
             {
                 return Some(BlockInput {
@@ -188,18 +189,19 @@ impl PolySignal {
         if range.len() * lanes > SCRATCH_LEN {
             return None;
         }
-        if width == 1
-            && let Some((data, stride)) = self
-                .cable_view()
-                .and_then(|cable| cable.rendered_to(range.end))
+        // A view the consumer cannot read in place, because it is narrower
+        // than the consumer or repeats lanes, is copied from the port's rows.
+        if let Some(cable) = self.cable_view()
+            && let Some((data, stride)) = cable.rendered_to(range.end)
         {
+            let repeat = cable.repeat();
             let rows = scratch.as_mut_ptr();
             for (n, i) in range.clone().enumerate() {
-                // SAFETY: slot `i` is rendered; `range.len() * lanes <=
-                // SCRATCH_LEN`.
-                unsafe {
-                    let value = *data.add(i * stride);
-                    for lane in 0..lanes {
+                for lane in 0..lanes {
+                    // SAFETY: slot `i` is rendered and the view's lanes lie
+                    // in its row; `range.len() * lanes <= SCRATCH_LEN`.
+                    unsafe {
+                        let value = *data.add(i * stride + (lane % width) / repeat);
                         rows.add(n * lanes + lane).write(value);
                     }
                 }
