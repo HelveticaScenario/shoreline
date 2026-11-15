@@ -13481,7 +13481,7 @@
           "$ref": "#/$defs/PolySignal"
         },
         "scale": {
-          "description": "the scale the voices sit on, built with `$enosc.scale.*`; every semitone if omitted",
+          "description": "the scale the voices sit on, built with `$enosc.scale.*`; octave and fifth if omitted",
           "anyOf": [
             {
               "$ref": "#/$defs/EnoscScale"
@@ -13697,7 +13697,7 @@
               ]
             },
             {
-              "description": "12-TET: octave and fifth.",
+              "description": "12-TET: octave and fifth. The default.",
               "type": "object",
               "properties": {
                 "type": {
@@ -13801,7 +13801,7 @@
               ]
             },
             {
-              "description": "12-TET: every semitone. The default.",
+              "description": "12-TET: every semitone.",
               "type": "object",
               "properties": {
                 "type": {
