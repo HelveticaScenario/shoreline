@@ -1,0 +1,3 @@
+kind: Fixed
+body: A huge power in `$exp`, such as 5 V to the 60th, holds at the largest value a signal can carry instead of dropping to silence at its peaks.
+time: 2026-11-14T22:47:31.414499-05:00
