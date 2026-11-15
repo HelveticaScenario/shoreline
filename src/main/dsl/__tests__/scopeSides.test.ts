@@ -50,6 +50,11 @@ describe('scopes', () => {
     test("a stereo module's mono output draws one trace", () => {
         expect(traces(`$enosc('c3')._low.scope()`)).toEqual(['0:0']);
         expect(traces(`$enosc('c3').scope()`)).toEqual(['0:0', '0:1']);
+        expect(
+            traces(
+                `const d = $deferred()\nd.scope()\nd.set($enosc('c3')._low)`,
+            ),
+        ).toEqual(['0:0']);
     });
 
     test('a mono lane draws one', () => {

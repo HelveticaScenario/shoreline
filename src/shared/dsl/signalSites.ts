@@ -496,9 +496,7 @@ export function collectSignalSites(
         if (
             ts.isPropertyAccessExpression(value) &&
             value.name.text.startsWith('_') &&
-            moduleOf(value.expression)?.monoOutputs.includes(
-                value.name.text.slice(1),
-            )
+            isMonoOutput(value.expression, value.name.text.slice(1))
         ) {
             return 'mono';
         }
@@ -514,37 +512,70 @@ export function collectSignalSites(
         return 'unknown';
     };
 
-    /** The module a value is a call to, through parentheses and `const` bindings. */
-    const moduleOf = (
-        expression: TS.Expression,
-    ): ModuleSiteInfo | undefined => {
+    /** Chain methods that hand back their receiver. */
+    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope', 'send']);
+
+    /**
+     * Whether `expression._port` is a `mono` output: `expression` is a module
+     * call, through parentheses, `const` bindings, `.concat(...)` and chain
+     * methods that hand back their receiver.
+     */
+    const isMonoOutput = (expression: TS.Expression, port: string): boolean => {
         let value = expression;
-        while (ts.isParenthesizedExpression(value)) {
+        while (
+            ts.isParenthesizedExpression(value) ||
+            ts.isAsExpression(value) ||
+            ts.isNonNullExpression(value) ||
+            ts.isSatisfiesExpression(value)
+        ) {
             value = value.expression;
         }
         if (ts.isIdentifier(value)) {
             const declaration =
                 checker.getSymbolAtLocation(value)?.valueDeclaration;
-            return declaration &&
-                ts.isVariableDeclaration(declaration) &&
-                declaration.initializer &&
-                declaration.getSourceFile() === sourceFile &&
-                ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const &&
-                !following.has(declaration)
-                ? moduleOf(declaration.initializer)
-                : undefined;
+            if (
+                !declaration ||
+                !ts.isVariableDeclaration(declaration) ||
+                !declaration.initializer ||
+                declaration.getSourceFile() !== sourceFile ||
+                !(ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) ||
+                following.has(declaration)
+            ) {
+                return false;
+            }
+            following.add(declaration);
+            try {
+                return isMonoOutput(declaration.initializer, port);
+            } finally {
+                following.delete(declaration);
+            }
         }
         if (!ts.isCallExpression(value)) {
-            return undefined;
+            return false;
         }
-        const name = dottedName(value.expression);
+        const callee = value.expression;
+        const name = dottedName(callee);
         const module = name ? own(tables.modules, name) : undefined;
         if (module) {
-            return module;
+            return module.monoOutputs.includes(port);
         }
-        return ts.isPropertyAccessExpression(value.expression)
-            ? chainCall(value.expression)?.module
-            : undefined;
+        if (!ts.isPropertyAccessExpression(callee)) {
+            return false;
+        }
+        const chain = chainCall(callee);
+        if (chain) {
+            return chain.module.monoOutputs.includes(port);
+        }
+        if (RETURNS_RECEIVER.has(callee.name.text)) {
+            return isMonoOutput(callee.expression, port);
+        }
+        // A multi-output module's outputs join output by output.
+        if (callee.name.text === 'concat') {
+            return [callee.expression, ...value.arguments].every(
+                (part) => !ts.isSpreadElement(part) && isMonoOutput(part, port),
+            );
+        }
+        return false;
     };
 
     const identifierChannels = (name: TS.Identifier): Channels => {
@@ -610,9 +641,6 @@ export function collectSignalSites(
         });
         return liftedChannels(inputs);
     };
-
-    /** Chain methods that hand back their receiver. */
-    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope', 'send']);
 
     const callChannels = (node: TS.CallExpression): Channels => {
         const callee = node.expression;
