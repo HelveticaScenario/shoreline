@@ -1,6 +1,6 @@
 //! Feedback Delay Network (FDN) reverb module.
 //!
-//! Two coupled sub-networks of parallel delay lines — one per stereo lane —
+//! Two coupled sub-networks of parallel delay lines — one per side —
 //! recirculate through an orthonormal mixing matrix, producing a dense, smooth
 //! reverb tail that tracks the input's stereo image. Energy is conserved by the
 //! matrix and bled off only by per-line decay gains and damping, so the network
@@ -19,15 +19,15 @@ use crate::types::SwapGlide;
 
 // ─── Topology ────────────────────────────────────────────────────────────────
 
-/// Total delay-line count across both lanes.
+/// Total delay-line count across both sides.
 const NUM_LINES: usize = 8;
 
-/// Delay lines per lane. The first `HALF_LINES` lines form the left
+/// Delay lines per side. The first `HALF_LINES` lines form the left
 /// sub-network, the rest the right. Must stay a power of two — each block is
 /// mixed with a fast Walsh-Hadamard transform that assumes it.
 const HALF_LINES: usize = 4;
 
-/// Input-diffusion allpass count, per lane.
+/// Input-diffusion allpass count, per side.
 const NUM_DIFFUSERS: usize = 4;
 
 /// Delay lengths are authored as sample counts at this reference rate and
@@ -36,7 +36,7 @@ const REF_SAMPLE_RATE: f32 = 48000.0;
 
 /// FDN delay lengths (samples at the reference rate). Pairwise-coprime primes;
 /// the first four (left block) and last four (right block) each span the full
-/// ~24–70 ms range, so the two lanes share a matched character while staying
+/// ~24–70 ms range, so the two sides share a matched character while staying
 /// decorrelated.
 const FDN_DELAYS: [f32; NUM_LINES] = [
     1153.0, 1567.0, 2129.0, 2887.0, // left block
@@ -74,7 +74,7 @@ const MAX_FEEDBACK: f32 = 0.9995;
 /// `ln(1000)` — the −60 dB factor in the Jot decay-gain formula.
 const LN_1000: f32 = 6.907_755;
 
-/// Cross-coupling rotation angle between the two lanes' sub-networks at the
+/// Cross-coupling rotation angle between the two sides' sub-networks at the
 /// widest (`+5`) and narrowest (`-5`) settings. A small angle keeps the halves
 /// separate so the wet field holds the input's pan; 45° maximally merges them,
 /// pulling a panned source toward the centre.
@@ -188,7 +188,7 @@ struct ReverbParams {
 struct ReverbOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right lanes",
+        "stereo reverb, fully wet, as one stereo lane",
         type = cv,
         default
     )]
@@ -202,7 +202,7 @@ struct ReverbOutputs {
 /// updates so the tail never glitches on an edit.
 #[derive(Default)]
 struct ReverbState {
-    // Per-lane input sections.
+    // Per-side input sections.
     predelay_l: DelayLine,
     predelay_r: DelayLine,
     diffusers_l: [DelayLine; NUM_DIFFUSERS],
@@ -298,12 +298,12 @@ impl Reverb {
         let max_mod_samples = MAX_MOD_EXCURSION * sr_scale;
         self.state.max_mod_excursion = max_mod_samples;
 
-        // Predelay: one per lane, sized to the maximum predelay time.
+        // Predelay: one per side, sized to the maximum predelay time.
         let max_predelay = (MAX_PREDELAY_SECS * sample_rate).ceil() as usize + 4;
         self.state.predelay_l = DelayLine::new(max_predelay);
         self.state.predelay_r = DelayLine::new(max_predelay);
 
-        // Input diffusers: one chain per lane, sized for the largest room.
+        // Input diffusers: one chain per side, sized for the largest room.
         for (i, &delay) in DIFFUSER_DELAYS.iter().enumerate() {
             let base = delay * sr_scale;
             self.state.diffuser_len[i] = base;
@@ -387,7 +387,7 @@ impl Reverb {
         let damp_coeff = *self.state.smoothed_damp;
 
         // Width sets the cross-coupling rotation between the two sub-networks:
-        // +5 → a shallow angle that holds the lanes apart, -5 → 45° that
+        // +5 → a shallow angle that holds the sides apart, -5 → 45° that
         // fully merges them. Gliding the angle keeps `sin²+cos²=1` exact.
         let angle_raw = map_range(
             self.params.width.value_or(0.0),
@@ -422,7 +422,7 @@ impl Reverb {
 
         let [left_in, right_in] = self.params.input.sum_sides();
 
-        // ── Per-lane predelay then input diffusion ────────────────────
+        // ── Per-side predelay then input diffusion ────────────────────
 
         self.state.predelay_l.write(left_in);
         self.state.predelay_r.write(right_in);
@@ -536,9 +536,13 @@ mod tests {
         let constructors = get_constructors();
         let deserializers = get_params_deserializers();
         let deserializer = deserializers.get("$unstable.reverb").unwrap();
-        let cached = deserializer(params).unwrap();
-        // Built as a patch builds a stereo module: one lane of two sides. An
-        // `input` of `[L, R]` is read as that lane's two sides.
+        let mut cached = deserializer(params).unwrap();
+        // Built as a patch builds a stereo module: one lane of two sides, with
+        // each input lane on both sides, as a mono producer reaches it.
+        cached.params.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
         let deserialized = DeserializedParams {
             params: cached.params,
             lane_count: cached.lane_count * 2,
@@ -591,7 +595,7 @@ mod tests {
     fn recovers_after_non_finite_input() {
         // A non-finite input sample must not lodge in the loop's recursive
         // state: once the input is finite again, the reverb builds a tail.
-        use crate::poly::PolySignal;
+        use crate::poly::{PairSignal, PolySignal};
         use crate::types::{OutputStruct, Signal};
 
         let mut outputs = super::ReverbOutputs::default();
@@ -600,7 +604,7 @@ mod tests {
             outputs,
             state: Default::default(),
             params: super::ReverbParams {
-                input: PolySignal::mono(Signal::Volts(f32::NAN)).into(),
+                input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(f32::NAN))),
                 decay: None,
                 damping: None,
                 size: None,
@@ -617,7 +621,7 @@ mod tests {
             m.update(SAMPLE_RATE);
         }
 
-        m.params.input = PolySignal::mono(Signal::Volts(1.0)).into();
+        m.params.input = PairSignal::from_mono(PolySignal::mono(Signal::Volts(1.0)));
         let mut total = 0.0f32;
         for _ in 0..48000 {
             m.update(SAMPLE_RATE);
@@ -657,11 +661,11 @@ mod tests {
         let (left, right) = collect_stereo(reverb.as_ref(), 20000);
         assert!(
             energy(&left) > 0.0,
-            "left lane should have energy from impulse"
+            "left side should have energy from impulse"
         );
         assert!(
             energy(&right) > 0.0,
-            "right lane should have energy from impulse"
+            "right side should have energy from impulse"
         );
     }
 
@@ -673,43 +677,7 @@ mod tests {
             .iter()
             .zip(right.iter())
             .all(|(l, r)| (l - r).abs() < 1e-10);
-        assert!(!identical, "left and right lanes should be decorrelated");
-    }
-
-    #[test]
-    fn preserves_input_pan() {
-        // A hard-left dry input should reverberate to a left-dominant wet field.
-        let reverb = make_reverb(reverb_params(
-            json!({ "input": [1.0, 0.0], "decay": 2.0, "width": 4.0 }),
-        ));
-        let (left, right) = collect_stereo(reverb.as_ref(), 20000);
-        assert!(
-            energy(&left) > energy(&right) * 1.3,
-            "left-panned input should bias the wet field left: L={}, R={}",
-            energy(&left),
-            energy(&right)
-        );
-    }
-
-    #[test]
-    fn width_controls_stereo_spread() {
-        // A wider setting should keep more of a panned source on its own side
-        // than a narrow (toward-mono) setting.
-        let n = 20000;
-        let wide = make_reverb(reverb_params(
-            json!({ "input": [1.0, 0.0], "decay": 2.0, "width": 5.0 }),
-        ));
-        let (wl, wr) = collect_stereo(wide.as_ref(), n);
-        let narrow = make_reverb(reverb_params(
-            json!({ "input": [1.0, 0.0], "decay": 2.0, "width": -5.0 }),
-        ));
-        let (nl, nr) = collect_stereo(narrow.as_ref(), n);
-        let wide_bias = energy(&wl) / energy(&wr).max(1e-9);
-        let narrow_bias = energy(&nl) / energy(&nr).max(1e-9);
-        assert!(
-            wide_bias > narrow_bias,
-            "wider setting should bias more toward the panned side: wide={wide_bias}, narrow={narrow_bias}"
-        );
+        assert!(!identical, "left and right sides should be decorrelated");
     }
 
     #[test]

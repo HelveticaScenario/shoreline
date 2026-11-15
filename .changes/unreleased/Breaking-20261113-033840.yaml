@@ -1,13 +1,17 @@
 kind: Breaking
 body: |-
-    `$unstable.reverb`, `$unstable.reverb2`, `$dattorro`, `$plate`, `$reverb` and `$mi.chorus` take and give stereo lanes. Each side of the input feeds that side of the effect, and the output is one stereo lane instead of a left lane and a right lane. A pair of lanes is no longer read as left and right, so join them with `$stereo` first.
+    `$unstable.reverb`, `$unstable.reverb2`, `$dattorro`, `$plate` and `$reverb` take and give stereo lanes. Each side of the input feeds that side of the reverb, and the output is one stereo lane instead of a left lane and a right lane. A pair of lanes is no longer read as left and right, so join them with `$stereo` first. Every lane of a chord now reaches both sides at its own level, so a chord drives the reverb about 6 dB harder than before and no longer spreads across the sides: turn it down with `.amp()`, and spread it with `$pan` first.
 
     ```js
     // before
     const wet = $plate([$saw('c3'), $saw('g3')])
     $signal(wet[1]).outMono(1)
+    $unstable.reverb($saw($chord('C3[m7]'))).out()
     // after
     const wet = $plate($stereo($saw('c3'), $saw('g3')))
     $right(wet).outMono(1)
+    $pan($saw($chord('C3[m7]')).amp(2.5), 0, { spread: 5 })
+        .unstable.reverb()
+        .out()
     ```
 time: 2026-11-13T03:38:40.279756-05:00

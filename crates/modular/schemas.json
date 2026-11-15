@@ -7715,7 +7715,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right lanes",
+        "description": "stereo reverb, fully wet, as one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -8298,7 +8298,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right lanes",
+        "description": "stereo reverb, fully wet, as one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -8742,7 +8742,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right lanes",
+        "description": "stereo reverb, fully wet, as one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -9026,7 +9026,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "stereo reverb, fully wet, as left and right lanes",
+        "description": "stereo reverb, fully wet, as one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -9477,7 +9477,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the input plus reverb, as left and right lanes",
+        "description": "the input plus reverb, as one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -33575,7 +33575,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the chorused signal, as left and right lanes",
+        "description": "the chorused signal, as one stereo lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,

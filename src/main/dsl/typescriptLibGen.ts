@@ -886,7 +886,8 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
   /**
    * Crossfade the signal this one was chained from against it. Follows a
    * chained module: \`sig.lpf('800hz').wet(2.5)\` mixes \`sig\` with its
-   * filtered copy.
+   * filtered copy. After a stereo effect such as \`.plate()\`, which mixes
+   * every voice into one stereo lane, the dry voices are mixed into one too.
    *
    * @param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry only, 5 = wet only. Default is 2.5 for an equal mix.
    * @returns A Collection from the \\$mix output

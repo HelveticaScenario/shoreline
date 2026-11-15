@@ -128,7 +128,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 signature: 'wet(mix?: Poly<Signal>): Collection',
                 description:
                     'Every module whose first argument is a signal is also a method of this collection: `sig.lpf(...)` is `$lpf(sig, ...)`. ' +
-                    '`.wet` after one crossfades the signal it was called on against the result: 0 is dry, 5 is wet, and the default 2.5 an equal mix.',
+                    '`.wet` after one crossfades the signal it was called on against the result: 0 is dry, 5 is wet, and the default 2.5 an equal mix. ' +
+                    'After a stereo effect such as `.plate()`, which mixes every voice into one stereo lane, the dry voices are mixed into one too.',
                 example: "$saw('c3').lpf('800hz').plate().wet(1.5).out()",
             },
         ],

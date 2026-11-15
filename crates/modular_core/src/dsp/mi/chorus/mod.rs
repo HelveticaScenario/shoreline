@@ -46,7 +46,7 @@ struct ChorusParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChorusOutputs {
-    #[output("output", "the chorused signal, as left and right lanes", type = cv, default)]
+    #[output("output", "the chorused signal, as one stereo lane", type = cv, default)]
     sample: PolyOutput,
 }
 

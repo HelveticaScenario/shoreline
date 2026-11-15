@@ -876,12 +876,21 @@ impl PairSignal {
     }
 }
 
-impl From<PolySignal> for PairSignal {
-    fn from(inner: PolySignal) -> Self {
-        Self {
+#[cfg(test)]
+impl PairSignal {
+    /// `inner`, a mono signal, laid out as a patch lays out a stereo
+    /// module's input: each lane on both sides.
+    pub(crate) fn from_mono(inner: PolySignal) -> Self {
+        use crate::types::Connect;
+        let mut signal = Self {
             inner,
             paired: false,
-        }
+        };
+        signal.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
+        signal
     }
 }
 

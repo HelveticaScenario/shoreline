@@ -138,7 +138,7 @@ struct PlateParams {
 struct PlateOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right lanes",
+        "stereo reverb, fully wet, as one stereo lane",
         type = cv,
         default
     )]
@@ -391,7 +391,7 @@ impl Plate {
         let mod_v = self.params.modulation.value_or(0.0);
         let mod_excursion = mod_v * lens.mod_excursion_scale;
 
-        // ── Sum input lanes to mono ───────────────────────────────────
+        // ── Sum every lane and side to mono ───────────────────────────
 
         let [left_in, right_in] = self.params.input.sum_sides();
         let mono_in = (left_in + right_in) * 0.5;
@@ -561,9 +561,13 @@ mod tests {
         let constructors = get_constructors();
         let deserializers = get_params_deserializers();
         let deserializer = deserializers.get("$plate").unwrap();
-        let cached = deserializer(params).unwrap();
-        // Built as a patch builds a stereo module: one lane of two sides. An
-        // `input` of `[L, R]` is read as that lane's two sides.
+        let mut cached = deserializer(params).unwrap();
+        // Built as a patch builds a stereo module: one lane of two sides, with
+        // each input lane on both sides, as a mono producer reaches it.
+        cached.params.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
         let deserialized = DeserializedParams {
             params: cached.params,
             lane_count: cached.lane_count * 2,
@@ -611,7 +615,7 @@ mod tests {
     fn recovers_after_non_finite_input() {
         // A non-finite input sample must not lodge in the tank's recursive
         // state: once the input is finite again, the reverb builds a tail.
-        use crate::poly::PolySignal;
+        use crate::poly::{PairSignal, PolySignal};
         use crate::types::{OutputStruct, Signal};
 
         let mut outputs = super::PlateOutputs::default();
@@ -620,7 +624,7 @@ mod tests {
             outputs,
             state: Default::default(),
             params: super::PlateParams {
-                input: PolySignal::mono(Signal::Volts(f32::NAN)).into(),
+                input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(f32::NAN))),
                 bandwidth: None,
                 damping: None,
                 decay: None,
@@ -635,7 +639,7 @@ mod tests {
             m.update(SAMPLE_RATE);
         }
 
-        m.params.input = PolySignal::mono(Signal::Volts(1.0)).into();
+        m.params.input = PairSignal::from_mono(PolySignal::mono(Signal::Volts(1.0)));
         let mut energy = 0.0f32;
         for _ in 0..48000 {
             m.update(SAMPLE_RATE);
@@ -679,11 +683,11 @@ mod tests {
         let right_energy: f32 = right.iter().map(|s| s * s).sum();
         assert!(
             left_energy > 0.0,
-            "left lane should have energy from impulse"
+            "left side should have energy from impulse"
         );
         assert!(
             right_energy > 0.0,
-            "right lane should have energy from impulse"
+            "right side should have energy from impulse"
         );
     }
 
@@ -695,7 +699,7 @@ mod tests {
             .iter()
             .zip(right.iter())
             .all(|(l, r)| (l - r).abs() < 1e-10);
-        assert!(!identical, "left and right lanes should be decorrelated");
+        assert!(!identical, "left and right sides should be decorrelated");
     }
 
     #[test]

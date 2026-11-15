@@ -137,7 +137,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "the input plus reverb, as left and right lanes", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, as one stereo lane", type = cv, default, range = (-5.0, 5.0))]
     sample: PolyOutput,
 }
 
@@ -246,7 +246,7 @@ message_handlers!(impl BeadsReverb {});
 #[cfg(test)]
 pub(super) mod tests {
     use super::*;
-    use crate::poly::PolySignal;
+    use crate::poly::{PairSignal, PolySignal};
     use crate::types::{OutputStruct, Signal};
 
     const SR: f32 = 48000.0;
@@ -274,13 +274,13 @@ pub(super) mod tests {
             outputs,
             state: BeadsReverbState::default(),
             params: BeadsReverbParams {
-                input: PolySignal::mono(Signal::Volts(0.0)).into(),
+                input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(0.0))),
                 amount: volts(reverb),
                 size: volts(size),
                 tone: volts(tone),
             },
             _lane_count: 2,
-            _channels: 1,
+            _channels: 2,
             _block_index: Default::default(),
         };
         m.init(sample_rate);
@@ -288,7 +288,7 @@ pub(super) mod tests {
     }
 
     pub fn step(m: &mut BeadsReverb, input: f32) -> (f32, f32) {
-        m.params.input = PolySignal::mono(Signal::Volts(input)).into();
+        m.params.input = PairSignal::from_mono(PolySignal::mono(Signal::Volts(input)));
         m.update(SR);
         (m.outputs.sample.get(0), m.outputs.sample.get(1))
     }
