@@ -144,12 +144,16 @@ impl Default for LaneState {
 struct QuantizerState {
     /// One per scale lane, reading the matching gate lane.
     gate_triggers: [SchmittTrigger; PORT_MAX_LANES],
+    /// Channels per note the triggers are laid out for: note `i` side `c`
+    /// is trigger `i * channels + c`.
+    channels: usize,
 }
 
 impl Default for QuantizerState {
     fn default() -> Self {
         Self {
             gate_triggers: [SchmittTrigger::default(); PORT_MAX_LANES],
+            channels: 1,
         }
     }
 }
@@ -236,7 +240,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$quantizer", docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, args(input, scale))]
+#[module(name = "$quantizer", docs = QUANTIZER_DOCS, lanes_derive = quantizer_derive_lane_count, patch_update, args(input, scale))]
 pub struct Quantizer {
     outputs: QuantizerOutputs,
     params: QuantizerParams,
@@ -315,6 +319,24 @@ impl Quantizer {
             self.outputs.output.set(lane, quantized as f32);
             self.outputs.trig.set(lane, state.trigger.process());
         }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Quantizer {
+    /// Lays the gate triggers out for this patch's channels, keeping each
+    /// note's trigger; a side a widening patch update adds takes its note's
+    /// left side.
+    fn on_patch_update(&mut self) {
+        let (new, old) = (self.channels().max(1), self.state.channels.max(1));
+        if new == old {
+            return;
+        }
+        let previous = self.state.gate_triggers;
+        for (k, trigger) in self.state.gate_triggers.iter_mut().enumerate() {
+            let j = (k / new) * old + (k % new).min(old - 1);
+            *trigger = previous.get(j).copied().unwrap_or_default();
+        }
+        self.state.channels = new;
     }
 }
 

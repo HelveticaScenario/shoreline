@@ -21,6 +21,14 @@ fn build(modules: &[(&str, &str, Value)]) -> Result<Patch, String> {
 
 /// `modules`, with what building them settled.
 fn build_settled(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement), String> {
+    let (patch, settlement) = insert(modules)?;
+    patch.connect_all();
+    Ok((patch, settlement))
+}
+
+/// `modules` constructed but not yet connected, as a patch update builds
+/// them before carrying state over.
+fn insert(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement), String> {
     let deserializers = get_params_deserializers();
     let mut patch = Patch::new();
     let settlement = patch.insert_modules(
@@ -41,7 +49,6 @@ fn build_settled(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement),
         SAMPLE_RATE,
         1,
     )?;
-    patch.connect_all();
     Ok((patch, settlement))
 }
 
@@ -612,4 +619,127 @@ fn a_mono_buffer_feeds_both_sides_of_a_stereo_reader() {
         tap = step(&patch, "tap");
     }
     assert_eq!(tap, [3.0, 3.0]);
+}
+
+/// Carry `old`'s state into `new`, built by [`insert`], and connect it, as a
+/// patch update does.
+fn swap(old: &Patch, new: &Patch) {
+    for (id, module) in &new.sampleables {
+        if let Some(previous) = old.sampleables.get(id) {
+            module.transfer_state_from(previous.as_ref(), &SameIds);
+        }
+    }
+    new.connect_all();
+}
+
+#[test]
+fn a_coin_flip_widened_to_stereo_flips_both_sides_together() {
+    let clock = json!({ "freq": 6.0 });
+    let mono = build(&[
+        ("clk", "$pulse", clock.clone()),
+        (
+            "flip",
+            "$coinFlip",
+            json!({ "input": cable("clk", 0), "probability": 2.5 }),
+        ),
+    ])
+    .unwrap();
+    for _ in 0..1000 {
+        step(&mono, "flip");
+    }
+    let (stereo, _) = insert(&[
+        ("clk", "$pulse", clock),
+        ("half", "$signal", signal(json!(2.5))),
+        (
+            "both",
+            "$stereo",
+            json!({ "left": cable("half", 0), "right": cable("half", 0) }),
+        ),
+        (
+            "flip",
+            "$coinFlip",
+            json!({ "input": cable("clk", 0), "probability": cable("both", 0) }),
+        ),
+    ])
+    .unwrap();
+    swap(&mono, &stereo);
+    for _ in 0..8000 {
+        let heads = step(&stereo, "flip");
+        assert_eq!(heads[0], heads[1], "both sides flip alike");
+    }
+}
+
+#[test]
+fn a_buffer_widened_to_stereo_keeps_its_recording_on_both_sides() {
+    let mono = build(&[
+        ("one", "$signal", signal(json!(1.0))),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("one", 0), "length": 0.01 }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": 0.005 }),
+        ),
+    ])
+    .unwrap();
+    for _ in 0..1000 {
+        step(&mono, "tap");
+    }
+    let (stereo, _) = insert(&[
+        ("zero", "$signal", signal(json!(0.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("zero", 0), "right": cable("zero", 0) }),
+        ),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("st", 0), "length": 0.01 }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": 0.005 }),
+        ),
+    ])
+    .unwrap();
+    swap(&mono, &stereo);
+    assert_eq!(step(&stereo, "tap"), [1.0, 1.0]);
+}
+
+#[test]
+fn a_wow_flutter_widened_to_stereo_wobbles_both_sides_together() {
+    let mono = build(&[
+        ("osc", "$sine", json!({ "freq": 0.0 })),
+        ("wow", "$wowFlutter", json!({ "input": cable("osc", 0) })),
+    ])
+    .unwrap();
+    for _ in 0..1000 {
+        step(&mono, "wow");
+    }
+    let (stereo, _) = insert(&[
+        ("osc", "$sine", json!({ "freq": 0.0 })),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("osc", 0), "right": cable("osc", 0) }),
+        ),
+        ("wow", "$wowFlutter", json!({ "input": cable("st", 0) })),
+    ])
+    .unwrap();
+    swap(&mono, &stereo);
+    // The right side's delay line is new, so compare once it has filled.
+    for i in 0..6000 {
+        let out = step(&stereo, "wow");
+        if i > 4000 {
+            assert!(
+                (out[0] - out[1]).abs() < 1e-4,
+                "sides apart at {i}: {out:?}"
+            );
+        }
+    }
 }

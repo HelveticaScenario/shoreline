@@ -44,6 +44,11 @@ struct BufferWriteOutputs {
     #[serde(skip)]
     #[schemars(skip)]
     started: bool,
+    /// Channels per lane of the recording: lane `l` side `c` is buffer lane
+    /// `l * channels + c`.
+    #[serde(skip)]
+    #[schemars(skip)]
+    channels: usize,
 }
 
 impl Default for BufferWriteOutputs {
@@ -52,6 +57,7 @@ impl Default for BufferWriteOutputs {
             sample: PolyOutput::default(),
             buffer: BufferData::new_zeroed(1, 1),
             started: false,
+            channels: 1,
         }
     }
 }
@@ -76,8 +82,13 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
         }]
     }
 
+    /// Carries the recording over lane by lane and side by side; a side the
+    /// old recording lacks takes its lane's left side.
     fn transfer_buffers_from(&mut self, old: &mut Self) {
-        self.buffer.copy_overlap_from(&old.buffer);
+        let (new_channels, old_channels) = (self.channels.max(1), old.channels.max(1));
+        self.buffer.copy_overlap_from(&old.buffer, |lane| {
+            (lane / new_channels) * old_channels + (lane % new_channels).min(old_channels - 1)
+        });
         self.started = old.started;
     }
 
@@ -253,6 +264,7 @@ impl BufferWrite {
         let frame_count = (self.params.length * sample_rate as f64).ceil() as usize;
         let lane_count = self._lane_count.max(1);
         self.outputs.buffer = BufferData::new_zeroed(lane_count, frame_count);
+        self.outputs.channels = self.channels();
     }
 
     fn update(&mut self, _sample_rate: f32) {
