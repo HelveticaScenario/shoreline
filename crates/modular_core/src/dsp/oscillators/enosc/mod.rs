@@ -189,19 +189,13 @@ pub fn enosc_derive_lane_count(params: &EnoscParams) -> usize {
 #[serde(rename_all = "camelCase")]
 struct EnoscOutputs {
     #[output(
-        "output",
-        "the voices in stereo: 1, 3, 5, … on the left and 2, 4, 6, … on the right",
+        "all",
+        "every voice in stereo: 1, 3, 5, … on the left and 2, 4, 6, … on the right",
         type = cv,
         default,
         range = (-5.0, 5.0),
     )]
-    output: PolyOutput,
-    #[output("all", "mix of every voice", type = cv, range = (-5.0, 5.0), mono)]
     all: PolyOutput,
-    #[output("odd", "mix of voices 1, 3, 5, …", type = cv, range = (-5.0, 5.0), mono)]
-    odd: PolyOutput,
-    #[output("even", "mix of voices 2, 4, 6, …", type = cv, range = (-5.0, 5.0), mono)]
-    even: PolyOutput,
     #[output("low", "mix of the lower half of the voices", type = cv, range = (-5.0, 5.0), mono)]
     low: PolyOutput,
     #[output("high", "mix of the upper half of the voices", type = cv, range = (-5.0, 5.0), mono)]
@@ -213,7 +207,7 @@ struct EnoscOutputs {
 }
 
 /// Number of mono mixes, each with its own DC blocker.
-const OUTPUTS: usize = 7;
+const OUTPUTS: usize = 4;
 
 #[derive(Clone, Copy, Default)]
 struct LaneState {
@@ -459,7 +453,8 @@ impl Enosc {
             };
 
             let mut sums = [0.0f32; OUTPUTS];
-            let [all, odd, even, low, high, lowest, other] = &mut sums;
+            let [low, high, lowest, other] = &mut sums;
+            let (mut odd, mut even) = (0.0f32, 0.0f32);
             let mut amplitude = 1.0f32;
             let mut amplitude_sum = 0.0f32;
             let mut bus = 0.0f32;
@@ -484,11 +479,10 @@ impl Enosc {
                 let v = sample * amplitude;
                 amplitude_sum += amplitude;
                 amplitude *= balance;
-                *all += v;
                 if i % 2 == 0 {
-                    *odd += v;
+                    odd += v;
                 } else {
-                    *even += v;
+                    even += v;
                 }
                 if i < count / 2 {
                     *low += v;
@@ -502,7 +496,6 @@ impl Enosc {
                 }
             }
             cs.down_bus = next_down_bus;
-            let (odd_sum, even_sum) = (*odd, *even);
 
             // Normalize the mix, giving back level as the balance evens out
             // (more voices contribute and their sum is less likely to peak).
@@ -512,19 +505,15 @@ impl Enosc {
                 1.0 / balance
             };
             let atten = (0.5 + (0.5 + state.normalization) * evenness) / amplitude_sum;
-            let gains = [atten, atten, atten, atten, atten, 0.7, 0.6 * atten];
+            let gains = [atten, atten, 0.7, 0.6 * atten];
             let [.., dc_left, dc_right] = &mut cs.dc;
             self.outputs
-                .output
-                .set(at, dc_left.process(odd_sum * atten * 5.0, state.dc_coeff));
-            self.outputs.output.set(
-                at + 1,
-                dc_right.process(even_sum * atten * 5.0, state.dc_coeff),
-            );
+                .all
+                .set(at, dc_left.process(odd * atten * 5.0, state.dc_coeff));
+            self.outputs
+                .all
+                .set(at + 1, dc_right.process(even * atten * 5.0, state.dc_coeff));
             let outputs = [
-                &mut self.outputs.all,
-                &mut self.outputs.odd,
-                &mut self.outputs.even,
                 &mut self.outputs.low,
                 &mut self.outputs.high,
                 &mut self.outputs.root,

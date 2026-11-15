@@ -14154,50 +14154,14 @@
     },
     "outputs": [
       {
-        "name": "output",
-        "description": "the voices in stereo: 1, 3, 5, … on the left and 2, 4, 6, … on the right",
+        "name": "all",
+        "description": "every voice in stereo: 1, 3, 5, … on the left and 2, 4, 6, … on the right",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "all",
-        "description": "mix of every voice",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
-        "minValue": -5.0,
-        "maxValue": 5.0,
-        "mono": true,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "odd",
-        "description": "mix of voices 1, 3, 5, …",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
-        "minValue": -5.0,
-        "maxValue": 5.0,
-        "mono": true,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "even",
-        "description": "mix of voices 2, 4, 6, …",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
-        "minValue": -5.0,
-        "maxValue": 5.0,
-        "mono": true,
         "precision": "f32",
         "bounds": "fixed"
       },
