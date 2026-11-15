@@ -883,7 +883,8 @@ export class GraphBuilder implements ChainHost {
     /**
      * The channels each lane of `value` carries: an output or collection, an
      * array or `$gN` group of them, a `$buffer` reference, which carries
-     * what its buffer records, or anything holding them. A deferred lane is unknown until the engine settles it.
+     * what its buffer records, or anything holding them. A deferred lane is
+     * unknown until the engine settles it.
      */
     private *laneChannels(value: unknown): Generator<Channels> {
         if (value instanceof DeferredModuleOutput) {
@@ -1620,9 +1621,17 @@ export class GraphBuilder implements ChainHost {
                     (scope) =>
                         ({
                             ...scope,
-                            lanes: scope.lanes.map((lane) =>
-                                this.resolveScopeLane(lane),
-                            ),
+                            // A deferred lane resolves to its module only
+                            // now, so a mono one's second trace drops here.
+                            lanes: scope.lanes
+                                .map((lane) => this.resolveScopeLane(lane))
+                                .filter(
+                                    (lane) =>
+                                        lane.side === undefined ||
+                                        (this.moduleChannels.get(
+                                            lane.moduleId,
+                                        ) ?? 'mono') !== 'mono',
+                                ),
                         }) as ScopeWithLocation,
                 ),
                 ...eqScopes,

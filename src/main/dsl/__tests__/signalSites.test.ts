@@ -353,6 +353,31 @@ describe('fold sites', () => {
         ).toEqual([]);
     });
 
+    test('patterns and missing values are mono', () => {
+        expect(folds(`$enosc($('c3 e3').fast(2).slow(3)).out()`)).toEqual([]);
+        expect(folds(`$saw('c3').outMono(0, undefined)`)).toEqual([]);
+    });
+
+    test('a range lifts with its bounds', () => {
+        expect(
+            folds(`$enosc($sine('1hz').range($stereo(0, 1), 5)).out()`),
+        ).toEqual(["$sine('1hz').range($stereo(0, 1), 5)‹.mono()›"]);
+        expect(folds(`$enosc($sine('1hz').range(0, 5)).out()`)).toEqual([]);
+    });
+
+    test("an out's folding options", () => {
+        expect(folds(`${wide}$saw('c3').out({ pan: wide })`)).toEqual([
+            'wide‹.mono()›',
+        ]);
+        expect(folds(`${wide}$saw('c3').out({ gain: wide })`)).toEqual([]);
+        expect(folds(`${wide}$saw('c3').outMono(0, wide)`)).toEqual([
+            'wide‹.mono()›',
+        ]);
+        expect(folds(`${wide}$saw('c3').outMono({ gain: wide })`)).toEqual([
+            'wide‹.mono()›',
+        ]);
+    });
+
     test('an array folds element by element', () => {
         expect(folds(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
             'wide‹.mono()›',

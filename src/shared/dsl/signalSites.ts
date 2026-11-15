@@ -63,6 +63,8 @@ export interface SignalSiteTables {
     chainMethods: ChainMethods;
     /** DSL globals that are, or make, signals other than module calls. */
     globals: Record<string, GlobalChannels>;
+    /** Qualified type names of values that are always mono, such as patterns. */
+    monoTypes: string[];
 }
 
 /** One value position in a patch. */
@@ -119,6 +121,15 @@ export function siteOfRecord(
     }
     return undefined;
 }
+
+/**
+ * The options of each out that fold a stereo signal: a stereo out's pan
+ * and spread go to `$pan`'s, and a mono out folds its gain.
+ */
+const FOLDING_OPTIONS: Readonly<Record<string, readonly string[]>> = {
+    out: ['pan', 'spread'],
+    outMono: ['gain'],
+};
 
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
@@ -399,14 +410,24 @@ export function collectSignalSites(
         return found;
     };
 
-    /** Whether `type` is plain data: numbers, strings, booleans and arrays of them. */
+    /**
+     * Whether `type` is always mono: plain data (numbers, strings, booleans,
+     * `undefined`, and arrays of them) or a type the tables name mono.
+     */
     const isPlain = (type: TS.Type): boolean => {
         if (
             type.flags &
             (ts.TypeFlags.NumberLike |
                 ts.TypeFlags.StringLike |
-                ts.TypeFlags.BooleanLike)
+                ts.TypeFlags.BooleanLike |
+                ts.TypeFlags.Undefined |
+                ts.TypeFlags.Null |
+                ts.TypeFlags.Void)
         ) {
+            return true;
+        }
+        const symbol = type.aliasSymbol ?? type.getSymbol();
+        if (symbol && tables.monoTypes.includes(qualifiedName(symbol))) {
             return true;
         }
         if (type.isUnion()) {
@@ -423,8 +444,20 @@ export function collectSignalSites(
     /** The `const` declarations being followed, so a cycle reads as unknown. */
     const following = new Set<TS.Node>();
 
+    /** Each expression's channels once told, as a `const` is read many times. */
+    const told = new Map<TS.Node, Channels>();
+
     /** What `expression` carries, mono, stereo or unknown, told without running it. */
     const channelsOf = (expression: TS.Expression): Channels => {
+        let channels = told.get(expression);
+        if (channels === undefined) {
+            channels = tellChannels(expression);
+            told.set(expression, channels);
+        }
+        return channels;
+    };
+
+    const tellChannels = (expression: TS.Expression): Channels => {
         let value = expression;
         while (
             ts.isParenthesizedExpression(value) ||
@@ -530,13 +563,7 @@ export function collectSignalSites(
     };
 
     /** Chain methods that hand back their receiver. */
-    const RETURNS_RECEIVER = new Set([
-        'out',
-        'outMono',
-        'range',
-        'scope',
-        'send',
-    ]);
+    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope', 'send']);
 
     const callChannels = (node: TS.CallExpression): Channels => {
         const callee = node.expression;
@@ -567,6 +594,13 @@ export function collectSignalSites(
         }
         if (RETURNS_RECEIVER.has(callee.name.text)) {
             return channelsOf(callee.expression);
+        }
+        // `.range()` builds a `$remap`, which lifts with its bounds.
+        if (callee.name.text === 'range') {
+            return liftedChannels([
+                channelsOf(callee.expression),
+                ...node.arguments.map(channelsOf),
+            ]);
         }
         if (callee.name.text === 'concat') {
             return collectionChannels([
@@ -618,13 +652,15 @@ export function collectSignalSites(
             optionClasses &&
             receivesSignals(checker.getTypeAtLocation(callee.expression))
         ) {
+            const method = callee.name.text;
+            const folding = own(FOLDING_OPTIONS, method) ?? [];
             // A mono out folds what it sends.
             emitValue(
                 site,
                 RECEIVER_SLOT,
                 callee.expression,
                 'cv',
-                callee.name.text === 'outMono',
+                method === 'outMono',
             );
             node.arguments.forEach((arg, i) => {
                 if (ts.isObjectLiteralExpression(arg)) {
@@ -634,10 +670,17 @@ export function collectSignalSites(
                             optionSlot(i, key),
                             value,
                             optionClasses[key] ?? 'cv',
+                            folding.includes(key),
                         ),
                     );
                 } else {
-                    emitValue(site, argumentSlot(i), arg, 'cv');
+                    emitValue(
+                        site,
+                        argumentSlot(i),
+                        arg,
+                        'cv',
+                        method === 'outMono' && i === 1,
+                    );
                 }
             });
         }

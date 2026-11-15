@@ -36,6 +36,17 @@ describe('scopes', () => {
         ).toEqual(['0:0', '0:1']);
     });
 
+    test('a deferred lane draws what it was set to', () => {
+        expect(
+            traces(`const d = $deferred()\nd.scope()\nd.set($saw('c3'))`),
+        ).toEqual(['0:0']);
+        expect(
+            traces(
+                `const d = $deferred()\nd.scope()\nd.set($stereo($saw('c3'), $saw('g3')))`,
+            ),
+        ).toEqual(['0:0', '0:1']);
+    });
+
     test('a mono lane draws one', () => {
         expect(traces(`$saw(['c3', 'e3']).scope()`)).toEqual(['0:0', '1:0']);
     });

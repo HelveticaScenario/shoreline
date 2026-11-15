@@ -111,7 +111,7 @@ struct InputAttr {
     /// variants the `bounds = input` outputs are unbounded; set to a listed
     /// one or unset, they are bounded when the tagged inputs give a range.
     bounding: Option<Vec<Ident>>,
-    /// `fold`: a stereo or file-derived module reads this input folded.
+    /// `fold`: a stereo module reads this input folded.
     fold: bool,
 }
 

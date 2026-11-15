@@ -131,9 +131,11 @@ function hint(
     insertable: boolean,
     fold: boolean,
 ): languages.InlayHint {
+    const mono = fold ? '.mono()' : '';
     const label =
-        outputs.map((output) => `._${output}`).join(' | ') +
-        (fold ? '.mono()' : '');
+        outputs.length === 0
+            ? mono
+            : outputs.map((output) => `._${output}${mono}`).join(' | ');
     return {
         label,
         position,

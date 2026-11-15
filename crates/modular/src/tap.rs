@@ -92,3 +92,62 @@ impl<'a> Tap<'a> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::Tap;
+    use modular_core::Patch;
+    use modular_core::types::ProcessingMode;
+    use serde_json::json;
+
+    fn cable(module: &str) -> serde_json::Value {
+        json!({ "type": "cable", "module": module, "port": "output", "lane": 0 })
+    }
+
+    #[test]
+    fn a_tap_reads_a_side_of_a_stereo_lane_and_either_side_of_a_mono_one() {
+        let modules = [
+            ("l", "$signal", json!({ "value": 1.0 })),
+            ("r", "$signal", json!({ "value": 2.0 })),
+            (
+                "st",
+                "$stereo",
+                json!({ "left": cable("l"), "right": cable("r") }),
+            ),
+        ];
+        let mut patch = Patch::new();
+        patch
+            .insert_modules(
+                modules.iter().map(|(id, module_type, params)| {
+                    let params =
+                        crate::params_cache::deserialize_params(module_type, params.clone(), false)
+                            .unwrap();
+                    (
+                        id.to_string(),
+                        module_type.to_string(),
+                        params,
+                        ProcessingMode::Sample,
+                    )
+                }),
+                48_000.0,
+                1,
+            )
+            .unwrap();
+        patch.connect_all();
+        for module in patch.sampleables.values() {
+            module.start_block();
+        }
+        for module in patch.sampleables.values() {
+            module.ensure_processed_to(1);
+        }
+        let read = |id: &str, side| {
+            Tap::resolve(&patch.sampleables, id, "output", 0, side)
+                .unwrap()
+                .get(0)
+        };
+        assert_eq!(read("st", 0), 1.0);
+        assert_eq!(read("st", 1), 2.0);
+        assert_eq!(read("l", 0), 1.0);
+        assert_eq!(read("l", 1), 1.0);
+    }
+}

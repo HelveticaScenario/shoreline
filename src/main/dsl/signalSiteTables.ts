@@ -62,6 +62,8 @@ export function buildSignalSiteTables(
         chainMethods: CHAIN_METHODS,
         globals: GLOBAL_CHANNELS,
         modules: { $delay: DELAY_SITE },
+        // A pattern is the `$cycle` that plays it, which is mono.
+        monoTypes: [...PATTERN_TYPES],
         roots: {},
     };
 
@@ -71,9 +73,15 @@ export function buildSignalSiteTables(
         tables.modules[schema.name] = {
             buffers: bufferParams(schema),
             chainable: qualifiesForChain(processed),
-            folds: (schema.signalParams ?? [])
-                .filter((param) => param.fold)
-                .map((param) => param.name),
+            // A mono module folds every signal it reads, nested ones too.
+            folds: [
+                ...(schema.signalParams ?? [])
+                    .filter((param) => param.fold)
+                    .map((param) => param.name),
+                ...(schema.stereo === 'mono'
+                    ? nested.map((param) => param.name)
+                    : []),
+            ],
             inputs: Object.fromEntries([
                 ...flat.map((p) => [p.name, p.inputClass] as const),
                 ...nested.map((p) => [p.name, 'cv'] as const),
