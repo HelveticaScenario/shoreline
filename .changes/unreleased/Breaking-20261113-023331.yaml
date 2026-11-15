@@ -4,7 +4,7 @@ body: |-
 
     ```js
     // before: seven lanes, spread by the out
-    $supersaw('a3', { unison: 7 }).out({ width: 5 })
+    $supersaw('a3', { voices: 7 }).out({ width: 5 })
     // after: one stereo lane
     $supersaw('a3', { unison: 7 }).out()
     ```

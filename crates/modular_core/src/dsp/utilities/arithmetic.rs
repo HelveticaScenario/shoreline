@@ -133,9 +133,14 @@ operator_module!(
         range = (0.0, ..),
         control_range = (0.0, 4.0),
     output = "the signal raised to the power",
+    // A power too large for a sample holds at the largest one, so the output
+    // and its bounds stay finite and keep rising with the input.
     |input, exponent| {
         let zero = T::from_f32(0.0);
+        let largest = T::from_f32(f32::MAX);
         let exponent = if exponent < zero { zero } else { exponent };
-        if input == zero { zero } else { input.signum() * input.abs().powf(exponent) }
+        let magnitude = input.abs().powf(exponent);
+        let magnitude = if magnitude > largest { largest } else { magnitude };
+        if input == zero { zero } else { input.signum() * magnitude }
     },
 );
