@@ -496,7 +496,10 @@ mod tests {
     #[test]
     fn every_scale_is_its_own_generation() {
         assert_ne!(preset("major").generation, preset("major").generation);
-        assert_ne!(preset("major").generation, ScaleNotes::OCTAVE_FIFTH.generation);
+        assert_ne!(
+            preset("major").generation,
+            ScaleNotes::OCTAVE_FIFTH.generation
+        );
     }
 
     #[test]
