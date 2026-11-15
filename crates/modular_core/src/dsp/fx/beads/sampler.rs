@@ -10,7 +10,7 @@ use schemars::JsonSchema;
 use crate::Wav;
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::patch::Patch;
-use crate::poly::{LaneSum, LaneSumExt, PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
+use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
 use crate::types::{PatchUpdateHandler, PolySignalFields, WavData};
 
 use super::buffer::GrainBuffer;
@@ -82,14 +82,6 @@ struct GranularSamplerParams {
     )]
     #[deserr(default)]
     spread: Option<PolySignal>,
-    #[input(
-        "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        type = control,
-        default = 0.0,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    width: Option<LaneSum>,
     #[input("sound character: how clean it sounds", default = "digital")]
     #[serde(default)]
     #[deserr(default)]
@@ -131,16 +123,13 @@ impl crate::types::Connect for Loaded {
 #[serde(rename_all = "camelCase")]
 struct GranularSamplerOutputs {
     #[output(
-        "stereo",
-        "stereo mix of every voice, as left and right lanes",
+        "output",
+        "each lane's grains, in stereo",
         type = cv,
         default,
         range = (-5.0, 5.0),
-        lanes = 2
     )]
     sample: PolyOutput,
-    #[output("voices", "each voice on its own lane, mono", type = cv, range = (-5.0, 5.0))]
-    voices: PolyOutput,
 }
 
 #[derive(Default)]
@@ -162,7 +151,7 @@ fn sampler_lane_count(params: &GranularSamplerParams) -> usize {
         .map(|p| p.lanes())
         .max()
         .unwrap_or(1)
-        .max(params.wav.channel_count())
+        .max(params.wav.lanes())
         .clamp(1, PORT_MAX_LANES)
 }
 
@@ -180,7 +169,6 @@ const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
             const grains = $pulse('8hz')
             $granularSampler('/wavs/pad.wav', grains, {
               time: $sah($noise('white').range(0, 5), grains),
-              width: 4,
               spread: 2,
             }).out()
         "#,
@@ -188,7 +176,7 @@ const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$granularSampler", stereo = mono,
+    name = "$granularSampler", stereo = stereo,
     docs = GRANULAR_SAMPLER_DOCS,
     lanes_derive = sampler_lane_count,
     has_init,
@@ -200,7 +188,8 @@ pub struct GranularSampler {
     outputs: GranularSamplerOutputs,
     state: GranularSamplerState,
     params: GranularSamplerParams,
-    /// One voice per channel of the file or lane of the widest grain input.
+    /// One voice per side of each lane: a lane per lane of the widest grain
+    /// input, or per channel of a file with more than two.
     lane_state: Box<[GrainsVoice]>,
 }
 
@@ -249,9 +238,17 @@ impl GranularSampler {
             .get(self.params.wav.path())
             .filter(|w| w.frame_count() > 0 && w.sample_rate() > 0.0);
         let (source, per_channel) = cached_load(wav, media);
+        // A two-channel file gives each side its own channel; any other
+        // gives each lane one channel on both sides.
+        let channels = per_channel.len();
         let buffers = (0..self.lane_state.len())
             .map(|v| {
-                let mut b = GrainBuffer::clone(&per_channel[v % per_channel.len()]);
+                let channel = if channels == 2 {
+                    v % 2
+                } else {
+                    v / 2 % channels
+                };
+                let mut b = GrainBuffer::clone(&per_channel[channel]);
                 b.set_source(source);
                 b
             })
@@ -296,7 +293,6 @@ impl GranularSampler {
         *sample += 1;
         let ratio = resampler.ratio();
         let mut controls = |_| CONTROLS;
-        let mut width = || params.width.value_or(0.0).clamp(0.0, 5.0);
 
         let tap = resampler.tick(|inner, out_index| {
             if !pending.is_empty() {
@@ -304,18 +300,13 @@ impl GranularSampler {
                 // without waiting for one.
                 pending.take_due(now, inner.ago, 0.0, ratio, |t| chain.offer(voices, t));
             }
-            chain.process(voices, &mut controls, &mut width, rng, out_index);
+            chain.process(voices, &mut controls, rng, out_index);
         });
 
         for (i, v) in voices.iter().enumerate() {
             self.outputs
-                .voices
-                .set(i, tap.read(&v.output) * FULL_SCALE_VOLTS);
-        }
-        for (lane, h) in chain.stereo.iter().enumerate() {
-            self.outputs
                 .sample
-                .set(lane, tap.read(h) * FULL_SCALE_VOLTS);
+                .set(i, tap.read(&v.output) * FULL_SCALE_VOLTS);
         }
     }
 }

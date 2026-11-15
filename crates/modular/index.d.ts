@@ -643,11 +643,6 @@ export interface OutputSchema {
   /** The maximum value of the raw output range (before any remapping) */
   maxValue?: number
   /**
-   * Fixed lane count of a polyphonic output; `None` follows the
-   * module's derived lane count.
-   */
-  lanes?: number
-  /**
    * One value per logical lane even when the module is stereo
    * (`#[output(…, mono)]`).
    */

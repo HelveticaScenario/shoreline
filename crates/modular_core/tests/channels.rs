@@ -557,6 +557,19 @@ fn quantizer_snaps_each_side() {
 /// a stereo signal folds.
 const PER_SIDE: &[(&str, &[&str])] = &[
     ("$pan", &["input"]),
+    (
+        "$granular",
+        &[
+            "input", "trigger", "freeze", "time", "size", "shape", "freq", "rootFreq", "spread",
+            "feedback", "mix",
+        ],
+    ),
+    (
+        "$granularSampler",
+        &[
+            "trigger", "time", "size", "shape", "freq", "rootFreq", "spread",
+        ],
+    ),
     ("$supersaw", &["freq", "detune", "fm", "sync"]),
 ];
 

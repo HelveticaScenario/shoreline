@@ -1,7 +1,7 @@
 use super::super::tests::{SR, poly_volts, rms};
 use super::super::wav_load::MIN_LOADED_FRAMES;
 use super::*;
-use crate::types::{OutputStruct, SampleBuffer};
+use crate::types::{Connect, LaneExpansion, OutputStruct, SampleBuffer};
 
 const PATH: &str = "pad.wav";
 
@@ -29,7 +29,6 @@ fn sampler_params(quality: GranularQuality, channels: usize) -> GranularSamplerP
         freq: None,
         root_freq: None,
         spread: None,
-        width: None,
         quality,
         loaded: None,
     }
@@ -45,10 +44,15 @@ fn make(params: GranularSamplerParams, wav: &HashMap<String, Arc<WavData>>) -> G
 
 /// A module up to the point where state transfer happens.
 fn construct(
-    params: GranularSamplerParams,
+    mut params: GranularSamplerParams,
     wav: &HashMap<String, Arc<WavData>>,
 ) -> GranularSampler {
-    let lanes = sampler_lane_count(&params);
+    // One voice per side of each lane, inputs expanded as the patch does.
+    let lanes = 2 * sampler_lane_count(&params);
+    params.expand_lanes(&LaneExpansion {
+        channels: 2,
+        producer: &|_, _| 1,
+    });
     let mut outputs = GranularSamplerOutputs::default();
     outputs.set_all_lanes(lanes);
     let mut m = GranularSampler {
@@ -57,7 +61,7 @@ fn construct(
         params,
         lane_state: (0..lanes).map(|_| Default::default()).collect(),
         _lane_count: lanes,
-        _channels: 1,
+        _channels: 2,
         _block_index: Default::default(),
     };
     m.init(SR);
@@ -76,8 +80,8 @@ fn buffer(m: &GranularSampler, voice: usize) -> &GrainBuffer {
     &m.lane_state[voice].voice.granular.buffer
 }
 
-/// Trigger every voice once at sample 1000 and return each output lane
-/// over the following half second.
+/// Trigger every voice once at sample 1000 and return each side of each
+/// output lane (`l * 2 + c`) over the following half second.
 fn play(m: &mut GranularSampler) -> Vec<Vec<f32>> {
     let voices = m.lane_state.len();
     let mut out = vec![Vec::new(); voices];
@@ -87,7 +91,7 @@ fn play(m: &mut GranularSampler) -> Vec<Vec<f32>> {
         m.update(SR);
         if n >= 1000 {
             for (lane, o) in out.iter_mut().enumerate() {
-                o.push(m.outputs.voices.get(lane));
+                o.push(m.outputs.sample.get(lane));
             }
         }
     }
@@ -140,9 +144,10 @@ fn voices_on_one_channel_share_its_buffer() {
     let mut p = sampler_params(GranularQuality::Digital, 1);
     p.trigger = poly_volts(&[0.0, 0.0, 0.0]);
     let m = make(p, &wav);
-    assert_eq!(m.lane_state.len(), 3);
-    assert!(buffer(&m, 0).shares_with(buffer(&m, 1)));
-    assert!(buffer(&m, 0).shares_with(buffer(&m, 2)));
+    assert_eq!(m.lane_state.len(), 6);
+    for voice in 1..6 {
+        assert!(buffer(&m, 0).shares_with(buffer(&m, voice)));
+    }
 }
 
 #[test]
@@ -162,13 +167,13 @@ fn untriggered_voices_stay_silent() {
     let mut m = make(sampler_params(GranularQuality::Digital, 1), &wav);
     for _ in 0..24_000 {
         m.update(SR);
-        assert_eq!(m.outputs.voices.get(0), 0.0);
         assert_eq!(m.outputs.sample.get(0), 0.0);
+        assert_eq!(m.outputs.sample.get(1), 0.0);
     }
 }
 
 #[test]
-fn each_voice_plays_its_own_channel_of_the_file() {
+fn each_side_plays_its_own_channel_of_a_two_channel_file() {
     let n = SR as usize;
     let wav = wav_data(vec![vec![0.5; n], vec![0.0; n]], SR);
     let mut m = make(sampler_params(GranularQuality::Digital, 2), &wav);
