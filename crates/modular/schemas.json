@@ -9817,8 +9817,7 @@
       "examples": [
         {
           "title": "Chord cloud from a single saw",
-          "code": "const grains = $pulse('8hz')\n$granular($saw('a3'), grains, {\n  time: $sah($noise('white').range(0, 2), grains),\n  freq: $`[c4, e4, g4] [b3, d4, g4]`,\n  rootFreq: 'a3',\n  width: 4,\n  spread: 2,\n  mix: 4,\n}).out()"
-          "code": "const grains = $pulse('8hz')\n$granular($saw('a3'), grains, {\n  time: $sah($noise('white').range(0, 2), grains),\n  freq: $p('[c4, e4, g4] [b3, d4, g4]'),\n  rootFreq: 'a3',\n  spread: 2,\n  mix: 4,\n}).out()"
+          "code": "const grains = $pulse('8hz')\n$granular($saw('a3'), grains, {\n  time: $sah($noise('white').range(0, 2), grains),\n  freq: $`[c4, e4, g4] [b3, d4, g4]`,\n  rootFreq: 'a3',\n  spread: 2,\n  mix: 4,\n}).out()"
         }
       ]
     },
@@ -10057,7 +10056,7 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10066,7 +10065,7 @@
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10075,7 +10074,7 @@
         "paramType": "gate",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10089,7 +10088,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10103,7 +10102,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10117,7 +10116,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10126,7 +10125,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10135,7 +10134,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10149,21 +10148,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
-        "readsSides": false
-      },
-      {
-        "name": "width",
-        "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10177,7 +10162,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10191,7 +10176,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       }
     ],
@@ -10448,7 +10433,7 @@
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10462,7 +10447,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10476,7 +10461,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10490,7 +10475,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10499,7 +10484,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10508,7 +10493,7 @@
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       },
       {
@@ -10522,23 +10507,8 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
-      },
-      {
-        "name": "width",
-        "description": "spreads the voices across the stereo field: 0 all centred, 5 first voice hard left to last hard right",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": true,
-        "readsSides": false
-        "boundsNeedConstant": false
       }
     ],
     "positionalArgs": [
