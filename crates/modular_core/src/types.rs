@@ -652,6 +652,11 @@ pub trait Connect {
     /// channels are settled (see [`LaneExpansion`]). Main thread, before
     /// construction; may allocate. Containers forward; leaf types are no-op.
     fn expand_lanes(&mut self, expansion: &LaneExpansion);
+
+    /// Set `found` when this value holds a file whose two channels make a
+    /// `derived` module stereo. Containers forward; only [`Wav`] sets it, so
+    /// every other leaf type keeps this no-op.
+    fn find_stereo_file(&self, _found: &mut bool) {}
 }
 
 /// How a module's inputs map onto their producers' physical lanes once each
@@ -729,6 +734,11 @@ impl<T: Connect> Connect for Vec<T> {
             item.collect_lane_cables(sink);
         }
     }
+    fn find_stereo_file(&self, found: &mut bool) {
+        for item in self {
+            item.find_stereo_file(found);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for item in self {
             item.inject_index_ptr(ptr);
@@ -767,6 +777,11 @@ impl<T: Connect> Connect for Option<T> {
             inner.collect_lane_cables(sink);
         }
     }
+    fn find_stereo_file(&self, found: &mut bool) {
+        if let Some(inner) = self {
+            inner.find_stereo_file(found);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         if let Some(inner) = self {
             inner.inject_index_ptr(ptr);
@@ -796,6 +811,9 @@ impl<T: Connect> Connect for Box<T> {
     }
     fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
         (**self).collect_lane_cables(sink);
+    }
+    fn find_stereo_file(&self, found: &mut bool) {
+        (**self).find_stereo_file(found);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         (**self).inject_index_ptr(ptr);
@@ -827,6 +845,11 @@ impl<T: Connect, const N: usize> Connect for [T; N] {
     fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
         for item in self {
             item.collect_lane_cables(sink);
+        }
+    }
+    fn find_stereo_file(&self, found: &mut bool) {
+        for item in self {
+            item.find_stereo_file(found);
         }
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
@@ -867,6 +890,11 @@ impl<V: Connect> Connect for std::collections::HashMap<String, V> {
             v.collect_lane_cables(sink);
         }
     }
+    fn find_stereo_file(&self, found: &mut bool) {
+        for v in self.values() {
+            v.find_stereo_file(found);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for v in self.values_mut() {
             v.inject_index_ptr(ptr);
@@ -905,6 +933,11 @@ impl<V: Connect> Connect for std::collections::BTreeMap<String, V> {
             v.collect_lane_cables(sink);
         }
     }
+    fn find_stereo_file(&self, found: &mut bool) {
+        for v in self.values() {
+            v.find_stereo_file(found);
+        }
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         for v in self.values_mut() {
             v.inject_index_ptr(ptr);
@@ -936,6 +969,9 @@ impl<T1: Connect> Connect for (T1,) {
     fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_lane_cables(sink);
     }
+    fn find_stereo_file(&self, found: &mut bool) {
+        self.0.find_stereo_file(found);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
     }
@@ -963,6 +999,10 @@ impl<T1: Connect, T2: Connect> Connect for (T1, T2) {
     fn collect_lane_cables(&self, sink: &mut Vec<CableSource>) {
         self.0.collect_lane_cables(sink);
         self.1.collect_lane_cables(sink);
+    }
+    fn find_stereo_file(&self, found: &mut bool) {
+        self.0.find_stereo_file(found);
+        self.1.find_stereo_file(found);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
@@ -998,6 +1038,11 @@ impl<T1: Connect, T2: Connect, T3: Connect> Connect for (T1, T2, T3) {
         self.0.collect_lane_cables(sink);
         self.1.collect_lane_cables(sink);
         self.2.collect_lane_cables(sink);
+    }
+    fn find_stereo_file(&self, found: &mut bool) {
+        self.0.find_stereo_file(found);
+        self.1.find_stereo_file(found);
+        self.2.find_stereo_file(found);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
@@ -1040,6 +1085,12 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect> Connect for (T1, T2, T3
         self.1.collect_lane_cables(sink);
         self.2.collect_lane_cables(sink);
         self.3.collect_lane_cables(sink);
+    }
+    fn find_stereo_file(&self, found: &mut bool) {
+        self.0.find_stereo_file(found);
+        self.1.find_stereo_file(found);
+        self.2.find_stereo_file(found);
+        self.3.find_stereo_file(found);
     }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
@@ -1092,6 +1143,13 @@ impl<T1: Connect, T2: Connect, T3: Connect, T4: Connect, T5: Connect> Connect
         self.3.collect_lane_cables(sink);
         self.4.collect_lane_cables(sink);
     }
+    fn find_stereo_file(&self, found: &mut bool) {
+        self.0.find_stereo_file(found);
+        self.1.find_stereo_file(found);
+        self.2.find_stereo_file(found);
+        self.3.find_stereo_file(found);
+        self.4.find_stereo_file(found);
+    }
     fn inject_index_ptr(&mut self, ptr: *const std::cell::Cell<usize>) {
         self.0.inject_index_ptr(ptr);
         self.1.inject_index_ptr(ptr);
@@ -1137,6 +1195,14 @@ pub fn documented_schema_default<T>(_: &T) -> bool {
 /// Emitted by the `#[params]` attribute.
 pub trait SignalParamMeta {
     fn signal_param_schemas() -> Vec<SignalParamSchema>
+    where
+        Self: Sized,
+    {
+        vec![]
+    }
+
+    /// The params that nest signals and are marked `#[input(…, fold)]`.
+    fn nested_fold_params() -> Vec<String>
     where
         Self: Sized,
     {
@@ -1478,6 +1544,14 @@ impl Wav {
         self.channels
     }
 
+    /// The lanes of a player whose lanes follow its file (`$sampler`,
+    /// `_mediaAudio`): one stereo lane for a two-channel file, otherwise one
+    /// mono lane per channel. A player whose lanes follow its inputs
+    /// (`$grains`) maps the file's channels onto its lanes itself.
+    pub fn lanes(&self) -> usize {
+        if self.channels == 2 { 1 } else { self.channels }
+    }
+
     pub fn mtime(&self) -> Option<f64> {
         self.mtime
     }
@@ -1530,6 +1604,9 @@ impl Connect for Wav {
     }
     fn collect_lane_cables(&self, _sink: &mut Vec<CableSource>) {
         // Wav references a file path, not a module — no graph edge.
+    }
+    fn find_stereo_file(&self, found: &mut bool) {
+        *found |= self.channels == 2;
     }
     fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {
         // No cables — nothing to back-point.
@@ -3116,6 +3193,9 @@ pub enum StereoMode {
     /// Always stereo whatever its inputs: the module writes both sides of
     /// each lane itself.
     Stereo,
+    /// Stereo when a file it plays has two channels: its lanes carry the
+    /// file's sides and every input folds.
+    Derived,
 }
 
 /// The precision of an output's values, named in `#[output(precision = …)]`.
@@ -3361,6 +3441,12 @@ pub struct ModuleSchema {
     #[serde(default)]
     pub buffer_outputs: Vec<String>,
     pub signal_params: Vec<SignalParamSchema>,
+    /// The params that nest signals (`[points, signal]`, arrays of signals)
+    /// and that a stereo module reads folded (`#[input(…, fold)]` on a param
+    /// with no `type`). A mono module folds every signal it reads. Always
+    /// serialized, like `buffer_outputs`.
+    #[serde(default)]
+    pub nested_folds: Vec<String>,
     pub positional_args: Vec<PositionalArg>,
     /// If set, this module always produces exactly this many lanes (no inference needed)
     #[serde(default, skip_serializing_if = "Option::is_none")]

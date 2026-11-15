@@ -14,7 +14,7 @@ use crate::{
 
 /// Output width follows the audio track, capped at the port-wide lane limit.
 fn media_audio_derive_lane_count(params: &MediaAudioParams) -> usize {
-    params.wav.channel_count().clamp(1, PORT_MAX_LANES)
+    params.wav.lanes().clamp(1, PORT_MAX_LANES)
 }
 
 fn default_speed() -> f64 {
@@ -83,7 +83,7 @@ fn media_audio_validate_params(
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MediaAudioOutputs {
-    #[output("output", "the media file's audio", type = cv, default)]
+    #[output("output", "the media file's audio, stereo for a two-channel track", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -115,7 +115,7 @@ const MEDIA_AUDIO_DOCS: ModuleDocs = ModuleDocs {
     examples: &[],
 };
 
-#[module(name = "_mediaAudio", stereo = mono, docs = MEDIA_AUDIO_DOCS, lanes_derive = media_audio_derive_lane_count, args(wav), has_init, patch_update)]
+#[module(name = "_mediaAudio", stereo = derived, docs = MEDIA_AUDIO_DOCS, lanes_derive = media_audio_derive_lane_count, args(wav), has_init, patch_update)]
 pub struct MediaAudio {
     params: MediaAudioParams,
     outputs: MediaAudioOutputs,

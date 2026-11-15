@@ -2503,14 +2503,35 @@ describe('WAV paths and $wavMeta', () => {
         expect(sampler[0].params.speed).toBe(0.5);
     });
 
-    test('$sampler with stereo wav sets correct lane count', () => {
+    test('$sampler plays a stereo wav as one stereo lane', () => {
         const result = execWithWavs(
             '$sampler("/wavs/tables/boom.wav", $pulse("2hz")).scope().out()',
         );
         expect(
             findModules(result.patch, '$sampler')[0].params.wav.channels,
         ).toBe(2);
-        expect(result.patch.scopes[0].lanes.length).toBe(2);
+        // One stereo lane, so the scope draws both sides.
+        expect(result.patch.scopes[0].lanes).toMatchObject([
+            { lane: 0 },
+            { lane: 0, side: 1 },
+        ]);
+    });
+
+    test('$sampler plays a mono wav as one mono lane', () => {
+        const result = execWithWavs(
+            '$sampler("/wavs/kick.wav", $pulse("2hz")).scope().out()',
+        );
+        expect(result.patch.scopes[0].lanes).toMatchObject([{ lane: 0 }]);
+    });
+
+    test('what reads a stereo file player carries both sides', () => {
+        const result = execWithWavs(
+            '$sampler("/wavs/tables/boom.wav", $pulse("2hz")).lpf("c5").scope().out()',
+        );
+        expect(result.patch.scopes[0].lanes).toMatchObject([
+            { lane: 0 },
+            { lane: 0, side: 1 },
+        ]);
     });
 
     test('$sampler chained with amp and scope', () => {

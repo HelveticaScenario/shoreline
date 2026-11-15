@@ -304,6 +304,11 @@ describe('fold sites', () => {
             folds(`${wide}$plate($saw('c3'), { decay: wide }).out()`),
         ).toEqual(['wide‹.mono()›']);
         expect(folds(`${wide}wide.enosc().out()`)).toEqual(['wide‹.mono()›']);
+        expect(
+            folds(
+                `${wide}$sampler('kick.wav', 5, { slice: [[0, 0.5], wide] }).out()`,
+            ),
+        ).toEqual(['wide‹.mono()›']);
     });
 
     test('a mono out folds what it sends', () => {
@@ -392,6 +397,9 @@ describe('fold sites', () => {
             'x‹.mono()›',
         ]);
         expect(folds(`$input.outMono()`)).toEqual(['$input‹.mono()›']);
+        expect(folds(`$sampler('kick.wav', 5).outMono()`)).toEqual([
+            "$sampler('kick.wav', 5)‹.mono()›",
+        ]);
         expect(folds(`$inputMono.outMono()`)).toEqual([]);
     });
 
