@@ -342,6 +342,17 @@ describe('fold sites', () => {
         expect(folds(`$saw($clock._tempo).outMono()`)).toEqual([]);
     });
 
+    test('a buffer reader carries what its buffer records', () => {
+        expect(
+            folds(`${wide}$enosc($delayRead($buffer(wide, 1), 0.1)).out()`),
+        ).toEqual(['$delayRead($buffer(wide, 1), 0.1)‹.mono()›']);
+        expect(
+            folds(
+                `const b = $buffer($saw('c3'), 1)\n$enosc($delayRead(b, 0.1)).out()`,
+            ),
+        ).toEqual([]);
+    });
+
     test('an array folds element by element', () => {
         expect(folds(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
             'wide‹.mono()›',

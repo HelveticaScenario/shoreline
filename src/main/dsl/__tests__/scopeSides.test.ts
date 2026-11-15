@@ -28,6 +28,14 @@ describe('scopes', () => {
         ]);
     });
 
+    test('a buffer reader draws what its buffer records', () => {
+        expect(
+            traces(
+                `$delayRead($buffer($stereo($saw('c3'), $saw('g3')), 1), 0.1).scope()`,
+            ),
+        ).toEqual(['0:0', '0:1']);
+    });
+
     test('a mono lane draws one', () => {
         expect(traces(`$saw(['c3', 'e3']).scope()`)).toEqual(['0:0', '1:0']);
     });

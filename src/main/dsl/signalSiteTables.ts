@@ -14,6 +14,7 @@ import {
 
 /** `$delay(input, time, { feedback })`: a helper called like a module. */
 export const DELAY_SITE: ModuleSiteInfo = {
+    buffers: [],
     chainable: true,
     folds: [],
     inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
@@ -38,6 +39,18 @@ const GLOBAL_CHANNELS: SignalSiteTables['globals'] = {
     $toggleBtn: 'mono',
 };
 
+/** The params of `schema` that take a `$buffer`. */
+function bufferParams(schema: ModuleSchema): string[] {
+    const properties = (
+        schema.paramsSchema as {
+            properties?: Record<string, { $ref?: string }>;
+        }
+    ).properties;
+    return Object.entries(properties ?? {})
+        .filter(([, property]) => property.$ref === '#/$defs/Buffer')
+        .map(([name]) => name);
+}
+
 /**
  * Describe the DSL to the editor's signal-site collector, in the names the
  * generated lib and the runtime use.
@@ -56,6 +69,7 @@ export function buildSignalSiteTables(
         const processed = processModuleSchema(schema);
         const { flat, nested } = signalParamsOf(schema, processed);
         tables.modules[schema.name] = {
+            buffers: bufferParams(schema),
             chainable: qualifiesForChain(processed),
             folds: (schema.signalParams ?? [])
                 .filter((param) => param.fold)

@@ -35,6 +35,8 @@ export interface ModuleSiteInfo {
     stereo: 'lift' | 'mono' | 'stereo';
     /** The inputs that fold a stereo signal to mono. */
     folds: string[];
+    /** The `$buffer` params whose channels the module lifts with, as with an input. */
+    buffers: string[];
 }
 
 /**
@@ -510,12 +512,13 @@ export function collectSignalSites(
             if (ts.isSpreadElement(arg)) {
                 inputs.push('unknown');
             } else if (index < info.positional.length) {
-                if (info.inputs[info.positional[index]]) {
+                const name = info.positional[index];
+                if (info.inputs[name] || info.buffers.includes(name)) {
                     inputs.push(channelsOf(arg));
                 }
             } else if (ts.isObjectLiteralExpression(arg)) {
                 forEachField(arg, (key, field) => {
-                    if (info.inputs[key]) {
+                    if (info.inputs[key] || info.buffers.includes(key)) {
                         inputs.push(channelsOf(field));
                     }
                 });

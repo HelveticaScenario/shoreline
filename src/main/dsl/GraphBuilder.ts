@@ -882,7 +882,8 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * The channels each lane of `value` carries: an output or collection, an
-     * array or `$gN` group of them, or anything holding them. A deferred lane is unknown until the engine settles it.
+     * array or `$gN` group of them, a `$buffer` reference, which carries
+     * what its buffer records, or anything holding them. A deferred lane is unknown until the engine settles it.
      */
     private *laneChannels(value: unknown): Generator<Channels> {
         if (value instanceof DeferredModuleOutput) {
@@ -900,6 +901,13 @@ export class GraphBuilder implements ChainHost {
         } else if (isSignalGroupLike(value)) {
             yield* this.laneChannels(value.signals);
         } else if (isPlainObject(value)) {
+            if (
+                value.type === 'buffer_ref' &&
+                typeof value.module === 'string'
+            ) {
+                yield this.moduleChannels.get(value.module) ?? 'mono';
+                return;
+            }
             for (const field of Object.values(value)) {
                 yield* this.laneChannels(field);
             }

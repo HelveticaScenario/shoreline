@@ -24664,7 +24664,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       }
     ],
@@ -24790,7 +24790,7 @@
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       }
     ],
@@ -25998,7 +25998,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": true,
+        "fold": false,
         "readsSides": false
       }
     ],
