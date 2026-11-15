@@ -380,10 +380,10 @@ describe('fold sites', () => {
 
     test("a stereo module's mono outputs are mono", () => {
         expect(folds(`$enosc('c3').outMono()`)).toEqual([
-            "$enosc('c3')‹._output.mono()›",
+            "$enosc('c3')‹._all.mono()›",
         ]);
-        expect(folds(`$enosc('c3')._odd.outMono()`)).toEqual([]);
-        expect(folds(`const e = $enosc('c3')\ne._all.outMono()`)).toEqual([]);
+        expect(folds(`$enosc('c3')._low.outMono()`)).toEqual([]);
+        expect(folds(`const e = $enosc('c3')\ne._root.outMono()`)).toEqual([]);
     });
 
     test('an array folds element by element', () => {

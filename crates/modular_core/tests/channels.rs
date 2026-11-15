@@ -792,14 +792,14 @@ fn pan_has_a_lane_for_each_input_lane() {
 }
 
 #[test]
-fn enosc_plays_odd_voices_left_and_even_voices_right() {
+fn enosc_plays_stereo_and_its_split_outputs_mono() {
     let patch = build(&[
         ("e", "$enosc", json!({ "pitch": 0.0, "count": 4 })),
         (
-            "odd",
+            "low",
             "$add",
             json!({
-                "input": { "type": "cable", "module": "e", "port": "odd", "lane": 0 },
+                "input": { "type": "cable", "module": "e", "port": "low", "lane": 0 },
                 "offset": 0.0,
             }),
         ),
@@ -810,14 +810,12 @@ fn enosc_plays_odd_voices_left_and_even_voices_right() {
         let stereo = step(&patch, "e");
         assert_eq!(stereo.len(), 2);
         let module = &patch.sampleables["e"];
-        let [all, odd, even] = ["all", "odd", "even"].map(|port| module.get_value_at(port, 0, 0));
-        assert!((stereo[0] - odd).abs() < 1e-5, "{stereo:?} {odd}");
-        assert!((stereo[1] - even).abs() < 1e-5, "{stereo:?} {even}");
-        assert!((stereo[0] + stereo[1] - all).abs() < 1e-3);
+        let [low, high] = ["low", "high"].map(|port| module.get_value_at(port, 0, 0));
+        assert!((stereo[0] + stereo[1] - low - high).abs() < 1e-3);
         heard |= stereo[0] != stereo[1];
     }
     assert!(heard, "the sides differ");
     // A split output is mono, so what reads it stays mono.
-    assert_eq!(patch.sampleables["e"].port_lanes("odd"), 1);
-    assert_eq!(step(&patch, "odd").len(), 1);
+    assert_eq!(patch.sampleables["e"].port_lanes("low"), 1);
+    assert_eq!(step(&patch, "low").len(), 1);
 }
