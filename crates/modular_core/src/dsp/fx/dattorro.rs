@@ -11,7 +11,7 @@ use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::types::SwapGlide;
 
 // ─── Dattorro delay lengths (reference sample rate: 29761 Hz) ────────────────
@@ -82,15 +82,16 @@ fn scale_delay_f(ref_samples: f32, sample_rate: f32, size: f32) -> f32 {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct DattorroParams {
     #[input(
-        "signal to reverberate; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         type = audio,
     )]
-    input: PolySignal,
+    input: PairSignal,
     #[input(
         "how long the tail rings: -5 shortest, +5 almost endless",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     decay: Option<LaneSum>,
@@ -99,6 +100,7 @@ struct DattorroParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     damping: Option<LaneSum>,
@@ -107,6 +109,7 @@ struct DattorroParams {
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     size: Option<LaneSum>,
@@ -115,6 +118,7 @@ struct DattorroParams {
         type = control,
         default = 0.0,
         range = (0.0, 0.5),
+        fold,
     )]
     #[deserr(default)]
     predelay: Option<LaneSum>,
@@ -123,6 +127,7 @@ struct DattorroParams {
         type = control,
         default = 3.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     diffusion: Option<LaneSum>,
@@ -131,6 +136,7 @@ struct DattorroParams {
         type = control,
         default = 0.0,
         control_range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     modulation: Option<LaneSum>,
@@ -143,7 +149,7 @@ struct DattorroParams {
 struct DattorroOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right lanes",
+        "stereo reverb, fully wet, as one stereo lane",
         type = cv,
         default
     )]
@@ -227,9 +233,9 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$dattorro", stereo = mono,
+    name = "$dattorro", stereo = stereo,
     docs = DATTORRO_DOCS,
-    lanes = 2,
+    lanes = 1,
     has_init,
     args(input)
 )]
@@ -301,8 +307,6 @@ impl Dattorro {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let num_input_lanes = self.params.input.lanes();
-
         // ── Read parameters ──────────────────────────────────────────────
 
         // Map bipolar -5..5 to algorithm coefficients (clamped for safety)
@@ -357,23 +361,9 @@ impl Dattorro {
         let mod_v = self.params.modulation.value_or(0.0);
         let mod_excursion = mod_v * self.state.mod_excursion_scale;
 
-        // ── Sum input lanes to stereo ─────────────────────────────────
+        // ── Sum each side over the lanes ─────────────────────────────────
 
-        let mut left_in = 0.0f32;
-        let mut right_in = 0.0f32;
-        for lane in 0..num_input_lanes {
-            let sample = self.params.input.get_value(lane);
-            if lane % 2 == 0 {
-                left_in += sample;
-            } else {
-                right_in += sample;
-            }
-        }
-        // With an odd lane count the final lane has no stereo partner,
-        // so feed it to both sides (a mono input drives left and right equally).
-        if num_input_lanes % 2 == 1 {
-            right_in += self.params.input.get_value(num_input_lanes - 1);
-        }
+        let [left_in, right_in] = self.params.input.sum_sides();
 
         // ── Predelay ─────────────────────────────────────────────────────
 
@@ -505,12 +495,18 @@ mod tests {
         let constructors = get_constructors();
         let deserializers = get_params_deserializers();
         let deserializer = deserializers.get("$dattorro").unwrap();
-        let cached = deserializer(params).unwrap();
+        let mut cached = deserializer(params).unwrap();
+        // Built as a patch builds a stereo module: one lane of two sides, with
+        // each input lane on both sides, as a mono producer reaches it.
+        cached.params.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
         let deserialized = DeserializedParams {
             params: cached.params,
-            lane_count: cached.lane_count,
+            lane_count: cached.lane_count * 2,
             f64_inputs: false,
-            channels: 1,
+            channels: 2,
         };
         constructors.get("$dattorro").unwrap()(
             "test-dattorro",
@@ -554,7 +550,7 @@ mod tests {
     fn recovers_after_non_finite_input() {
         // A non-finite input sample must not lodge in the tank's recursive
         // state: once the input is finite again, the reverb builds a tail.
-        use crate::poly::PolySignal;
+        use crate::poly::{PairSignal, PolySignal};
         use crate::types::{OutputStruct, Signal};
 
         let mut outputs = super::DattorroOutputs::default();
@@ -563,7 +559,7 @@ mod tests {
             outputs,
             state: Default::default(),
             params: super::DattorroParams {
-                input: PolySignal::mono(Signal::Volts(f32::NAN)),
+                input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(f32::NAN))),
                 decay: None,
                 damping: None,
                 size: None,
@@ -572,7 +568,7 @@ mod tests {
                 modulation: None,
             },
             _lane_count: 2,
-            _channels: 1,
+            _channels: 2,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);
@@ -580,7 +576,7 @@ mod tests {
             m.update(SAMPLE_RATE);
         }
 
-        m.params.input = PolySignal::mono(Signal::Volts(1.0));
+        m.params.input = PairSignal::from_mono(PolySignal::mono(Signal::Volts(1.0)));
         let mut energy = 0.0f32;
         for _ in 0..48000 {
             m.update(SAMPLE_RATE);
@@ -628,11 +624,11 @@ mod tests {
         let right_energy: f32 = right.iter().map(|s| s * s).sum();
         assert!(
             left_energy > 0.0,
-            "left lane should have energy from impulse"
+            "left side should have energy from impulse"
         );
         assert!(
             right_energy > 0.0,
-            "right lane should have energy from impulse"
+            "right side should have energy from impulse"
         );
     }
 
@@ -649,7 +645,7 @@ mod tests {
             .iter()
             .zip(right.iter())
             .all(|(l, r)| (l - r).abs() < 1e-10);
-        assert!(!identical, "left and right lanes should be decorrelated");
+        assert!(!identical, "left and right sides should be decorrelated");
     }
 
     #[test]

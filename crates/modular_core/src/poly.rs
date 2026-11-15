@@ -851,11 +851,46 @@ impl PairSignal {
         self.inner.get_value(lane * 2 + side)
     }
 
+    /// Every lane summed side by side, `[L, R]`: what a stereo effect takes
+    /// as its input. A mono lane adds to both sides; a non-finite value adds
+    /// nothing.
+    #[inline]
+    pub fn sum_sides(&self) -> [f32; 2] {
+        let mut sums = [0.0; 2];
+        for lane in 0..self.lanes() {
+            for (side, sum) in sums.iter_mut().enumerate() {
+                let v = self.get_value(lane, side);
+                if v.is_finite() {
+                    *sum += v;
+                }
+            }
+        }
+        sums
+    }
+
     /// Lane `lane` folded to mono, `(L + R) / 2`: a mono producer's value as
     /// it is.
     #[inline]
     pub fn get_folded(&self, lane: usize) -> f32 {
         0.5 * (self.get_value(lane, 0) + self.get_value(lane, 1))
+    }
+}
+
+#[cfg(test)]
+impl PairSignal {
+    /// `inner`, a mono signal, laid out as a patch lays out a stereo
+    /// module's input: each lane on both sides.
+    pub(crate) fn from_mono(inner: PolySignal) -> Self {
+        use crate::types::Connect;
+        let mut signal = Self {
+            inner,
+            paired: false,
+        };
+        signal.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
+        signal
     }
 }
 

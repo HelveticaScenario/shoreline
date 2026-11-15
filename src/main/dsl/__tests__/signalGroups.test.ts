@@ -197,7 +197,7 @@ describe('expandSignalGroups', () => {
             ['input'],
             [
                 {
-                    name: 'width',
+                    name: 'spread',
                     kind: 'polySignal',
                     isLaneSumInput: true,
                 },
@@ -205,12 +205,12 @@ describe('expandSignalGroups', () => {
         );
         expect(() =>
             expandSignalGroups(
-                { input: 0, width: $g1([1, 2]) },
+                { input: 0, spread: $g1([1, 2]) },
                 schema,
-                '$stereoMix',
+                '$pan',
             ),
         ).toThrow(
-            '$g1: parameter "width" of $stereoMix is a mono (summing) input — signal groups are not supported here',
+            '$g1: parameter "spread" of $pan is a mono (summing) input — signal groups are not supported here',
         );
     });
 
@@ -353,7 +353,7 @@ describe('signal groups through the executor pipeline', () => {
 
     test('a group on a mono (summing) input throws', () => {
         expect(() =>
-            execPatch(`$stereoMix($saw("c3"), { width: $g1([1, 2]) }).out()`),
+            execPatch(`$pan($saw("c3"), 0, { spread: $g1([1, 2]) }).out()`),
         ).toThrow('is a mono (summing) input');
     });
 

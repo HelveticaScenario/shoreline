@@ -39,6 +39,9 @@ pub trait CloneableParams: Send + 'static {
     fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>);
     /// See [`Connect::expand_lanes`](crate::types::Connect::expand_lanes).
     fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion);
+    /// Whether a file these params hold makes a `derived` module stereo (see
+    /// [`Connect::find_stereo_file`](crate::types::Connect::find_stereo_file)).
+    fn has_stereo_file(&self) -> bool;
 }
 
 impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
@@ -56,6 +59,11 @@ impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
     }
     fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
         <T as crate::types::Connect>::expand_lanes(self, expansion)
+    }
+    fn has_stereo_file(&self) -> bool {
+        let mut found = false;
+        crate::types::Connect::find_stereo_file(self, &mut found);
+        found
     }
 }
 

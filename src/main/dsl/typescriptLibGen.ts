@@ -310,8 +310,8 @@ interface SignalGroup {
  * {@link Poly} takes except a signal group: the module combines all voices
  * into one control signal rather than preserving polyphony.
  *
- * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
- * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
+ * @example $pan($saw("c3"), 0, { spread: 2 })              // Constant spread
+ * @example $pan($saw("c3"), 0, { spread: $sine("1hz") })   // Oscillating spread
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-lane signals
  */
@@ -886,7 +886,8 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
   /**
    * Crossfade the signal this one was chained from against it. Follows a
    * chained module: \`sig.lpf('800hz').wet(2.5)\` mixes \`sig\` with its
-   * filtered copy.
+   * filtered copy. After a stereo effect such as \`.plate()\`, which mixes
+   * every voice into one stereo lane, the dry voices are mixed into one too.
    *
    * @param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry only, 5 = wet only. Default is 2.5 for an equal mix.
    * @returns A Collection from the \\$mix output

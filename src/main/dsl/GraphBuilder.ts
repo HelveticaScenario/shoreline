@@ -875,6 +875,12 @@ export class GraphBuilder implements ChainHost {
         return this.modules.get(id);
     }
 
+    /** The schema of module `id`'s type. */
+    schemaOf(id: string): ProcessedModuleSchema | undefined {
+        const module = this.modules.get(id);
+        return module && this.schemaByName.get(module.moduleType);
+    }
+
     /** Set the channels module `id`'s lane-following outputs carry. */
     setModuleChannels(id: string, channels: Channels): void {
         this.moduleChannels.set(id, channels);
@@ -2273,10 +2279,28 @@ function crossfadeMix(
         MIX_SLOT,
     ) as PolySignal;
     return builder.getFactory('_crossfade')(
-        original,
+        sumsLanes(builder, result) && original.items.length > 1
+            ? builder.getFactory('$mix')(
+                  original.items.map((item) => new Collection(item)),
+              )
+            : original,
         result,
         amount,
     ) as Collection;
+}
+
+/**
+ * Whether `result` comes from a stereo effect, which sums every lane of its
+ * input into one stereo lane. The dry voices are then summed the same way,
+ * so the crossfade hears the wet once rather than once per dry voice.
+ */
+function sumsLanes(builder: GraphBuilder, result: AnyCollection): boolean {
+    const first = result.items[0];
+    if (!(first instanceof ModuleOutput) || result.items.length !== 1) {
+        return false;
+    }
+    const schema = builder.schemaOf(first.moduleId);
+    return schema?.stereo === 'stereo' && schema.lanes === 1;
 }
 
 /** `receiver.wet(mix)`: fade the signal `receiver` was chained from against it. */
