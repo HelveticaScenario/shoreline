@@ -24677,7 +24677,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$buffer",
@@ -24803,7 +24803,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$chord",
@@ -26011,7 +26011,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "lift"
   },
   {
     "name": "$erratic",
