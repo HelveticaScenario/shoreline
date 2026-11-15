@@ -161,6 +161,9 @@ pub enum GraphCommand {
     SingleModuleUpdate {
         module_id: String,
         module: Box<dyn Sampleable>,
+        /// The patch update the module was settled for: it replaces its
+        /// predecessor in that patch, queued or playing, and in no other.
+        update_id: u64,
     },
 
     /// Transport control: start playback
