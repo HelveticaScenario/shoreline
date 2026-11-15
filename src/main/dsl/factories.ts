@@ -8,6 +8,7 @@ import {
     CollectionWithRange,
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
+import type { Channels } from '../../shared/dsl/channels';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
 import type { CallSiteSpans } from './sourceAnalysisTypes';
 import {
@@ -63,6 +64,24 @@ function isWavRef(value: unknown): boolean {
         'type' in value &&
         value.type === 'wav_ref'
     );
+}
+
+/**
+ * What a `derived` module carries: stereo when a file it plays has two
+ * channels, mono when every file's channel count is known, and otherwise
+ * unknown.
+ */
+function fileChannels(files: unknown[]): Channels {
+    const counts = files.map((file) =>
+        isWavRef(file) ? (file as { channels?: unknown }).channels : undefined,
+    );
+    if (counts.includes(2)) {
+        return 'stereo';
+    }
+    return counts.length > 0 &&
+        counts.every((count) => typeof count === 'number')
+        ? 'mono'
+        : 'unknown';
 }
 
 /**
@@ -479,7 +498,9 @@ export class DSLContext {
                     : schema.stereo === 'stereo'
                       ? 'stereo'
                       : schema.stereo === 'derived'
-                        ? 'unknown'
+                        ? fileChannels(
+                              wavParamNames.map((name) => params[name]),
+                          )
                         : this.builder.liftedChannelsOf(Object.values(params)),
             );
 

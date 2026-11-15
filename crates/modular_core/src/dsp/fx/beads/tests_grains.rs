@@ -848,3 +848,29 @@ fn narrowing_plays_the_lane_on_from_its_left_voice() {
     assert!(mono.params.mono);
     assert_play_alike(&mut kept, &mut mono, 20_000, 10_000, SR);
 }
+
+#[test]
+fn a_lanes_two_voices_place_each_grain_as_one_image() {
+    // With the random pans pinned, a lane playing from both voices with its
+    // sides fed alike places every grain where one voice alone would: the
+    // two voices share each grain's pan.
+    crate::dsp::utils::rng::TEST_SEED_BASE.set(Some(0x5eed));
+    let mut p = grains_params(GranularQuality::Digital);
+    p.mix = poly_volts(&[3.5]);
+    p.size = poly_volts(&[1.25]);
+    p.spread = poly_volts(&[5.0]);
+    let mut one = make_grains(p.clone(), SR);
+    let mut both = construct_stereo(p, SR);
+    both.on_patch_update();
+    crate::dsp::utils::rng::TEST_SEED_BASE.set(None);
+    let mut off_centre = 0.0f32;
+    for n in 0..30_000 {
+        let x = sine(330.0, n, SR, 3.0);
+        let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+        let (l1, r1) = step(&mut one, x, trig, SR);
+        let (l2, r2) = step(&mut both, x, trig, SR);
+        assert!((l1 - l2).abs() < 1e-4 && (r1 - r2).abs() < 1e-4, "at {n}");
+        off_centre = off_centre.max((l1 - r1).abs());
+    }
+    assert!(off_centre > 0.1, "spread places grains off centre");
+}

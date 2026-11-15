@@ -143,7 +143,10 @@ struct EnoscParams {
     )]
     #[deserr(default)]
     balance: Option<PolySignal>,
-    #[input("phase warp applied to every oscillator before its sine, built with `$phase.*`")]
+    #[input(
+        "phase warp applied to every oscillator before its sine, built with `$phase.*`",
+        fold
+    )]
     #[deserr(default)]
     phase: Option<PhaseWarp>,
     #[input("wavefold amount", type = control, default = 0.0, range = (0.0, 5.0), fold)]
@@ -443,7 +446,7 @@ impl Enosc {
             let phase = params
                 .phase
                 .as_ref()
-                .map(|warp| (warp, warp.resolve(at, sample_rate, &mut cs.phase)));
+                .map(|warp| (warp, warp.resolve_folded(at, sample_rate, &mut cs.phase)));
 
             let ctx = VoiceContext {
                 phase,

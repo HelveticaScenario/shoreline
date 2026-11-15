@@ -304,6 +304,11 @@ describe('fold sites', () => {
             folds(`${wide}$plate($saw('c3'), { decay: wide }).out()`),
         ).toEqual(['wide‹.mono()›']);
         expect(folds(`${wide}wide.enosc().out()`)).toEqual(['wide‹.mono()›']);
+        expect(
+            folds(
+                `${wide}$sampler('kick.wav', 5, { slice: [[0, 0.5], wide] }).out()`,
+            ),
+        ).toEqual(['wide‹.mono()›']);
     });
 
     test('a mono out folds what it sends', () => {
@@ -384,6 +389,16 @@ describe('fold sites', () => {
         ]);
         expect(folds(`$enosc('c3')._low.outMono()`)).toEqual([]);
         expect(folds(`const e = $enosc('c3')\ne._root.outMono()`)).toEqual([]);
+        expect(
+            folds(`$enosc('c3').concat($enosc('g3'))._low.outMono()`),
+        ).toEqual([]);
+        expect(folds(`$enosc('c3').out()._high.outMono()`)).toEqual([]);
+    });
+
+    test('a cycle of const bindings reads as unknown', () => {
+        expect(folds(`const a = b\nconst b = a\na._low.outMono()`)).toEqual([
+            'a._low‹.mono()›',
+        ]);
     });
 
     test('an array folds element by element', () => {

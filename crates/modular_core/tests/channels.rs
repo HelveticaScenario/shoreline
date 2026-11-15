@@ -584,15 +584,13 @@ const PER_SIDE: &[(&str, &[&str])] = &[
     (
         "$granular",
         &[
-            "input", "trigger", "freeze", "time", "size", "shape", "freq", "rootFreq", "spread",
-            "feedback", "mix",
+            "input", "trigger", "freeze", "time", "size", "shape", "freq", "rootFreq", "feedback",
+            "mix",
         ],
     ),
     (
         "$granularSampler",
-        &[
-            "trigger", "time", "size", "shape", "freq", "rootFreq", "spread",
-        ],
+        &["trigger", "time", "size", "shape", "freq", "rootFreq"],
     ),
     ("$supersaw", &["freq", "detune", "fm", "sync"]),
 ];
@@ -616,7 +614,55 @@ fn every_input_of_a_stereo_module_folds_or_reads_by_side() {
                 param.name
             );
         }
+        let nested = nested_signal_params(&module);
+        for name in &nested {
+            assert!(
+                module.nested_folds.contains(name) != per_side.contains(&name.as_str()),
+                "{}.{name}: mark it `fold`, or list it in PER_SIDE",
+                module.name,
+            );
+        }
+        for name in &module.nested_folds {
+            assert!(
+                nested.contains(name),
+                "{}.{name} is marked `fold` but holds no signal",
+                module.name,
+            );
+        }
     }
+}
+
+/// The params of `module` that nest signals inside arrays, tuples or
+/// structs, rather than being a signal themselves.
+fn nested_signal_params(module: &modular_core::types::ModuleSchema) -> Vec<String> {
+    fn holds_signal(node: &Value, defs: &Value, depth: usize) -> bool {
+        if depth > 8 {
+            return false;
+        }
+        match node {
+            Value::Object(map) => {
+                if let Some(Value::String(reference)) = map.get("$ref") {
+                    let name = reference.trim_start_matches("#/$defs/");
+                    return matches!(name, "PolySignal" | "LaneSum" | "Signal")
+                        || holds_signal(&defs[name], defs, depth + 1);
+                }
+                map.values().any(|v| holds_signal(v, defs, depth + 1))
+            }
+            Value::Array(items) => items.iter().any(|v| holds_signal(v, defs, depth + 1)),
+            _ => false,
+        }
+    }
+    let schema = serde_json::to_value(&module.params_schema.schema).unwrap();
+    let defs = schema.get("$defs").cloned().unwrap_or(Value::Null);
+    let Some(Value::Object(properties)) = schema.get("properties") else {
+        return Vec::new();
+    };
+    properties
+        .iter()
+        .filter(|(name, _)| !module.signal_params.iter().any(|p| &p.name == *name))
+        .filter(|(_, property)| holds_signal(property, &defs, 0))
+        .map(|(name, _)| name.clone())
+        .collect()
 }
 
 fn buffer_ref(module: &str) -> Value {
@@ -884,7 +930,7 @@ fn a_two_channel_file_makes_its_players_stereo() {
     assert_eq!(lanes("stereo"), 2);
     assert_eq!(lanes("mono"), 1);
     assert_eq!(lanes("quad"), 4);
-    // Each voice of `$grains` plays both sides.
+    // Each voice of `$grains` is a stereo lane.
     assert_eq!(lanes("cloud"), 4);
     // What reads a stereo player lifts to stereo.
     assert_eq!(lanes("filtered"), 2);
@@ -937,5 +983,122 @@ fn a_widened_drum_rings_on_in_every_lane_and_side() {
             heard = heard.max(expected[1].abs());
         }
         assert!(heard > 0.1, "the kicks ring");
+    }
+}
+
+#[test]
+fn enosc_reads_a_stereo_phase_warp_folded() {
+    let render = |amount: Value| {
+        let patch = build(&[
+            ("l", "$signal", signal(json!(1.0))),
+            ("r", "$signal", signal(json!(3.0))),
+            ("m", "$signal", signal(json!(2.0))),
+            (
+                "st",
+                "$stereo",
+                json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+            ),
+            (
+                "e",
+                "$enosc",
+                json!({
+                    "pitch": 0.0,
+                    "count": 4,
+                    "phase": { "type": "pulsar", "amount": amount },
+                }),
+            ),
+        ])
+        .unwrap();
+        (0..512).flat_map(|_| step(&patch, "e")).collect::<Vec<_>>()
+    };
+    assert_eq!(render(cable("st", 0)), render(cable("m", 0)));
+}
+
+#[test]
+fn a_stereo_file_is_found_inside_containers() {
+    use modular_core::types::{Connect, Wav};
+    let found = |value: &dyn Fn(&mut bool)| {
+        let mut found = false;
+        value(&mut found);
+        found
+    };
+    let stereo = || Wav::new("stereo".into(), 2);
+    let mono = || Wav::new("mono".into(), 1);
+    assert!(found(&|f| Some(stereo()).find_stereo_file(f)));
+    assert!(!found(&|f| Some(mono()).find_stereo_file(f)));
+    assert!(!found(&|f| None::<Wav>.find_stereo_file(f)));
+    assert!(found(&|f| vec![mono(), stereo()].find_stereo_file(f)));
+    assert!(found(&|f| Box::new((1.0_f32, stereo())).find_stereo_file(f)));
+}
+
+/// Render `samples` samples of a patch whose `$grains` "cloud" granulates a
+/// two-channel file, left at 0.4 and right at -0.2, and return the cloud's
+/// physical lanes at the last one.
+fn render_stereo_cloud(modules: &[(&str, &str, Value)], samples: usize) -> Vec<f32> {
+    use modular_core::types::{SampleBuffer, WavData};
+    let (mut patch, _) = insert(modules).unwrap();
+    patch.wav_data.insert(
+        "file2".into(),
+        std::sync::Arc::new(WavData::new(
+            SampleBuffer::from_samples(vec![vec![0.4; 48000], vec![-0.2; 48000]], SAMPLE_RATE),
+            None,
+        )),
+    );
+    patch.connect_all();
+    let mut out = Vec::new();
+    for _ in 0..samples {
+        out = step(&patch, "cloud");
+    }
+    out
+}
+
+fn cloud(pitch: Value, gate: Value) -> (&'static str, &'static str, Value) {
+    (
+        "cloud",
+        "$grains",
+        json!({
+            "pitch": pitch,
+            "wav": wav(2),
+            "gate": gate,
+            "density": 0.01,
+            "loopCount": 1,
+            "shape": "square",
+            "length": 0.5,
+        }),
+    )
+}
+
+#[test]
+fn grains_plays_each_side_of_a_stereo_file() {
+    // Two voices, each a stereo lane: voice `v` side `c` at `v * 2 + c`.
+    let out = render_stereo_cloud(&[cloud(json!([0.0, 1.0]), json!(5.0))], 100);
+    assert_eq!(out.len(), 4);
+    for voice in out.chunks(2) {
+        assert!(voice[0] > 0.0, "{out:?}");
+        assert!((voice[1] + 0.5 * voice[0]).abs() < 1e-5, "{out:?}");
+    }
+}
+
+#[test]
+fn grains_reads_its_inputs_folded_from_a_stereo_file() {
+    // A gate high on one side only folds to 2.5 V, which spawns grains
+    // whichever side it is on.
+    for (left, right) in [(0.0, 5.0), (5.0, 0.0)] {
+        let out = render_stereo_cloud(
+            &[
+                ("l", "$signal", signal(json!(left))),
+                ("r", "$signal", signal(json!(right))),
+                (
+                    "st",
+                    "$stereo",
+                    json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+                ),
+                cloud(json!(0.0), cable("st", 0)),
+            ],
+            100,
+        );
+        assert_eq!(out.len(), 2);
+        assert!(out[0] > 0.0, "gate ({left}, {right}): {out:?}");
+        assert!((out[1] + 0.5 * out[0]).abs() < 1e-5, "{out:?}");
     }
 }

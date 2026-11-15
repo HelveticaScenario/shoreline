@@ -51,7 +51,8 @@ struct SamplerParams {
     #[deserr(default)]
     speed: Option<LaneSum>,
     #[input(
-        "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)"
+        "which slice plays, read at each gate and each loop repeat: a signal, or `[points, signal]` to cut the file into slices (see Slicing)",
+        fold
     )]
     #[deserr(default)]
     slice: Option<SliceParam>,

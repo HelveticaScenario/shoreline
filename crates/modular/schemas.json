@@ -223,6 +223,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [],
     "experimental": false,
     "stereo": "lift"
@@ -460,6 +461,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -599,6 +601,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "value"
@@ -771,6 +774,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "inputs"
@@ -930,6 +934,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -1069,6 +1074,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "left"
@@ -1193,6 +1199,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -1314,6 +1321,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -1435,6 +1443,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -1556,6 +1565,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -1677,6 +1687,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -1812,6 +1823,7 @@
         "readsSides": true
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "mid"
@@ -2002,6 +2014,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -2188,6 +2201,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -2427,6 +2441,7 @@
     ],
     "bufferOutputs": [],
     "signalParams": [],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "tempo"
@@ -2667,6 +2682,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -2896,6 +2912,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -3075,6 +3092,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -3279,6 +3297,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -3462,6 +3481,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -3615,6 +3635,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -3768,6 +3789,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -3976,6 +3998,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -4228,6 +4251,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "closed"
@@ -4432,6 +4456,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -4636,6 +4661,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -4840,6 +4866,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -5044,6 +5071,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -5248,6 +5276,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -5452,6 +5481,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -5706,6 +5736,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -5935,6 +5966,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -6088,6 +6120,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -6241,6 +6274,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -6445,6 +6479,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -6649,6 +6684,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -6853,6 +6889,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -7242,6 +7279,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -7437,6 +7475,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -7605,6 +7644,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -7776,6 +7816,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -8061,6 +8102,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -8263,6 +8305,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -8387,6 +8430,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -8619,6 +8663,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -8808,6 +8853,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -9095,6 +9141,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -9380,6 +9427,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -9544,6 +9592,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -9793,6 +9842,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -10148,7 +10198,7 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       },
       {
@@ -10180,6 +10230,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -10507,10 +10558,11 @@
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
-        "fold": false,
+        "fold": true,
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "wav"
@@ -10704,6 +10756,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -11095,6 +11148,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -11312,6 +11366,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -11559,6 +11614,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -11826,6 +11882,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -11952,6 +12009,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "phase"
@@ -12103,6 +12161,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "phase"
@@ -12279,6 +12338,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "phase"
@@ -12516,6 +12576,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "color"
@@ -13189,6 +13250,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -13419,6 +13481,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -14350,6 +14413,9 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [
+      "phase"
+    ],
     "positionalArgs": [
       {
         "name": "pitch"
@@ -14799,6 +14865,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "pitch"
@@ -14970,6 +15037,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -15204,6 +15272,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -15371,6 +15440,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -15541,6 +15611,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -15750,6 +15821,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -15977,6 +16049,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -16269,6 +16342,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -16535,6 +16609,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -16743,6 +16818,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -16957,6 +17033,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -17181,6 +17258,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -17390,6 +17468,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -17559,6 +17638,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -17758,6 +17838,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -17957,6 +18038,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -18156,6 +18238,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -18360,6 +18443,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -18564,6 +18648,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -18753,6 +18838,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -18942,6 +19028,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -19131,6 +19218,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -19320,6 +19408,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -19524,6 +19613,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -19778,6 +19868,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -19983,6 +20074,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -20188,6 +20280,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -20393,6 +20486,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -20598,6 +20692,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -20803,6 +20898,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -21003,6 +21099,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -21203,6 +21300,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -21403,6 +21501,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -21603,6 +21702,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -21803,6 +21903,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -22013,6 +22114,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -22222,6 +22324,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -22391,6 +22494,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -22600,6 +22704,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -22924,6 +23029,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -23051,6 +23157,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -23188,6 +23295,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -23466,6 +23574,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "gate"
@@ -23603,6 +23712,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -23743,6 +23853,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -23883,6 +23994,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -24023,6 +24135,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -24164,6 +24277,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -24292,6 +24406,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -24413,6 +24528,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -24534,6 +24650,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -24691,6 +24808,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "buffer"
@@ -24818,6 +24936,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -25055,6 +25174,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "chord"
@@ -25224,6 +25344,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -25379,6 +25500,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -25543,6 +25665,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -25726,6 +25849,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "length"
@@ -25871,6 +25995,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -26035,6 +26160,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "buffer"
@@ -26335,6 +26461,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -26492,6 +26619,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -26667,6 +26795,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -26790,6 +26919,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -26913,6 +27043,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -27111,6 +27242,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "expression"
@@ -27377,6 +27509,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -27516,6 +27649,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -27643,6 +27777,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -27846,6 +27981,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -27997,6 +28133,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -28135,6 +28272,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -28289,6 +28427,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "trigger"
@@ -28490,6 +28629,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -28631,6 +28771,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -28788,6 +28929,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "dry"
@@ -28932,6 +29074,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -29006,6 +29149,7 @@
     ],
     "bufferOutputs": [],
     "signalParams": [],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "value"
@@ -29184,6 +29328,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "min"
@@ -29348,6 +29493,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -29483,6 +29629,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -29646,6 +29793,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -32102,6 +32250,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "pattern"
@@ -32302,6 +32451,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "keyframes"
@@ -32468,6 +32618,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "steps"
@@ -32887,6 +33038,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [],
     "experimental": false,
     "stereo": "mono"
@@ -33141,6 +33293,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "template"
@@ -33357,6 +33510,7 @@
     ],
     "bufferOutputs": [],
     "signalParams": [],
+    "nestedFolds": [],
     "positionalArgs": [],
     "lanesParam": "lanes",
     "experimental": false,
@@ -33440,6 +33594,7 @@
     ],
     "bufferOutputs": [],
     "signalParams": [],
+    "nestedFolds": [],
     "positionalArgs": [],
     "experimental": false,
     "stereo": "mono"
@@ -33703,6 +33858,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -33891,6 +34047,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -34089,6 +34246,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -34328,6 +34486,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -34620,6 +34779,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -34912,6 +35072,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -35254,6 +35415,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -35597,6 +35759,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -35921,6 +36084,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -36201,6 +36365,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -36453,6 +36618,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -36770,6 +36936,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -37062,6 +37229,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -37354,6 +37522,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -37708,6 +37877,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -38032,6 +38202,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -38311,6 +38482,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -38570,6 +38742,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -38820,6 +38993,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -39070,6 +39244,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -39320,6 +39495,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -39579,6 +39755,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -39838,6 +40015,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -40081,6 +40259,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "freq"
@@ -40402,6 +40581,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "pitch"
@@ -40505,6 +40685,7 @@
     ],
     "bufferOutputs": [],
     "signalParams": [],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "wav"
@@ -40753,6 +40934,9 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [
+      "slice"
+    ],
     "positionalArgs": [
       {
         "name": "wav"
@@ -40939,6 +41123,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -41158,6 +41343,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -41342,6 +41528,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -41536,6 +41723,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -41725,6 +41913,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -41944,6 +42133,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -42098,6 +42288,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"
@@ -42249,6 +42440,7 @@
         "readsSides": false
       }
     ],
+    "nestedFolds": [],
     "positionalArgs": [
       {
         "name": "input"

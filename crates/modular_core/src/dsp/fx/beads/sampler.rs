@@ -21,7 +21,7 @@ use super::queue::TriggerQueue;
 use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::cached_load;
-use super::{FULL_SCALE_VOLTS, GranularQuality, grain_params, sides_match, unit};
+use super::{FULL_SCALE_VOLTS, GranularQuality, folded, grain_params, sides_match, unit};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 
@@ -79,6 +79,7 @@ struct GranularSamplerParams {
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     spread: Option<PolySignal>,
@@ -281,7 +282,7 @@ impl GranularSampler {
                     params: GrainParams {
                         // Grain positions count back from the end of the file.
                         time: 1.0 - unit(p.time.value_or(i, 0.0)),
-                        spread: unit(p.spread.value_or(i, 0.0)),
+                        spread: unit(folded(&p.spread, i)),
                         ..grain_params(&None, &p.size, &p.shape, &p.freq, &p.root_freq, i)
                     },
                 };

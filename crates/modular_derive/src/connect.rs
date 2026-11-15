@@ -383,9 +383,9 @@ pub fn impl_connect_macro(ast: &DeriveInput) -> TokenStream {
         collect_cables_body.clone(),
         &[("collect_cables", "collect_lane_cables")],
     );
-    let collect_stereo_files_body = rename_idents(
+    let find_stereo_file_body = rename_idents(
         collect_cables_body.clone(),
-        &[("collect_cables", "collect_stereo_files")],
+        &[("collect_cables", "find_stereo_file"), ("sink", "found")],
     );
     let expand_lanes_body = rename_idents(
         inject_index_body.clone(),
@@ -412,8 +412,8 @@ pub fn impl_connect_macro(ast: &DeriveInput) -> TokenStream {
             fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
                 #expand_lanes_body
             }
-            fn collect_stereo_files(&self, sink: &mut Vec<crate::types::CableSource>) {
-                #collect_stereo_files_body
+            fn find_stereo_file(&self, found: &mut bool) {
+                #find_stereo_file_body
             }
             #[allow(unused_variables)]
             fn mark_glides(

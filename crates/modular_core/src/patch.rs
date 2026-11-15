@@ -393,11 +393,7 @@ fn settle_channels(
         .map(|(id, _, params, _)| {
             let stereo = match mode(id) {
                 StereoMode::Stereo => true,
-                StereoMode::Derived => {
-                    let mut files = Vec::new();
-                    params.params.collect_stereo_files(&mut files);
-                    !files.is_empty()
-                }
+                StereoMode::Derived => params.params.has_stereo_file(),
                 StereoMode::Lift | StereoMode::Mono => false,
             };
             (id.clone(), if stereo { 2 } else { 1 })

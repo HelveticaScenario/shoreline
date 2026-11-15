@@ -2494,8 +2494,24 @@ describe('WAV paths and $wavMeta', () => {
         expect(
             findModules(result.patch, '$sampler')[0].params.wav.channels,
         ).toBe(2);
-        // One lane, which its file may make stereo, so the scope draws both
-        // sides.
+        // One stereo lane, so the scope draws both sides.
+        expect(result.patch.scopes[0].lanes).toMatchObject([
+            { lane: 0 },
+            { lane: 0, side: 1 },
+        ]);
+    });
+
+    test('$sampler plays a mono wav as one mono lane', () => {
+        const result = execWithWavs(
+            '$sampler("/wavs/kick.wav", $pulse("2hz")).scope().out()',
+        );
+        expect(result.patch.scopes[0].lanes).toMatchObject([{ lane: 0 }]);
+    });
+
+    test('what reads a stereo file player carries both sides', () => {
+        const result = execWithWavs(
+            '$sampler("/wavs/tables/boom.wav", $pulse("2hz")).lpf("c5").scope().out()',
+        );
         expect(result.patch.scopes[0].lanes).toMatchObject([
             { lane: 0 },
             { lane: 0, side: 1 },
