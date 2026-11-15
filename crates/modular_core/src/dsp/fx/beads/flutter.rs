@@ -137,7 +137,10 @@ impl WowFlutter {
         let channels = self.channels();
         let state = &mut self.state;
         let mut delays = [0.0; 2];
-        for (side, delay) in delays.iter_mut().enumerate().take(channels) {
+        // Both wobbles run even when mono, where side 1 reads side 0's
+        // controls and so tracks it, so a lane that turns stereo carries on
+        // with its sides together.
+        for (side, delay) in delays.iter_mut().enumerate() {
             if state.block_pos == 0 {
                 let p = &self.params;
                 let control = |s: &Option<LaneSum>| sanitize(s.side_or(side, 2.5)).clamp(0.0, 5.0);

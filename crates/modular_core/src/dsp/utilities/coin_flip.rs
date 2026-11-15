@@ -111,15 +111,22 @@ impl CoinFlip {
 impl crate::types::PatchUpdateHandler for CoinFlip {
     /// Seeds each unseeded lane off the module's stable heap address. The
     /// per-lane `seeded` flag rides `transfer_state_from`, so a running
-    /// lane keeps its sequence across patch updates.
+    /// lane keeps its sequence across patch updates. A stereo lane's sides
+    /// flip together: a side without a running sequence of its own, such as
+    /// one a widening patch update adds, takes its left side's whole state.
     fn on_patch_update(&mut self) {
         let base = seed_base(self);
         let channels = self.channels();
-        for (lane, state) in self.lane_state.iter_mut().enumerate() {
-            if !state.seeded {
-                // A stereo lane's sides flip together.
-                state.rng.seed(base, lane / channels);
-                state.seeded = true;
+        for lane in 0..self.lane_state.len() {
+            if self.lane_state[lane].seeded {
+                continue;
+            }
+            let left = lane - lane % channels;
+            if lane != left && self.lane_state[left].seeded {
+                self.lane_state[lane] = self.lane_state[left];
+            } else {
+                self.lane_state[lane].rng.seed(base, lane / channels);
+                self.lane_state[lane].seeded = true;
             }
         }
     }

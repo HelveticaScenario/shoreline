@@ -752,7 +752,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Tap the out labeled `label`: a 2-lane Collection of its audio after gain and mute/solo, ' +
+            'Tap the out labeled `label`: one lane of its audio after gain and mute/solo, stereo for a stereo out, ' +
             'with `.active` (0–5V gate), `.level` (gain, 0–10), and `.panning` (-5–5) as ranged signals. ' +
             'Follows live VU-panel changes. The out may be declared after the tap; an undeclared label is an error.',
         examples: [
