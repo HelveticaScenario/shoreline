@@ -194,15 +194,20 @@ impl PolySignal {
         if let Some(cable) = self.cable_view()
             && let Some((data, stride)) = cable.rendered_to(range.end)
         {
+            // Where each consumer lane sits in a row of the port.
             let repeat = cable.repeat();
+            let mut offsets = [0usize; PORT_MAX_LANES];
+            for (lane, offset) in offsets[..lanes].iter_mut().enumerate() {
+                *offset = (lane % width) / repeat;
+            }
             let rows = scratch.as_mut_ptr();
             for (n, i) in range.clone().enumerate() {
-                for lane in 0..lanes {
-                    // SAFETY: slot `i` is rendered and the view's lanes lie
-                    // in its row; `range.len() * lanes <= SCRATCH_LEN`.
-                    unsafe {
-                        let value = *data.add(i * stride + (lane % width) / repeat);
-                        rows.add(n * lanes + lane).write(value);
+                // SAFETY: slot `i` is rendered and the view's lanes lie in
+                // its row; `range.len() * lanes <= SCRATCH_LEN`.
+                unsafe {
+                    let row = data.add(i * stride);
+                    for (lane, &offset) in offsets[..lanes].iter().enumerate() {
+                        rows.add(n * lanes + lane).write(*row.add(offset));
                     }
                 }
             }

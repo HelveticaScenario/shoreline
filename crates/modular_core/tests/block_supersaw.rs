@@ -64,3 +64,28 @@ fn supersaw_bounds_hold_every_sample() {
         assert!(b.start <= *v && *v <= b.end, "{v} outside {b:?}");
     }
 }
+
+#[test]
+fn supersaw_bounds_hold_under_hard_sync() {
+    // A sync reset's band-limiting correction runs on every saw at once; the
+    // harness's `src` saws, faster than the stack, reset it again and again.
+    for freq in [-3.0, -1.0, 0.5] {
+        let params = json!({
+            "freq": [freq, freq + 0.3],
+            "unison": 7,
+            "detune": 0.0,
+            "sync": poly_cable("src", 2),
+            "waitForZeroCross": false,
+        });
+        let patch = build(
+            modular_core::types::ProcessingMode::Block,
+            modular_core::types::ProcessingMode::Block,
+            "$supersaw",
+            params,
+        );
+        let (samples, _, _, bounds) = render_with_bounds(&patch, &[BLOCK_SIZE]);
+        for (v, b) in samples.iter().zip(&bounds) {
+            assert!(b.start <= *v && *v <= b.end, "{v} outside {b:?}");
+        }
+    }
+}

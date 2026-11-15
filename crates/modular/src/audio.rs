@@ -1166,6 +1166,10 @@ pub struct AudioState {
     module_profiling_enable_count: Arc<AtomicU32>,
 }
 
+/// A module rebuilt on its own, with the update id of the patch it was
+/// settled for.
+pub type RebuiltModule = (Box<dyn modular_core::types::Sampleable>, u64);
+
 impl AudioState {
     /// Create a new AudioState with command queue channels
     pub fn new_with_channels(
@@ -1221,38 +1225,44 @@ impl AudioState {
         lands_in.is_some()
     }
 
-    /// Build module `id` on its own from `params`, settled as the patch it
-    /// lands in settled its predecessor, with that patch's update id (0 when
-    /// no patch has been built). Main thread.
+    /// Build module `id` on its own from `params`, once for each patch the
+    /// edit belongs in, each settled as that patch settled its predecessor and
+    /// paired with its update id: the one a module sent now lands in, and the
+    /// newest still waiting for its bar or beat, so the edit outlives that
+    /// swap. Empty before any patch is built. Main thread.
     pub fn rebuild_module(
         &self,
         id: &str,
         module_type: &str,
         params: serde_json::Value,
         sample_rate: f32,
-    ) -> std::result::Result<(Box<dyn modular_core::types::Sampleable>, u64), String> {
-        let mut deserialized = crate::params_cache::deserialize_params(module_type, params, false)
-            .map_err(|e| format!("Failed to deserialize params for {module_type}: {e}"))?;
+    ) -> std::result::Result<Vec<RebuiltModule>, String> {
         let constructors = modular_core::dsp::get_constructors();
         let constructor = constructors
             .get(module_type)
             .ok_or_else(|| format!("Unknown module type: {module_type}"))?;
         let mut patches = self.patch_settlements.lock();
-        let lands_in = self
-            .prune_settlements(&mut patches)
-            .then(|| (patches[0].0, &patches[0].2));
-        let update_id = lands_in.map_or(0, |(update_id, _)| update_id);
-        let settlement = lands_in.map(|(_, settlement)| settlement);
-        let mode = match settlement {
-            Some(settlement) => settlement.prepare_rebuilt(id, &mut deserialized)?,
-            None => modular_core::types::ProcessingMode::default(),
-        };
-        let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
-            .map_err(|e| format!("Failed to create module {id}: {e}"))?;
-        if let Some(settlement) = settlement {
-            settlement.settle_rebuilt(id, module.as_ref());
+        if !self.prune_settlements(&mut patches) {
+            return Ok(Vec::new());
         }
-        Ok((module, update_id))
+        let last = patches.len() - 1;
+        let targets = if last == 0 { vec![0] } else { vec![0, last] };
+        targets
+            .into_iter()
+            .map(|index| {
+                let (update_id, _, settlement) = &patches[index];
+                let mut deserialized =
+                    crate::params_cache::deserialize_params(module_type, params.clone(), false)
+                        .map_err(|e| {
+                            format!("Failed to deserialize params for {module_type}: {e}")
+                        })?;
+                let mode = settlement.prepare_rebuilt(id, &mut deserialized)?;
+                let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
+                    .map_err(|e| format!("Failed to create module {id}: {e}"))?;
+                settlement.settle_rebuilt(id, module.as_ref());
+                Ok((module, *update_id))
+            })
+            .collect()
     }
 
     /// True if the audio callback has caught a panic and is now emitting silence.
@@ -4617,6 +4627,34 @@ mod tests {
     }
 
     #[test]
+    fn a_module_settled_for_the_queued_patch_replaces_its_predecessor_there() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        processor
+            .patch
+            .sampleables
+            .insert("src".into(), ConstantOutputModule::boxed("src", 3.5));
+        processor.patch.connect_all();
+        let mut queued = update_with(vec![("src", ConstantOutputModule::boxed("src", 1.0))]);
+        queued.update_id = 9;
+        processor.queued_update = Some((Box::new(queued), QueuedTrigger::NextBar));
+
+        cmd_producer
+            .push(GraphCommand::SingleModuleUpdate {
+                module_id: "src".into(),
+                module: ConstantOutputModule::boxed("src", 7.25),
+                update_id: 9,
+            })
+            .unwrap();
+        processor.process_commands();
+
+        let (queued, _) = processor.queued_update.as_ref().unwrap();
+        let src = queued.new_patch.sampleables.get("src").unwrap();
+        assert_eq!(src.get_value_at("out", 0, 0), 7.25);
+        let live = processor.patch.sampleables.get("src").unwrap();
+        assert_eq!(live.get_value_at("out", 0, 0), 3.5);
+    }
+
+    #[test]
     fn process_order_drives_disconnected_module() {
         // A module with no cables, feeding neither the output nor any scope, must
         // still be force-processed each block.
@@ -5283,6 +5321,7 @@ mod tests {
                 44_100.0,
             )
             .unwrap()
+            .remove(0)
             .0;
         assert_eq!(rebuilt.port_channels("output"), 2);
         assert_eq!(rebuilt.port_lanes("output"), 2);
@@ -5448,6 +5487,7 @@ mod tests {
                     44_100.0,
                 )
                 .unwrap()
+                .remove(0)
                 .0;
             module.ensure_processed_to(1);
             module.get_bounds_at("output", 0, 0)
@@ -5465,6 +5505,7 @@ mod tests {
                 44_100.0,
             )
             .unwrap()
+            .remove(0)
             .0;
         wander.ensure_processed_to(1);
         assert_eq!(
@@ -5492,6 +5533,19 @@ mod tests {
         });
         assert!(errors.is_empty());
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
+        // The edit is built for the waiting patch too, so it outlives the swap.
+        let targets: Vec<u64> = state
+            .rebuild_module(
+                "read",
+                "$add",
+                serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
+                44_100.0,
+            )
+            .unwrap()
+            .into_iter()
+            .map(|(_, update_id)| update_id)
+            .collect();
+        assert_eq!(targets, [1, 2]);
         state.transport_meter.write_applied_update_id(2);
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::UNBOUNDED);
 
