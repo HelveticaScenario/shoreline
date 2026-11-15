@@ -2320,15 +2320,17 @@ impl CableView {
     }
 }
 
-/// A polyphonic input whose lane `i` is a cable to lane `first + i` of a
-/// single upstream port, resolved to that port's block buffer so a block
-/// module can read whole rows in place.
+/// A polyphonic input whose lane `i` is a cable to lane `first + i / repeat`
+/// of a single upstream port, resolved to that port's block buffer. With
+/// `repeat` 1 a block module reads whole rows in place; a stereo reader of a
+/// mono producer has `repeat` 2, each lane read on both sides.
 ///
 /// Shares [`CableView`]'s lifetime invariant.
 #[derive(Clone, Copy, Debug)]
 pub struct PolyCableView {
     data: *const f32,
     stride: usize,
+    repeat: usize,
     processed: *const std::cell::Cell<usize>,
     source: SampleablePtr,
 }
@@ -2339,8 +2341,20 @@ unsafe impl Send for PolyCableView {}
 
 impl PolyCableView {
     /// `None` unless every signal is a viewed cable onto the same f32 port,
-    /// signal `i` reading the port lane just after signal `i - 1`'s.
+    /// signal `i` reading port lane `first + i / repeat`, `repeat` being how
+    /// many signals read the first lane.
     pub(crate) fn resolve(signals: &[Signal]) -> Option<Self> {
+        let offset = |signal: &Signal| match signal {
+            Signal::Cable {
+                view: Some(view), ..
+            } => Some((view.data, view.offset)),
+            _ => None,
+        };
+        let first = offset(signals.first()?)?;
+        let repeat = signals
+            .iter()
+            .take_while(|signal| offset(signal) == Some(first))
+            .count();
         let mut port: Option<(CableView, SampleablePtr)> = None;
         for (i, signal) in signals.iter().enumerate() {
             let Signal::Cable {
@@ -2357,7 +2371,8 @@ impl PolyCableView {
             }
             match port {
                 None => port = Some((*view, *source)),
-                Some((first, _)) if first.data == view.data && view.offset == first.offset + i => {}
+                Some((first, _))
+                    if first.data == view.data && view.offset == first.offset + i / repeat => {}
                 Some(_) => return None,
             }
         }
@@ -2366,9 +2381,16 @@ impl PolyCableView {
             // SAFETY: `offset < stride`, inside the port's first row.
             data: unsafe { first.data.add(first.offset) },
             stride: first.stride,
+            repeat,
             processed: first.processed,
             source,
         })
+    }
+
+    /// How many lanes in a row read each port lane.
+    #[inline]
+    pub(crate) fn repeat(&self) -> usize {
+        self.repeat
     }
 
     /// Render the producer through slot `end` and return the first viewed

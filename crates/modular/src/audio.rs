@@ -1166,6 +1166,10 @@ pub struct AudioState {
     module_profiling_enable_count: Arc<AtomicU32>,
 }
 
+/// A module rebuilt on its own, with the update id of the patch it was
+/// settled for.
+pub type RebuiltModule = (Box<dyn modular_core::types::Sampleable>, u64);
+
 impl AudioState {
     /// Create a new AudioState with command queue channels
     pub fn new_with_channels(
@@ -1221,33 +1225,44 @@ impl AudioState {
         lands_in.is_some()
     }
 
-    /// Build module `id` on its own from `params`, settled as the patch it
-    /// lands in settled its predecessor. Main thread.
+    /// Build module `id` on its own from `params`, once for each patch the
+    /// edit belongs in, each settled as that patch settled its predecessor and
+    /// paired with its update id: the one a module sent now lands in, and the
+    /// newest still waiting for its bar or beat, so the edit outlives that
+    /// swap. Empty before any patch is built. Main thread.
     pub fn rebuild_module(
         &self,
         id: &str,
         module_type: &str,
         params: serde_json::Value,
         sample_rate: f32,
-    ) -> std::result::Result<Box<dyn modular_core::types::Sampleable>, String> {
-        let mut deserialized = crate::params_cache::deserialize_params(module_type, params, false)
-            .map_err(|e| format!("Failed to deserialize params for {module_type}: {e}"))?;
+    ) -> std::result::Result<Vec<RebuiltModule>, String> {
         let constructors = modular_core::dsp::get_constructors();
         let constructor = constructors
             .get(module_type)
             .ok_or_else(|| format!("Unknown module type: {module_type}"))?;
         let mut patches = self.patch_settlements.lock();
-        let settlement = self.prune_settlements(&mut patches).then(|| &patches[0].2);
-        let mode = match settlement {
-            Some(settlement) => settlement.prepare_rebuilt(id, &mut deserialized)?,
-            None => modular_core::types::ProcessingMode::default(),
-        };
-        let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
-            .map_err(|e| format!("Failed to create module {id}: {e}"))?;
-        if let Some(settlement) = settlement {
-            settlement.settle_rebuilt(id, module.as_ref());
+        if !self.prune_settlements(&mut patches) {
+            return Ok(Vec::new());
         }
-        Ok(module)
+        let last = patches.len() - 1;
+        let targets = if last == 0 { vec![0] } else { vec![0, last] };
+        targets
+            .into_iter()
+            .map(|index| {
+                let (update_id, _, settlement) = &patches[index];
+                let mut deserialized =
+                    crate::params_cache::deserialize_params(module_type, params.clone(), false)
+                        .map_err(|e| {
+                            format!("Failed to deserialize params for {module_type}: {e}")
+                        })?;
+                let mode = settlement.prepare_rebuilt(id, &mut deserialized)?;
+                let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
+                    .map_err(|e| format!("Failed to create module {id}: {e}"))?;
+                settlement.settle_rebuilt(id, module.as_ref());
+                Ok((module, *update_id))
+            })
+            .collect()
     }
 
     /// True if the audio callback has caught a panic and is now emitting silence.
@@ -1689,14 +1704,13 @@ impl AudioState {
             .new_patch
             .insert_modules(to_construct, sample_rate, self.block_size)
             .map_err(napi::Error::from_reason)?;
-        let mut patches = self.patch_settlements.lock();
-        patches.push((
+        // Recorded before the update is sent, so a module rebuilt from here
+        // on settles as this patch did, and taken back if the send fails.
+        self.patch_settlements.lock().push((
             update.update_id,
             matches!(trigger, QueuedTrigger::Immediate),
             settlement,
         ));
-        self.prune_settlements(&mut patches);
-        drop(patches);
         block_ids.sort();
         sample_ids.sort();
         println!(
@@ -1749,10 +1763,17 @@ impl AudioState {
         }
 
         // Send the update to audio thread
-        self.send_command(GraphCommand::QueuedPatchUpdate {
+        let sent = self.send_command(GraphCommand::QueuedPatchUpdate {
             update: Box::new(update),
             trigger,
-        })
+        });
+        let mut patches = self.patch_settlements.lock();
+        if sent.is_err() {
+            patches.pop();
+        } else {
+            self.prune_settlements(&mut patches);
+        }
+        sent
     }
 
     pub fn handle_set_patch(&self, submission: PatchSubmission) -> Vec<ApplyPatchError> {
@@ -2046,7 +2067,31 @@ impl AudioProcessor {
                 GraphCommand::SingleModuleUpdate {
                     module_id,
                     module: new_module,
+                    update_id,
                 } => {
+                    // Settled for a queued update: it takes its predecessor's
+                    // place in that patch, before the swap carries state in.
+                    if let Some((queued, _)) = self
+                        .queued_update
+                        .as_mut()
+                        .filter(|(queued, _)| queued.update_id == update_id)
+                    {
+                        let replaced = match queued.new_patch.sampleables.remove_entry(&module_id) {
+                            Some((key, old_module)) => {
+                                queued.new_patch.sampleables.insert(key, new_module);
+                                old_module
+                            }
+                            None => new_module,
+                        };
+                        self.try_push_garbage_item(GarbageItem::Module((module_id, replaced)));
+                        continue;
+                    }
+                    // Settled for a patch no longer playing, its channels and
+                    // lane layout may not fit the one that is.
+                    if update_id != self.transport_meter.read_applied_update_id() {
+                        self.try_push_garbage_item(GarbageItem::Module((module_id, new_module)));
+                        continue;
+                    }
                     // State transfer + replace, then reconnect. `remove_entry`
                     // keeps the map's owned key so the re-insert reuses it (no
                     // clone, and no growth after a same-key remove); the key's
@@ -4502,6 +4547,7 @@ mod tests {
             .push(GraphCommand::SingleModuleUpdate {
                 module_id: "m1".into(),
                 module: CountingMessageModule::boxed("new", Arc::clone(&new_hits)),
+                update_id: 0,
             })
             .unwrap();
         processor.process_commands();
@@ -4546,6 +4592,7 @@ mod tests {
             .push(GraphCommand::SingleModuleUpdate {
                 module_id: "src".into(),
                 module: ConstantOutputModule::boxed("src", 7.25),
+                update_id: 0,
             })
             .unwrap();
 
@@ -4558,6 +4605,57 @@ mod tests {
             .unwrap()
             .get_value_at("out", 0, 0);
         assert_eq!(updated, 7.25);
+    }
+
+    #[test]
+    fn a_module_settled_for_another_patch_is_dropped() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        processor
+            .patch
+            .sampleables
+            .insert("src".into(), ConstantOutputModule::boxed("src", 3.5));
+        processor.patch.connect_all();
+
+        // Settled for update 7, which never played.
+        cmd_producer
+            .push(GraphCommand::SingleModuleUpdate {
+                module_id: "src".into(),
+                module: ConstantOutputModule::boxed("src", 7.25),
+                update_id: 7,
+            })
+            .unwrap();
+        processor.process_commands();
+
+        let src = processor.patch.sampleables.get("src").unwrap();
+        assert_eq!(src.get_value_at("out", 0, 0), 3.5);
+    }
+
+    #[test]
+    fn a_module_settled_for_the_queued_patch_replaces_its_predecessor_there() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        processor
+            .patch
+            .sampleables
+            .insert("src".into(), ConstantOutputModule::boxed("src", 3.5));
+        processor.patch.connect_all();
+        let mut queued = update_with(vec![("src", ConstantOutputModule::boxed("src", 1.0))]);
+        queued.update_id = 9;
+        processor.queued_update = Some((Box::new(queued), QueuedTrigger::NextBar));
+
+        cmd_producer
+            .push(GraphCommand::SingleModuleUpdate {
+                module_id: "src".into(),
+                module: ConstantOutputModule::boxed("src", 7.25),
+                update_id: 9,
+            })
+            .unwrap();
+        processor.process_commands();
+
+        let (queued, _) = processor.queued_update.as_ref().unwrap();
+        let src = queued.new_patch.sampleables.get("src").unwrap();
+        assert_eq!(src.get_value_at("out", 0, 0), 7.25);
+        let live = processor.patch.sampleables.get("src").unwrap();
+        assert_eq!(live.get_value_at("out", 0, 0), 3.5);
     }
 
     #[test]
@@ -4622,6 +4720,7 @@ mod tests {
             .push(GraphCommand::SingleModuleUpdate {
                 module_id: "m".into(),
                 module: CountingProcessModule::boxed("m", Arc::clone(&new_processed)),
+                update_id: 0,
             })
             .unwrap();
         processor.process_commands();
@@ -5228,7 +5327,9 @@ mod tests {
                 serde_json::json!({ "input": cable("st"), "offset": 2.0 }),
                 44_100.0,
             )
-            .unwrap();
+            .unwrap()
+            .remove(0)
+            .0;
         assert_eq!(rebuilt.port_channels("output"), 2);
         assert_eq!(rebuilt.port_lanes("output"), 2);
     }
@@ -5392,7 +5493,9 @@ mod tests {
                     serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
                     44_100.0,
                 )
-                .unwrap();
+                .unwrap()
+                .remove(0)
+                .0;
             module.ensure_processed_to(1);
             module.get_bounds_at("output", 0, 0)
         };
@@ -5408,7 +5511,9 @@ mod tests {
                 serde_json::json!({ "input": cable("saw"), "amount": 2.0 }),
                 44_100.0,
             )
-            .unwrap();
+            .unwrap()
+            .remove(0)
+            .0;
         wander.ensure_processed_to(1);
         assert_eq!(
             wander.get_bounds_at("output", 0, 0),
@@ -5435,6 +5540,19 @@ mod tests {
         });
         assert!(errors.is_empty());
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::point(2.0));
+        // The edit is built for the waiting patch too, so it outlives the swap.
+        let targets: Vec<u64> = state
+            .rebuild_module(
+                "read",
+                "$add",
+                serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
+                44_100.0,
+            )
+            .unwrap()
+            .into_iter()
+            .map(|(_, update_id)| update_id)
+            .collect();
+        assert_eq!(targets, [1, 2]);
         state.transport_meter.write_applied_update_id(2);
         assert_eq!(rebuilt("read"), modular_core::bounds::Bounds::UNBOUNDED);
 
