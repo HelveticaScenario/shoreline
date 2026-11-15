@@ -743,3 +743,20 @@ fn a_wow_flutter_widened_to_stereo_wobbles_both_sides_together() {
         }
     }
 }
+
+#[test]
+fn pan_has_a_lane_for_each_input_lane() {
+    let patch = build(&[
+        ("osc", "$signal", signal(json!(1.0))),
+        (
+            "panned",
+            "$pan",
+            json!({ "input": cable("osc", 0), "pan": [-5.0, 0.0, 5.0] }),
+        ),
+    ])
+    .unwrap();
+    // One stereo lane, the input placed hard left by the first pan lane.
+    let out = step(&patch, "panned");
+    assert_eq!(out.len(), 2);
+    assert!(out[1].abs() < 1e-6, "{out:?}");
+}

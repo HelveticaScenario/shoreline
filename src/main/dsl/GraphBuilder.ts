@@ -1195,12 +1195,20 @@ export class GraphBuilder implements ChainHost {
                     const gainValue = gainControllable
                         ? ((group.gain as number | undefined) ?? UNITY_OUT_GAIN)
                         : null;
+                    // A signal gain is averaged to one lane, so the out stays
+                    // one lane wide, and a mono out's is folded with it.
                     const gainSource = gainControllable
                         ? smoothControlFactory(gainValue, {
                               ...OUT_GAIN_RANGE,
                               id: `__vuGain_${sk}`,
                           })
-                        : group.gain!;
+                        : setLanesFactory(
+                              group.type === 'stereo'
+                                  ? group.gain!
+                                  : monoFactory(group.gain!),
+                              1,
+                              { mode: 'average' },
+                          );
 
                     const panSource: PolySignal =
                         group.type !== 'stereo'
@@ -1216,8 +1224,8 @@ export class GraphBuilder implements ChainHost {
                     // reads post-gain, pre-mute like a post-fader DAW meter.
                     // A stereo out pans its lanes and sums them into one
                     // stereo lane. `$pan` keeps a centred lane at unity, so
-                    // the sum is taken down 3 dB to sit as a centred mono
-                    // out always has. A mono out sums its lanes folded.
+                    // the sum is taken down 3 dB to match a mono out's level
+                    // on each speaker. A mono out sums its lanes folded.
                     const mixSignals: ModuleOutput[] =
                         group.type === 'stereo'
                             ? mulFactory(
@@ -1272,7 +1280,9 @@ export class GraphBuilder implements ChainHost {
                         outsByLabel.set(group.label, {
                             active: muteSig.items[0],
                             audio: outputSignals,
-                            level: gainSource,
+                            // The tap reads the gain as written, ranged as
+                            // the user's own signal is.
+                            level: gainControllable ? gainSource : group.gain!,
                             pan: panSource,
                         });
                     }
@@ -1396,8 +1406,10 @@ export class GraphBuilder implements ChainHost {
                 masterGainSignal,
             );
 
-            // Create root signal module with the final mix
-            signalFactory(gainedMix, { id: 'ROOT_OUTPUT' });
+            // The root output's lanes are device channels, so whatever stereo
+            // the end-of-chain callback or a signal master gain brings in is
+            // folded, keeping each lane on its own channel.
+            signalFactory(monoFactory(gainedMix), { id: 'ROOT_OUTPUT' });
 
             // End-of-chain master meter, pinned to the panel's right side.
             // Taps ROOT_OUTPUT itself (post end-of-chain + global gain), so

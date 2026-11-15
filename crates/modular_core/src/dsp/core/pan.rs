@@ -59,7 +59,13 @@ const PAN_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$pan", docs = PAN_DOCS, args(input, pan), stereo = stereo)]
+/// One lane per input lane: a `pan` with more lanes than the input has no
+/// lane to place.
+fn pan_derive_lane_count(params: &PanParams) -> usize {
+    params.input.lanes().max(1)
+}
+
+#[module(name = "$pan", docs = PAN_DOCS, lanes_derive = pan_derive_lane_count, args(input, pan), stereo = stereo)]
 pub struct Pan {
     outputs: PanOutputs,
     params: PanParams,

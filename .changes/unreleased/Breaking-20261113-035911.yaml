@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    `.out()` plays stereo lanes in stereo, and its `width` option is now `spread`, matching `$pan`. `$input` gives stereo lanes, pairing input channels 1 and 2, 3 and 4, and so on; `$inputMono` gives one lane per channel as `$input` did. `$trackTap` (formerly `$outLane`) gives one lane, stereo for a stereo out, and its `pan` is `panning`.
+    `.out()` plays stereo lanes in stereo, and its `width` option is now `spread`, matching `$pan`. `$input` gives stereo lanes, pairing input channels 1 and 2, 3 and 4, and so on; `$inputMono` gives one lane per channel as `$input` did. `$trackTap` gives one lane, stereo for a stereo out, and its `pan` is `panning`.
 
     ```js
     // before

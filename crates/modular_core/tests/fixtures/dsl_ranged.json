@@ -2066,6 +2066,23 @@
             }
         },
         {
+            "id": "$setLanes-2",
+            "idIsExplicit": false,
+            "moduleType": "$setLanes",
+            "params": {
+                "input": [
+                    {
+                        "lane": 0,
+                        "module": "$lpf-7",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ],
+                "lanes": 1,
+                "mode": "average"
+            }
+        },
+        {
             "id": "$pan-2",
             "idIsExplicit": false,
             "moduleType": "$pan",
@@ -2090,7 +2107,7 @@
             }
         },
         {
-            "id": "$setLanes-2",
+            "id": "$setLanes-3",
             "idIsExplicit": false,
             "moduleType": "$setLanes",
             "params": {
@@ -2113,7 +2130,7 @@
                 "input": [
                     {
                         "lane": 0,
-                        "module": "$setLanes-2",
+                        "module": "$setLanes-3",
                         "port": "output",
                         "type": "cable"
                     }
@@ -2137,7 +2154,7 @@
                 "level": [
                     {
                         "lane": 0,
-                        "module": "$lpf-7",
+                        "module": "$setLanes-2",
                         "port": "output",
                         "type": "cable"
                     }
@@ -2302,11 +2319,11 @@
             }
         },
         {
-            "id": "ROOT_OUTPUT",
-            "idIsExplicit": true,
-            "moduleType": "$signal",
+            "id": "$mono-1",
+            "idIsExplicit": false,
+            "moduleType": "$mono",
             "params": {
-                "value": [
+                "input": [
                     {
                         "lane": 0,
                         "module": "$gain-2",
@@ -2316,6 +2333,27 @@
                     {
                         "lane": 1,
                         "module": "$gain-2",
+                        "port": "output",
+                        "type": "cable"
+                    }
+                ]
+            }
+        },
+        {
+            "id": "ROOT_OUTPUT",
+            "idIsExplicit": true,
+            "moduleType": "$signal",
+            "params": {
+                "value": [
+                    {
+                        "lane": 0,
+                        "module": "$mono-1",
+                        "port": "output",
+                        "type": "cable"
+                    },
+                    {
+                        "lane": 1,
+                        "module": "$mono-1",
                         "port": "output",
                         "type": "cable"
                     }
