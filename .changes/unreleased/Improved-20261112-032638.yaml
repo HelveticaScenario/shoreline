@@ -1,3 +1,0 @@
-kind: Improved
-body: Settings open in the sidebar, which can sit on the left or the right; click the active sidebar button to close it. If you rebound keys with the `inSettingsModal` condition, it is now `settingsVisible`.
-time: 2026-11-12T03:26:38.506266-05:00

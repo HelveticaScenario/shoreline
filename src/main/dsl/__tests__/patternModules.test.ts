@@ -64,7 +64,7 @@ describe('a pattern builds the graph of its $cycle', () => {
         [`const d = $deferred(); $saw(d).out(); d.set(SEQ)`],
         [`$pWarp($sine('c3'), $phase.mirror(SEQ)).out()`],
         [`$mix([SEQ, 'g4']).out()`],
-        [`$stereoMix($saw('c3'), { width: SEQ }).out()`],
+        [`$pan($saw('c3'), 0, { spread: SEQ }).out()`],
         [`$step(['c4', 'g4'], SEQ).out()`],
         [`$sine('c3').outMono(1, SEQ)`],
         [`$signal(1).range(SEQ, 5, -5, 5).out()`],

@@ -354,11 +354,11 @@ describe('mixing', () => {
         expect(findModules(patch, '$mix').length).toBeGreaterThanOrEqual(2);
     });
 
-    test('$stereoMix', () => {
+    test('$pan', () => {
         const patch = execPatch(
-            '$stereoMix($sine(["C3", "E3", "G3"]), { width: 5 }).out()',
+            '$pan($sine(["C3", "E3", "G3"]), 0, { spread: 5 }).out()',
         );
-        expect(findModules(patch, '$stereoMix').length).toBe(1);
+        expect(findModules(patch, '$pan').length).toBeGreaterThanOrEqual(1);
     });
 });
 
