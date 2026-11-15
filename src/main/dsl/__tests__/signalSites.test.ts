@@ -400,6 +400,9 @@ describe('fold sites', () => {
             'x‹.mono()›',
         ]);
         expect(folds(`$input.outMono()`)).toEqual(['$input‹.mono()›']);
+        expect(folds(`$sampler('kick.wav', 5).outMono()`)).toEqual([
+            "$sampler('kick.wav', 5)‹.mono()›",
+        ]);
         expect(folds(`$inputMono.outMono()`)).toEqual([]);
     });
 

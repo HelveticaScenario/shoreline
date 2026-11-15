@@ -32,7 +32,7 @@ export interface ModuleSiteInfo {
     /** Whether the module is a chain method of collections. */
     chainable: boolean;
     /** How the module's lanes carry stereo (`ModuleSchema.stereo`). */
-    stereo: 'lift' | 'mono' | 'stereo';
+    stereo: 'lift' | 'mono' | 'stereo' | 'derived';
     /** The inputs that fold a stereo signal to mono. */
     folds: string[];
     /** The `$buffer` params whose channels the module lifts with, as with an input. */
@@ -583,6 +583,10 @@ export function collectSignalSites(
     ): Channels => {
         if (info.stereo === 'mono' || info.stereo === 'stereo') {
             return info.stereo;
+        }
+        // A file decides, which only a run can tell.
+        if (info.stereo === 'derived') {
+            return 'unknown';
         }
         const inputs: Channels[] = receiver ? [channelsOf(receiver)] : [];
         args.forEach((arg, i) => {

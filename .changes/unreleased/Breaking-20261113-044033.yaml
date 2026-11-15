@@ -1,0 +1,13 @@
+kind: Breaking
+body: |-
+    `$sampler` plays a two-channel file as one stereo lane instead of a left lane and a right lane, and `$grains` gives each of its voices both sides of a two-channel file instead of one channel each. Files with one channel, or more than two, keep one mono lane per channel.
+
+    ```js
+    // before
+    const drums = $sampler('/wavs/break.wav', $clock._beatTrigger)
+    $signal(drums[1]).outMono(1)
+    // after
+    const drums = $sampler('/wavs/break.wav', $clock._beatTrigger)
+    $right(drums).outMono(1)
+    ```
+time: 2026-11-13T04:40:33.984697-05:00

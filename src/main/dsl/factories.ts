@@ -478,7 +478,9 @@ export class DSLContext {
                     ? 'mono'
                     : schema.stereo === 'stereo'
                       ? 'stereo'
-                      : this.builder.liftedChannelsOf(Object.values(params)),
+                      : schema.stereo === 'derived'
+                        ? 'unknown'
+                        : this.builder.liftedChannelsOf(Object.values(params)),
             );
 
             // Derive lane count from params using Rust-side derivation (backed by LRU cache)
