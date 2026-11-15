@@ -302,6 +302,51 @@ describe('.wet', () => {
         expect(params).toContain(lpf.id);
     });
 
+    test('sums the dry voices once against a stereo effect', () => {
+        // The effect hears every voice in its one stereo lane, so the dry
+        // joins it as one lane: the wet is heard once, not once per voice.
+        const patch = execPatch("$saw($chord('C3[m7]')).plate().wet(2).out()");
+        const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
+        const plate = patch.modules.find((m) => m.moduleType === '$plate')!;
+        const voices = patch.modules.find(
+            (m) =>
+                m.moduleType === '$mix' &&
+                JSON.stringify(m.params.inputs).includes(saw.id),
+        )!;
+        const inputs = voices.params.inputs as { module: string }[];
+        expect(inputs).toHaveLength(4);
+        expect(inputs.every((cable) => cable.module === saw.id)).toBe(true);
+        const crossfade = patch.modules.find(
+            (m) => m.moduleType === '_crossfade',
+        )!;
+        expect(crossfade.params.dry).toEqual([
+            { lane: 0, module: voices.id, port: 'output', type: 'cable' },
+        ]);
+        expect(JSON.stringify(crossfade.params.wet)).toContain(plate.id);
+    });
+
+    test('fades one voice against a stereo effect as it is', () => {
+        const patch = execPatch("$saw('c3').plate().wet(2).out()");
+        const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
+        const crossfade = patch.modules.find(
+            (m) => m.moduleType === '_crossfade',
+        )!;
+        expect(crossfade.params.dry).toEqual([
+            { lane: 0, module: saw.id, port: 'output', type: 'cable' },
+        ]);
+    });
+
+    test('keeps each voice against an effect with a lane per voice', () => {
+        const patch = execPatch(
+            "$saw($chord('C3[m7]')).lpf('800hz').wet(2).out()",
+        );
+        const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
+        const crossfade = patch.modules.find(
+            (m) => m.moduleType === '_crossfade',
+        )!;
+        expect(JSON.stringify(crossfade.params.dry)).toContain(saw.id);
+    });
+
     test('throws on a signal that was not chained', () => {
         expect(() => execPatch('$saw(0).wet(2).out()')).toThrow(/\.wet\(\)/);
         expect(() =>
