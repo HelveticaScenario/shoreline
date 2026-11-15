@@ -24,7 +24,7 @@ const OPS: [(&str, &str, BinaryOp); 5] = [
         if x == 0.0 {
             0.0
         } else {
-            x.signum() * x.abs().powf(y.max(0.0))
+            x.signum() * x.abs().powf(y.max(0.0)).min(f32::MAX)
         }
     }),
 ];
@@ -129,6 +129,28 @@ fn a_negative_exponent_holds_at_zero() {
         "$exp",
         params("exponent", poly_cable("src", LANES), json!(-2.0)),
         |src, _| src.iter().map(|&x| x.signum()).collect(),
+    );
+}
+
+#[test]
+fn a_power_too_large_for_a_sample_holds_at_the_largest() {
+    check_module(
+        "$exp",
+        params("exponent", json!([5.0, -5.0, 0.5]), json!(60.0)),
+        |src, _| {
+            src.chunks(LANES)
+                .flat_map(|_| [f32::MAX, -f32::MAX, 0.5f32.powf(60.0), f32::MAX])
+                .collect()
+        },
+    );
+    let bounds = check_bounds_agree(
+        "$exp",
+        params("exponent", poly_cable("src", LANES), json!(60.0)),
+    );
+    assert!(
+        bounds.iter().all(|b| b.is_bounded()),
+        "{:?}",
+        &bounds[..LANES]
     );
 }
 
