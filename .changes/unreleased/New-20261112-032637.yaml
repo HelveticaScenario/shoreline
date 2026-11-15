@@ -1,3 +1,0 @@
-kind: New
-body: 'New quick fixes: add a control for every param a module call leaves unset, turn a `$slider` back into `$c`, and extract a value to a constant or function, or inline a variable. Wrapping a single-value `$c` or `$signal` in a control now replaces the whole call.'
-time: 2026-11-12T03:26:37.358943-05:00
