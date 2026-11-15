@@ -39,6 +39,8 @@ pub trait CloneableParams: Send + 'static {
     fn collect_lane_cables(&self, sink: &mut Vec<crate::types::CableSource>);
     /// See [`Connect::expand_lanes`](crate::types::Connect::expand_lanes).
     fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion);
+    /// See [`Connect::collect_stereo_files`](crate::types::Connect::collect_stereo_files).
+    fn collect_stereo_files(&self, sink: &mut Vec<crate::types::CableSource>);
 }
 
 impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
@@ -56,6 +58,9 @@ impl<T: Clone + Send + 'static + crate::types::Connect> CloneableParams for T {
     }
     fn expand_lanes(&mut self, expansion: &crate::types::LaneExpansion) {
         <T as crate::types::Connect>::expand_lanes(self, expansion)
+    }
+    fn collect_stereo_files(&self, sink: &mut Vec<crate::types::CableSource>) {
+        crate::types::Connect::collect_stereo_files(self, sink)
     }
 }
 

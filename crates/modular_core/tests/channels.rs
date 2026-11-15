@@ -552,9 +552,9 @@ fn quantizer_snaps_each_side() {
     assert_eq!(step(&patch, "q"), [0.0, 1.0]);
 }
 
-/// The inputs a stereo module reads side by side. Every other input of such
-/// a module must be marked `#[input(…, fold)]`, so the editor can show where
-/// a stereo signal folds.
+/// The inputs a stereo or file-derived module reads side by side. Every
+/// other input of such a module must be marked `#[input(…, fold)]`, so the
+/// editor can show where a stereo signal folds.
 const PER_SIDE: &[(&str, &[&str])] = &[
     ("$pan", &["input"]),
     ("$supersaw", &["freq", "detune", "fm", "sync"]),
@@ -564,7 +564,7 @@ const PER_SIDE: &[(&str, &[&str])] = &[
 fn every_input_of_a_stereo_module_folds_or_reads_by_side() {
     use modular_core::types::StereoMode;
     for module in schema() {
-        if module.stereo != StereoMode::Stereo {
+        if !matches!(module.stereo, StereoMode::Stereo | StereoMode::Derived) {
             continue;
         }
         let per_side = PER_SIDE
@@ -789,4 +789,37 @@ fn pan_has_a_lane_for_each_input_lane() {
     let out = step(&patch, "panned");
     assert_eq!(out.len(), 2);
     assert!(out[1].abs() < 1e-6, "{out:?}");
+}
+
+fn wav(channels: usize) -> Value {
+    json!({ "type": "wav_ref", "path": format!("file{channels}"), "channels": channels })
+}
+
+#[test]
+fn a_two_channel_file_makes_its_players_stereo() {
+    let patch = build(&[
+        ("stereo", "$sampler", json!({ "wav": wav(2), "gate": 5.0 })),
+        ("mono", "$sampler", json!({ "wav": wav(1), "gate": 5.0 })),
+        ("quad", "$sampler", json!({ "wav": wav(4), "gate": 5.0 })),
+        (
+            "cloud",
+            "$grains",
+            json!({ "pitch": [0.0, 1.0], "wav": wav(2), "gate": 5.0 }),
+        ),
+        (
+            "filtered",
+            "$add",
+            json!({ "input": cable("stereo", 0), "offset": 0.0 }),
+        ),
+    ])
+    .unwrap();
+    let lanes = |id: &str| patch.sampleables[id].port_lanes("output");
+    // One stereo lane, one mono lane, and a mono lane per channel.
+    assert_eq!(lanes("stereo"), 2);
+    assert_eq!(lanes("mono"), 1);
+    assert_eq!(lanes("quad"), 4);
+    // Each voice of `$grains` plays both sides.
+    assert_eq!(lanes("cloud"), 4);
+    // What reads a stereo player lifts to stereo.
+    assert_eq!(lanes("filtered"), 2);
 }
