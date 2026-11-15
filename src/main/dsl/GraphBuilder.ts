@@ -49,6 +49,11 @@ import {
     isSignalGroupLike,
 } from './signalGroups';
 import type { TrackTapSources, PendingTrackTap } from './trackTap';
+import {
+    type Channels,
+    collectionChannels,
+    liftedChannels,
+} from '../../shared/dsl/channels';
 
 import z from 'zod';
 
@@ -149,8 +154,8 @@ export interface StereoOutOptions {
     gain?: PolySignal;
     /** Pan position (-5 = left, 0 = center, +5 = right). Default 0 */
     pan?: PolySignal;
-    /** Stereo width/spread (0 = no spread, 5 = full spread). Default 0 */
-    width?: Signal;
+    /** How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge). Default 0 */
+    spread?: Signal;
     /** Label shown on this output's VU meter. Must be unique across outs */
     label?: string;
     /** Silence this output. It is still metered; its VU meter greys out */
@@ -190,7 +195,7 @@ export interface StereoOutGroup extends OutGroupVuState {
     outputs: ModuleOutput[];
     gain?: PolySignal;
     pan?: PolySignal;
-    width?: PolySignal;
+    spread?: PolySignal;
 }
 
 /** Internal storage for a mono output group */
@@ -440,7 +445,7 @@ export class BaseCollection<T extends ModuleOutput> {
      * @param options.baseChannel - Base output channel (0-62, default 0)
      * @param options.gain - Output gain
      * @param options.pan - Pan position (-5 = left, 0 = center, +5 = right)
-     * @param options.width - Stereo width/spread (0 = no spread, 5 = full spread, default 0)
+     * @param options.spread - How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge, default 0)
      * @param options.label - Label shown on this output's VU meter
      * @param options.mute - Silence this output (still metered)
      * @param options.solo - When any output is soloed, only soloed outputs are audible
@@ -733,6 +738,8 @@ export class GraphBuilder implements ChainHost {
     private modules = new Map<string, ModuleSpec>();
     /** The output ports handed out as ranged, as `module:port`. */
     private rangedPorts = new Set<string>();
+    /** Each module's channels as the DSL settles them; unlisted is mono. */
+    private moduleChannels = new Map<string, Channels>();
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
     private schemaByName = new Map<string, ProcessedModuleSchema>();
@@ -866,6 +873,63 @@ export class GraphBuilder implements ChainHost {
      */
     getModule(id: string): ModuleSpec | undefined {
         return this.modules.get(id);
+    }
+
+    /** Set the channels module `id`'s lane-following outputs carry. */
+    setModuleChannels(id: string, channels: Channels): void {
+        this.moduleChannels.set(id, channels);
+    }
+
+    /**
+     * The channels each lane of `value` carries: an output or collection, an
+     * array or `$gN` group of them, a `$buffer` reference, which carries
+     * what its buffer records, or anything holding them. A deferred lane is
+     * unknown until the engine settles it.
+     */
+    private *laneChannels(value: unknown): Generator<Channels> {
+        if (value instanceof DeferredModuleOutput) {
+            yield 'unknown';
+        } else if (value instanceof ModuleOutput) {
+            yield this.moduleChannels.get(value.moduleId) ?? 'mono';
+        } else if (value instanceof BaseCollection) {
+            for (const item of value.items) {
+                yield* this.laneChannels(item);
+            }
+        } else if (Array.isArray(value)) {
+            for (const item of value) {
+                yield* this.laneChannels(item);
+            }
+        } else if (isSignalGroupLike(value)) {
+            yield* this.laneChannels(value.signals);
+        } else if (isPlainObject(value)) {
+            if (
+                value.type === 'buffer_ref' &&
+                typeof value.module === 'string'
+            ) {
+                yield this.moduleChannels.get(value.module) ?? 'mono';
+                return;
+            }
+            for (const field of Object.values(value)) {
+                yield* this.laneChannels(field);
+            }
+        }
+    }
+
+    /** The channels of `value`: mono or stereo when every lane is. */
+    channelsOf(value: unknown): Channels {
+        return collectionChannels(this.laneChannels(value));
+    }
+
+    /** The channels a lifted module reading `inputs` lane by lane settles to. */
+    liftedChannelsOf(inputs: Iterable<unknown>): Channels {
+        const lanes = this.laneChannels.bind(this);
+        return liftedChannels(
+            (function* () {
+                for (const input of inputs) {
+                    yield* lanes(input);
+                }
+            })(),
+        );
     }
 
     /** Record that module `moduleId`'s `port` is ranged. */
@@ -1068,7 +1132,12 @@ export class GraphBuilder implements ChainHost {
 
         const signalFactory = this.getFactory('$signal');
         const mixFactory = this.getFactory('$mix');
-        const stereoMixerFactory = this.getFactory('$stereoMix');
+        const panFactory = this.getFactory('$pan');
+        const setLanesFactory = this.getFactory('$setLanes');
+        const mulFactory = this.getFactory('$mul');
+        const monoFactory = this.getFactory('$mono');
+        const leftFactory = this.getFactory('$left');
+        const rightFactory = this.getFactory('$right');
         const ampFactory = this.getFactory('$amp');
         const gainFactory = this.getFactory('$gain');
         const slewFactory = this.getFactory('$slew');
@@ -1190,12 +1259,20 @@ export class GraphBuilder implements ChainHost {
                     const gainValue = gainControllable
                         ? ((group.gain as number | undefined) ?? UNITY_OUT_GAIN)
                         : null;
+                    // A signal gain is averaged to one lane, so the out stays
+                    // one lane wide, and a mono out's is folded with it.
                     const gainSource = gainControllable
                         ? smoothControlFactory(gainValue, {
                               ...OUT_GAIN_RANGE,
                               id: `__vuGain_${sk}`,
                           })
-                        : group.gain!;
+                        : setLanesFactory(
+                              group.type === 'stereo'
+                                  ? group.gain!
+                                  : monoFactory(group.gain!),
+                              1,
+                              { mode: 'average' },
+                          );
 
                     const panSource: PolySignal =
                         group.type !== 'stereo'
@@ -1209,18 +1286,23 @@ export class GraphBuilder implements ChainHost {
 
                     // Group mix, then the gain stage — the tap: the meter
                     // reads post-gain, pre-mute like a post-fader DAW meter.
+                    // A stereo out pans its lanes and sums them into one
+                    // stereo lane. `$pan` keeps a centred lane at unity, so
+                    // the sum is taken down 3 dB to match a mono out's level
+                    // on each speaker. A mono out sums its lanes folded.
                     const mixSignals: ModuleOutput[] =
                         group.type === 'stereo'
-                            ? stereoMixerFactory(group.outputs, {
-                                  pan: panSource,
-                                  width: group.width ?? 0,
-                              }).items
-                            : [
-                                  stereoMixerFactory(group.outputs, {
-                                      pan: -5,
-                                      width: 0,
-                                  }).items[0],
-                              ];
+                            ? mulFactory(
+                                  setLanesFactory(
+                                      panFactory(group.outputs, panSource, {
+                                          spread: group.spread ?? 0,
+                                      }),
+                                      1,
+                                  ),
+                                  Math.SQRT1_2,
+                              ).items
+                            : setLanesFactory(monoFactory(group.outputs), 1)
+                                  .items;
 
                     let outputSignals: ModuleOutput[] = gainFactory(
                         mixSignals,
@@ -1262,7 +1344,9 @@ export class GraphBuilder implements ChainHost {
                         outsByLabel.set(group.label, {
                             active: muteSig.items[0],
                             audio: outputSignals,
-                            level: gainSource,
+                            // The tap reads the gain as written, ranged as
+                            // the user's own signal is.
+                            level: gainControllable ? gainSource : group.gain!,
                             pan: panSource,
                         });
                     }
@@ -1348,8 +1432,15 @@ export class GraphBuilder implements ChainHost {
                         channelCollection.push(0);
                     }
 
-                    // Add the actual output signals
-                    channelCollection.push(...outputSignals);
+                    // A stereo out's sides go to its two device channels.
+                    if (group.type === 'stereo') {
+                        channelCollection.push(
+                            ...leftFactory(outputSignals).items,
+                            ...rightFactory(outputSignals).items,
+                        );
+                    } else {
+                        channelCollection.push(...outputSignals);
+                    }
 
                     allChannelCollections.push(channelCollection);
                 }
@@ -1379,8 +1470,10 @@ export class GraphBuilder implements ChainHost {
                 masterGainSignal,
             );
 
-            // Create root signal module with the final mix
-            signalFactory(gainedMix, { id: 'ROOT_OUTPUT' });
+            // The root output's lanes are device channels, so whatever stereo
+            // the end-of-chain callback or a signal master gain brings in is
+            // folded, keeping each lane on its own channel.
+            signalFactory(monoFactory(gainedMix), { id: 'ROOT_OUTPUT' });
 
             // End-of-chain master meter, pinned to the panel's right side.
             // Taps ROOT_OUTPUT itself (post end-of-chain + global gain), so
@@ -1451,7 +1544,7 @@ export class GraphBuilder implements ChainHost {
                     active: control(out.active, GATE_RANGE),
                     audio: out.audio,
                     level: control(out.level, OUT_GAIN_RANGE),
-                    pan: control(out.pan, OUT_PAN_RANGE),
+                    panning: control(out.pan, OUT_PAN_RANGE),
                 };
                 outSources.set(label, sources);
             }
@@ -1528,9 +1621,17 @@ export class GraphBuilder implements ChainHost {
                     (scope) =>
                         ({
                             ...scope,
-                            lanes: scope.lanes.map((lane) =>
-                                this.resolveScopeLane(lane),
-                            ),
+                            // A deferred lane resolves to its module only
+                            // now, so a mono one's second trace drops here.
+                            lanes: scope.lanes
+                                .map((lane) => this.resolveScopeLane(lane))
+                                .filter(
+                                    (lane) =>
+                                        lane.side === undefined ||
+                                        (this.moduleChannels.get(
+                                            lane.moduleId,
+                                        ) ?? 'mono') !== 'mono',
+                                ),
                         }) as ScopeWithLocation,
                 ),
                 ...eqScopes,
@@ -1690,7 +1791,7 @@ export class GraphBuilder implements ChainHost {
             solo: options.solo === true,
             sourceLocation,
             type: 'stereo',
-            width: options.width,
+            spread: options.spread,
         };
 
         const existing = this.outGroups.get(baseChannel) ?? [];
@@ -1822,11 +1923,18 @@ export class GraphBuilder implements ChainHost {
         }
 
         const outputs = Array.isArray(value) ? value : [value];
-        const lanes = outputs.map((o) => ({
-            lane: o.lane,
-            moduleId: o.moduleId,
-            portName: o.portName,
-        }));
+        // A lane that may be stereo draws both sides; a mono one reads the
+        // same on either, so its second trace would only repeat the first.
+        const lanes = outputs.flatMap((o) => {
+            const lane = {
+                lane: o.lane,
+                moduleId: o.moduleId,
+                portName: o.portName,
+            };
+            return this.channelsOf(o) === 'mono'
+                ? [lane]
+                : [lane, { ...lane, side: 1 }];
+        });
 
         this.scopes.push({
             lanes,
@@ -1877,6 +1985,7 @@ export class GraphBuilder implements ChainHost {
             lane: lane.lane,
             moduleId: resolved.moduleId,
             portName: resolved.portName,
+            side: lane.side,
         };
     }
 }

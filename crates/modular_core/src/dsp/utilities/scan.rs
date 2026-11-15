@@ -59,7 +59,7 @@ const SCAN_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$scan", stereo = mono, docs = SCAN_DOCS, args(length, distance, trigger))]
+#[module(name = "$scan", docs = SCAN_DOCS, args(length, distance, trigger))]
 pub struct Scan {
     params: ScanParams,
     outputs: ScanOutputs,

@@ -45,8 +45,8 @@ export const STEREO_OUT_OPTIONS: readonly OutOptionField[] = [
         type: 'Poly<Signal>',
     },
     {
-        doc: 'Stereo width/spread (0 = no spread, 5 = full spread). Default 0',
-        name: 'width',
+        doc: 'How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge). Default 0',
+        name: 'spread',
         type: 'LaneSum<Signal>',
     },
     ...LEVEL_FIELDS,

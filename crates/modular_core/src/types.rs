@@ -640,10 +640,12 @@ pub trait Connect {
     /// pair items by position; leaf types are no-op.
     fn mark_glides(&mut self, old: Option<&Self>, generation: u64, ids: &dyn PreviousIds);
 
-    /// Like [`collect_cables`](Self::collect_cables), but only the inputs a
-    /// module reads lane by lane: the ones that make a lifted module stereo.
-    /// An input read as one value (a [`LaneSum`](crate::poly::LaneSum) or a
-    /// bare [`Signal`]) folds its producer instead and is left out.
+    /// Like [`collect_cables`](Self::collect_cables), but only the inputs
+    /// that make a lifted module stereo: a `PolySignal` or a
+    /// [`LaneSum`](crate::poly::LaneSum), which keep their sides. A bare
+    /// [`Signal`] holds one value, so it folds its producer and is left out,
+    /// and so is a [`PairSignal`](crate::poly::PairSignal), which reads both
+    /// sides itself.
     fn collect_lane_cables(&self, sink: &mut Vec<CableSource>);
 
     /// Rewrite every cable to the physical lane it reads once the patch's
@@ -1741,19 +1743,19 @@ impl BufferData {
 
     /// Copy the most recent `min(old_size, new_size)` frames from `other` into `self`,
     /// placing each frame at the correct circular position for the new buffer size.
+    /// Lane `i` of `self` takes lane `source_lane(i)` of `other`, when it has one.
     /// Preserves the monotonic write index so that `$delayRead`'s offset math continues
     /// working after a resize.
     ///
     /// Runs on the audio thread — no heap allocation. Uses at most 4 `copy_from_slice`
     /// (memcpy) calls per lane (2 source segments × 2 possible destination wraps)
     /// by decomposing the circular regions into contiguous segments.
-    pub fn copy_overlap_from(&self, other: &Self) {
+    pub fn copy_overlap_from(&self, other: &Self, source_lane: impl Fn(usize) -> usize) {
         let write_idx = other.read_write_index();
 
         self.with_data_mut(|dst| {
             other.with_data(|src| {
-                let lane_count = dst.len().min(src.len());
-                if lane_count == 0 {
+                if dst.is_empty() || src.is_empty() {
                     return;
                 }
 
@@ -1792,9 +1794,10 @@ impl BufferData {
                         )
                     };
 
-                for lane_idx in 0..lane_count {
-                    let dst_ch = &mut dst[lane_idx];
-                    let src_ch = &src[lane_idx];
+                for (lane_idx, dst_ch) in dst.iter_mut().enumerate() {
+                    let Some(src_ch) = src.get(source_lane(lane_idx)) else {
+                        continue;
+                    };
 
                     for &(src_start, len, age_of_first) in &segments[..seg_count] {
                         debug_assert!(len <= age_of_first + 1);
@@ -1916,6 +1919,17 @@ impl Buffer {
 
     pub fn lane_count(&self) -> usize {
         self.lanes
+    }
+
+    /// The buffer lane a reader with `channels` sides reads for its lane
+    /// `lane` (`l * channels + c`): the same side of the same lane, cycling
+    /// the buffer's lanes, with a mono buffer feeding both sides.
+    pub fn lane_for(&self, lane: usize, channels: usize) -> usize {
+        let lanes = self.lanes.max(1);
+        let stored = self.buffer_ref().map_or(lanes, BufferData::lane_count);
+        let buffer_channels = (stored / lanes).max(1);
+        let channels = channels.max(1);
+        (lane / channels % lanes) * buffer_channels + (lane % channels).min(buffer_channels - 1)
     }
 
     pub fn frame_count(&self) -> usize {
@@ -2715,12 +2729,12 @@ impl Signal {
 impl Signal {
     /// The bounds of the value [`get_value`](Self::get_value) reads, at the
     /// same slot: a constant holds still, a cable reads its producer's, and
-    /// a fold averages its two sides' (see [`Bounds::midpoint`]).
+    /// a fold to mono has none.
     pub fn get_bounds(&self) -> crate::bounds::Bounds {
         use crate::bounds::Bounds;
         match self {
             Signal::Volts(v) => Bounds::point(*v),
-            Signal::Cable { fold: true, .. } => self.cable_bounds(0).midpoint(self.cable_bounds(1)),
+            Signal::Cable { fold: true, .. } => Bounds::UNBOUNDED,
             Signal::Cable { .. } => self.cable_bounds(0),
         }
     }
@@ -2768,11 +2782,7 @@ impl Signal {
         use crate::bounds::Bounds;
         match self {
             Signal::Volts(v) => Some(Bounds::point(*v)),
-            Signal::Cable { fold: true, .. } => {
-                let left = self.cable_uniform_bounds(range.clone(), 0)?;
-                let right = self.cable_uniform_bounds(range, 1)?;
-                Some(left.midpoint(right))
-            }
+            Signal::Cable { fold: true, .. } => Some(Bounds::UNBOUNDED),
             Signal::Cable { .. } => self.cable_uniform_bounds(range, 0),
         }
     }
@@ -3057,6 +3067,15 @@ pub struct SignalParamSchema {
     /// constant (`#[input(…, bounds = constant)]`).
     #[serde(default)]
     pub bounds_need_constant: bool,
+    /// Whether the module reads this input folded to `(L + R) / 2`: marked
+    /// `#[input(…, fold)]` on a stereo module, and every
+    /// input of a mono module but those that read both sides.
+    #[serde(default)]
+    pub fold: bool,
+    /// Whether the input reads both sides of each stereo lane itself (a
+    /// `PairSignal`).
+    #[serde(default)]
+    pub reads_sides: bool,
 }
 
 /// The kind of voltage a signal input reads, named in `#[input(type = …)]`.
@@ -3408,6 +3427,10 @@ pub struct ScopeLane {
     pub module_id: String,
     pub port_name: String,
     pub lane: u32,
+    /// The side of a stereo lane to read; unset reads its left side, and a
+    /// mono lane reads the same either way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<u32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -3417,6 +3440,9 @@ pub struct ScopeBufferKey {
     pub module_id: String,
     pub port_name: String,
     pub lane: u32,
+    /// As [`ScopeLane::side`].
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub side: Option<u32>,
     pub ms_per_frame: u32,
     pub trigger_threshold: Option<(i32, ScopeMode)>,
 }
@@ -3891,7 +3917,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         for age in 0..5 {
@@ -3909,7 +3935,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(1, 8);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         // Ages 0..4 should have data
@@ -3930,7 +3956,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(1, 8);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         for age in 0..8 {
@@ -3947,7 +3973,7 @@ mod tests {
         fill_buffer_sequential(&old, 0);
 
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 0);
         // Age 0 (the one frame written) should be preserved
@@ -3970,7 +3996,7 @@ mod tests {
         fill_buffer_sequential(&old, write_idx);
 
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), write_idx);
         for age in 0..5 {
@@ -3985,7 +4011,7 @@ mod tests {
         fill_buffer_sequential(&old, 42);
 
         let new = BufferData::new_zeroed(3, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
 
         assert_eq!(new.read_write_index(), 42);
         for lane in 0..3 {
@@ -4005,7 +4031,7 @@ mod tests {
     fn test_copy_overlap_zero_size_old() {
         let old = BufferData::new_zeroed(1, 0);
         let new = BufferData::new_zeroed(1, 5);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
         // Should not panic, write index should be 0
         assert_eq!(new.read_write_index(), 0);
     }
@@ -4015,7 +4041,7 @@ mod tests {
         let old = BufferData::new_zeroed(1, 8);
         fill_buffer_sequential(&old, 42);
         let new = BufferData::new_zeroed(1, 0);
-        new.copy_overlap_from(&old);
+        new.copy_overlap_from(&old, |lane| lane);
         // Should not panic, write index preserved
         assert_eq!(new.read_write_index(), 42);
     }
@@ -4034,7 +4060,7 @@ mod tests {
             fill_buffer_sequential(&old, write_idx);
 
             let new = BufferData::new_zeroed(2, buf_size);
-            new.copy_overlap_from(&old);
+            new.copy_overlap_from(&old, |lane| lane);
 
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 
@@ -4065,7 +4091,7 @@ mod tests {
             fill_buffer_sequential(&old, write_idx);
 
             let new = BufferData::new_zeroed(1, new_size);
-            new.copy_overlap_from(&old);
+            new.copy_overlap_from(&old, |lane| lane);
 
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 
@@ -4094,7 +4120,7 @@ mod tests {
             fill_buffer_sequential(&old, write_idx);
 
             let new = BufferData::new_zeroed(1, new_size);
-            new.copy_overlap_from(&old);
+            new.copy_overlap_from(&old, |lane| lane);
 
             assert_eq!(new.read_write_index(), write_idx, "offset={}", offset);
 

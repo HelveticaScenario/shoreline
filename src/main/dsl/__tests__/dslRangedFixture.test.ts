@@ -105,7 +105,7 @@ function buildFixture() {
         const tap = createTrackTap(builder, label);
         chains[`${label}.active`] = tap.active;
         chains[`${label}.level`] = tap.level;
-        chains[`${label}.pan`] = tap.pan;
+        chains[`${label}.panning`] = tap.panning;
     }
 
     // A constant lane beside a ranged one has no range to give.

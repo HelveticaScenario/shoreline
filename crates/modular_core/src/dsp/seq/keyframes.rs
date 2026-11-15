@@ -69,7 +69,7 @@ const KEYFRAMES_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$keyframes", stereo = mono, docs = KEYFRAMES_DOCS, args(keyframes), lanes_derive = derive_keyframes_lane_count)]
+#[module(name = "$keyframes", docs = KEYFRAMES_DOCS, args(keyframes), lanes_derive = derive_keyframes_lane_count)]
 pub struct Keyframes {
     outputs: KeyframesOutputs,
     params: KeyframesParams,
@@ -77,10 +77,15 @@ pub struct Keyframes {
 
 impl Keyframes {
     fn update(&mut self, _sample_rate: f32) {
-        let t = self.params.playhead.value_or_zero().clamp(0.0, 1.0);
         let lane_count = self.lane_count();
+        let channels = self.channels();
 
         for lane in 0..lane_count {
+            let t = self
+                .params
+                .playhead
+                .side_or(lane % channels, 0.0)
+                .clamp(0.0, 1.0);
             // Single keyframe: always return its value
             if self.params.keyframes.len() == 1 {
                 self.outputs

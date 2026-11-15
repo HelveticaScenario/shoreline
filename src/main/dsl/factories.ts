@@ -472,6 +472,15 @@ export class DSLContext {
                 }
             }
 
+            this.builder.setModuleChannels(
+                node.id,
+                schema.stereo === 'mono'
+                    ? 'mono'
+                    : schema.stereo === 'stereo'
+                      ? 'stereo'
+                      : this.builder.liftedChannelsOf(Object.values(params)),
+            );
+
             // Derive lane count from params using Rust-side derivation (backed by LRU cache)
             // This handles modules with custom derivation logic (like mix, seq)
             // As well as standard inference from PolySignal inputs

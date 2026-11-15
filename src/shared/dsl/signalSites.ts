@@ -21,6 +21,7 @@ import {
     type OutputResolutionRecord,
     type ResolvableOutput,
 } from './outputResolutionRule';
+import { type Channels, collectionChannels, liftedChannels } from './channels';
 import { FIRST_LINE_COLUMN_OFFSET } from './spanTypes';
 
 /** What a module call's params are named and which read signals. */
@@ -30,7 +31,19 @@ export interface ModuleSiteInfo {
     inputs: Record<string, OutputClass>;
     /** Whether the module is a chain method of collections. */
     chainable: boolean;
+    /** How the module's lanes carry stereo (`ModuleSchema.stereo`). */
+    stereo: 'lift' | 'mono' | 'stereo';
+    /** The inputs that fold a stereo signal to mono. */
+    folds: string[];
+    /** The `$buffer` params whose channels the module lifts with, as with an input. */
+    buffers: string[];
 }
+
+/**
+ * What a global gives: its channels, or `collection` for a builder whose
+ * lanes are its arguments (`$c`).
+ */
+export type GlobalChannels = Channels | 'collection';
 
 /**
  * Methods on an output or collection that read it, and the signals among
@@ -48,6 +61,10 @@ export interface SignalSiteTables {
     /** Module calls, keyed by dotted call name (`$tr808.kick`). */
     modules: Record<string, ModuleSiteInfo>;
     chainMethods: ChainMethods;
+    /** DSL globals that are, or make, signals other than module calls. */
+    globals: Record<string, GlobalChannels>;
+    /** Qualified type names of values that are always mono, such as patterns. */
+    monoTypes: string[];
 }
 
 /** One value position in a patch. */
@@ -60,11 +77,19 @@ export interface SignalSite {
     /** Document offsets of the value. Its hint goes at `end`. */
     start: number;
     end: number;
-    /** The output the value stands for, or null when only a run can tell. */
-    output: string | null;
     /**
-     * Whether writing `._<name>` straight after the value names that output:
-     * true of a name, a member or a call that is one root, not an array.
+     * The output the value stands for, or null when only a run can tell;
+     * absent when the value is not a module root.
+     */
+    output?: string | null;
+    /**
+     * Whether the value reaches an input that folds it to mono while it may
+     * be stereo, so `.mono()` belongs after it.
+     */
+    fold: boolean;
+    /**
+     * Whether writing `._<name>` or `.mono()` straight after the value
+     * applies to it: true of a name, a member or a call, not an array.
      */
     insertable: boolean;
 }
@@ -75,7 +100,7 @@ export interface SignalSite {
  */
 export function siteOfRecord(
     sites: readonly SignalSite[],
-    record: OutputResolutionRecord,
+    record: Pick<OutputResolutionRecord, 'line' | 'column' | 'slot'>,
 ): SignalSite | undefined {
     const column =
         record.line === 1
@@ -97,6 +122,15 @@ export function siteOfRecord(
     return undefined;
 }
 
+/**
+ * The options of each out that fold a stereo signal: a stereo out's pan
+ * and spread go to `$pan`'s, and a mono out folds its gain.
+ */
+const FOLDING_OPTIONS: Readonly<Record<string, readonly string[]>> = {
+    out: ['pan', 'spread'],
+    outMono: ['gain'],
+};
+
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
 
@@ -106,6 +140,11 @@ const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
  */
 type Resolved = string | null | undefined;
 
+/**
+ * Every value that is a module root or folds to mono where it is read. Whether
+ * a value may be stereo is told from the schema as the patch is written: a
+ * module's stereo mode and its inputs' channels, through `const` bindings.
+ */
 export function collectSignalSites(
     ts: typeof TS,
     sourceFile: TS.SourceFile,
@@ -186,13 +225,15 @@ export function collectSignalSites(
         value: TS.Node,
         output: Resolved,
         insertable: boolean,
+        fold: boolean,
     ): void => {
-        if (output !== undefined) {
+        if (output !== undefined || fold) {
             sites.push({
                 ...call,
                 end: value.getEnd(),
+                fold,
                 insertable,
-                output,
+                ...(output !== undefined && { output }),
                 slot,
                 start: value.getStart(sourceFile),
             });
@@ -209,12 +250,16 @@ export function collectSignalSites(
         ts.isTaggedTemplateExpression(value) ||
         ts.isParenthesizedExpression(value);
 
-    /** A value written at `slot` of the call at `call`. */
+    /**
+     * A value written at `slot` of the call at `call`, read by an input that
+     * folds a stereo signal when `folding`.
+     */
     const emitValue = (
         call: { line: number; column: number },
         slot: string,
         expression: TS.Expression,
         inputClass: OutputClass,
+        folding = false,
     ): void => {
         let value = expression;
         while (ts.isParenthesizedExpression(value)) {
@@ -223,7 +268,13 @@ export function collectSignalSites(
         if (ts.isArrayLiteralExpression(value)) {
             value.elements.forEach((element, i) => {
                 if (!ts.isSpreadElement(element)) {
-                    emitValue(call, elementSlot(slot, i), element, inputClass);
+                    emitValue(
+                        call,
+                        elementSlot(slot, i),
+                        element,
+                        inputClass,
+                        folding,
+                    );
                 }
             });
             return;
@@ -234,7 +285,7 @@ export function collectSignalSites(
             SIGNAL_GROUP_HELPERS.has(value.expression.text) &&
             value.arguments.length === 1
         ) {
-            emitValue(call, slot, value.arguments[0], inputClass);
+            emitValue(call, slot, value.arguments[0], inputClass, folding);
             return;
         }
         const type = checker.getTypeAtLocation(value);
@@ -246,6 +297,7 @@ export function collectSignalSites(
             takesMember(expression) &&
                 !checker.isArrayType(type) &&
                 !checker.isTupleType(type),
+            folding && channelsOf(value) !== 'mono',
         );
     };
 
@@ -281,7 +333,13 @@ export function collectSignalSites(
                 const name = info.positional[index];
                 const inputClass = info.inputs[name];
                 if (inputClass) {
-                    emitValue(call, name, arg, inputClass);
+                    emitValue(
+                        call,
+                        name,
+                        arg,
+                        inputClass,
+                        info.folds.includes(name),
+                    );
                 }
                 return;
             }
@@ -294,7 +352,13 @@ export function collectSignalSites(
             forEachField(arg, (key, value) => {
                 const inputClass = info.inputs[key];
                 if (inputClass) {
-                    emitValue(call, key, value, inputClass);
+                    emitValue(
+                        call,
+                        key,
+                        value,
+                        inputClass,
+                        info.folds.includes(key),
+                    );
                 }
             });
         });
@@ -346,6 +410,207 @@ export function collectSignalSites(
         return found;
     };
 
+    /**
+     * Whether `type` is always mono: plain data (numbers, strings, booleans,
+     * `undefined`, and arrays of them) or a type the tables name mono.
+     */
+    const isPlain = (type: TS.Type): boolean => {
+        if (
+            type.flags &
+            (ts.TypeFlags.NumberLike |
+                ts.TypeFlags.StringLike |
+                ts.TypeFlags.BooleanLike |
+                ts.TypeFlags.Undefined |
+                ts.TypeFlags.Null |
+                ts.TypeFlags.Void)
+        ) {
+            return true;
+        }
+        const symbol = type.aliasSymbol ?? type.getSymbol();
+        if (symbol && tables.monoTypes.includes(qualifiedName(symbol))) {
+            return true;
+        }
+        if (type.isUnion()) {
+            return type.types.every(isPlain);
+        }
+        if (checker.isArrayType(type) || checker.isTupleType(type)) {
+            return checker
+                .getTypeArguments(type as TS.TypeReference)
+                .every(isPlain);
+        }
+        return false;
+    };
+
+    /** The `const` declarations being followed, so a cycle reads as unknown. */
+    const following = new Set<TS.Node>();
+
+    /** Each expression's channels once told, as a `const` is read many times. */
+    const told = new Map<TS.Node, Channels>();
+
+    /** What `expression` carries, mono, stereo or unknown, told without running it. */
+    const channelsOf = (expression: TS.Expression): Channels => {
+        let channels = told.get(expression);
+        if (channels === undefined) {
+            channels = tellChannels(expression);
+            told.set(expression, channels);
+        }
+        return channels;
+    };
+
+    const tellChannels = (expression: TS.Expression): Channels => {
+        let value = expression;
+        while (
+            ts.isParenthesizedExpression(value) ||
+            ts.isAsExpression(value) ||
+            ts.isNonNullExpression(value) ||
+            ts.isSatisfiesExpression(value)
+        ) {
+            value = value.expression;
+        }
+        if (
+            ts.isLiteralExpression(value) ||
+            ts.isTemplateExpression(value) ||
+            ts.isTaggedTemplateExpression(value) ||
+            isPlain(checker.getTypeAtLocation(value))
+        ) {
+            return 'mono';
+        }
+        if (ts.isArrayLiteralExpression(value)) {
+            return collectionChannels(
+                value.elements.map((element) =>
+                    channelsOf(
+                        ts.isSpreadElement(element)
+                            ? element.expression
+                            : element,
+                    ),
+                ),
+            );
+        }
+        if (ts.isIdentifier(value)) {
+            return identifierChannels(value);
+        }
+        // An output, a lane or a slice carries its module's channels.
+        if (
+            ts.isPropertyAccessExpression(value) ||
+            ts.isElementAccessExpression(value)
+        ) {
+            return channelsOf(value.expression);
+        }
+        if (ts.isCallExpression(value)) {
+            return callChannels(value);
+        }
+        return 'unknown';
+    };
+
+    const identifierChannels = (name: TS.Identifier): Channels => {
+        const symbol = checker.getSymbolAtLocation(name);
+        const declaration = symbol?.valueDeclaration;
+        if (
+            declaration &&
+            ts.isVariableDeclaration(declaration) &&
+            declaration.initializer &&
+            declaration.getSourceFile() === sourceFile &&
+            ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const &&
+            !following.has(declaration)
+        ) {
+            following.add(declaration);
+            try {
+                return channelsOf(declaration.initializer);
+            } finally {
+                following.delete(declaration);
+            }
+        }
+        if (declaration && declaration.getSourceFile() !== sourceFile) {
+            const global = own(tables.globals, name.text);
+            if (global && global !== 'collection') {
+                return global;
+            }
+        }
+        return 'unknown';
+    };
+
+    /** The channels of a module given its arguments, `first` being the positional they start at. */
+    const moduleChannels = (
+        info: ModuleSiteInfo,
+        args: readonly TS.Expression[],
+        first: number,
+        receiver?: TS.Expression,
+    ): Channels => {
+        if (info.stereo === 'mono' || info.stereo === 'stereo') {
+            return info.stereo;
+        }
+        const inputs: Channels[] = receiver ? [channelsOf(receiver)] : [];
+        args.forEach((arg, i) => {
+            const index = first + i;
+            if (ts.isSpreadElement(arg)) {
+                inputs.push('unknown');
+            } else if (index < info.positional.length) {
+                const name = info.positional[index];
+                if (info.inputs[name] || info.buffers.includes(name)) {
+                    inputs.push(channelsOf(arg));
+                }
+            } else if (ts.isObjectLiteralExpression(arg)) {
+                forEachField(arg, (key, field) => {
+                    if (info.inputs[key] || info.buffers.includes(key)) {
+                        inputs.push(channelsOf(field));
+                    }
+                });
+            } else if (!isPlain(checker.getTypeAtLocation(arg))) {
+                inputs.push('unknown');
+            }
+        });
+        return liftedChannels(inputs);
+    };
+
+    /** Chain methods that hand back their receiver. */
+    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope', 'send']);
+
+    const callChannels = (node: TS.CallExpression): Channels => {
+        const callee = node.expression;
+        const name = dottedName(callee);
+        const module = name ? own(tables.modules, name) : undefined;
+        if (module) {
+            return moduleChannels(module, node.arguments, 0);
+        }
+        const global =
+            ts.isIdentifier(callee) && own(tables.globals, callee.text);
+        if (global === 'collection') {
+            return collectionChannels(node.arguments.map(channelsOf));
+        }
+        if (global) {
+            return global;
+        }
+        if (!ts.isPropertyAccessExpression(callee)) {
+            return 'unknown';
+        }
+        const chain = chainCall(callee);
+        if (chain) {
+            return moduleChannels(
+                chain.module,
+                node.arguments,
+                1,
+                chain.receiver,
+            );
+        }
+        if (RETURNS_RECEIVER.has(callee.name.text)) {
+            return channelsOf(callee.expression);
+        }
+        // `.range()` builds a `$remap`, which lifts with its bounds.
+        if (callee.name.text === 'range') {
+            return liftedChannels([
+                channelsOf(callee.expression),
+                ...node.arguments.map(channelsOf),
+            ]);
+        }
+        if (callee.name.text === 'concat') {
+            return collectionChannels([
+                channelsOf(callee.expression),
+                ...node.arguments.map(channelsOf),
+            ]);
+        }
+        return 'unknown';
+    };
+
     const visitCall = (node: TS.CallExpression): void => {
         const callee = node.expression;
         const name = dottedName(callee);
@@ -369,6 +634,7 @@ export function collectSignalSites(
                 receiverName,
                 chain.receiver,
                 chain.module.inputs[receiverName] ?? 'cv',
+                chain.module.folds.includes(receiverName),
             );
             emitModuleArgs(site, chain.module, node.arguments, 1);
             return;
@@ -386,7 +652,16 @@ export function collectSignalSites(
             optionClasses &&
             receivesSignals(checker.getTypeAtLocation(callee.expression))
         ) {
-            emitValue(site, RECEIVER_SLOT, callee.expression, 'cv');
+            const method = callee.name.text;
+            const folding = own(FOLDING_OPTIONS, method) ?? [];
+            // A mono out folds what it sends.
+            emitValue(
+                site,
+                RECEIVER_SLOT,
+                callee.expression,
+                'cv',
+                method === 'outMono',
+            );
             node.arguments.forEach((arg, i) => {
                 if (ts.isObjectLiteralExpression(arg)) {
                     forEachField(arg, (key, value) =>
@@ -395,10 +670,17 @@ export function collectSignalSites(
                             optionSlot(i, key),
                             value,
                             optionClasses[key] ?? 'cv',
+                            folding.includes(key),
                         ),
                     );
                 } else {
-                    emitValue(site, argumentSlot(i), arg, 'cv');
+                    emitValue(
+                        site,
+                        argumentSlot(i),
+                        arg,
+                        'cv',
+                        method === 'outMono' && i === 1,
+                    );
                 }
             });
         }

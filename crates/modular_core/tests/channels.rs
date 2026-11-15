@@ -21,6 +21,14 @@ fn build(modules: &[(&str, &str, Value)]) -> Result<Patch, String> {
 
 /// `modules`, with what building them settled.
 fn build_settled(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement), String> {
+    let (patch, settlement) = insert(modules)?;
+    patch.connect_all();
+    Ok((patch, settlement))
+}
+
+/// `modules` constructed but not yet connected, as a patch update builds
+/// them before carrying state over.
+fn insert(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement), String> {
     let deserializers = get_params_deserializers();
     let mut patch = Patch::new();
     let settlement = patch.insert_modules(
@@ -41,7 +49,6 @@ fn build_settled(modules: &[(&str, &str, Value)]) -> Result<(Patch, Settlement),
         SAMPLE_RATE,
         1,
     )?;
-    patch.connect_all();
     Ok((patch, settlement))
 }
 
@@ -207,9 +214,8 @@ fn mono_and_split_pass_a_mono_signal_unchanged() {
 }
 
 #[test]
-fn a_single_value_param_folds_a_stereo_signal() {
-    // `$slew`'s input is read lane by lane, so the module lifts; `$keyframes`
-    // reads its playhead as one value, so it stays mono and folds.
+fn a_stereo_playhead_plays_each_side_at_its_own_position() {
+    // `$keyframes` reads its playhead as a lane sum: stereo, each side its own.
     let patch = build(&[
         ("a", "$signal", signal(json!(0.25))),
         ("b", "$signal", signal(json!(0.75))),
@@ -225,7 +231,7 @@ fn a_single_value_param_folds_a_stereo_signal() {
         ),
     ])
     .unwrap();
-    assert_eq!(step(&patch, "kf"), [2.0]);
+    assert_eq!(step(&patch, "kf"), [1.0, 3.0]);
 }
 
 #[test]
@@ -435,4 +441,352 @@ fn set_lanes_folds_each_side_on_its_own() {
     ])
     .unwrap();
     assert_eq!(step(&patch, "fold"), [3.0, 30.0]);
+}
+
+#[test]
+fn a_stereo_lane_sum_makes_a_lifted_module_stereo() {
+    // A mono input with a stereo band frequency: each side filters with its
+    // own side's frequency.
+    let patch = build(&[
+        ("in", "$signal", signal(json!(1.0))),
+        ("lo", "$signal", signal(json!(-3.0))),
+        ("hi", "$signal", signal(json!(3.0))),
+        (
+            "freq",
+            "$stereo",
+            json!({ "left": cable("lo", 0), "right": cable("hi", 0) }),
+        ),
+        (
+            "eq",
+            "$eq",
+            json!({
+                "input": cable("in", 0),
+                "sections": [{ "type": "lowShelf", "freq": cable("freq", 0), "gain": 12.0 }],
+            }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(patch.sampleables["eq"].port_lanes("output"), 2);
+    let mut out = Vec::new();
+    for _ in 0..48 {
+        out = step(&patch, "eq");
+    }
+    assert_ne!(out[0], out[1], "{out:?}");
+}
+
+#[test]
+fn a_lane_sum_sums_each_side_on_its_own() {
+    // Two stereo lanes into `$wowFlutter`'s speed: the module is stereo and
+    // a mono input passes through both sides.
+    let patch = build(&[
+        ("in", "$signal", signal(json!(1.0))),
+        ("a", "$signal", signal(json!([1.0, 2.0]))),
+        (
+            "speed",
+            "$stereo",
+            json!({ "left": [cable("a", 0), cable("a", 1)], "right": [cable("a", 1), cable("a", 0)] }),
+        ),
+        (
+            "wf",
+            "$wowFlutter",
+            json!({ "input": cable("in", 0), "speed": [cable("speed", 0), cable("speed", 1)] }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(patch.sampleables["wf"].port_lanes("output"), 2);
+}
+
+#[test]
+fn unison_copies_each_side_of_a_stereo_lane() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(0.0))),
+        ("r", "$signal", signal(json!(1.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "u",
+            "$unison",
+            json!({ "input": cable("st", 0), "count": 2 }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "u"), [0.0, 1.0, 0.0, 1.0]);
+}
+
+#[test]
+fn spread_places_a_stereo_lane_by_its_logical_position() {
+    let patch = build(&[
+        ("lo", "$signal", signal(json!(0.0))),
+        ("hi", "$signal", signal(json!(1.0))),
+        (
+            "min",
+            "$stereo",
+            json!({ "left": cable("lo", 0), "right": cable("hi", 0) }),
+        ),
+        (
+            "s",
+            "$spread",
+            json!({ "min": cable("min", 0), "max": 4.0, "count": 2 }),
+        ),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "s"), [0.0, 1.0, 4.0, 4.0]);
+}
+
+#[test]
+fn quantizer_snaps_each_side() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(0.0))),
+        ("r", "$signal", signal(json!(1.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        ("q", "$quantizer", json!({ "input": cable("st", 0) })),
+    ])
+    .unwrap();
+    assert_eq!(step(&patch, "q"), [0.0, 1.0]);
+}
+
+/// The inputs a stereo module reads side by side. Every other input of such
+/// a module must be marked `#[input(…, fold)]`, so the editor can show where
+/// a stereo signal folds.
+const PER_SIDE: &[(&str, &[&str])] = &[
+    ("$pan", &["input"]),
+    ("$supersaw", &["freq", "detune", "fm", "sync"]),
+];
+
+#[test]
+fn every_input_of_a_stereo_module_folds_or_reads_by_side() {
+    use modular_core::types::StereoMode;
+    for module in schema() {
+        if module.stereo != StereoMode::Stereo {
+            continue;
+        }
+        let per_side = PER_SIDE
+            .iter()
+            .find(|(name, _)| *name == module.name)
+            .map_or(&[][..], |(_, inputs)| inputs);
+        for param in &module.signal_params {
+            assert!(
+                param.fold != per_side.contains(&param.name.as_str()),
+                "{}.{}: mark it `fold`, or list it in PER_SIDE",
+                module.name,
+                param.name
+            );
+        }
+    }
+}
+
+fn buffer_ref(module: &str) -> Value {
+    json!({ "type": "buffer_ref", "module": module, "port": "buffer", "lanes": 1 })
+}
+
+#[test]
+fn a_stereo_buffer_records_and_plays_each_side() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(1.0))),
+        ("r", "$signal", signal(json!(2.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("st", 0), "length": 0.01 }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": 0.001 }),
+        ),
+        (
+            "scrub",
+            "$bufRead",
+            json!({ "buffer": buffer_ref("buf"), "frame": 0.0 }),
+        ),
+    ])
+    .unwrap();
+    let mut tap = Vec::new();
+    for _ in 0..200 {
+        tap = step(&patch, "tap");
+    }
+    assert_eq!(tap, [1.0, 2.0]);
+    assert_eq!(step(&patch, "scrub"), [1.0, 2.0]);
+}
+
+#[test]
+fn a_mono_buffer_feeds_both_sides_of_a_stereo_reader() {
+    let patch = build(&[
+        ("x", "$signal", signal(json!(3.0))),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("x", 0), "length": 0.01 }),
+        ),
+        ("l", "$signal", signal(json!(0.001))),
+        ("r", "$signal", signal(json!(0.002))),
+        (
+            "time",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": cable("time", 0) }),
+        ),
+    ])
+    .unwrap();
+    let mut tap = Vec::new();
+    for _ in 0..200 {
+        tap = step(&patch, "tap");
+    }
+    assert_eq!(tap, [3.0, 3.0]);
+}
+
+/// Carry `old`'s state into `new`, built by [`insert`], and connect it, as a
+/// patch update does.
+fn swap(old: &Patch, new: &Patch) {
+    for (id, module) in &new.sampleables {
+        if let Some(previous) = old.sampleables.get(id) {
+            module.transfer_state_from(previous.as_ref(), &SameIds);
+        }
+    }
+    new.connect_all();
+}
+
+#[test]
+fn a_coin_flip_widened_to_stereo_flips_both_sides_together() {
+    let clock = json!({ "freq": 6.0 });
+    let mono = build(&[
+        ("clk", "$pulse", clock.clone()),
+        (
+            "flip",
+            "$coinFlip",
+            json!({ "input": cable("clk", 0), "probability": 2.5 }),
+        ),
+    ])
+    .unwrap();
+    for _ in 0..1000 {
+        step(&mono, "flip");
+    }
+    let (stereo, _) = insert(&[
+        ("clk", "$pulse", clock),
+        ("half", "$signal", signal(json!(2.5))),
+        (
+            "both",
+            "$stereo",
+            json!({ "left": cable("half", 0), "right": cable("half", 0) }),
+        ),
+        (
+            "flip",
+            "$coinFlip",
+            json!({ "input": cable("clk", 0), "probability": cable("both", 0) }),
+        ),
+    ])
+    .unwrap();
+    swap(&mono, &stereo);
+    for _ in 0..8000 {
+        let heads = step(&stereo, "flip");
+        assert_eq!(heads[0], heads[1], "both sides flip alike");
+    }
+}
+
+#[test]
+fn a_buffer_widened_to_stereo_keeps_its_recording_on_both_sides() {
+    let mono = build(&[
+        ("one", "$signal", signal(json!(1.0))),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("one", 0), "length": 0.01 }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": 0.005 }),
+        ),
+    ])
+    .unwrap();
+    for _ in 0..1000 {
+        step(&mono, "tap");
+    }
+    let (stereo, _) = insert(&[
+        ("zero", "$signal", signal(json!(0.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("zero", 0), "right": cable("zero", 0) }),
+        ),
+        (
+            "buf",
+            "$buffer",
+            json!({ "input": cable("st", 0), "length": 0.01 }),
+        ),
+        (
+            "tap",
+            "$delayRead",
+            json!({ "buffer": buffer_ref("buf"), "time": 0.005 }),
+        ),
+    ])
+    .unwrap();
+    swap(&mono, &stereo);
+    assert_eq!(step(&stereo, "tap"), [1.0, 1.0]);
+}
+
+#[test]
+fn a_wow_flutter_widened_to_stereo_wobbles_both_sides_together() {
+    let mono = build(&[
+        ("osc", "$sine", json!({ "freq": 0.0 })),
+        ("wow", "$wowFlutter", json!({ "input": cable("osc", 0) })),
+    ])
+    .unwrap();
+    for _ in 0..1000 {
+        step(&mono, "wow");
+    }
+    let (stereo, _) = insert(&[
+        ("osc", "$sine", json!({ "freq": 0.0 })),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("osc", 0), "right": cable("osc", 0) }),
+        ),
+        ("wow", "$wowFlutter", json!({ "input": cable("st", 0) })),
+    ])
+    .unwrap();
+    swap(&mono, &stereo);
+    // The right side's delay line is new, so compare once it has filled.
+    for i in 0..6000 {
+        let out = step(&stereo, "wow");
+        if i > 4000 {
+            assert!(
+                (out[0] - out[1]).abs() < 1e-4,
+                "sides apart at {i}: {out:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn pan_has_a_lane_for_each_input_lane() {
+    let patch = build(&[
+        ("osc", "$signal", signal(json!(1.0))),
+        (
+            "panned",
+            "$pan",
+            json!({ "input": cable("osc", 0), "pan": [-5.0, 0.0, 5.0] }),
+        ),
+    ])
+    .unwrap();
+    // One stereo lane, the input placed hard left by the first pan lane.
+    let out = step(&patch, "panned");
+    assert_eq!(out.len(), 2);
+    assert!(out[1].abs() < 1e-6, "{out:?}");
 }

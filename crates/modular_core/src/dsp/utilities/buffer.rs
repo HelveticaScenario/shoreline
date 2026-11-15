@@ -44,6 +44,11 @@ struct BufferWriteOutputs {
     #[serde(skip)]
     #[schemars(skip)]
     started: bool,
+    /// Channels per lane of the recording: lane `l` side `c` is buffer lane
+    /// `l * channels + c`.
+    #[serde(skip)]
+    #[schemars(skip)]
+    channels: usize,
 }
 
 impl Default for BufferWriteOutputs {
@@ -52,6 +57,7 @@ impl Default for BufferWriteOutputs {
             sample: PolyOutput::default(),
             buffer: BufferData::new_zeroed(1, 1),
             started: false,
+            channels: 1,
         }
     }
 }
@@ -76,8 +82,13 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
         }]
     }
 
+    /// Carries the recording over lane by lane and side by side; a side the
+    /// old recording lacks takes its lane's left side.
     fn transfer_buffers_from(&mut self, old: &mut Self) {
-        self.buffer.copy_overlap_from(&old.buffer);
+        let (new_channels, old_channels) = (self.channels.max(1), old.channels.max(1));
+        self.buffer.copy_overlap_from(&old.buffer, |lane| {
+            (lane / new_channels) * old_channels + (lane % new_channels).min(old_channels - 1)
+        });
         self.started = old.started;
     }
 
@@ -237,7 +248,7 @@ const BUFFER_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$buffer", stereo = mono,
+    name = "$buffer",
     docs = BUFFER_DOCS,
     has_init,
     args(input, length)
@@ -253,6 +264,7 @@ impl BufferWrite {
         let frame_count = (self.params.length * sample_rate as f64).ceil() as usize;
         let lane_count = self._lane_count.max(1);
         self.outputs.buffer = BufferData::new_zeroed(lane_count, frame_count);
+        self.outputs.channels = self.channels();
     }
 
     fn update(&mut self, _sample_rate: f32) {
@@ -375,7 +387,7 @@ const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
     }],
 };
 
-#[module(name = "$bufRead", stereo = mono, docs = BUF_READ_DOCS, lanes_derive = buf_read_derive_lane_count, args(buffer, frame))]
+#[module(name = "$bufRead", docs = BUF_READ_DOCS, lanes_derive = buf_read_derive_lane_count, args(buffer, frame))]
 pub struct BufRead {
     outputs: BufReadOutputs,
     params: BufReadParams,
@@ -383,13 +395,15 @@ pub struct BufRead {
 
 impl BufRead {
     fn update(&mut self, _sample_rate: f32) {
-        let frame_volts = self.params.frame.get_value().rem_euclid(5.0);
-        let frame_count = self.params.buffer.frame_count();
-        let frame = (frame_volts / 5.0) * frame_count as f32;
+        let frame_count = self.params.buffer.frame_count() as f32;
+        let channels = self.channels();
+        let frames = [0, 1]
+            .map(|side| (self.params.frame.get_side(side).rem_euclid(5.0) / 5.0) * frame_count);
         let lanes = self.lane_count();
 
         for lane in 0..lanes {
-            let value = read_interpolated(&self.params.buffer, lane, frame);
+            let buf_lane = self.params.buffer.lane_for(lane, channels);
+            let value = read_interpolated(&self.params.buffer, buf_lane, frames[lane % channels]);
             self.outputs.sample.set(lane, value);
         }
     }

@@ -311,6 +311,7 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
 
 #[module(
     name = "$enosc",
+    stereo = mono,
     docs = ENOSC_DOCS,
     lanes_derive = enosc_derive_lane_count,
     has_init,

@@ -139,7 +139,7 @@ describe('concat', () => {
         const lanes = mixes.map(
             (m) => (m.params as { inputs: unknown[] }).inputs.flat().length,
         );
-        expect(lanes.slice(0, 2)).toEqual([4, 2]);
+        expect(lanes.slice(0, 2)).toEqual([2, 2]);
     });
 
     test('a ranged collection does not join one without a range', () => {
