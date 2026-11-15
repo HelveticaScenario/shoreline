@@ -557,6 +557,12 @@ fn quantizer_snaps_each_side() {
 /// a stereo signal folds.
 const PER_SIDE: &[(&str, &[&str])] = &[
     ("$pan", &["input"]),
+    ("$dattorro", &["input"]),
+    ("$plate", &["input"]),
+    ("$unstable.reverb", &["input"]),
+    ("$unstable.reverb2", &["input"]),
+    ("$reverb", &["input"]),
+    ("$mi.chorus", &["input"]),
     ("$supersaw", &["freq", "detune", "fm", "sync"]),
 ];
 

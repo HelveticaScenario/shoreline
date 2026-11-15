@@ -43,7 +43,6 @@ pub use clocked_delay::ClockedDelay;
 pub use flutter::WowFlutter;
 pub use grains::Granular;
 use player::GrainParams;
-use primitives::Frame;
 pub use sampler::GranularSampler;
 pub use verb::BeadsReverb;
 
@@ -108,25 +107,4 @@ fn grain_params(
 #[inline]
 fn input_value(input: &PolySignal, lane: usize) -> f32 {
     sanitize(input.get_value(lane)) * (1.0 / FULL_SCALE_VOLTS)
-}
-
-/// Fold a poly input to stereo in hardware units: even lanes feed the left
-/// side and odd lanes the right; with an odd lane count the last
-/// lane feeds both.
-fn fold_input(input: &PolySignal) -> Frame {
-    let lanes = input.lanes();
-    let mut l = 0.0;
-    let mut r = 0.0;
-    for lane in 0..lanes {
-        let v = input.get_value(lane);
-        if lane % 2 == 0 {
-            l += v;
-        } else {
-            r += v;
-        }
-    }
-    if lanes % 2 == 1 {
-        r += input.get_value(lanes - 1);
-    }
-    Frame::new(sanitize(l), sanitize(r)) * (1.0 / FULL_SCALE_VOLTS)
 }

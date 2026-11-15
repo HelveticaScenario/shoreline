@@ -1,0 +1,13 @@
+kind: Breaking
+body: |-
+    `$stereoMix` gives one stereo lane, its left and right on the two sides, instead of a left lane and a right lane. It is deprecated: `$pan` places each lane and `.out()` sums them for you.
+
+    ```js
+    // before
+    const mix = $stereoMix($saw($chord('C3[m7]')), { width: 4 })
+    $signal(mix[1]).outMono(1)
+    // after
+    const mix = $pan($saw($chord('C3[m7]')), 0, { spread: 4 }).setLanes(1)
+    $right(mix).outMono(1)
+    ```
+time: 2026-11-15T01:20:02.889361-05:00
