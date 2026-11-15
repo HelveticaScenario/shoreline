@@ -1,13 +1,11 @@
 kind: Breaking
 body: |-
-    `$stereoMix` gives one stereo lane, its left and right on the two sides, instead of a left lane and a right lane. It is deprecated: `$pan` places each lane and `.out()` sums them for you.
+    `$stereoMix` is gone. `$pan` places each lane in the stereo field, with `spread` to fan a chord out, and `.out()` sums the lanes into one stereo pair.
 
     ```js
     // before
-    const mix = $stereoMix($saw($chord('C3[m7]')), { width: 4 })
-    $signal(mix[1]).outMono(1)
+    $stereoMix($saw($chord('C3[m7]')), { pan: -2, width: 4 }).out()
     // after
-    const mix = $pan($saw($chord('C3[m7]')), 0, { spread: 4 }).setLanes(1)
-    $right(mix).outMono(1)
+    $pan($saw($chord('C3[m7]')), -2, { spread: 4 }).out()
     ```
 time: 2026-11-15T01:20:02.889361-05:00

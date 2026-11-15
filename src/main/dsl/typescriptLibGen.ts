@@ -310,8 +310,8 @@ interface SignalGroup {
  * {@link Poly} takes except a signal group: the module combines all voices
  * into one control signal rather than preserving polyphony.
  *
- * @example $stereoMix($saw("c3"), { width: 0.8 })          // Constant width
- * @example $stereoMix($saw("c3"), { width: $sine("1hz") }) // Oscillating stereo width
+ * @example $pan($saw("c3"), 0, { spread: 2 })              // Constant spread
+ * @example $pan($saw("c3"), 0, { spread: $sine("1hz") })   // Oscillating spread
  * @see {@link Poly} - for polyphonic signals that preserve per-voice data
  * @see {@link Signal} - for single-lane signals
  */

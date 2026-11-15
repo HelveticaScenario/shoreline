@@ -271,7 +271,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Used for control parameters like tempo, stereo width, or math variables where a single combined value is needed.',
         examples: [
             '$clockDivider(clock._trigger, 4)                // Clock signal summed to mono',
-            '$stereoMix(osc, { width: lfo })                  // Width control summed to mono',
+            '$pan(osc, 0, { spread: lfo })                    // Spread control summed to mono',
             '$math("x + y", { x: osc1, y: osc2 })            // Variables summed to single values',
         ],
         name: 'LaneSum<Signal>',
