@@ -443,7 +443,7 @@ impl Enosc {
             let phase = params
                 .phase
                 .as_ref()
-                .map(|warp| (warp, warp.resolve(at, sample_rate, &mut cs.phase)));
+                .map(|warp| (warp, warp.resolve_folded(at, sample_rate, &mut cs.phase)));
 
             let ctx = VoiceContext {
                 phase,

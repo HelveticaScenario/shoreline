@@ -162,9 +162,34 @@ impl PhaseWarp {
         sample_rate: f32,
         glides: &mut PhaseWarpGlides,
     ) -> ResolvedWarp {
+        self.resolve_with(lane, sample_rate, glides, &|signal| signal.get_value(lane))
+    }
+
+    /// [`resolve`](Self::resolve) for a stereo module's lane, whose sides are
+    /// `lane` and `lane + 1`: every stage reads the mean of the two sides.
+    #[inline]
+    pub fn resolve_folded(
+        &self,
+        lane: usize,
+        sample_rate: f32,
+        glides: &mut PhaseWarpGlides,
+    ) -> ResolvedWarp {
+        self.resolve_with(lane, sample_rate, glides, &|signal| {
+            0.5 * (signal.get_value(lane) + signal.get_value(lane + 1))
+        })
+    }
+
+    #[inline]
+    fn resolve_with(
+        &self,
+        lane: usize,
+        sample_rate: f32,
+        glides: &mut PhaseWarpGlides,
+        read: &impl Fn(&PolySignal) -> f32,
+    ) -> ResolvedWarp {
         let mut resolved = ResolvedWarp::default();
         let mut slot = 0;
-        self.resolve_from(lane, sample_rate, glides, &mut resolved, &mut slot);
+        self.resolve_from(lane, sample_rate, glides, read, &mut resolved, &mut slot);
         resolved
     }
 
@@ -173,12 +198,13 @@ impl PhaseWarp {
         lane: usize,
         sample_rate: f32,
         glides: &mut PhaseWarpGlides,
+        read: &impl Fn(&PolySignal) -> f32,
         resolved: &mut ResolvedWarp,
         slot: &mut usize,
     ) {
         if let PhaseWarp::Pipe { first, second } = self {
-            first.resolve_from(lane, sample_rate, glides, resolved, slot);
-            second.resolve_from(lane, sample_rate, glides, resolved, slot);
+            first.resolve_from(lane, sample_rate, glides, read, resolved, slot);
+            second.resolve_from(lane, sample_rate, glides, read, resolved, slot);
             return;
         }
         let Some((kind, signal)) = self.stage() else {
@@ -191,8 +217,7 @@ impl PhaseWarp {
             glides.kinds[i] = kind;
             glides.glides[i] = SwapGlide::default();
         }
-        let value =
-            glides.glides[i].follow(signal.get_value(lane), signal.glide_mark(lane), sample_rate);
+        let value = glides.glides[i].follow(read(signal), signal.glide_mark(lane), sample_rate);
         resolved.values[i] = kind.prepare(value);
     }
 

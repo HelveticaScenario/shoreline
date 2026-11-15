@@ -139,10 +139,10 @@ impl BufferWriteBlockOutputs {
         }
     }
 
-    #[inline]
     /// No `mono` ports.
     pub fn narrow_mono_ports(&mut self, _channels: usize) {}
 
+    #[inline]
     pub fn port_index(name: &str) -> Option<usize> {
         match name {
             "output" => Some(0),

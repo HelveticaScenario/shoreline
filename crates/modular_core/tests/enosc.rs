@@ -47,8 +47,8 @@ fn render_ports<const N: usize>(patch: &Patch, ports: [(&str, usize); N]) -> [Ve
     out
 }
 
-fn render_port(patch: &Patch, port: &str, lane: usize) -> Vec<f32> {
-    let [samples] = render_ports(patch, [(port, lane)]);
+fn render_port(patch: &Patch, port: &str, index: usize) -> Vec<f32> {
+    let [samples] = render_ports(patch, [(port, index)]);
     samples
 }
 
@@ -197,11 +197,14 @@ fn outputs_stay_bounded_across_options() {
                 "fold": 5.0, "cheby": 5.0, "segment": 5.0, "effectOrder": order,
                 "balance": -5.0,
             }));
-            for sample in render_port(&patch, "all", 1) {
-                assert!(
-                    sample.is_finite() && sample.abs() < 12.0,
-                    "{mode}: {sample}"
-                );
+            let sides: [_; 2 * LANES] = std::array::from_fn(|index| ("all", index));
+            for (index, samples) in render_ports(&patch, sides).iter().enumerate() {
+                for &sample in samples {
+                    assert!(
+                        sample.is_finite() && sample.abs() < 12.0,
+                        "{mode}, index {index}: {sample}"
+                    );
+                }
             }
         }
     }
