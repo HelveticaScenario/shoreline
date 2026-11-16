@@ -11,7 +11,7 @@
     font-family: var(--font-mono);
 }
 
-/* Channel strips scroll horizontally; the master strip stays pinned right. */
+/* Track strips scroll horizontally; the main and bus strips stay pinned right. */
 .vu-meter-scroll {
     display: flex;
     align-items: stretch;
@@ -25,6 +25,14 @@
 .vu-meter--main {
     border-left: 2px solid var(--border-subtle, #333);
     border-radius: 0 3px 3px 0;
+}
+
+/* Bus strips sit past the main strip, pinned with it. */
+.vu-meter-buses {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
 .vu-meter-empty {

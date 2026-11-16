@@ -213,12 +213,18 @@ function PanKnob({
     );
 }
 
+/** The letter a bus shows on its activator: A, B, … Z, AA, AB, … */
+function busLetter(index: number): string {
+    const letter = String.fromCharCode(65 + (index % 26));
+    return index < 26 ? letter : busLetter(Math.floor(index / 26) - 1) + letter;
+}
+
 interface VuMeterProps {
     output: VuMeterDef;
     /** Code-side values diverging from the audio for this meter. */
     ghost: VuMeterGhost | undefined;
-    /** 1-based position, shown on the activator button like a track number. */
-    index: number;
+    /** Shown on the activator button: a track's number, a bus's letter. */
+    index: number | string;
     /** True when mute/solo state leaves this output inaudible. */
     suppressed: boolean;
     showReadout: boolean;
@@ -538,6 +544,8 @@ export function VuMeterPanel({
     unregisterPanPointer,
 }: VuMeterPanelProps) {
     const channelOutputs = outputs.filter((o) => !o.main);
+    const trackOutputs = channelOutputs.filter((o) => !o.isBus);
+    const busOutputs = channelOutputs.filter((o) => o.isBus);
     const mainOutput = outputs.find((o) => o.main) ?? null;
     const anySolo = channelOutputs.some((o) => o.solo);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -584,12 +592,12 @@ export function VuMeterPanel({
     return (
         <div ref={panelRef} className="vu-meter-panel">
             <div className="vu-meter-scroll">
-                {channelOutputs.length === 0 ? (
+                {trackOutputs.length === 0 ? (
                     <div className="vu-meter-empty">
                         no tracks — label a line to hear it: lead: $saw('c3')
                     </div>
                 ) : (
-                    channelOutputs.map((output, i) => (
+                    trackOutputs.map((output, i) => (
                         <VuMeter
                             key={output.key}
                             output={output}
@@ -610,6 +618,20 @@ export function VuMeterPanel({
                     suppressed={false}
                     {...meterProps}
                 />
+            )}
+            {busOutputs.length > 0 && (
+                <div className="vu-meter-buses">
+                    {busOutputs.map((output, i) => (
+                        <VuMeter
+                            key={output.key}
+                            output={output}
+                            ghost={ghosts.get(output.key)}
+                            index={busLetter(i)}
+                            suppressed={anySolo ? !output.solo : output.mute}
+                            {...meterProps}
+                        />
+                    ))}
+                </div>
             )}
         </div>
     );

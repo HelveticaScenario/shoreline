@@ -197,6 +197,8 @@ interface OutGroupVuState {
     scopes: TrackScope[];
     /** Whether the label's value was a `.track(...)` result. */
     fromTrack: boolean;
+    /** Whether this track is a bus's: rooted at a `$bus()`. */
+    isBus: boolean;
 }
 
 /** Internal storage for a stereo output group */
@@ -1368,6 +1370,7 @@ export class GraphBuilder implements ChainHost {
                         baseChannel,
                         channels: group.type === 'stereo' ? 2 : 1,
                         fromTrack: group.fromTrack,
+                        isBus: group.isBus,
                         gain: gainValue,
                         gainLocked: !gainControllable,
                         gainModuleId: gainControllable
@@ -1791,6 +1794,7 @@ export class GraphBuilder implements ChainHost {
         const state = {
             displayName: declaration.displayName,
             fromTrack: track !== undefined,
+            isBus: bus !== undefined,
             gain: options.gain,
             label: name,
             mute: declaration.state.mute,

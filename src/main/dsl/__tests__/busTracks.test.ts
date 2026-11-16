@@ -31,6 +31,15 @@ describe('$bus tracks', () => {
         expect(lanes.moduleType).toBe('$setLanes');
         expect(lanes.params.lanes).toBe(1);
         expect(vuLabels(patch)).toEqual(['fx', 'dry']);
+        expect(
+            (
+                patch.vuMeters as unknown as { key: string; isBus?: boolean }[]
+            ).map((m) => [m.key, m.isBus === true]),
+        ).toEqual([
+            ['fx', true],
+            ['dry', false],
+            ['__main__', false],
+        ]);
     });
 
     test('a bare $bus() is a bus track', () => {

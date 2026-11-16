@@ -57,6 +57,8 @@ export interface VuMeterDef {
     gainSource?: { moduleId: string; portName: string; lane: number };
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
+    /** Whether this track is a bus's, which the mixer shows past the main. */
+    isBus?: boolean;
     /**
      * Whether the track's label labels a `.track(...)` made elsewhere (in a
      * helper or a const), whose options the mixer cannot rewrite.
