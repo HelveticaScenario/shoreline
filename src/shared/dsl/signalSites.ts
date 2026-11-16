@@ -73,6 +73,8 @@ export interface SignalSiteTables {
     globals: Record<string, GlobalChannels>;
     /** Qualified type names of values that are always mono, such as patterns. */
     monoTypes: string[];
+    /** Members that are mono on a value of each qualified type name. */
+    monoMembers: Record<string, string[]>;
 }
 
 /** One value position in a patch. */
@@ -259,6 +261,28 @@ export function collectSignalSites(
         ts.isParenthesizedExpression(value);
 
     /**
+     * The signals `$g1(signals)` wraps, when `value` is a call to the DSL's
+     * own group helper rather than one the patch declares.
+     */
+    const groupedSignals = (
+        value: TS.Expression,
+    ): TS.Expression | undefined => {
+        if (
+            !ts.isCallExpression(value) ||
+            !ts.isIdentifier(value.expression) ||
+            !SIGNAL_GROUP_HELPERS.has(value.expression.text) ||
+            value.arguments.length !== 1 ||
+            ts.isSpreadElement(value.arguments[0]) ||
+            checker
+                .getSymbolAtLocation(value.expression)
+                ?.valueDeclaration?.getSourceFile() === sourceFile
+        ) {
+            return undefined;
+        }
+        return value.arguments[0];
+    };
+
+    /**
      * A value written at `slot` of the call at `call`, read by an input that
      * folds a stereo signal when `folding`.
      */
@@ -287,13 +311,9 @@ export function collectSignalSites(
             });
             return;
         }
-        if (
-            ts.isCallExpression(value) &&
-            ts.isIdentifier(value.expression) &&
-            SIGNAL_GROUP_HELPERS.has(value.expression.text) &&
-            value.arguments.length === 1
-        ) {
-            emitValue(call, slot, value.arguments[0], inputClass, folding);
+        const grouped = groupedSignals(value);
+        if (grouped) {
+            emitValue(call, slot, grouped, inputClass, folding);
             return;
         }
         const type = checker.getTypeAtLocation(value);
@@ -452,6 +472,29 @@ export function collectSignalSites(
     /** The `const` declarations being followed, so a cycle reads as unknown. */
     const following = new Set<TS.Node>();
 
+    /** Whether `declaration` is a `const` of this patch with a value, and not already being followed. */
+    const isFollowable = (
+        declaration: TS.Node | undefined,
+    ): declaration is TS.VariableDeclaration & {
+        initializer: TS.Expression;
+    } =>
+        declaration !== undefined &&
+        ts.isVariableDeclaration(declaration) &&
+        declaration.initializer !== undefined &&
+        declaration.getSourceFile() === sourceFile &&
+        (ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) !== 0 &&
+        !following.has(declaration);
+
+    /** `read()`, with `declaration` marked as followed while it runs. */
+    const follow = <T>(declaration: TS.Node, read: () => T): T => {
+        following.add(declaration);
+        try {
+            return read();
+        } finally {
+            following.delete(declaration);
+        }
+    };
+
     /** Each expression's channels once told, as a `const` is read many times. */
     const told = new Map<TS.Node, Channels>();
 
@@ -497,20 +540,32 @@ export function collectSignalSites(
         if (ts.isIdentifier(value)) {
             return identifierChannels(value);
         }
-        // An output, a lane or a slice carries its module's channels, but a
-        // `mono` output is mono.
-        if (
-            ts.isPropertyAccessExpression(value) &&
-            value.name.text.startsWith('_') &&
-            isMonoOutput(value.expression, value.name.text.slice(1))
-        ) {
-            return 'mono';
+        // Either side may be the value.
+        if (ts.isConditionalExpression(value)) {
+            return collectionChannels([
+                channelsOf(value.whenTrue),
+                channelsOf(value.whenFalse),
+            ]);
         }
         if (
-            ts.isPropertyAccessExpression(value) ||
-            ts.isElementAccessExpression(value)
+            ts.isBinaryExpression(value) &&
+            (value.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken ||
+                value.operatorToken.kind === ts.SyntaxKind.BarBarToken)
         ) {
-            return channelsOf(value.expression);
+            return collectionChannels([
+                channelsOf(value.left),
+                channelsOf(value.right),
+            ]);
+        }
+        if (ts.isPropertyAccessExpression(value)) {
+            return memberChannels(value.expression, value.name.text);
+        }
+        if (ts.isElementAccessExpression(value)) {
+            const key = value.argumentExpression;
+            // A lane carries its collection's channels.
+            return ts.isStringLiteralLike(key)
+                ? memberChannels(value.expression, key.text)
+                : channelsOf(value.expression);
         }
         if (ts.isCallExpression(value)) {
             return callChannels(value);
@@ -518,8 +573,33 @@ export function collectSignalSites(
         return 'unknown';
     };
 
+    /**
+     * What `receiver.name` carries: an output or member carries its module's
+     * channels, but a `mono` output, or a member the tables name mono, is mono.
+     */
+    const memberChannels = (
+        receiver: TS.Expression,
+        name: string,
+    ): Channels => {
+        if (name.startsWith('_') && isMonoOutput(receiver, name.slice(1))) {
+            return 'mono';
+        }
+        const type = checker.getTypeAtLocation(receiver);
+        const symbol = type.aliasSymbol ?? type.getSymbol();
+        if (
+            symbol &&
+            own(tables.monoMembers, qualifiedName(symbol))?.includes(name)
+        ) {
+            return 'mono';
+        }
+        return channelsOf(receiver);
+    };
+
     /** Chain methods that hand back their receiver. */
     const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope', 'send']);
+
+    /** Methods that hand back some of their receiver's lanes. */
+    const TAKES_LANES = new Set(['lane', 'slice']);
 
     /**
      * Whether `expression._port` is a `mono` output: `expression` is a module
@@ -539,22 +619,12 @@ export function collectSignalSites(
         if (ts.isIdentifier(value)) {
             const declaration =
                 checker.getSymbolAtLocation(value)?.valueDeclaration;
-            if (
-                !declaration ||
-                !ts.isVariableDeclaration(declaration) ||
-                !declaration.initializer ||
-                declaration.getSourceFile() !== sourceFile ||
-                !(ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const) ||
-                following.has(declaration)
-            ) {
-                return false;
-            }
-            following.add(declaration);
-            try {
-                return isMonoOutput(declaration.initializer, port);
-            } finally {
-                following.delete(declaration);
-            }
+            return (
+                isFollowable(declaration) &&
+                follow(declaration, () =>
+                    isMonoOutput(declaration.initializer, port),
+                )
+            );
         }
         if (!ts.isCallExpression(value)) {
             return false;
@@ -587,20 +657,13 @@ export function collectSignalSites(
     const identifierChannels = (name: TS.Identifier): Channels => {
         const symbol = checker.getSymbolAtLocation(name);
         const declaration = symbol?.valueDeclaration;
-        if (
-            declaration &&
-            ts.isVariableDeclaration(declaration) &&
-            declaration.initializer &&
-            declaration.getSourceFile() === sourceFile &&
-            ts.getCombinedNodeFlags(declaration) & ts.NodeFlags.Const &&
-            !following.has(declaration)
-        ) {
-            following.add(declaration);
-            try {
-                return channelsOf(declaration.initializer);
-            } finally {
-                following.delete(declaration);
-            }
+        if (isFollowable(declaration)) {
+            return follow(declaration, () =>
+                channelsOf(declaration.initializer),
+            );
+        }
+        if (declaration && ts.isBindingElement(declaration)) {
+            return bindingChannels(declaration);
         }
         if (declaration && declaration.getSourceFile() !== sourceFile) {
             const global = own(tables.globals, name.text);
@@ -609,6 +672,39 @@ export function collectSignalSites(
             }
         }
         return 'unknown';
+    };
+
+    /**
+     * What a name destructured straight from a `const` carries: the member
+     * or element it takes, or either it or its default when it has one.
+     */
+    const bindingChannels = (element: TS.BindingElement): Channels => {
+        const pattern = element.parent;
+        const declaration = pattern.parent;
+        if (element.dotDotDotToken || !isFollowable(declaration)) {
+            return 'unknown';
+        }
+        const source = declaration.initializer;
+        const taken = follow(declaration, (): Channels => {
+            if (ts.isObjectBindingPattern(pattern)) {
+                const key = element.propertyName ?? element.name;
+                return ts.isIdentifier(key)
+                    ? memberChannels(source, key.text)
+                    : 'unknown';
+            }
+            const index = pattern.elements.indexOf(element);
+            const written =
+                ts.isArrayLiteralExpression(source) &&
+                source.elements
+                    .slice(0, index + 1)
+                    .every((e) => !ts.isSpreadElement(e))
+                    ? source.elements[index]
+                    : undefined;
+            return channelsOf(written ?? source);
+        });
+        return element.initializer
+            ? collectionChannels([taken, channelsOf(element.initializer)])
+            : taken;
     };
 
     /** The channels of a module given its arguments, `first` being the positional they start at. */
@@ -655,6 +751,11 @@ export function collectSignalSites(
         if (module) {
             return moduleChannels(module, node.arguments, 0);
         }
+        // A group only arranges its signals' lanes; their channels stand.
+        const grouped = groupedSignals(node);
+        if (grouped) {
+            return channelsOf(grouped);
+        }
         const global =
             ts.isIdentifier(callee) && own(tables.globals, callee.text);
         if (global === 'collection') {
@@ -675,8 +776,20 @@ export function collectSignalSites(
                 chain.receiver,
             );
         }
-        if (RETURNS_RECEIVER.has(callee.name.text)) {
+        if (
+            RETURNS_RECEIVER.has(callee.name.text) ||
+            TAKES_LANES.has(callee.name.text)
+        ) {
             return channelsOf(callee.expression);
+        }
+        // A pattern plays through a `$cycle` of its own.
+        const cycle = own(tables.modules, '$cycle');
+        if (
+            callee.name.text === 'cycle' &&
+            cycle &&
+            isPlain(checker.getTypeAtLocation(callee.expression))
+        ) {
+            return moduleChannels(cycle, node.arguments, 1, callee.expression);
         }
         // `.range()` builds a `$remap`, which lifts with its bounds.
         if (callee.name.text === 'range') {
