@@ -1,5 +1,5 @@
 //! Pieces shared across the Beads modules: the hardware's media settings,
-//! its control-block clock and its stereo placement of voices.
+//! its control-block clock and its limiters.
 
 use super::buffer::{Resolution, mulaw_round_trip};
 use super::primitives::Limiter;
@@ -64,20 +64,6 @@ impl Media {
             Media::DirtyTape => mulaw_round_trip(x),
         }
     }
-}
-
-/// Left and right gains of voice `i` of `n`, panned equal-power from
-/// −`width` to +`width` volts across the voices and scaled so a centred voice
-/// keeps unity gain. A single voice stays centred.
-pub fn voice_place(i: usize, n: usize, width: f32) -> [f32; 2] {
-    let pan = if n > 1 {
-        let spacing = 2.0 * width / (n - 1) as f32;
-        (-width + i as f32 * spacing).clamp(-5.0, 5.0)
-    } else {
-        0.0
-    };
-    let p = (pan + 5.0) / 10.0;
-    [(2.0 * (1.0 - p)).sqrt(), (2.0 * p).sqrt()]
 }
 
 /// The hardware's pre-reverb and output limiters, for one signal.

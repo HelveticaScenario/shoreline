@@ -103,6 +103,21 @@ fn grain_params(
     }
 }
 
+/// Whether every signal input reads the same on both sides of each lane, so
+/// a grain module can play each lane from one voice. Main thread only.
+fn sides_match(params: &impl crate::types::PolySignalFields) -> bool {
+    params.poly_signal_fields().iter().all(|p| p.sides_match())
+}
+
+/// `signal` at side `side` read for its whole lane: the average of the
+/// lane's two sides, 0 when disconnected. The two sides' grains start
+/// together with one pan, so their spread is one setting.
+#[inline]
+fn folded(signal: &Option<PolySignal>, side: usize) -> f32 {
+    let left = side - side % 2;
+    0.5 * (signal.value_or(left, 0.0) + signal.value_or(left + 1, 0.0))
+}
+
 /// Lane `lane` of an audio input in hardware units.
 #[inline]
 fn input_value(input: &PolySignal, lane: usize) -> f32 {

@@ -1,6 +1,6 @@
-use super::super::tests::{SR, poly_volts, rms, sine, volts};
+use super::super::tests::{SR, poly_volts, rms, sine};
 use super::*;
-use crate::types::{OutputStruct, PolySignalFields, Signal};
+use crate::types::{Connect, LaneExpansion, OutputStruct, PolySignalFields, Signal};
 
 fn grains_params(quality: GranularQuality) -> GranularParams {
     GranularParams {
@@ -13,16 +13,27 @@ fn grains_params(quality: GranularQuality) -> GranularParams {
         freq: None,
         root_freq: None,
         spread: None,
-        width: None,
         feedback: None,
         mix: None,
         quality,
         fresh: None,
+        mono: false,
     }
 }
 
-/// Build a module the way the engine does: one voice per lane of the
-/// widest input, `init`, then `on_patch_update`.
+/// Each value on both sides of its lane, as the patch expands a stereo
+/// module's inputs.
+fn sides(values: &[f32]) -> Option<PolySignal> {
+    let mut signal = poly_volts(values);
+    signal.expand_lanes(&LaneExpansion {
+        channels: 2,
+        producer: &|_, _| 1,
+    });
+    signal
+}
+
+/// Build a module the way the engine does: one voice per side of each lane
+/// of the widest input, `init`, then `on_patch_update`.
 fn make_grains(params: GranularParams, sample_rate: f32) -> Granular {
     let mut m = construct(params, sample_rate);
     m.on_patch_update();
@@ -39,14 +50,18 @@ fn transfer(old: &mut Granular, new: &mut Granular) {
 }
 
 /// A module up to the point where state transfer happens.
-fn construct(params: GranularParams, sample_rate: f32) -> Granular {
-    let lanes = params
+fn construct(mut params: GranularParams, sample_rate: f32) -> Granular {
+    let lanes = 2 * params
         .poly_signal_fields()
         .iter()
         .map(|p| p.lanes())
         .max()
         .unwrap_or(1)
         .max(1);
+    params.expand_lanes(&LaneExpansion {
+        channels: 2,
+        producer: &|_, _| 1,
+    });
     let mut outputs = GranularOutputs::default();
     outputs.set_all_lanes(lanes);
     let mut m = Granular {
@@ -55,7 +70,7 @@ fn construct(params: GranularParams, sample_rate: f32) -> Granular {
         params,
         lane_state: (0..lanes).map(|_| Default::default()).collect(),
         _lane_count: lanes,
-        _channels: 1,
+        _channels: 2,
         _block_index: Default::default(),
     };
     m.init(sample_rate);
@@ -341,9 +356,12 @@ fn new_voices_get_their_own_buffers() {
     p.freq = poly_volts(&[0.0, 0.5]);
     let mut new = construct(p, SR);
     transfer(&mut old, &mut new);
+    // Each lane plays from its left voice, which keeps its recording or
+    // takes a fresh one.
     assert!(recording_level(&new, 0) > 0);
-    assert_eq!(recording_level(&new, 1), 0);
-    let buffer = &new.lane_state[1].voice.granular.buffer;
+    assert!(!records(&new, 1));
+    assert_eq!(recording_level(&new, 2), 0);
+    let buffer = &new.lane_state[2].voice.granular.buffer;
     assert_eq!(buffer.max_delay() as usize, Media::Digital.max_delay());
 }
 
@@ -366,7 +384,7 @@ fn narrowing_drops_triggers_for_voices_that_are_gone() {
     assert!(!old.state.pending.is_empty());
     let mut new = construct(grains_params(GranularQuality::Digital), sr);
     transfer(&mut old, &mut new);
-    assert_eq!(new.lane_state.len(), 1);
+    assert_eq!(new.lane_state.len(), 2);
     for n in 0..4_000 {
         let (l, r) = step(&mut new, sine(220.0, n, sr, 1.0), 0.0, sr);
         assert!(l.is_finite() && r.is_finite());
@@ -389,13 +407,12 @@ fn recovers_after_non_finite_input() {
 }
 
 #[test]
-fn an_unspread_voice_outputs_its_stereo_left_lane() {
+fn unspread_grains_of_a_mono_input_play_alike_on_both_sides() {
     for quality in ALL_QUALITIES {
         let mut p = grains_params(quality);
         p.mix = poly_volts(&[3.5]);
         p.feedback = poly_volts(&[2.0]);
         p.size = poly_volts(&[1.25]);
-        p.width = volts(3.0);
         let mut m = make_grains(p, SR);
         for n in 0..30_000 {
             let x = if n < 2000 {
@@ -404,9 +421,8 @@ fn an_unspread_voice_outputs_its_stereo_left_lane() {
                 sine(330.0, n, SR, 3.0)
             };
             let trig = if n >= 2000 && n % 1500 < 10 { 5.0 } else { 0.0 };
-            step(&mut m, x, trig, SR);
-            let (a, b) = (m.outputs.sample.get(0), m.outputs.voices.get(0));
-            assert_eq!(a, b, "{quality:?}, sample {n}");
+            let (l, r) = step(&mut m, x, trig, SR);
+            assert_eq!(l, r, "{quality:?}, sample {n}");
         }
     }
 }
@@ -416,7 +432,6 @@ fn a_new_fully_wet_module_passes_no_dry_signal() {
     for q in ALL_QUALITIES {
         let mut p = grains_params(q);
         p.mix = poly_volts(&[5.0]);
-        p.width = volts(5.0);
         let mut m = make_grains(p, SR);
         for n in 0..4800 {
             let x = ((n as f32 * 130.8 / SR).fract() * 2.0 - 1.0) * 4.0;
@@ -442,8 +457,10 @@ fn a_voice_added_by_a_patch_update_passes_no_dry_signal() {
         new.params.input = PolySignal::poly(&[x.clone(), x]);
         new.params.trigger = poly_volts(&[0.0]);
         new.update(SR);
-        let v = new.outputs.voices.get(1);
-        assert!(v.abs() < 1e-4, "sample {n}: {v}");
+        for lane in 2..4 {
+            let v = new.outputs.sample.get(lane);
+            assert!(v.abs() < 1e-4, "sample {n}: {v}");
+        }
     }
 }
 
@@ -460,7 +477,6 @@ fn no_grain_leaves_above_the_limit_from_the_first() {
         p.size = poly_volts(&[size]);
         p.shape = poly_volts(&[5.0]);
         p.spread = poly_volts(&[5.0]);
-        p.width = volts(5.0);
         let mut m = make_grains(p, SR);
         for n in 0..96_000 {
             let x = ((n as f32 * 130.8 / SR).fract() * 2.0 - 1.0) * 5.0;
@@ -468,15 +484,11 @@ fn no_grain_leaves_above_the_limit_from_the_first() {
             let trig = n >= 48_000 && n % 6000 < 10;
             m.params.trigger = poly_volts(&[if trig { 5.0 } else { 0.0 }]);
             m.update(SR);
-            for lane in 0..2 {
+            for lane in 0..8 {
                 let y = m.outputs.sample.get(lane);
-                assert!(y.abs() <= limit, "{quality:?} size {size}, sample {n}: {y}");
-            }
-            for v in 0..4 {
-                let y = m.outputs.voices.get(v);
                 assert!(
                     y.abs() <= limit,
-                    "{quality:?} size {size}, voice {v}, sample {n}: {y}"
+                    "{quality:?} size {size}, lane {lane}, sample {n}: {y}"
                 );
             }
         }
@@ -484,15 +496,15 @@ fn no_grain_leaves_above_the_limit_from_the_first() {
 }
 
 #[test]
-fn width_places_the_voices_in_stereo() {
+fn each_side_records_and_passes_its_own_input() {
     let mut p = grains_params(GranularQuality::Digital);
     p.mix = poly_volts(&[0.0]);
-    p.width = volts(5.0);
-    p.input = PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(0.0)]);
-    let mut m = make_grains(p, SR);
+    let mut m = construct_stereo(p, SR);
+    m.on_patch_update();
     let (mut l, mut r) = (Vec::new(), Vec::new());
     for n in 0..20_000 {
         let x = sine(440.0, n, SR, 2.0);
+        // Lane 0's left and right sides.
         m.params.input = PolySignal::poly(&[Signal::Volts(x), Signal::Volts(0.0)]);
         m.update(SR);
         if n >= 10_000 {
@@ -504,8 +516,8 @@ fn width_places_the_voices_in_stereo() {
     assert!(rms(&r) < 1e-4 * rms(&l), "right {}", rms(&r));
 }
 
-/// Render `params` over a 440 Hz input per lane and return each output
-/// lane while the grains sound.
+/// Render `params` over a 440 Hz input per lane and return each lane's left
+/// side while the grains sound.
 fn render(mut p: GranularParams, trigger: &[f32], lanes: usize) -> Vec<Vec<f32>> {
     p.size = poly_volts(&[2.0]);
     p.shape = poly_volts(&[0.0]);
@@ -513,9 +525,10 @@ fn render(mut p: GranularParams, trigger: &[f32], lanes: usize) -> Vec<Vec<f32>>
     p.input = PolySignal::poly(&vec![Signal::Volts(0.0); lanes]);
     p.trigger = poly_volts(&vec![0.0; trigger.len()]);
     let mut m = make_grains(p, SR);
-    let low = vec![0.0; trigger.len()];
+    let low = sides(&vec![0.0; trigger.len()]);
+    let trigger = sides(trigger);
     let input = vec![Signal::Volts(0.0); lanes];
-    let mut out = vec![Vec::new(); m.lane_state.len()];
+    let mut out = vec![Vec::new(); m.lane_state.len() / 2];
     for n in 0..60_000 {
         let x = sine(440.0, n, SR, 2.0);
         let mut input = input.clone();
@@ -524,15 +537,15 @@ fn render(mut p: GranularParams, trigger: &[f32], lanes: usize) -> Vec<Vec<f32>>
         }
         m.params.input = PolySignal::poly(&input);
         let level = if (48_000..48_010).contains(&n) {
-            trigger
+            &trigger
         } else {
             &low
         };
-        m.params.trigger = poly_volts(level);
+        m.params.trigger = level.clone();
         m.update(SR);
         if n >= 48_100 {
             for (lane, o) in out.iter_mut().enumerate() {
-                o.push(m.outputs.voices.get(lane));
+                o.push(m.outputs.sample.get(lane * 2));
             }
         }
     }
@@ -540,13 +553,12 @@ fn render(mut p: GranularParams, trigger: &[f32], lanes: usize) -> Vec<Vec<f32>>
 }
 
 #[test]
-fn outputs_one_lane_per_voice() {
+fn outputs_one_stereo_lane_per_lane() {
     let mut p = grains_params(GranularQuality::Digital);
     p.freq = poly_volts(&[0.0, 0.25, 0.5]);
     let m = make_grains(p, SR);
-    assert_eq!(m.lane_state.len(), 3);
-    assert_eq!(m.outputs.voices.lanes(), 3);
-    assert_eq!(m.outputs.sample.lanes(), 2);
+    assert_eq!(m.lane_state.len(), 6);
+    assert_eq!(m.outputs.sample.lanes(), 6);
 }
 
 #[test]
@@ -590,4 +602,128 @@ fn dirty_tape_stays_finite_and_audible() {
         assert!(lane.iter().all(|x| x.is_finite()));
         assert!(rms(&lane) > 0.1);
     }
+}
+
+#[test]
+fn spread_places_each_grain_across_both_sides() {
+    let mut p = grains_params(GranularQuality::Digital);
+    p.mix = poly_volts(&[5.0]);
+    p.spread = poly_volts(&[5.0]);
+    p.size = poly_volts(&[1.0]);
+    let mut m = make_grains(p, SR);
+    let (mut l, mut r) = (Vec::new(), Vec::new());
+    for n in 0..48_000 {
+        let trig = if n >= 4800 && n % 2400 < 10 { 5.0 } else { 0.0 };
+        let (a, b) = step(&mut m, sine(220.0, n, SR, 3.0), trig, SR);
+        l.push(a);
+        r.push(b);
+    }
+    assert!(rms(&l) > 0.05 && rms(&r) > 0.05, "{} {}", rms(&l), rms(&r));
+    assert!(l.iter().zip(&r).any(|(a, b)| (a - b).abs() > 0.1));
+}
+
+/// A module whose input reads a stereo producer, so it plays both voices of
+/// each lane even when `step` later feeds both sides alike.
+fn construct_stereo(mut params: GranularParams, sample_rate: f32) -> Granular {
+    params.input = PolySignal::mono(Signal::cable("src", "output", 0));
+    params.expand_lanes(&LaneExpansion {
+        channels: 2,
+        producer: &|_, _| 2,
+    });
+    let mut outputs = GranularOutputs::default();
+    outputs.set_all_lanes(2);
+    let mut m = Granular {
+        outputs,
+        state: Default::default(),
+        params,
+        lane_state: (0..2).map(|_| Default::default()).collect(),
+        _lane_count: 2,
+        _channels: 2,
+        _block_index: Default::default(),
+    };
+    m.init(sample_rate);
+    m
+}
+
+fn records(m: &Granular, voice: usize) -> bool {
+    m.lane_state[voice].voice.granular.buffer.records()
+}
+
+#[test]
+fn matching_sides_play_from_one_voice_as_both_voices_would() {
+    for quality in ALL_QUALITIES {
+        let mut p = grains_params(quality);
+        p.mix = poly_volts(&[3.5]);
+        p.feedback = poly_volts(&[2.0]);
+        p.size = poly_volts(&[1.25]);
+        let mut one = make_grains(p.clone(), SR);
+        let mut both = construct_stereo(p, SR);
+        both.on_patch_update();
+        assert!(one.params.mono && !both.params.mono);
+        assert!(records(&one, 0) && !records(&one, 1), "{quality:?}");
+        assert!(records(&both, 0) && records(&both, 1), "{quality:?}");
+        // Each module seeds its own random pans, so the grains stay centred.
+        let mut heard = 0.0f32;
+        for n in 0..30_000 {
+            let x = sine(330.0, n, SR, 3.0);
+            let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+            let (l1, r1) = step(&mut one, x, trig, SR);
+            let (l2, r2) = step(&mut both, x, trig, SR);
+            assert!((l1 - l2).abs() < 1e-4, "{quality:?} left at {n}: {l1} {l2}");
+            assert!(
+                (r1 - r2).abs() < 1e-4,
+                "{quality:?} right at {n}: {r1} {r2}"
+            );
+            heard = heard.max(l1.abs());
+        }
+        assert!(heard > 0.1, "{quality:?}: silent");
+    }
+}
+
+#[test]
+fn a_voice_that_falls_idle_gives_up_its_recording() {
+    let p = grains_params(GranularQuality::Digital);
+    let mut old = construct_stereo(p.clone(), SR);
+    old.on_patch_update();
+    record(&mut old);
+    let mut new = construct(p.clone(), SR);
+    transfer(&mut old, &mut new);
+    assert!(recording_level(&new, 0) > 0);
+    assert!(!records(&new, 1));
+
+    // Widening again hands the idle voice a fresh recording.
+    let mut wide = construct_stereo(p, SR);
+    transfer(&mut new, &mut wide);
+    assert!(recording_level(&wide, 0) > 0);
+    assert!(records(&wide, 1));
+    for n in 0..4800 {
+        let (l, r) = step(&mut wide, sine(220.0, n, SR, 1.0), 0.0, SR);
+        assert!(l.is_finite() && r.is_finite());
+    }
+}
+
+#[test]
+fn a_lanes_two_voices_place_each_grain_as_one_image() {
+    // With the random pans pinned, a lane playing from both voices with its
+    // sides fed alike places every grain where one voice alone would: the
+    // two voices share each grain's pan.
+    crate::dsp::utils::rng::TEST_SEED_BASE.set(Some(0x5eed));
+    let mut p = grains_params(GranularQuality::Digital);
+    p.mix = poly_volts(&[3.5]);
+    p.size = poly_volts(&[1.25]);
+    p.spread = poly_volts(&[5.0]);
+    let mut one = make_grains(p.clone(), SR);
+    let mut both = construct_stereo(p, SR);
+    both.on_patch_update();
+    crate::dsp::utils::rng::TEST_SEED_BASE.set(None);
+    let mut off_centre = 0.0f32;
+    for n in 0..30_000 {
+        let x = sine(330.0, n, SR, 3.0);
+        let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+        let (l1, r1) = step(&mut one, x, trig, SR);
+        let (l2, r2) = step(&mut both, x, trig, SR);
+        assert!((l1 - l2).abs() < 1e-4 && (r1 - r2).abs() < 1e-4, "at {n}");
+        off_centre = off_centre.max((l1 - r1).abs());
+    }
+    assert!(off_centre > 0.1, "spread places grains off centre");
 }
