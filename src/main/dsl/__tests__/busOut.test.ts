@@ -23,7 +23,7 @@ describe('$bus outs', () => {
     test('bus.out() routes the callback result like a collection out', () => {
         const { patch } = run(
             `const a = $bus((e) => e.lpf('1000hz')).out({ label: 'fx' })
-             $saw('c3').send(a).out({ label: 'dry' })`,
+             $saw('c3').out({ label: 'dry', sends: a })`,
         );
         expect(patch.modules.map((m) => m.moduleType)).toContain('$lpf');
         expect(vuLabels(patch)).toEqual(['fx', 'dry']);
@@ -33,14 +33,14 @@ describe('$bus outs', () => {
         expect(() =>
             run(
                 `const a = $bus((e) => e).outMono(2, { label: 'fx' })
-                 $saw('c3').send(a).out()`,
+                 $saw('c3').out({ sends: a })`,
             ),
         ).not.toThrow();
     });
 
     test('a bus without .out() stays silent', () => {
         const { patch } = run(`const a = $bus((e) => e.lpf('1000hz'))
-                               $saw('c3').send(a).out({ label: 'dry' })`);
+                               $saw('c3').out({ label: 'dry', sends: a })`);
         expect(vuLabels(patch)).toEqual(['dry']);
     });
 
@@ -51,24 +51,34 @@ describe('$bus outs', () => {
     test('bus.out() inside a $bus callback is an error', () => {
         expect(() =>
             run(`const b = $bus((e) => e).out()
-                 $saw('c3').send(b)
+                 $saw('c3').out({ sends: b })
                  const a = $bus((e) => { b.out(); return e })
-                 $saw('e3').send(a)`),
+                 $saw('e3').out({ sends: a })`),
         ).toThrow(/on a bus is not allowed in \$bus callbacks/);
     });
 
     test('.out() on a collection inside a $bus callback still plays', () => {
         const { patch } =
             run(`const a = $bus((e) => { e.out({ label: 'old' }) })
-                               $saw('c3').send(a)`);
-        expect(vuLabels(patch)).toEqual(['old']);
+                               $saw('c3').out({ label: 'dry', sends: a })`);
+        expect(vuLabels(patch)).toEqual(['dry', 'old']);
     });
 
     test('bus.out() needs the callback to return a signal', () => {
         expect(() =>
             run(`const a = $bus((e) => { e.lpf('1000hz') }).out()
-                 $saw('c3').send(a)`),
+                 $saw('c3').out({ sends: a })`),
         ).toThrow(/must return a signal/);
+    });
+
+    test.each([
+        [`$bus((e) => e).out({ sends: a })`],
+        [`$bus((e) => e).outMono(1, { sends: [a, 2] })`],
+    ])('%s cannot send to another bus', (out) => {
+        expect(() =>
+            run(`const a = $bus((e) => e).out()
+                 ${out}`),
+        ).toThrow(/a bus cannot send to another bus/);
     });
 
     test('bus.out() labels must be unique across outs', () => {

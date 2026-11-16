@@ -60,13 +60,6 @@ describe('computeControlQuickFixes — API methods and functions', () => {
         );
     });
 
-    test('send() fills its gain positionally', () => {
-        const { source, fixes } = fixesAt(`$sine('c4').send(bus|)`);
-        expect(apply(source, addFix(fixes, 'gain'))).toBe(
-            `$sine('c4').send(bus, $slider('gain', 5, 0, 5))`,
-        );
-    });
-
     test('outMono() sets its gain through the option object', () => {
         const { source, fixes } = fixesAt(`$sine('c4').outMono(0|)`);
         expect(apply(source, addFix(fixes, 'gain'))).toBe(
@@ -363,14 +356,14 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
 
 describe('control quick-fixes never produce malformed JavaScript', () => {
     const VALID = [
-        `const bus = $bus((m) => m).out()\n$pulse('a3', { width: 2.5, pwm: 1 }).lpf('100hz', 2,).out({ gain: 2.5 })\n$sine('c4').send(bus, 1).amp(0.5)`,
+        `const bus = $bus((m) => m).out()\n$pulse('a3', { width: 2.5, pwm: 1 }).lpf('100hz', 2,).out({ gain: 2.5 })\n$sine('c4').out({ sends: [bus, 1] })`,
         `$sine(0).lpf('100hz', 1.0).wet(2.5).outMono(0, 2.5)\n$setOutputGain(2.5)\n$c('a3').erratic(1, { speed: 1.5, })`,
         `function f() {\n  return $saw(\n    'a3', // pitch\n    { width: 1 /* x */ },\n  ).out()\n}\n$phase.bend(1.5, $phase.fold(1))`,
         `$v.out($v.osc(4, $v.time).osc(0.1).osc(4).wet(1))\n$adsr($pulse('2hz'), { attack: 0.1 }).range(0, 5)`,
     ];
     const BROKEN = [
         `$pulse('a3',, { width: 2.5 },,).out(\n$sine('c4').out({ gain: 2,, })`,
-        `$sine(0).lpf('100hz' 2).out({ gain: 1 pan: 0 })\n$saw(,).send(bus,)`,
+        `$sine(0).lpf('100hz' 2).out({ gain: 1 pan: 0 })\n$saw(,).out({ sends: [bus,] })`,
     ];
 
     /** Every fix at every cursor position in `source`, raw and formatted. */

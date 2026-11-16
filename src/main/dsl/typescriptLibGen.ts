@@ -23,6 +23,7 @@ import {
     STEREO_OUT_OPTIONS,
     renderOutOptionsJsDocList,
     renderOutOptionsMembers,
+    withoutSends,
 } from '../../shared/dsl/outOptions';
 import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import { ALIGNMENT_MODES } from './alignmentModes';
@@ -712,6 +713,12 @@ type WavMeta = {
 };
 
 /**
+ * A send to a {@link Bus}: the bus alone sends at full level, a
+ * \`[bus, gain]\` pair at \`gain\`.
+ */
+type Send = Bus | [bus: Bus, gain: Poly<Signal>];
+
+/**
  * Options for stereo output routing via the out() method.
  * @see {@link Collection.out}
  */
@@ -725,6 +732,24 @@ ${renderOutOptionsMembers(STEREO_OUT_OPTIONS)}
  */
 interface MonoOutOptions {
 ${renderOutOptionsMembers(MONO_OUT_OPTIONS)}
+}
+
+/**
+ * Options for a bus's own stereo out: those of {@link StereoOutOptions}
+ * but \`sends\`, since a bus cannot send to another bus.
+ * @see {@link Bus.out}
+ */
+interface BusStereoOutOptions {
+${renderOutOptionsMembers(withoutSends(STEREO_OUT_OPTIONS))}
+}
+
+/**
+ * Options for a bus's own mono out: those of {@link MonoOutOptions}
+ * but \`sends\`, since a bus cannot send to another bus.
+ * @see {@link Bus.outMono}
+ */
+interface BusMonoOutOptions {
+${renderOutOptionsMembers(withoutSends(MONO_OUT_OPTIONS))}
 }
 
 /**
@@ -798,6 +823,9 @@ ${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
    * @param options Stereo output options ({@link StereoOutOptions})
    * @example $sine("c4").out({ gain: 2.5, pan: -2 })
    * @example $saw(['c3', 'e3', 'g3']).out({ label: 'chord' })
+   * @example
+   * const verb = $bus((wet) => wet.plate().out());
+   * $saw('c3').out({ sends: [verb, 2] });
    */
   out(options?: StereoOutOptions): this;
 
@@ -895,14 +923,6 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @example $saw('c3').plate().wet(1.5).out()
    */
   wet(mix?: Poly<Signal>): Collection;
-
-  /**
-   * Register all lanes as a send to a bus, with optional gain.
-   * @param bus The {@link Bus} to send to
-   * @param gain Send level as {@link Poly<Signal>}
-   * @returns This collection for chaining
-   */
-  send(bus: Bus, gain?: Poly<Signal>): this;
 }
 
 /**
@@ -1296,9 +1316,9 @@ interface ControlGroupParams {
 function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /**
- * A send-return bus. Create one with {@link $bus}, then call \`.send(bus, gain)\` on
- * any {@link Collection} to route signals through it, and \`.out()\` or
- * \`.outMono()\` on the bus to hear its return.
+ * A send-return bus. Create one with {@link $bus}, then name it in the
+ * \`sends\` option of any \`.out()\` or \`.outMono()\` to route signals through it,
+ * and call \`.out()\` or \`.outMono()\` on the bus to hear its return.
  */
 class Bus {
   /** @internal */
@@ -1308,42 +1328,42 @@ class Bus {
    * Send the bus's return to speakers as stereo.
    *
    * Options:
-${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
-   * @param options Stereo output options ({@link StereoOutOptions})
+${renderOutOptionsJsDocList(withoutSends(STEREO_OUT_OPTIONS))}
+   * @param options Stereo output options ({@link BusStereoOutOptions})
    * @example
    * const verb = $bus((mixed) => mixed.reverb()).out({ label: 'verb' });
-   * $saw('c3').send(verb, 2).out();
+   * $saw('c3').out({ sends: [verb, 2] });
    */
-  out(options?: StereoOutOptions): this;
+  out(options?: BusStereoOutOptions): this;
 
   /**
    * Send the bus's return to speakers as mono.
    *
    * Options:
-${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
-   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link MonoOutOptions})
+${renderOutOptionsJsDocList(withoutSends(MONO_OUT_OPTIONS))}
+   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link BusMonoOutOptions})
    * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
    * @example
    * const echo = $bus((mixed) => $delay(mixed, 0.25)).outMono(1);
-   * $sine('c4').send(echo).outMono(0);
+   * $sine('c4').outMono(0, { sends: echo });
    */
-  outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this;
+  outMono(channelOrOptions?: number | BusMonoOutOptions, gainOrOptions?: Poly<Signal> | BusMonoOutOptions): this;
 }
 
 /**
  * Create a send-return bus.
  *
  * The callback receives a {@link Collection} that is the mix of all signals
- * sent to this bus via \`.send(bus, gain)\`, and returns the bus's return
- * signal. Call \`.out()\` or \`.outMono()\` on the bus to hear it.
+ * sent to this bus through an out's \`sends\` option, and returns the bus's
+ * return signal. Call \`.out()\` or \`.outMono()\` on the bus to hear it.
  *
  * @param cb Called during patch finalization with the mixed sends; returns the processed signal
- * @returns A {@link Bus} handle passed to \`.send()\`
+ * @returns A {@link Bus} handle named in \`sends\`
  *
  * @example
  * const verb = $bus((mixed) => $plate(mixed)).out();
- * $saw('a').send(verb, 0.6);
- * $sine('a2').send(verb, 0.4);
+ * $saw('a').out({ sends: [verb, 3] });
+ * $sine('a2').outMono(0, { sends: [verb, 2] });
  */
 function $bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus;
 
