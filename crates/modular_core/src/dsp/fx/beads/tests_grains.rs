@@ -687,13 +687,20 @@ fn a_voice_that_falls_idle_gives_up_its_recording() {
     let mut old = construct_stereo(p.clone(), SR);
     old.on_patch_update();
     record(&mut old);
-    // The voice keeps its recording while it fades out, and gives it up at
-    // the next update.
+    // The voice keeps its recording while it fades out, through an update
+    // that lands before the fade ends, and gives it up at the first update
+    // after.
     let mut narrowed = construct(p.clone(), SR);
     transfer(&mut old, &mut narrowed);
     assert!(records(&narrowed, 1));
+    let mut fading = construct(p.clone(), SR);
+    transfer(&mut narrowed, &mut fading);
+    assert!(records(&fading, 1));
+    for n in 0..4800 {
+        step(&mut fading, sine(220.0, n, SR, 1.0), 0.0, SR);
+    }
     let mut new = construct(p.clone(), SR);
-    transfer(&mut narrowed, &mut new);
+    transfer(&mut fading, &mut new);
     assert!(recording_level(&new, 0) > 0);
     assert!(!records(&new, 1));
 
@@ -809,6 +816,86 @@ fn narrowing_crossfades_the_right_side_without_a_jump() {
     let before = jump(19_000..20_000);
     let across = jump(20_000..20_200);
     assert!(across <= before * 1.5 + 1e-3, "{across} vs {before}");
+}
+
+/// Play a stereo lane with its right side at `right_hz`, narrow it to one
+/// voice at the left's 330 Hz, apply `then` a few samples into the
+/// crossfade, and return the right side's largest one-sample jump before
+/// the narrowing and across both updates. A stereo module after `then`
+/// plays 330 Hz on both sides.
+fn right_jumps_across_a_narrowing(
+    right_hz: f32,
+    then: fn(&mut Granular) -> Granular,
+) -> (f32, f32) {
+    let mut p = wet_params();
+    p.mix = poly_volts(&[5.0]);
+    let mut stereo = construct_stereo(p.clone(), SR);
+    stereo.on_patch_update();
+    let sides = |n: usize| {
+        let (l, r) = (sine(330.0, n, SR, 3.0), sine(right_hz, n, SR, 3.0));
+        PolySignal::poly(&[Signal::Volts(l), Signal::Volts(r)])
+    };
+    let mut right = Vec::new();
+    for n in 0..20_000 {
+        stereo.params.input = sides(n);
+        stereo.params.trigger = poly_volts(&[if n % 1500 < 10 { 5.0 } else { 0.0 }]);
+        stereo.update(SR);
+        right.push(stereo.outputs.sample.get(1));
+    }
+    let mut mono = construct(p, SR);
+    transfer(&mut stereo, &mut mono);
+    for n in 20_000..20_040 {
+        let (_, r) = step(&mut mono, sine(330.0, n, SR, 3.0), 0.0, SR);
+        right.push(r);
+    }
+    let mut next = then(&mut mono);
+    for n in 20_040..21_000 {
+        if next.params.mono {
+            right.push(step(&mut next, sine(330.0, n, SR, 3.0), 0.0, SR).1);
+        } else {
+            let x = sine(330.0, n, SR, 3.0);
+            next.params.input = PolySignal::poly(&[Signal::Volts(x), Signal::Volts(x)]);
+            next.params.trigger = poly_volts(&[0.0]);
+            next.update(SR);
+            right.push(next.outputs.sample.get(1));
+        }
+    }
+    let jump = |range: std::ops::Range<usize>| {
+        range
+            .map(|n| (right[n] - right[n - 1]).abs())
+            .fold(0.0f32, f32::max)
+    };
+    (jump(19_000..20_000), jump(20_000..20_300))
+}
+
+#[test]
+fn an_update_during_the_narrowing_crossfade_lets_it_finish() {
+    let (before, across) = right_jumps_across_a_narrowing(495.0, |mono| {
+        let mut again = construct(wet_params_at_mix(5.0), SR);
+        transfer(mono, &mut again);
+        assert!(again.params.mono);
+        again
+    });
+    assert!(across <= before * 1.5 + 1e-3, "{across} vs {before}");
+}
+
+#[test]
+fn widening_during_the_narrowing_crossfade_carries_on_without_a_jump() {
+    // The right side plays the left's pitch throughout, so the right voice
+    // it starts from the left carries on what it played.
+    let (before, across) = right_jumps_across_a_narrowing(330.0, |mono| {
+        let mut stereo = construct_stereo(wet_params_at_mix(5.0), SR);
+        transfer(mono, &mut stereo);
+        assert!(!stereo.params.mono);
+        stereo
+    });
+    assert!(across <= before * 1.5 + 1e-3, "{across} vs {before}");
+}
+
+fn wet_params_at_mix(mix: f32) -> GranularParams {
+    let mut p = wet_params();
+    p.mix = poly_volts(&[mix]);
+    p
 }
 
 #[test]

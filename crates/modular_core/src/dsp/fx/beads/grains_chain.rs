@@ -135,7 +135,7 @@ impl GrainsChain {
 
     /// Whether only each lane's left voice runs: playing mono, with no
     /// crossfade left.
-    fn left_only(&self) -> bool {
+    pub fn left_only(&self) -> bool {
         self.mono && self.fade == 0
     }
 

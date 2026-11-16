@@ -629,11 +629,10 @@ fn impl_module_macro_attr(
     // equal lengths swap the whole boxed slice (O(1) pointer swap); otherwise
     // the first `min(old, new)` lanes are swapped element-wise and the
     // surplus keeps its freshly-initialised value. When the channels per lane
-    // change, lane `l` side `c` takes old lane `l` side `c`, and a side the
-    // old module lacked starts fresh. No path allocates or clones on the audio
-    // thread.
-    // A side a lane gains when the module widens carries on from that lane's
-    // left side. Only a lifted or file-derived module changes its channels.
+    // change, lane `l` side `c` takes old lane `l` side `c`, and a side a
+    // lane gains carries on from that lane's left side; only a lifted or
+    // file-derived module changes its channels. No path allocates or clones
+    // on the audio thread.
     let changes_channels = matches!(
         attr_args.stereo.as_ref().map(|i| i.to_string()).as_deref(),
         None | Some("derived")
