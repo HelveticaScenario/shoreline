@@ -244,20 +244,44 @@ export function withinPatch<T extends { start?: number }>(
     return items.filter((d) => d.start === undefined || d.start < view.length);
 }
 
-/** The lib type each track's name is bound as, by track name. */
+/** Stands for a binding whose type the editor cannot tell. */
+const UNKNOWN = '?';
+
+/**
+ * The lib type each track's name is bound as, by track name, or
+ * {@link UNKNOWN}.
+ */
 function bindingTypes(
     ts: typeof TS,
     checker: TS.TypeChecker,
     sourceFile: TS.SourceFile,
     view: TrackLabelView,
-): Map<string, string | undefined> {
+): Map<string, string> {
     const starts = new Map(
         view.bindings.map((b, i) => [
             b.declStart,
             view.analysis.tracks[i].track.name,
         ]),
     );
-    const types = new Map<string, string | undefined>();
+    // Read off the labelled value, not the declared name: two tracks that
+    // read each other leave both names untyped, while their values still
+    // say what they are. An untyped value could be anything.
+    const bound = (value: TS.Expression): string => {
+        let type = checker.getTypeAtLocation(value);
+        if ((type.flags & ts.TypeFlags.Any) !== 0) {
+            return UNKNOWN;
+        }
+        if (type.getSymbol()?.name === 'Track') {
+            [type] = checker.getTypeArguments(type as TS.TypeReference);
+        }
+        const name = type?.getSymbol()?.name;
+        return name === 'GroupSignal' || name === 'RangedGroupSignal'
+            ? 'GroupTap'
+            : name === 'BusSignal' || name === 'RangedBusSignal'
+              ? 'BusTap'
+              : 'TrackTap';
+    };
+    const types = new Map<string, string>();
     for (const statement of sourceFile.statements) {
         if (!ts.isVariableStatement(statement)) {
             continue;
@@ -265,10 +289,10 @@ function bindingTypes(
         const [declaration] = statement.declarationList.declarations;
         const name = starts.get(declaration.name.getStart(sourceFile));
         if (name !== undefined) {
-            types.set(
-                name,
-                checker.getTypeAtLocation(declaration.name).getSymbol()?.name,
-            );
+            const [value] = ts.isCallExpression(declaration.initializer!)
+                ? declaration.initializer.arguments
+                : [];
+            types.set(name, value ? bound(value) : UNKNOWN);
         }
     }
     return types;
@@ -293,10 +317,11 @@ export function groupSuffixDiagnostics(
         if (track.group === null || !types.has(track.group)) {
             continue;
         }
+        const target = types.get(track.group);
         const message =
             types.get(track.name) === 'BusTap'
                 ? `${track.name} is a bus, and a bus cannot play into a group`
-                : types.get(track.group) === 'GroupTap'
+                : target === 'GroupTap' || target === UNKNOWN
                   ? null
                   : `${track.group} is not a group. A group is a track whose signal is $group() or methods chained on it`;
         if (message !== null) {
@@ -312,4 +337,66 @@ export function groupSuffixDiagnostics(
         }
     }
     return diagnostics;
+}
+
+/** Each program's global value names, declared by the libs. */
+const GLOBAL_NAMES = new WeakMap<TS.Program, Set<string>>();
+
+function globalNames(ts: typeof TS, program: TS.Program): Set<string> {
+    let names = GLOBAL_NAMES.get(program);
+    if (!names) {
+        names = new Set();
+        const lib = program
+            .getSourceFiles()
+            .find((f) => f.isDeclarationFile && !ts.isExternalModule(f));
+        const symbols = lib
+            ? program
+                  .getTypeChecker()
+                  .getSymbolsInScope(lib, ts.SymbolFlags.Value)
+            : [];
+        for (const symbol of symbols) {
+            if (
+                symbol.declarations?.every(
+                    (d) => d.getSourceFile().isDeclarationFile,
+                )
+            ) {
+                names.add(symbol.name);
+            }
+        }
+        GLOBAL_NAMES.set(program, names);
+    }
+    return names;
+}
+
+/**
+ * One diagnostic per label whose name a global already has, on the name. The
+ * appended declaration sits in a module, where it would shadow the global
+ * without complaint, while the run cannot bind such a name.
+ */
+export function globalNameDiagnostics(
+    ts: typeof TS,
+    program: TS.Program,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): TS.Diagnostic[] {
+    if (view.bindings.length === 0) {
+        return [];
+    }
+    const globals = globalNames(ts, program);
+    return view.analysis.tracks.flatMap(({ track }, i): TS.Diagnostic[] => {
+        if (!globals.has(track.name)) {
+            return [];
+        }
+        const { nameStart, nameEnd } = view.bindings[i];
+        return [
+            {
+                category: ts.DiagnosticCategory.Error,
+                code: TRACK_LABEL_CODE,
+                file: sourceFile,
+                length: nameEnd - nameStart,
+                messageText: `${track.name} is already taken, so this track label cannot bind it`,
+                start: nameStart,
+            },
+        ];
+    });
 }

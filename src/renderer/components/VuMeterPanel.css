@@ -32,7 +32,11 @@
     display: flex;
     align-items: stretch;
     gap: 6px;
-    flex-shrink: 0;
+    /* Gives way before the main strip does, scrolling its own strips. */
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .vu-meter-empty {

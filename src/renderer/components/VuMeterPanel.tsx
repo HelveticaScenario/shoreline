@@ -690,7 +690,7 @@ export function VuMeterPanel({
     return (
         <div ref={panelRef} className="vu-meter-panel">
             <div className="vu-meter-scroll">
-                {trackOutputs.length === 0 ? (
+                {channelOutputs.length === 0 ? (
                     <div className="vu-meter-empty">
                         no tracks — label a line to hear it: lead: $saw('c3')
                     </div>

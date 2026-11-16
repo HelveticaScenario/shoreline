@@ -10,6 +10,7 @@ import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
 import {
     groupSuffixDiagnostics,
+    globalNameDiagnostics,
     trackLabelView,
 } from '../../../renderer/components/monaco/trackLabelBindings';
 
@@ -179,6 +180,27 @@ lead: $saw('c3').track({ sends: low })
         ).toHaveLength(1);
     });
 
+    test('a send level is any signal but a track name', () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick: $sine('c1')
+a: $saw('c3').track({ sends: [verb, 2] })
+b: $saw('c3').track({ sends: [verb, $sine('1hz').range(0, 5)] })
+c: $saw('c3').track({ sends: [[verb, $c(kick)], [verb, 'c4'], [verb, [1, 2]]] })
+d: $saw('c3').track({ sends: [verb, kick.level] })
+x: $bus().reverb().concat($sine('c3'))
+`),
+        ).toEqual([]);
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick: $sine('c1')
+a: $saw('c3').track({ sends: [verb, kick] })
+`),
+        ).toHaveLength(1);
+    });
+
     test('a signal that only reads a bus is not a send target', () => {
         expect(
             labelErrors(`
@@ -308,6 +330,20 @@ fx: $lpf($group(), 'c5')
         ]);
     });
 
+    test('a group the editor cannot type is left to the run', () => {
+        expect(
+            suffixErrors(`
+function fx(s) { return s.lpf('c5') }
+kick$drums: $sine('c1')
+drums: fx($group())
+hat$perc: $noise().amp(perc.active)
+perc: $group().amp(hat.active)
+wide$pads: $sine('c4')
+pads: $group().reverb().concat($sine('c3'))
+`),
+        ).toEqual([]);
+    });
+
     test('a bus track with a group suffix is flagged', () => {
         expect(
             suffixErrors(`
@@ -315,5 +351,21 @@ verb$fx: $bus().plate()
 fx: $group()
 `),
         ).toEqual([expect.stringMatching(/^fx: verb is a bus/)]);
+    });
+
+    test('a label named after a global is flagged on its name', () => {
+        const patch = `Math: $saw('c2')\n_console$2: $sine('c3')\nlead: $saw('c3')`;
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        expect(
+            globalNameDiagnostics(
+                ts,
+                program,
+                program.getSourceFile(PATCH_FILE)!,
+                view,
+            ).map((d) =>
+                patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0)),
+            ),
+        ).toEqual(['Math', 'console']);
     });
 });

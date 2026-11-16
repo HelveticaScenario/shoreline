@@ -60,6 +60,7 @@ import { ControlAnchors, createControlAnchors } from './app/controlAnchors';
 import { applyRuntimeResolutions } from './components/monaco/outputResolutionHints';
 import { extractControls, resolveControls } from './dsl/extractControls';
 import type { ResolvedControls } from './dsl/extractControls';
+import { type ModelAnchors, createModelAnchors } from './app/modelAnchors';
 import { resolveScopeCallRange } from './app/scopeCallRange';
 import {
     type VideoPreviewAnchors,
@@ -303,9 +304,7 @@ function App() {
     /** Tracked decorations on each track's label, index-aligned with
      *  vuOutputs: mixer edits find the playing track's label through them as
      *  the user edits around it. */
-    const vuDecorationsRef = useRef<editor.IEditorDecorationsCollection | null>(
-        null,
-    );
+    const vuDecorationsRef = useRef<ModelAnchors | null>(null);
 
     /** Pending UI state waiting for the audio thread to apply a queued update */
     const pendingUIStateRef = useRef<{
@@ -319,7 +318,7 @@ function App() {
          *  scopeDecorationsRef when the pending state is committed. */
         scopeDecorations: editor.IEditorDecorationsCollection | null;
         /** Same contract as scopeDecorations, for vuDecorationsRef. */
-        vuDecorations: editor.IEditorDecorationsCollection | null;
+        vuDecorations: ModelAnchors | null;
         /** EQ panels of the pending patch, committed with it. */
         eqPanels: EqPanelSetup;
         /** Anchors on the pending patch's control calls, committed with it. */
@@ -746,15 +745,11 @@ function App() {
         ): boolean => {
             const model = editorRef.current?.getModel();
             const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
-            const range =
-                idx === -1 ? null : vuDecorationsRef.current?.getRange(idx);
-            if (!model || !range || !vuSourceEditableRef.current) {
+            const anchor =
+                idx === -1 ? null : vuDecorationsRef.current?.offsetOf(idx);
+            if (!model || anchor == null || !vuSourceEditableRef.current) {
                 return false;
             }
-            const anchor = model.getOffsetAt({
-                column: range.startColumn,
-                lineNumber: range.startLineNumber,
-            });
             const edit = makeEdit(model.getValue(), anchor, key);
             if (!edit) {
                 return false;
@@ -806,13 +801,16 @@ function App() {
                 return;
             }
 
+            // The other control keeps what the code says, which a code-only
+            // click may have set apart from the audio.
+            const ghost = vuGhostsRef.current.get(key);
             const nextState: TrackState = {
-                mute: audio.mute,
-                solo: audio.solo,
+                mute: ghost?.mute ?? audio.mute,
+                solo: ghost?.solo ?? audio.solo,
                 [prop]: !audio[prop],
             };
             const next = outputs.map((o, i) =>
-                i === idx ? { ...o, ...nextState } : o,
+                i === idx ? { ...o, [prop]: !audio[prop] } : o,
             );
 
             const tracksOf = (list: VuMeterDef[]) =>
@@ -2061,50 +2059,32 @@ function App() {
 
                 const newVuOutputs = (result.appliedPatch?.vuMeters ??
                     []) as VuMeterDef[];
-                // One decoration per meter on its label's first character;
-                // the master has none and takes a degenerate range so the
-                // indices stay aligned. Captured columns are V8 columns,
+                // One anchor per meter on its label's first character; the
+                // main meter has none. Captured columns are V8 columns,
                 // shifted by the executor's indent on line 1 only.
-                let newVuDecorations: editor.IEditorDecorationsCollection | null =
-                    null;
-                if (editorInstance && model && newVuOutputs.length > 0) {
-                    newVuDecorations =
-                        editorInstance.createDecorationsCollection(
-                            newVuOutputs.map((vu) => {
-                                const loc = vu.sourceLocation;
-                                const line =
-                                    loc &&
-                                    Math.min(loc.line, model.getLineCount());
-                                const column =
-                                    loc &&
-                                    loc.column -
-                                        (loc.line === 1
-                                            ? FIRST_LINE_COLUMN_OFFSET
-                                            : 0);
-                                return {
-                                    options: {
-                                        stickiness:
-                                            editor.TrackedRangeStickiness
-                                                .NeverGrowsWhenTypingAtEdges,
-                                    },
-                                    range:
-                                        line && column
-                                            ? {
-                                                  endColumn: column + 1,
-                                                  endLineNumber: line,
-                                                  startColumn: column,
-                                                  startLineNumber: line,
-                                              }
-                                            : {
-                                                  endColumn: 1,
-                                                  endLineNumber: 1,
-                                                  startColumn: 1,
-                                                  startLineNumber: 1,
-                                              },
-                                };
-                            }),
-                        );
-                }
+                const newVuDecorations =
+                    model && newVuOutputs.length > 0
+                        ? createModelAnchors(
+                              model,
+                              newVuOutputs.map((vu) => {
+                                  const loc = vu.sourceLocation;
+                                  if (!loc) {
+                                      return null;
+                                  }
+                                  return {
+                                      column:
+                                          loc.column -
+                                          (loc.line === 1
+                                              ? FIRST_LINE_COLUMN_OFFSET
+                                              : 0),
+                                      line: Math.min(
+                                          loc.line,
+                                          model.getLineCount(),
+                                      ),
+                                  };
+                              }),
+                          )
+                        : null;
 
                 const newEqPanels = eqController.stage(result, editorInstance);
 

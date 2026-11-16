@@ -188,6 +188,12 @@ describe('track label errors', () => {
         expect(() => exec(source)).toThrow(message);
     });
 
+    test('a loop variable does not take a track name', () => {
+        expect(() =>
+            exec(`for (let i = 0; i < 2; i++) { $sine('c3') }\ni: $saw('c3')`),
+        ).not.toThrow();
+    });
+
     test('errors name the line', () => {
         expect(() => exec(`a: $sine('c4')\n__b: 1`)).toThrow(/line 2/);
     });

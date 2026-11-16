@@ -44,6 +44,7 @@ import {
 import {
     bindingPosition,
     groupSuffixDiagnostics,
+    globalNameDiagnostics,
     mapSpan,
     onLabelOutsideName,
     trackLabelView,
@@ -102,24 +103,26 @@ class DslTypeScriptWorker extends TypeScriptWorker {
     override async getSemanticDiagnostics(
         fileName: string,
     ): Promise<Diagnostic[]> {
-        const sourceFile = this.getLanguageService()
-            .getProgram()
-            ?.getSourceFile(fileName);
+        const program = this.getLanguageService().getProgram();
+        const sourceFile = program?.getSourceFile(fileName);
         const diagnostics = await super.getSemanticDiagnostics(fileName);
         const view = this.view(fileName);
-        if (!sourceFile || !view) {
+        if (!program || !sourceFile || !view) {
             return diagnostics;
         }
-        const checker = this.getLanguageService()
-            .getProgram()!
-            .getTypeChecker();
         return TypeScriptWorker.clearFiles(
             [
                 ...withinPatchDiagnostics(
                     view,
                     withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
                 ),
-                ...groupSuffixDiagnostics(ts, checker, sourceFile, view),
+                ...globalNameDiagnostics(ts, program, sourceFile, view),
+                ...groupSuffixDiagnostics(
+                    ts,
+                    program.getTypeChecker(),
+                    sourceFile,
+                    view,
+                ),
             ].sort((a, b) => (a.start ?? 0) - (b.start ?? 0)),
         );
     }
