@@ -74,6 +74,29 @@ export type CallSlot = [slot: string, value: unknown, inputClass: OutputClass];
 export class OutputResolver {
     readonly records: OutputResolutionRecord[] = [];
     private inCall = false;
+    private firstChoices = new Map<OutputSet, string>();
+    private firstChoiceListeners = new Map<
+        OutputSet,
+        ((name: string) => void)[]
+    >();
+
+    /**
+     * Call `listener` with the output `set`'s root is first resolved to,
+     * once it is.
+     */
+    onFirstChoice(set: OutputSet, listener: (name: string) => void): void {
+        const chosen = this.firstChoices.get(set);
+        if (chosen !== undefined) {
+            listener(chosen);
+            return;
+        }
+        const listeners = this.firstChoiceListeners.get(set);
+        if (listeners) {
+            listeners.push(listener);
+        } else {
+            this.firstChoiceListeners.set(set, [listener]);
+        }
+    }
 
     /**
      * The output `value` contributes to an input of class `inputClass`;
@@ -89,7 +112,7 @@ export class OutputResolver {
         if (!set) {
             return value;
         }
-        const name = chooseOutput(set.outputs, inputClass);
+        const name = this.choose(set, inputClass);
         if (!this.inCall) {
             this.record(site, slot, name);
         }
@@ -125,7 +148,7 @@ export class OutputResolver {
         if (roots.length > 0) {
             const site = captureSourceLocation();
             for (const [slot, set, inputClass] of roots) {
-                this.record(site, slot, chooseOutput(set.outputs, inputClass));
+                this.record(site, slot, this.choose(set, inputClass));
             }
         }
         this.inCall = true;
@@ -148,6 +171,21 @@ export class OutputResolver {
         } finally {
             this.inCall = inCall;
         }
+    }
+
+    private choose(set: OutputSet, inputClass: OutputClass): string {
+        const name = chooseOutput(set.outputs, inputClass);
+        if (!this.firstChoices.has(set)) {
+            this.firstChoices.set(set, name);
+        }
+        const listeners = this.firstChoiceListeners.get(set);
+        if (listeners) {
+            this.firstChoiceListeners.delete(set);
+            for (const listener of listeners) {
+                listener(name);
+            }
+        }
+        return name;
     }
 
     private record(

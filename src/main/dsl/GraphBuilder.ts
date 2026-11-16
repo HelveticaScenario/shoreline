@@ -435,7 +435,13 @@ export class BaseCollection<T extends ModuleOutput> {
     scope(config?: ScopeConfig): this {
         if (this.items.length > 0) {
             const loc = captureSourceLocation();
-            this.items[0].builder.addScope(this.items, config, loc);
+            const { builder } = this.items[0];
+            const set = outputSetOf(this);
+            if (set) {
+                builder.scopeRoot(set, this.items, config, loc);
+            } else {
+                builder.addScope(this.items, config, loc);
+            }
         }
         return this;
     }
@@ -1941,10 +1947,44 @@ export class GraphBuilder implements ChainHost {
             ];
         }
 
-        const outputs = Array.isArray(value) ? value : [value];
-        // A lane that may be stereo draws both sides; a mono one reads the
-        // same on either, so its second trace would only repeat the first.
-        const lanes = outputs.flatMap((o) => {
+        const scope: ScopeWithLocation = {
+            lanes: this.scopeLanes(Array.isArray(value) ? value : [value]),
+            msPerFrame,
+            range,
+            sourceLocation,
+            split,
+            triggerThreshold: thresh,
+        };
+        this.scopes.push(scope);
+        return scope;
+    }
+
+    /**
+     * Scope a multi-output root as the output it is first resolved to, before
+     * or after the scope, so `$perc($('0').scope())` draws the trigger `$perc`
+     * takes. A root never plugged in keeps the output it reads as itself.
+     */
+    scopeRoot(
+        set: OutputSet,
+        value: ModuleOutput[],
+        config: ScopeConfig | undefined,
+        sourceLocation?: { line: number; column: number },
+    ) {
+        const scope = this.addScope(value, config, sourceLocation);
+        this.outputResolver.onFirstChoice(set, (name) => {
+            const chosen = set.values[name];
+            if (chosen instanceof BaseCollection) {
+                scope.lanes = this.scopeLanes(chosen.items);
+            }
+        });
+    }
+
+    /**
+     * A lane that may be stereo draws both sides; a mono one reads the same
+     * on either, so its second trace would only repeat the first.
+     */
+    private scopeLanes(outputs: ModuleOutput[]): ScopeWithLocation['lanes'] {
+        return outputs.flatMap((o) => {
             const lane = {
                 lane: o.lane,
                 moduleId: o.moduleId,
@@ -1953,15 +1993,6 @@ export class GraphBuilder implements ChainHost {
             return this.channelsOf(o) === 'mono'
                 ? [lane]
                 : [lane, { ...lane, side: 1 }];
-        });
-
-        this.scopes.push({
-            lanes,
-            msPerFrame,
-            range,
-            sourceLocation,
-            split,
-            triggerThreshold: thresh,
         });
     }
 

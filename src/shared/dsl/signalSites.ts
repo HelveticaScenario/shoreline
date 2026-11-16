@@ -56,6 +56,12 @@ export type ChainMethods = Readonly<
     Record<string, Readonly<Record<string, OutputClass>>>
 >;
 
+/**
+ * Chain methods whose receiver stands for the output it is first resolved
+ * to elsewhere, so the call itself reads no output of it.
+ */
+export const FOLLOWS_RECEIVER: ReadonlySet<string> = new Set(['scope']);
+
 /** Everything about the DSL the collector needs; plain data, built in main. */
 export interface SignalSiteTables {
     /** Outputs of each root type, keyed by its qualified type name. */
@@ -731,14 +737,16 @@ export function collectSignalSites(
         ) {
             const method = callee.name.text;
             const folding = own(FOLDING_OPTIONS, method) ?? [];
-            // A mono out folds what it sends.
-            emitValue(
-                site,
-                RECEIVER_SLOT,
-                callee.expression,
-                'cv',
-                method === 'outMono',
-            );
+            if (!FOLLOWS_RECEIVER.has(method)) {
+                // A mono out folds what it sends.
+                emitValue(
+                    site,
+                    RECEIVER_SLOT,
+                    callee.expression,
+                    'cv',
+                    method === 'outMono',
+                );
+            }
             node.arguments.forEach((arg, i) => {
                 if (ts.isObjectLiteralExpression(arg)) {
                     forEachField(arg, (key, value) =>
