@@ -12,7 +12,8 @@
  */
 import ts from 'typescript';
 
-import { hasHints, memberName, TypeReader } from './apiTypeReader';
+import { hasHints, TypeReader } from './apiTypeReader';
+import { memberName } from './apiTypeSlots';
 import type { ApiMember, ApiParam, ApiSignature } from './apiTypeReader';
 
 export type Family = 'audio' | 'video';
@@ -340,8 +341,9 @@ function takesSignal(p: ApiParam): boolean {
 }
 
 /**
- * Merge overloads and same-named declarations: a parameter or member takes a
- * signal only when every declaration that has it says so.
+ * Merge overloads and same-named declarations: a parameter, member or slot
+ * takes a signal only when every declaration that has it says so, and a
+ * parameter is optional when any declaration may leave it out.
  */
 function mergeSignatures(sigs: ApiParam[][]): ApiParam[] {
     const length = Math.max(...sigs.map((s) => s.length));
@@ -367,9 +369,14 @@ function mergeSignatures(sigs: ApiParam[][]): ApiParam[] {
         merged.push({
             hints: at[0].hints,
             name: at[0].name,
+            optional: at.length < sigs.length || at.some((p) => p.optional),
             options,
             rest: at.some((p) => p.rest),
             signal: at.every((p) => p.signal),
+            slot: (path) => {
+                const slots = at.map((p) => p.slot(path));
+                return slots.every((s) => s !== null) ? slots[0] : null;
+            },
         });
     }
     return merged;
