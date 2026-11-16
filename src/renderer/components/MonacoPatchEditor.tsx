@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import Editor, { type OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { useTheme } from '../themes/ThemeContext';
@@ -45,10 +51,13 @@ import electronAPI from '../electronAPI';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import { buildEditorMenuItems } from '../keybindings/editorMenuItems';
 import { dispatchCommand, setActiveEditor } from '../keybindings/dispatch';
+import type { EditorViewStates } from '../app/editorViewStates';
 
 export interface PatchEditorProps {
     value: string;
     currentFile?: string;
+    /** Every buffer's cursor and scroll, restored when the editor shows it. */
+    viewStates: EditorViewStates;
     /** Ids of every open buffer; models of buffers not listed are disposed. */
     openFiles: string[];
     onChange: (value: string) => void;
@@ -81,6 +90,7 @@ const renderLineNumber = (lineNumber: number): string =>
 export function MonacoPatchEditor({
     value,
     currentFile,
+    viewStates,
     openFiles,
     onChange,
     editorRef,
@@ -281,6 +291,14 @@ export function MonacoPatchEditor({
         openModelPathsRef.current = paths;
     }, [monaco, openFiles]);
 
+    // View states live in `viewStates`, which follows buffers whose ids
+    // change, so the Editor's own store is off. A buffer's view state is saved
+    // here, before the Editor's passive effect swaps models, and restored
+    // below once it has.
+    useLayoutEffect(() => {
+        viewStates.beforeShow(editor, currentFile);
+    }, [editor, currentFile, viewStates]);
+
     // The model, not `value`, is the source of truth for the active buffer:
     // `value` is written into it only when it is text the editor did not
     // emit, so a value that arrives after newer keystrokes never replaces
@@ -322,6 +340,12 @@ export function MonacoPatchEditor({
             writingValueRef.current = false;
         }
     }, [editor, value, currentFile, valueSync]);
+
+    // After the value write above, which moves the caret when a model adopts
+    // another buffer's text (an untitled buffer saved over an open file).
+    useEffect(() => {
+        viewStates.afterShow();
+    }, [editor, currentFile, value, viewStates]);
 
     const handleMount: OnMount = (ed) => {
         setEditor(ed);
@@ -600,6 +624,7 @@ export function MonacoPatchEditor({
                     onChange={handleEditorChange}
                     onMount={handleMount}
                     keepCurrentModel
+                    saveViewState={false}
                     options={editorOptions}
                 />
             )}
