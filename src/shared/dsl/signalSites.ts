@@ -649,6 +649,15 @@ export function collectSignalSites(
         if (module) {
             return moduleChannels(module, node.arguments, 0);
         }
+        // A group only arranges its signals' lanes; their channels stand.
+        if (
+            ts.isIdentifier(callee) &&
+            SIGNAL_GROUP_HELPERS.has(callee.text) &&
+            node.arguments.length === 1 &&
+            !ts.isSpreadElement(node.arguments[0])
+        ) {
+            return channelsOf(node.arguments[0]);
+        }
         const global =
             ts.isIdentifier(callee) && own(tables.globals, callee.text);
         if (global === 'collection') {
