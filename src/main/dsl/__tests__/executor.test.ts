@@ -1861,7 +1861,7 @@ describe('fx modules', () => {
 
     test('$enosc', () => {
         const patch = execPatch(
-            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" })._odd.out()',
+            '$enosc("c3", $enosc.scale.minor, { spread: 2, phase: $phase.pulsar(2), cheby: 1, effectOrder: "scf" })._low.out()',
         );
         const [enosc] = findModules(patch, '$enosc');
         expect(enosc.params.scale).toEqual({ type: 'minor' });

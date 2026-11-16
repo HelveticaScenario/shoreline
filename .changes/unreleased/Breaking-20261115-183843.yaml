@@ -1,0 +1,17 @@
+kind: Breaking
+body: |-
+    `$enosc` plays in stereo: its default output `_all` puts the odd voices on the left and the even voices on the right, where it was a mono mix of every voice. `_odd` and `_even` are gone, so take the sides with `$left` and `$right`. For the mono mix at its old level, fold the output with `.mono()` and double it.
+
+    ```js
+    // before
+    const e = $enosc('c2', $enosc.scale.harm4to7)
+    e.out()
+    e._odd.outMono(2)
+    e._even.outMono(3)
+    // after
+    const e = $enosc('c2', $enosc.scale.harm4to7)
+    e.mono().amp(2).out()
+    $left(e).outMono(2)
+    $right(e).outMono(3)
+    ```
+time: 2026-11-15T18:38:43.950515-05:00

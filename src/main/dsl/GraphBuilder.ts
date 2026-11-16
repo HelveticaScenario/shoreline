@@ -886,6 +886,18 @@ export class GraphBuilder implements ChainHost {
         this.moduleChannels.set(id, channels);
     }
 
+    /** The channels each lane of output `port` of module `id` carries. */
+    private portChannels(id: string, port: string): Channels {
+        // A `mono` output carries one value per lane whatever its module.
+        const spec = this.modules.get(id);
+        const output = spec
+            ? this.schemaByName
+                  .get(spec.moduleType)
+                  ?.outputs.find((o) => o.name === port)
+            : undefined;
+        return output?.mono ? 'mono' : (this.moduleChannels.get(id) ?? 'mono');
+    }
+
     /**
      * The channels each lane of `value` carries: an output or collection, an
      * array or `$gN` group of them, a `$buffer` reference, which carries
@@ -896,7 +908,7 @@ export class GraphBuilder implements ChainHost {
         if (value instanceof DeferredModuleOutput) {
             yield 'unknown';
         } else if (value instanceof ModuleOutput) {
-            yield this.moduleChannels.get(value.moduleId) ?? 'mono';
+            yield this.portChannels(value.moduleId, value.portName);
         } else if (value instanceof BaseCollection) {
             for (const item of value.items) {
                 yield* this.laneChannels(item);
@@ -1627,16 +1639,17 @@ export class GraphBuilder implements ChainHost {
                     (scope) =>
                         ({
                             ...scope,
-                            // A deferred lane resolves to its module only
+                            // A deferred lane resolves to its output only
                             // now, so a mono one's second trace drops here.
                             lanes: scope.lanes
                                 .map((lane) => this.resolveScopeLane(lane))
                                 .filter(
                                     (lane) =>
                                         lane.side === undefined ||
-                                        (this.moduleChannels.get(
+                                        this.portChannels(
                                             lane.moduleId,
-                                        ) ?? 'mono') !== 'mono',
+                                            lane.portName,
+                                        ) !== 'mono',
                                 ),
                         }) as ScopeWithLocation,
                 ),

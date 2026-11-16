@@ -139,6 +139,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -150,6 +151,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -161,6 +163,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -375,6 +378,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -386,6 +390,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -397,6 +402,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -578,6 +584,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -747,6 +754,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -909,6 +917,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1039,6 +1048,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1172,6 +1182,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1293,6 +1304,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1414,6 +1426,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1535,6 +1548,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1656,6 +1670,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1782,6 +1797,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -1954,6 +1970,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -2120,6 +2137,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f64",
         "bounds": "unbounded"
       },
@@ -2131,6 +2149,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -2142,6 +2161,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -2153,6 +2173,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -2164,6 +2185,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -2173,6 +2195,7 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -2182,6 +2205,7 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -2191,6 +2215,7 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -2200,6 +2225,7 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -2211,6 +2237,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -2222,6 +2249,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -2400,6 +2428,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -2629,6 +2658,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -2836,6 +2866,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -3026,6 +3057,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -3223,6 +3255,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -3386,6 +3419,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -3539,6 +3573,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -3719,6 +3754,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -3938,6 +3974,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -3949,6 +3986,7 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -3960,6 +3998,7 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -4177,6 +4216,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -4381,6 +4421,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -4585,6 +4626,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -4789,6 +4831,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -4993,6 +5036,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -5197,6 +5241,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -5423,6 +5468,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -5666,6 +5712,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -5857,6 +5904,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -6010,6 +6058,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -6190,6 +6239,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -6394,6 +6444,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -6598,6 +6649,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -6882,6 +6934,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -7168,6 +7221,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -7177,6 +7231,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -7186,6 +7241,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -7195,6 +7251,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": false,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -7360,6 +7417,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -7532,6 +7590,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -7759,6 +7818,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -8015,6 +8075,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -8167,6 +8228,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -8345,6 +8407,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -8548,6 +8611,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -8791,6 +8855,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -9076,6 +9141,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -9300,6 +9366,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -9531,6 +9598,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -9865,6 +9933,7 @@
         "minValue": -5.0,
         "maxValue": 5.0,
         "lanes": 2,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -9876,6 +9945,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -10292,6 +10362,7 @@
         "minValue": -5.0,
         "maxValue": 5.0,
         "lanes": 2,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -10303,6 +10374,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -10556,6 +10628,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -10851,6 +10924,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -11160,6 +11234,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -11393,6 +11468,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -11646,6 +11722,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -11830,6 +11907,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -11967,6 +12045,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -12129,6 +12208,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -12396,6 +12476,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -12888,6 +12969,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -12899,6 +12981,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -12910,6 +12993,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -13266,6 +13350,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "params"
       }
@@ -13326,7 +13411,7 @@
     "name": "$enosc",
     "docs": {
       "summary": "Ensemble of sines on a scale",
-      "description": "A bank of sine voices stacked up a scale, after the 4ms Ensemble Oscillator. Sweeping `root` or `spread` morphs smoothly from chord to chord, and cross FM, phase warps and the fold, cheby and segment shapers turn the sines into anything from glassy pads to snarling drones. The other outputs split the voices the way the hardware's stereo modes do.",
+      "description": "A bank of sine voices stacked up a scale, after the 4ms Ensemble Oscillator. Sweeping `root` or `spread` morphs smoothly from chord to chord, and cross FM, phase warps and the fold, cheby and segment shapers turn the sines into anything from glassy pads to snarling drones. The output is stereo, odd voices left and even voices right, and the other outputs split the voices the way the hardware's stereo modes do. Inputs are read as mono.",
       "categories": [
         "oscillator"
       ],
@@ -13346,7 +13431,7 @@
         },
         {
           "title": "Stereo pulsar drone",
-          "code": "const e = $enosc('a2', $enosc.scale.just6, {\n  spread: $sine('0.05hz').range(1, 3),\n  crossFm: 1.5,\n  phase: $phase.pulsar(2),\n  fold: 1,\n})\ne._odd.out({ pan: -5 })\ne._even.out({ pan: 5 })"
+          "code": "$enosc('a2', $enosc.scale.just6, {\n  spread: $sine('0.05hz').range(1, 3),\n  crossFm: 1.5,\n  phase: $phase.pulsar(2),\n  fold: 1,\n}).out()"
         }
       ]
     },
@@ -14050,34 +14135,13 @@
     "outputs": [
       {
         "name": "all",
-        "description": "mix of every voice",
+        "description": "every voice in stereo: 1, 3, 5, … on the left and 2, 4, 6, … on the right",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "odd",
-        "description": "mix of voices 1, 3, 5, …",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
-        "minValue": -5.0,
-        "maxValue": 5.0,
-        "precision": "f32",
-        "bounds": "fixed"
-      },
-      {
-        "name": "even",
-        "description": "mix of voices 2, 4, 6, …",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
-        "minValue": -5.0,
-        "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -14089,6 +14153,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": true,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -14100,6 +14165,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": true,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -14111,6 +14177,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": true,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -14122,6 +14189,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": true,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -14262,7 +14330,9 @@
         "readsSides": false
       }
     ],
-    "nestedFolds": [],
+    "nestedFolds": [
+      "phase"
+    ],
     "positionalArgs": [
       {
         "name": "pitch"
@@ -14272,7 +14342,7 @@
       }
     ],
     "experimental": false,
-    "stereo": "mono"
+    "stereo": "stereo"
   },
   {
     "name": "$wavetable",
@@ -14649,6 +14719,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -14842,6 +14913,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -15048,6 +15120,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -15244,6 +15317,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -15414,6 +15488,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -15586,6 +15661,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -15597,6 +15673,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -15608,6 +15685,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -15619,6 +15697,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -15819,6 +15898,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -16059,6 +16139,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -16070,6 +16151,7 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -16081,6 +16163,7 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -16092,6 +16175,7 @@
         "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -16425,6 +16509,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -16609,6 +16694,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -16823,6 +16909,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -17047,6 +17134,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -17256,6 +17344,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -17425,6 +17514,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -17624,6 +17714,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -17823,6 +17914,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -18022,6 +18114,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -18226,6 +18319,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -18430,6 +18524,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -18619,6 +18714,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -18808,6 +18904,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -18997,6 +19094,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -19186,6 +19284,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -19390,6 +19489,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -19644,6 +19744,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -19849,6 +19950,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -20054,6 +20156,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -20259,6 +20362,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -20464,6 +20568,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -20669,6 +20774,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -20869,6 +20975,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -21069,6 +21176,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -21269,6 +21377,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -21469,6 +21578,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -21669,6 +21779,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -21879,6 +21990,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -22088,6 +22200,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -22257,6 +22370,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -22466,6 +22580,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -22803,6 +22918,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 1.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -22941,6 +23057,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 1.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -23067,6 +23184,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -23279,6 +23397,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -23482,6 +23601,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -23622,6 +23742,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -23762,6 +23883,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -23902,6 +24024,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -24042,6 +24165,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -24182,6 +24306,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -24303,6 +24428,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -24424,6 +24550,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -24576,6 +24703,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -24706,6 +24834,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -24930,6 +25059,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -24941,6 +25071,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -25091,6 +25222,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -25259,6 +25391,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -25406,6 +25539,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -25417,6 +25551,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -25581,6 +25716,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -25746,6 +25882,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -25919,6 +26056,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -26148,6 +26286,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -26367,6 +26506,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -26530,6 +26670,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -26678,6 +26819,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -26801,6 +26943,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -26981,6 +27124,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -27177,6 +27321,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -27188,6 +27333,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -27199,6 +27345,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -27389,6 +27536,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -27526,6 +27674,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -27682,6 +27831,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "params"
       }
@@ -27874,6 +28024,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -28012,6 +28163,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -28162,6 +28314,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -28346,6 +28499,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -28357,6 +28511,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -28504,6 +28659,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -28650,6 +28806,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -28805,6 +28962,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "input"
       }
@@ -28901,6 +29059,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "input"
       }
@@ -29044,6 +29203,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -29220,6 +29380,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -29368,6 +29529,7 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -29507,6 +29669,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "inherit",
         "bounds": "params"
       }
@@ -31926,6 +32089,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -31937,6 +32101,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -31948,6 +32113,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -31959,6 +32125,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -32180,6 +32347,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -32341,6 +32509,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -32599,6 +32768,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -32610,6 +32780,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -32621,6 +32792,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -32632,6 +32804,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -32643,6 +32816,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -32654,6 +32828,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -32991,6 +33166,7 @@
         "outputType": "cv",
         "polyphonic": false,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -33002,6 +33178,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -33013,6 +33190,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -33170,6 +33348,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       },
@@ -33181,6 +33360,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -33192,6 +33372,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -33203,6 +33384,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -33214,6 +33396,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -33225,6 +33408,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -33236,6 +33420,7 @@
         "default": false,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -33319,6 +33504,7 @@
         "default": true,
         "minValue": 0.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -33521,6 +33707,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -33732,6 +33919,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -33935,6 +34123,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -34150,6 +34339,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -34415,6 +34605,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -34707,6 +34898,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -35021,6 +35213,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -35363,6 +35556,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -35695,6 +35889,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -35706,6 +35901,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -35997,6 +36193,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -36008,6 +36205,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -36269,6 +36467,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -36549,6 +36748,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -36855,6 +37055,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -37147,6 +37348,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -37461,6 +37663,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -37472,6 +37675,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -37803,6 +38007,7 @@
         "default": true,
         "minValue": -10.0,
         "maxValue": 10.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -37814,6 +38019,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -38104,6 +38310,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -38115,6 +38322,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -38371,6 +38579,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -38382,6 +38591,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -38625,6 +38835,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -38636,6 +38847,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -38874,6 +39086,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -38885,6 +39098,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -39123,6 +39337,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -39134,6 +39349,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -39376,6 +39592,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -39387,6 +39604,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -39634,6 +39852,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       },
@@ -39645,6 +39864,7 @@
         "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -39888,6 +40108,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -40196,6 +40417,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -40373,6 +40595,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -40599,6 +40822,7 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
       }
@@ -40785,6 +41009,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -41004,6 +41229,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -41188,6 +41414,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -41382,6 +41609,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -41571,6 +41799,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -41790,6 +42019,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -41944,6 +42174,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }
@@ -42095,6 +42326,7 @@
         "default": true,
         "minValue": -5.0,
         "maxValue": 5.0,
+        "mono": false,
         "precision": "f32",
         "bounds": "fixed"
       }

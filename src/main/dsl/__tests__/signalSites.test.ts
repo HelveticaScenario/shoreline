@@ -383,6 +383,24 @@ describe('fold sites', () => {
         ]);
     });
 
+    test("a stereo module's mono outputs are mono", () => {
+        expect(folds(`$enosc('c3').outMono()`)).toEqual([
+            "$enosc('c3')‹._all.mono()›",
+        ]);
+        expect(folds(`$enosc('c3')._low.outMono()`)).toEqual([]);
+        expect(folds(`const e = $enosc('c3')\ne._root.outMono()`)).toEqual([]);
+        expect(
+            folds(`$enosc('c3').concat($enosc('g3'))._low.outMono()`),
+        ).toEqual([]);
+        expect(folds(`$enosc('c3').out()._high.outMono()`)).toEqual([]);
+    });
+
+    test('a cycle of const bindings reads as unknown', () => {
+        expect(folds(`const a = b\nconst b = a\na._low.outMono()`)).toEqual([
+            'a._low‹.mono()›',
+        ]);
+    });
+
     test('an array folds element by element', () => {
         expect(folds(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
             'wide‹.mono()›',

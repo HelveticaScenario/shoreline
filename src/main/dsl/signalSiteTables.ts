@@ -16,6 +16,7 @@ import {
 export const DELAY_SITE: ModuleSiteInfo = {
     buffers: [],
     chainable: true,
+    monoOutputs: [],
     folds: [],
     inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
     positional: ['input', 'time'],
@@ -73,6 +74,9 @@ export function buildSignalSiteTables(
         tables.modules[schema.name] = {
             buffers: bufferParams(schema),
             chainable: qualifiesForChain(processed),
+            monoOutputs: (schema.outputs ?? [])
+                .filter((output) => output.mono)
+                .map((output) => output.name),
             // A mono module folds every signal it reads, nested ones too.
             folds: [
                 ...(schema.signalParams ?? [])
