@@ -2010,6 +2010,27 @@ describe('error handling', () => {
         );
     });
 
+    test('a module call whose error is caught leaves no module behind', () => {
+        const patch = execPatch(`
+            try {
+                $signal('foo');
+            } catch (_) {}
+            $signal(1).out();
+        `);
+        const signals = liftedSignals(patch);
+        expect(signals.map((m) => m.id)).toEqual(['$signal-1']);
+        expect(signals[0].params.value).toBe(1);
+    });
+
+    test('a $buffer call whose error is caught leaves no module behind', () => {
+        const patch = execPatch(`
+            try {
+                $buffer('foo', 1);
+            } catch (_) {}
+        `);
+        expect(findModules(patch, '$buffer')).toEqual([]);
+    });
+
     test('$buffer with a non-finite input param reports the module and line', () => {
         expect(() => execPatch('$buffer(0/0, 1)')).toThrow(
             '$buffer at line 1: parameter `input` must be a finite number',

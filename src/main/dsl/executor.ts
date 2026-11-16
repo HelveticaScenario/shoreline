@@ -392,35 +392,45 @@ export function executePatchScript(
 
         const sourceLocation = captureSourceLocation();
 
-        // Create a $buffer module in the graph
-        const node = builder.addModule('$buffer', config?.id, sourceLocation);
-
-        // Resolve the input signal and set params
-        const resolvedInput = replaceSignals(input);
-        node._setParam('input', resolvedInput);
-        builder.setModuleChannels(node.id, builder.liftedChannelsOf([input]));
-        node._setParam('length', lengthSeconds);
-
-        // Derive lane count from the input signal
-        const derivedLanes = deriveLaneCountChecked(
+        return builder.buildModule(
             '$buffer',
-            node.getParamsSnapshot(),
+            config?.id,
             sourceLocation,
+            (node): BufferOutputRef => {
+                // Resolve the input signal and set params
+                const resolvedInput = replaceSignals(input);
+                node._setParam('input', resolvedInput);
+                builder.setModuleChannels(
+                    node.id,
+                    builder.liftedChannelsOf([input]),
+                );
+                node._setParam('length', lengthSeconds);
+
+                // Derive lane count from the input signal
+                const derivedLanes = deriveLaneCountChecked(
+                    '$buffer',
+                    node.getParamsSnapshot(),
+                    sourceLocation,
+                );
+                if (derivedLanes !== undefined) {
+                    node._setDerivedLaneCount(derivedLanes);
+                }
+                const lanes = derivedLanes ?? 1;
+
+                const frameCount = Math.max(
+                    1,
+                    Math.ceil(lengthSeconds * sampleRate),
+                );
+
+                return {
+                    type: 'buffer_ref',
+                    module: node.id,
+                    port: 'buffer',
+                    lanes,
+                    frameCount,
+                };
+            },
         );
-        if (derivedLanes !== undefined) {
-            node._setDerivedLaneCount(derivedLanes);
-        }
-        const lanes = derivedLanes ?? 1;
-
-        const frameCount = Math.max(1, Math.ceil(lengthSeconds * sampleRate));
-
-        return {
-            type: 'buffer_ref',
-            module: node.id,
-            port: 'buffer',
-            lanes,
-            frameCount,
-        };
     };
 
     const $cycle = userNamespaceTree['$cycle'];

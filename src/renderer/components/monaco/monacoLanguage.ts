@@ -1,5 +1,6 @@
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import { applyDslLibToMonaco } from './monacoHelpers';
+import { registerDollarQuoteQuickFix } from './dollarQuoteQuickFix';
 import { registerJsDocLinkProviders } from './jsDocLinkProviders';
 import { registerOutputResolutionHints } from './outputResolutionHints';
 import type { ModuleSchema } from '@modular/core';
@@ -86,8 +87,10 @@ export function setupMonacoJavascript(
         options.schemas ?? [],
     );
     const outputHints = registerOutputResolutionHints(monaco);
+    const dollarQuoteFix = registerDollarQuoteQuickFix(monaco);
 
     return () => {
+        dollarQuoteFix.dispose();
         outputHints.dispose();
         jsDocLinks.dispose();
         languageConfiguration.dispose();
