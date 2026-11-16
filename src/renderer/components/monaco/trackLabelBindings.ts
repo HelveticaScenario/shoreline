@@ -243,3 +243,73 @@ export function withinPatch<T extends { start?: number }>(
 ): T[] {
     return items.filter((d) => d.start === undefined || d.start < view.length);
 }
+
+/** The lib type each track's name is bound as, by track name. */
+function bindingTypes(
+    ts: typeof TS,
+    checker: TS.TypeChecker,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): Map<string, string | undefined> {
+    const starts = new Map(
+        view.bindings.map((b, i) => [
+            b.declStart,
+            view.analysis.tracks[i].track.name,
+        ]),
+    );
+    const types = new Map<string, string | undefined>();
+    for (const statement of sourceFile.statements) {
+        if (!ts.isVariableStatement(statement)) {
+            continue;
+        }
+        const [declaration] = statement.declarationList.declarations;
+        const name = starts.get(declaration.name.getStart(sourceFile));
+        if (name !== undefined) {
+            types.set(
+                name,
+                checker.getTypeAtLocation(declaration.name).getSymbol()?.name,
+            );
+        }
+    }
+    return types;
+}
+
+/**
+ * One diagnostic per label whose suffix names a track that is not a group,
+ * and per bus track given a group, on the suffix's name.
+ */
+export function groupSuffixDiagnostics(
+    ts: typeof TS,
+    checker: TS.TypeChecker,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): TS.Diagnostic[] {
+    if (view.bindings.length === 0) {
+        return [];
+    }
+    const types = bindingTypes(ts, checker, sourceFile, view);
+    const diagnostics: TS.Diagnostic[] = [];
+    for (const { track, labelStart, labelEnd } of view.analysis.tracks) {
+        if (track.group === null || !types.has(track.group)) {
+            continue;
+        }
+        const message =
+            types.get(track.name) === 'BusTap'
+                ? `${track.name} is a bus, and a bus cannot play into a group`
+                : types.get(track.group) === 'GroupTap'
+                  ? null
+                  : `${track.group} is not a group. A group is a track whose signal is $group() or methods chained on it`;
+        if (message !== null) {
+            const start = labelStart + track.groupStart;
+            diagnostics.push({
+                category: ts.DiagnosticCategory.Error,
+                code: TRACK_LABEL_CODE,
+                file: sourceFile,
+                length: labelEnd - start,
+                messageText: message,
+                start,
+            });
+        }
+    }
+    return diagnostics;
+}

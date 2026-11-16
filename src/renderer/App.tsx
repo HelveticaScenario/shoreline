@@ -71,6 +71,7 @@ import {
     computeTrackOptionEdit,
     computeTrackStateEdit,
 } from './dsl/trackSourceEdit';
+import { trackGates } from '../shared/dsl/trackGates';
 import type { TrackState } from '../shared/dsl/trackLabels';
 import { VuMeterPanel } from './components/VuMeterPanel';
 import { BottomBar } from './components/BottomBar';
@@ -768,7 +769,7 @@ function App() {
      * Mixer M/S click. A track is muted, soloed or neither: a click turns its
      * own state on, or back off, so soloing a muted track unmutes it. A plain
      * click live-updates every mute gate whose effective value changed (solo
-     * is global) and rewrites the track's label prefix — the same
+     * reaches across tracks and groups) and rewrites the track's label prefix — the same
      * edit-code + edit-live-graph contract as sliders, with no patch re-eval.
      * A code-only click edits the source alone: the audio keeps running
      * unchanged and the buttons' outer (code) sections ghost until a patch
@@ -828,27 +829,21 @@ function App() {
                     : o,
             );
 
-            const anySoloBefore = outputs.some((o) => o.solo);
-            const anySoloAfter = next.some((o) => o.solo);
-            for (let i = 0; i < next.length; i++) {
-                // The master meter has no gate.
-                const muteModuleId = next[i].muteModuleId;
-                if (muteModuleId == null) {
-                    continue;
-                }
-                const gateBefore = (
-                    anySoloBefore ? outputs[i].solo : !outputs[i].mute
-                )
-                    ? 5
-                    : 0;
-                const gateAfter = (anySoloAfter ? next[i].solo : !next[i].mute)
-                    ? 5
-                    : 0;
-                if (gateBefore !== gateAfter) {
+            const tracksOf = (list: VuMeterDef[]) =>
+                list.filter((o) => o.muteModuleId != null);
+            const before = trackGates(tracksOf(outputs));
+            const after = trackGates(tracksOf(next));
+            for (const output of next) {
+                // The main meter has no gate.
+                const muteModuleId = output.muteModuleId;
+                if (
+                    muteModuleId != null &&
+                    before.get(output.key) !== after.get(output.key)
+                ) {
                     void electronAPI.synthesizer.setModuleParam(
                         muteModuleId,
                         '$signal',
-                        gateParams(gateAfter),
+                        gateParams(after.get(output.key) ? 5 : 0),
                     );
                 }
             }

@@ -43,6 +43,7 @@ import {
 } from './dollarQuotes';
 import {
     bindingPosition,
+    groupSuffixDiagnostics,
     mapSpan,
     onLabelOutsideName,
     trackLabelView,
@@ -109,9 +110,17 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         if (!sourceFile || !view) {
             return diagnostics;
         }
-        return withinPatchDiagnostics(
-            view,
-            withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
+        const checker = this.getLanguageService()
+            .getProgram()!
+            .getTypeChecker();
+        return TypeScriptWorker.clearFiles(
+            [
+                ...withinPatchDiagnostics(
+                    view,
+                    withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
+                ),
+                ...groupSuffixDiagnostics(ts, checker, sourceFile, view),
+            ].sort((a, b) => (a.start ?? 0) - (b.start ?? 0)),
         );
     }
 

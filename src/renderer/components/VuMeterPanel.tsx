@@ -4,8 +4,10 @@ import React, {
     useLayoutEffect,
     useRef,
     useState,
+    useSyncExternalStore,
 } from 'react';
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
+import { trackGates } from '../../shared/dsl/trackGates';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
 import './VuMeterPanel.css';
 
@@ -213,6 +215,27 @@ function PanKnob({
     );
 }
 
+/**
+ * The groups whose members are hidden, by key. Kept outside the panel, which
+ * unmounts with its tab, and for as long as the app runs.
+ */
+const foldStore = {
+    folded: new Set<string>() as ReadonlySet<string>,
+    listeners: new Set<() => void>(),
+    subscribe: (listener: () => void): (() => void) => {
+        foldStore.listeners.add(listener);
+        return () => foldStore.listeners.delete(listener);
+    },
+    toggle(key: string): void {
+        const next = new Set(foldStore.folded);
+        if (!next.delete(key)) {
+            next.add(key);
+        }
+        foldStore.folded = next;
+        foldStore.listeners.forEach((listener) => listener());
+    },
+};
+
 interface VuMeterProps {
     output: VuMeterDef;
     /** Code-side values diverging from the audio for this meter. */
@@ -221,6 +244,8 @@ interface VuMeterProps {
     index: number;
     /** True when mute/solo state leaves this output inaudible. */
     suppressed: boolean;
+    /** For a group's strip: whether its members are hidden, and the toggle. */
+    fold?: { folded: boolean; onToggle: () => void };
     showReadout: boolean;
     showPan: boolean;
     onToggleMute: (key: string, codeOnly: boolean) => void;
@@ -246,6 +271,7 @@ function VuMeter({
     ghost,
     index,
     suppressed,
+    fold,
     showReadout,
     showPan,
     onToggleMute,
@@ -404,6 +430,16 @@ function VuMeter({
             }
         >
             <div className="vu-meter-header">
+                {fold && (
+                    <button
+                        className="vu-group-fold"
+                        aria-expanded={!fold.folded}
+                        title={fold.folded ? 'Show tracks' : 'Hide tracks'}
+                        onClick={fold.onToggle}
+                    >
+                        {fold.folded ? '▸' : '▾'}
+                    </button>
+                )}
                 <span className="vu-meter-label">
                     {output.label ?? output.key}
                 </span>
@@ -539,7 +575,34 @@ export function VuMeterPanel({
 }: VuMeterPanelProps) {
     const channelOutputs = outputs.filter((o) => !o.main);
     const mainOutput = outputs.find((o) => o.main) ?? null;
-    const anySolo = channelOutputs.some((o) => o.solo);
+    const folded = useSyncExternalStore(
+        foldStore.subscribe,
+        () => foldStore.folded,
+    );
+    // Each group's members sit beside it; a track naming a group that is
+    // not there stands on its own.
+    const byKey = new Map(channelOutputs.map((o) => [o.key, o]));
+    const parentOf = (o: VuMeterDef) =>
+        o.group != null && byKey.get(o.group)?.isGroup ? o.group : null;
+    const membersOf = (key: string | null) =>
+        channelOutputs.filter((o) => parentOf(o) === key);
+    const gates = trackGates(channelOutputs);
+    const audible = (o: VuMeterDef): boolean => {
+        const parent = parentOf(o);
+        return (
+            gates.get(o.key) === true &&
+            (parent === null || audible(byKey.get(parent)!))
+        );
+    };
+    // Numbered in the order shown, hidden members included.
+    const indexOf = new Map<string, number>();
+    const number = (key: string | null) => {
+        for (const o of membersOf(key)) {
+            indexOf.set(o.key, indexOf.size + 1);
+            number(o.key);
+        }
+    };
+    number(null);
     const panelRef = useRef<HTMLDivElement>(null);
     // A resize re-renders the strips only when it crosses a threshold.
     const [showPan, setShowPan] = useState(false);
@@ -581,6 +644,41 @@ export function VuMeterPanel({
         unregisterReadout,
     };
 
+    const renderTrack = (output: VuMeterDef): React.ReactNode => {
+        const strip = (
+            <VuMeter
+                key={output.key}
+                output={output}
+                ghost={ghosts.get(output.key)}
+                index={indexOf.get(output.key)!}
+                suppressed={!audible(output)}
+                fold={
+                    output.isGroup
+                        ? {
+                              folded: folded.has(output.key),
+                              onToggle: () => foldStore.toggle(output.key),
+                          }
+                        : undefined
+                }
+                {...meterProps}
+            />
+        );
+        if (!output.isGroup) {
+            return strip;
+        }
+        return (
+            <div
+                key={output.key}
+                className="vu-group"
+                data-vu-group={output.key}
+            >
+                {strip}
+                {!folded.has(output.key) &&
+                    membersOf(output.key).map(renderTrack)}
+            </div>
+        );
+    };
+
     return (
         <div ref={panelRef} className="vu-meter-panel">
             <div className="vu-meter-scroll">
@@ -589,16 +687,7 @@ export function VuMeterPanel({
                         no tracks — label a line to hear it: lead: $saw('c3')
                     </div>
                 ) : (
-                    channelOutputs.map((output, i) => (
-                        <VuMeter
-                            key={output.key}
-                            output={output}
-                            ghost={ghosts.get(output.key)}
-                            index={i + 1}
-                            suppressed={anySolo ? !output.solo : output.mute}
-                            {...meterProps}
-                        />
-                    ))
+                    membersOf(null).map(renderTrack)
                 )}
             </div>
             {mainOutput && (

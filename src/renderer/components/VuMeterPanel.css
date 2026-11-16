@@ -221,3 +221,47 @@
     color: var(--accent-primary, #4ec9b0);
     cursor: default;
 }
+
+/* A group's strip with its members beside it, under one band. Nested groups
+   nest their bands. */
+.vu-group {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px 3px 3px;
+    background: color-mix(
+        in srgb,
+        var(--accent-primary, #4ec9b0) 7%,
+        transparent
+    );
+    border: 1px solid
+        color-mix(in srgb, var(--accent-primary, #4ec9b0) 35%, #222);
+    border-top-width: 3px;
+    border-radius: 4px;
+}
+
+.vu-group > .vu-meter:first-child {
+    border-color: color-mix(in srgb, var(--accent-primary, #4ec9b0) 45%, #222);
+}
+
+.vu-meter-header:has(.vu-group-fold) {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.vu-group-fold {
+    flex-shrink: 0;
+    padding: 0 2px 0 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary, #999);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.vu-group-fold:hover {
+    color: var(--text-primary);
+}

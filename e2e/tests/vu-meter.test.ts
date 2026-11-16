@@ -336,6 +336,53 @@ test.describe('vu meter panel', () => {
             .toBeGreaterThan(0.01);
     });
 
+    test('a group shows its tracks beside it and folds them away', async ({
+        window,
+    }, testInfo) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await openUntitledBuffer(window);
+        await window.evaluate(() => {
+            window.__TEST_API__!.setEditorValue(
+                [
+                    `kick$drums: $sine($hz(55))`,
+                    `hats$drums: $noise()`,
+                    `drums$rhythm: $group().lpf('c8')`,
+                    `bass$rhythm: $saw($hz(110))`,
+                    `rhythm: $group()`,
+                    `lead: $sine($hz(440))`,
+                ].join('\n'),
+            );
+        });
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await window.evaluate(() => {
+            window.__TEST_API__!.setMixerVisible(true);
+        });
+
+        const drums = window.locator('.vu-group[data-vu-group="drums"]');
+        await expect(drums.locator('.vu-meter')).toHaveCount(3);
+        await expect(
+            window.locator(
+                '.vu-group[data-vu-group="rhythm"] > .vu-group[data-vu-group="drums"]',
+            ),
+        ).toHaveCount(1);
+        await expect(
+            window.locator('.vu-meter-scroll > .vu-meter[data-vu-key="lead"]'),
+        ).toHaveCount(1);
+        await window.screenshot({ path: testInfo.outputPath('groups.png') });
+
+        await drums.locator('.vu-group-fold').first().click();
+        await expect(drums.locator('.vu-meter')).toHaveCount(1);
+        await expect(
+            window.locator('.vu-meter[data-vu-key="kick"]'),
+        ).toHaveCount(0);
+        await window.screenshot({ path: testInfo.outputPath('folded.png') });
+        await drums.locator('.vu-group-fold').first().click();
+        await expect(drums.locator('.vu-meter')).toHaveCount(3);
+    });
+
     test('panel visibility toggles', async ({ window }) => {
         await setupTwoOutPatch(window);
         await expect(window.locator('.vu-meter-panel')).toBeVisible();
