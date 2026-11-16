@@ -743,13 +743,13 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         params: [
             {
                 name: 'cb',
-                type: '(mixed: Collection) => Poly<Signal>',
+                type: '(mixed: Collection) => Poly<Signal> | void',
                 description:
                     'Called at patch finalization with the mixed sends. Returns the bus signal that `.out()` on the bus plays.',
             },
         ],
         returns: 'Bus handle passed to .send(), with .out() and .outMono()',
-        signature: '$bus(cb: (mixed: Collection) => Poly<Signal>): Bus',
+        signature: '$bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus',
     },
     {
         description:

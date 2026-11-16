@@ -371,7 +371,7 @@ export function executePatchScript(
     const $trackTap = (label: string): TrackTap =>
         createTrackTap(builder, label);
 
-    const $bus = (cb: (mixed: Collection) => PolySignal): Bus =>
+    const $bus = (cb: (mixed: Collection) => PolySignal | void): Bus =>
         new Bus(builder, cb);
 
     const $setEndOfChainCb = (

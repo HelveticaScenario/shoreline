@@ -1345,7 +1345,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
  * $saw('a').send(verb, 0.6);
  * $sine('a2').send(verb, 0.4);
  */
-function $bus(cb: (mixed: Collection) => Poly<Signal>): Bus;
+function $bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus;
 
 /**
  * Tap the out labeled \`label\`: its audio after gain and mute/solo, plus its

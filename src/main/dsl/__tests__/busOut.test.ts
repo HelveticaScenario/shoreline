@@ -14,24 +14,19 @@ function run(source: string) {
     });
 }
 
-function vuLabels(source: string): string[] {
-    const meters = run(source).patch.vuMeters as unknown as { key: string }[];
+function vuLabels(patch: ReturnType<typeof run>['patch']): string[] {
+    const meters = patch.vuMeters as unknown as { key: string }[];
     return meters.map((m) => m.key).filter((k) => k !== '__main__');
 }
 
 describe('$bus outs', () => {
     test('bus.out() routes the callback result like a collection out', () => {
-        const viaBus = run(
+        const { patch } = run(
             `const a = $bus((e) => e.lpf('1000hz')).out({ label: 'fx' })
              $saw('c3').send(a).out({ label: 'dry' })`,
-        ).patch.modules.map((m) => m.moduleType);
-        expect(viaBus).toContain('$lpf');
-        expect(
-            vuLabels(
-                `const a = $bus((e) => e.lpf('1000hz')).out({ label: 'fx' })
-                 $saw('c3').send(a).out({ label: 'dry' })`,
-            ),
-        ).toEqual(['fx', 'dry']);
+        );
+        expect(patch.modules.map((m) => m.moduleType)).toContain('$lpf');
+        expect(vuLabels(patch)).toEqual(['fx', 'dry']);
     });
 
     test('bus.outMono() takes the collection outMono overloads', () => {
@@ -44,17 +39,29 @@ describe('$bus outs', () => {
     });
 
     test('a bus without .out() stays silent', () => {
-        expect(
-            vuLabels(`const a = $bus((e) => e.lpf('1000hz'))
-                      $saw('c3').send(a).out({ label: 'dry' })`),
-        ).toEqual(['dry']);
+        const { patch } = run(`const a = $bus((e) => e.lpf('1000hz'))
+                               $saw('c3').send(a).out({ label: 'dry' })`);
+        expect(vuLabels(patch)).toEqual(['dry']);
     });
 
-    test('a bus returning no lanes adds no out', () => {
-        expect(
-            vuLabels(`$bus(() => []).out({ label: 'fx' })
-                      $saw('c3').out({ label: 'dry' })`),
-        ).toEqual(['dry']);
+    test('bus.out() needs the callback to return at least one lane', () => {
+        expect(() => run(`$bus(() => []).out()`)).toThrow(/returned no signal/);
+    });
+
+    test('bus.out() inside a $bus callback is an error', () => {
+        expect(() =>
+            run(`const b = $bus((e) => e).out()
+                 $saw('c3').send(b)
+                 const a = $bus((e) => { b.out(); return e })
+                 $saw('e3').send(a)`),
+        ).toThrow(/on a bus is not allowed in \$bus callbacks/);
+    });
+
+    test('.out() on a collection inside a $bus callback still plays', () => {
+        const { patch } =
+            run(`const a = $bus((e) => { e.out({ label: 'old' }) })
+                               $saw('c3').send(a)`);
+        expect(vuLabels(patch)).toEqual(['old']);
     });
 
     test('bus.out() needs the callback to return a signal', () => {
