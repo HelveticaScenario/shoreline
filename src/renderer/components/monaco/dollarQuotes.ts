@@ -42,23 +42,26 @@ function chainOf(ts: typeof TS, node: TS.Node): TS.Node {
     return chain;
 }
 
-/** Every `$` written directly before a quoted string in `sourceFile`. */
+/** Every `$` written directly before a closed quoted string in `sourceFile`. */
 export function findDollarQuotes(
     ts: typeof TS,
     sourceFile: TS.SourceFile,
 ): DollarQuote[] {
+    const text = sourceFile.text;
+    if (!text.includes("$'") && !text.includes('$"')) {
+        return [];
+    }
     const dollarEnds = new Map<number, number>();
     const strings: TS.StringLiteral[] = [];
     const visit = (node: TS.Node): void => {
         if (ts.isIdentifier(node) && node.text === '$') {
             dollarEnds.set(node.end, node.getStart(sourceFile));
-        } else if (ts.isStringLiteral(node)) {
+        } else if (ts.isStringLiteral(node) && !node.isUnterminated) {
             strings.push(node);
         }
         ts.forEachChild(node, visit);
     };
     visit(sourceFile);
-    const text = sourceFile.text;
     const found: DollarQuote[] = [];
     for (const literal of strings) {
         const literalStart = literal.getStart(sourceFile);
@@ -73,15 +76,23 @@ export function findDollarQuotes(
             body: text.slice(literalStart + 1, literal.end - 1),
         });
     }
-    return found.sort((a, b) => a.start - b.start);
+    return found;
 }
 
-/** `body`, written as the text of a template literal. */
+/** `body`, a quoted string's text as written, as the text of a template literal. */
 export function templateBody(body: string): string {
-    return body
-        .replace(/\\(["'])/g, '$1')
-        .replace(/`/g, '\\`')
-        .replace(/\$\{/g, '\\${');
+    return body.replace(/\\[\s\S]|`|\$\{/g, (match) => {
+        if (match === "\\'" || match === '\\"') {
+            return match[1];
+        }
+        return match === '`' || match === '${' ? `\\${match}` : match;
+    });
+}
+
+/** `written` as a pattern in backticks, or null when it is not a `$'…'`. */
+export function backtickedPattern(written: string): string | null {
+    const quoted = /^\$(['"])([\s\S]*)\1$/.exec(written);
+    return quoted ? `$\`${templateBody(quoted[2])}\`` : null;
 }
 
 /**

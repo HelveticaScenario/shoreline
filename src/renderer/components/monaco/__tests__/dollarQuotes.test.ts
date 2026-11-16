@@ -2,6 +2,7 @@ import ts from 'typescript';
 import { describe, expect, test } from 'vitest';
 
 import {
+    backtickedPattern,
     DOLLAR_QUOTE_CODE,
     templateBody,
     withDollarQuoteDiagnostics,
@@ -94,8 +95,35 @@ describe("$'…' diagnostics", () => {
             diagnosticsOf("$`c e`.out(); $('c').out(); const $a = 'x';"),
         ).toEqual({ syntactic: [], semantic: [] });
     });
+
+    test("an unclosed string keeps the parser's own error", () => {
+        const { syntactic } = diagnosticsOf("const p = $'c e g\nx;");
+        expect(syntactic.map((d) => d.code)).not.toContain(DOLLAR_QUOTE_CODE);
+        expect(syntactic.map((d) => d.message)).toContain(
+            'Unterminated string literal.',
+        );
+    });
 });
 
-test('templateBody escapes what a template would read', () => {
-    expect(templateBody("a\\'b`c${d}")).toBe("a'b\\`c\\${d}");
+describe('templateBody', () => {
+    test('escapes what a template would read', () => {
+        expect(templateBody("a\\'b`c${d}")).toBe("a'b\\`c\\${d}");
+    });
+
+    test('keeps an escaped backslash before a quote', () => {
+        expect(templateBody('x\\\\"y')).toBe('x\\\\"y');
+    });
+});
+
+describe('backtickedPattern', () => {
+    test('rewrites either quote style', () => {
+        expect(backtickedPattern("$'c e g'")).toBe('$`c e g`');
+        expect(backtickedPattern('$"c e"')).toBe('$`c e`');
+    });
+
+    test('declines text that is not a quoted pattern', () => {
+        expect(backtickedPattern("$'c e")).toBeNull();
+        expect(backtickedPattern('$\'c"')).toBeNull();
+        expect(backtickedPattern('const x')).toBeNull();
+    });
 });
