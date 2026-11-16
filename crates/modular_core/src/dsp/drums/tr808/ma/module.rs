@@ -72,9 +72,10 @@ struct MaState {
     shared: ShakeShared,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Shake>,
+    #[seed_side(keep)]
     noise: WhiteNoise,
 }
 

@@ -51,9 +51,11 @@ pub(super) struct Knobs {
     pub accent: (f32, GlideMark),
 }
 
+#[derive(Clone, Copy, SeedSide)]
 pub(super) struct Lane<M: Model> {
     hat: HiHat<M>,
     /// The lane's clocked noise.
+    #[seed_side(keep)]
     random: Random,
     trigger: SchmittTrigger,
     tone: Knob,
@@ -63,6 +65,7 @@ pub(super) struct Lane<M: Model> {
     pub(super) accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so its noise stays continuous across patch updates.
+    #[seed_side(keep)]
     seeded: bool,
 }
 

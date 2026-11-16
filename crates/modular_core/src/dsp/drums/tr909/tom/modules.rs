@@ -40,9 +40,10 @@ struct TomState {
     groups: Groups<TomDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Tom>,
+    #[seed_side(keep)]
     noise: Noise,
     rate: Cached<f32, f32>,
 }
@@ -209,6 +210,7 @@ macro_rules! tom_module {
 
                 fn update(&mut self, _sample_rate: f32) {
                     let lanes = self.lane_count();
+                    self.state.hold.lay_out(lanes, self.channels());
                     let p = &self.params;
                     let inputs = [
                         Live::new(&p.trigger),
@@ -235,6 +237,7 @@ macro_rules! tom_module {
                     _sample_rate: f32,
                 ) -> Option<()> {
                     let lanes = self.lane_count();
+                    self.state.hold.lay_out(lanes, self.channels());
                     let p = &self.params;
                     let mut scratch = Default::default();
                     let [<$Struct ParamsBlockInputs>] {
@@ -271,7 +274,7 @@ macro_rules! tom_module {
                     let count = self.lane_count();
                     self.state
                         .groups
-                        .layout::<TomInputs<&[f32]>>(&mut self.lane_state, count);
+                        .layout::<TomInputs<&[f32]>>(&mut self.lane_state, count, self._channels);
                 }
             }
 

@@ -25,6 +25,7 @@ pub(super) fn grid_points(stages: f32, step: usize) -> (usize, usize) {
 }
 
 /// A lane's chain of stages and its feedback loop.
+#[derive(Clone, Copy)]
 pub(super) struct AllpassLane {
     stages: [Stage; MAX_STAGES],
     /// Coefficients of every whole stage, and of the stage gliding in.
@@ -63,6 +64,15 @@ impl Default for AllpassLane {
             active: 0,
             running: false,
         }
+    }
+}
+
+impl crate::types::SeedSide for AllpassLane {
+    fn seed_side(&mut self, left: &Self) {
+        let mut feedback = self.feedback;
+        crate::types::SeedSide::seed_side(&mut feedback, &left.feedback);
+        *self = *left;
+        self.feedback = feedback;
     }
 }
 

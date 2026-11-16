@@ -108,7 +108,7 @@ impl Follower {
     }
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct MotionFollowerLaneState {
     prev: f32,
     initialized: bool,

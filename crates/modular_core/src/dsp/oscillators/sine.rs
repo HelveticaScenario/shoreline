@@ -50,7 +50,7 @@ struct SineOscillatorOutputs {
 }
 
 /// Per-lane oscillator state
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     phase: f32,
     /// Edge detector for the sync input.

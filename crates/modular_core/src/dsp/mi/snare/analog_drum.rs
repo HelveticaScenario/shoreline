@@ -55,7 +55,7 @@ pub struct AnalogKnobs {
 }
 
 /// The controls derived from the decay and snappiness.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct NoiseControls {
     noise_envelope_decay: f32,
     exciter_leak: f32,
@@ -63,6 +63,7 @@ struct NoiseControls {
     snappy: f32,
 }
 
+#[derive(Clone, Copy)]
 pub struct AnalogSnareDrum {
     pulse_remaining: i32,
     pulse: f32,

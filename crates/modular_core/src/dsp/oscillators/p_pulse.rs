@@ -46,7 +46,7 @@ struct PPulseOscillatorOutputs {
 }
 
 /// Per-lane state for width glide and phase tracking
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     width: SwapGlide,
     pwm: SwapGlide,

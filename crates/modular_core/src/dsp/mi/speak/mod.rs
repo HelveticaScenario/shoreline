@@ -188,6 +188,7 @@ fn select(volts: f32, count: usize) -> Option<usize> {
 }
 
 /// One lane: Plaits' word-bank speech, then its limiter.
+#[derive(Clone, Copy)]
 pub struct Lane {
     speaker: Speaker,
     limiter: Limiter,
@@ -199,6 +200,15 @@ pub struct Lane {
     held: [f32; 5],
     /// The last bank a finite `bank` selected.
     bank: usize,
+}
+
+impl crate::types::SeedSide for Lane {
+    fn seed_side(&mut self, left: &Self) {
+        let speaker = self.speaker;
+        *self = *left;
+        self.speaker = speaker;
+        self.speaker.seed_side(&left.speaker);
+    }
 }
 
 impl Default for Lane {

@@ -46,7 +46,7 @@ struct Jup6fOutputs {
 }
 
 /// 4-stage OTA ladder state for a single lane.
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LadderState {
     /// Four cascaded 1-pole stages
     s: [f32; 4],

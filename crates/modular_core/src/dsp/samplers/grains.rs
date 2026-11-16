@@ -72,6 +72,7 @@ struct Grain {
 
 // ── Per-lane state ──────────────────────────────────────────────────────────
 
+#[derive(Clone, Copy, SeedSide)]
 struct GrainLane {
     grains: [Grain; GRAINS_PER_LANE],
     /// Bit `i` is set while `grains[i]` is playing.
@@ -84,7 +85,12 @@ struct GrainLane {
     /// Asymmetrically smoothed active-grain count (Clouds SLOPE: fast rise,
     /// slow fall) used for Clouds-style amplitude normalisation.
     smoothed_count: f32,
+    #[seed_side(keep)]
     rng: LcgRng,
+    /// Whether `rng` has this lane's stream; unset on a lane or side new to
+    /// the module.
+    #[seed_side(keep)]
+    seeded: bool,
 }
 
 impl Default for GrainLane {
@@ -97,6 +103,7 @@ impl Default for GrainLane {
             gate_trigger: SchmittTrigger::default(),
             smoothed_count: 0.0,
             rng: LcgRng::default(),
+            seeded: false,
         }
     }
 }
@@ -114,8 +121,6 @@ struct GrainsState {
     /// Pre-computed window values for Bell / Sinc / Tukey.
     /// Allocated in `init`; refilled in `on_patch_update` when shape changes.
     window_lut: Box<[f32]>,
-    /// True once lane RNGs have been seeded off this instance's heap address.
-    seeded: bool,
 }
 
 impl Default for GrainsState {
@@ -125,7 +130,6 @@ impl Default for GrainsState {
             rate_ratio: 1.0,
             last_shape: None,
             window_lut: Box::default(), // empty; grown in init
-            seeded: false,
         }
     }
 }
@@ -596,24 +600,23 @@ impl Grains {
     ///
     /// Called from `on_patch_update` (not `init`) so the address is the
     /// stable per-instance heap address, not a transient stack slot.
-    /// Guarded by `seeded` (which rides `transfer_state_from`) so patch
-    /// updates don't clobber running grain sequences — identical to the
-    /// pattern used in `noise.rs`.
+    /// Only lanes without a stream are seeded: each lane's `seeded` rides
+    /// `transfer_state_from` with its RNG, so patch updates don't clobber
+    /// running grain sequences while a new lane or side gets its own.
     fn seed(&mut self) {
         let base = seed_base(self);
         for (lane, cs) in self.lane_state.iter_mut().enumerate() {
-            cs.rng.seed(base, lane);
+            if !cs.seeded {
+                cs.rng.seed(base, lane);
+                cs.seeded = true;
+            }
         }
-        self.state.seeded = true;
     }
 }
 
 impl crate::types::PatchUpdateHandler for Grains {
     fn on_patch_update(&mut self) {
-        // Seed RNGs once per instance lifetime.
-        if !self.state.seeded {
-            self.seed();
-        }
+        self.seed();
 
         // Recompute rate ratio now that wav.sample_rate() is valid (mirrors
         // sampler.rs on_patch_update).

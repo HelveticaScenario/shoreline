@@ -5,7 +5,7 @@
 use super::buffer::Resolution;
 use super::primitives::{Limiter, Ramp, Svf, soft_clip};
 
-#[derive(Default)]
+#[derive(Default, Clone, Copy)]
 pub struct FeedbackPath {
     feedback: Ramp,
     previous: f32,

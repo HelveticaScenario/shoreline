@@ -145,6 +145,75 @@ impl Voice {
         self.started = true;
     }
 
+    /// Become a copy of `other`, writing into the storage this voice holds,
+    /// so it carries on where `other` is. Allocation-free.
+    pub fn copy_from(&mut self, other: &Voice) {
+        let Self {
+            granular: _,
+            history: _,
+            input: _,
+            freeze: _,
+            freeze_schmitt: _,
+            trigger_schmitt: _,
+            trigger_previous: _,
+            trigger: _,
+            start: _,
+            smoothed: _,
+            started: _,
+            dry: _,
+            wet: _,
+            place: _,
+            decimator: _,
+            interpolator: _,
+            pair_input: _,
+            pair_freeze: _,
+            pair_wet: _,
+        } = other;
+        self.granular.copy_from(&other.granular);
+        self.history.copy_from(&other.history);
+        self.input = other.input;
+        self.freeze = other.freeze;
+        self.freeze_schmitt = other.freeze_schmitt;
+        self.trigger_schmitt = other.trigger_schmitt;
+        self.trigger_previous = other.trigger_previous;
+        self.trigger = other.trigger;
+        self.start = other.start;
+        self.smoothed = other.smoothed;
+        self.started = other.started;
+        self.dry = other.dry;
+        self.wet = other.wet;
+        self.place = other.place;
+        self.decimator = other.decimator;
+        self.interpolator = other.interpolator;
+        self.pair_input = other.pair_input;
+        self.pair_freeze = other.pair_freeze;
+        self.pair_wet = other.pair_wet;
+    }
+
+    /// Clear what the voice holds of its grains after placing them: the
+    /// clean-tape interpolators and the pair's waiting sample. A voice
+    /// copied from one placed in the centre starts so, since the original
+    /// keeps that history, and the filters being linear, the two add up to
+    /// it exactly.
+    pub fn clear_placed(&mut self) {
+        self.interpolator = Default::default();
+        self.pair_wet = [Frame::ZERO; 2];
+    }
+
+    /// Ramp the voice's placement to `place` over `samples` samples.
+    pub fn glide_place(&mut self, place: [f32; 2], samples: usize) {
+        for (ramp, &target) in self.place.iter_mut().zip(&place) {
+            ramp.start(target, samples.max(1));
+        }
+    }
+
+    /// Place the voice at `place` at once.
+    pub fn snap_place(&mut self, place: [f32; 2]) {
+        for (ramp, &target) in self.place.iter_mut().zip(&place) {
+            ramp.reset(target);
+        }
+    }
+
     #[inline]
     pub fn place(&self) -> [f32; 2] {
         [self.place[0].value(), self.place[1].value()]

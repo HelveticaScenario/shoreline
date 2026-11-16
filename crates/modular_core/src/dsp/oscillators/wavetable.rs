@@ -91,7 +91,7 @@ struct WavetableOscOutputs {
 }
 
 /// Per-lane oscillator state.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct LaneState {
     /// Phase accumulator in `[0, 1)`.
     phase: f64,

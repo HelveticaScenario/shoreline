@@ -27,7 +27,7 @@ const CONSONANTS: usize = 8;
 /// SAM's table rows, the last repeated as a guard.
 const ROWS: usize = VOWELS + CONSONANTS + 1;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 pub struct SamSynth {
     phase: f32,
     /// Plaits' one-sample `ParameterInterpolator`.

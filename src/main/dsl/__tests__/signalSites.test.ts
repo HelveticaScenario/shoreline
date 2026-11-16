@@ -340,6 +340,90 @@ describe('fold sites', () => {
         expect(folds(`$enosc($saw($sine('1hz'))).out()`)).toEqual([]);
     });
 
+    test('a signal group carries the channels of its signals', () => {
+        expect(folds('$`0`.add($g1(0)).outMono()')).toEqual([]);
+        expect(folds(`$saw($g1(['c3', 'e3'])).outMono()`)).toEqual([]);
+        expect(folds(`${wide}$saw('c3').add($g1(wide)).outMono()`)).toEqual([
+            "$saw('c3').add($g1(wide))‹.mono()›",
+        ]);
+        expect(
+            folds(
+                'const $g1 = () => $stereo(0, 1)\n$`0`.add($g1(0)).outMono()',
+            ),
+        ).toEqual(['$`0`.add($g1(0))‹.mono()›']);
+    });
+
+    test('a lane or slice carries its collection’s channels', () => {
+        expect(folds(`$saw('c3').lane(0).outMono()`)).toEqual([]);
+        expect(folds(`$saw(['c3', 'e3']).slice(0, 1).outMono()`)).toEqual([]);
+        expect(folds(`${wide}wide.lane(0).outMono()`)).toEqual([
+            'wide.lane(0)‹.mono()›',
+        ]);
+    });
+
+    test('a pattern’s cycle is mono', () => {
+        expect(folds(`$('c3 e3').cycle().outMono()`)).toEqual([]);
+        expect(folds('$saw($`c3 e3`.cycle()).outMono()')).toEqual([]);
+    });
+
+    test('a crossfade lifts with its playhead', () => {
+        expect(folds(`${wide}$cross(3, wide.range(0, 1)).outMono()`)).toEqual([
+            '$cross(3, wide.range(0, 1))‹.mono()›',
+        ]);
+        expect(
+            folds(`$cross(3, $sine('1hz').range(0, 1), [0, 5]).outMono()`),
+        ).toEqual([]);
+    });
+
+    test('a track tap’s controls are mono', () => {
+        const tap = `$saw('c2').out({ label: 'bass' })\nconst bass = $trackTap('bass')\n`;
+        expect(folds(`${tap}$sine('c5').out({ pan: bass.panning })`)).toEqual(
+            [],
+        );
+        expect(folds(`${tap}bass.level.outMono()`)).toEqual([]);
+        expect(folds(`${tap}bass['level'].outMono()`)).toEqual([]);
+        expect(
+            folds(`${tap}const { active } = bass\nactive.outMono()`),
+        ).toEqual([]);
+        expect(folds(`${tap}bass.outMono()`)).toEqual(['bass‹.mono()›']);
+    });
+
+    test('either side of a choice may be the value', () => {
+        expect(folds(`${wide}const x = 0 || wide\nx.outMono()`)).toEqual([
+            'x‹.mono()›',
+        ]);
+        expect(folds(`const x = 0 || $saw('c3')\nx.outMono()`)).toEqual([]);
+        const coin = `const coin = Math.random() > 0.5\n`;
+        expect(
+            folds(
+                `${coin}const x = coin ? $saw('c3') : $sine('c3')\nx.outMono()`,
+            ),
+        ).toEqual([]);
+        expect(
+            folds(
+                `${wide}${coin}const x = coin ? $saw('c3') : wide\nx.outMono()`,
+            ),
+        ).toEqual(['x‹.mono()›']);
+        expect(folds(`const x = undefined ?? $saw('c3')\nx.outMono()`)).toEqual(
+            [],
+        );
+    });
+
+    test('a destructured const carries what it takes', () => {
+        expect(
+            folds(`const { _cv: pitch } = $('c3')\npitch.outMono()`),
+        ).toEqual([]);
+        expect(folds(`const { _cv } = $('c3')\n_cv.outMono()`)).toEqual([]);
+        expect(
+            folds(
+                `const [a, b] = [$saw('c3'), $stereo(0, 1)]\na.outMono()\nb.outMono()`,
+            ),
+        ).toEqual(['b‹.mono()›']);
+        expect(
+            folds(`${wide}const [a = wide] = [$saw('c3')]\na.outMono()`),
+        ).toEqual(['a‹.mono()›']);
+    });
+
     test('plain values, patterns and controls are mono', () => {
         expect(folds(`$enosc('c3').out()`)).toEqual([]);
         expect(folds(`$enosc($('c3 e3')).out()`)).toEqual([]);

@@ -1,0 +1,3 @@
+kind: Fixed
+body: When an edit turns a module's input stereo, the new right side carries on from the left instead of starting from silence, so a held envelope, a delay's echoes or `$granular`'s recording keep sounding on both sides without a dropout.
+time: 2026-11-15T19:29:57.045879-05:00

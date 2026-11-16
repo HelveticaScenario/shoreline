@@ -69,7 +69,7 @@ struct OverdriveOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     drive: SwapGlide,
     tone: SwapGlide,

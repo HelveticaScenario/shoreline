@@ -69,7 +69,7 @@ struct SawOscillatorOutputs {
 }
 
 /// Per-lane oscillator state
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     /// Phase accumulator in `[0, 1)`. Kept in f64 so the DPW differencing
     /// (which divides a difference of near-equal integral values by the phase

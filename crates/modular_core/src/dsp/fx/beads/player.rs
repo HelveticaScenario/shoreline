@@ -40,6 +40,7 @@ pub struct GrainTrigger {
     pub params: GrainParams,
 }
 
+#[derive(Clone, Copy)]
 pub struct GranularPlayer {
     grains: [Grain; NUM_GRAINS],
     /// Grain indices ordered from best to worst candidate for stealing.
