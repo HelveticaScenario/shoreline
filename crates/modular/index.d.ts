@@ -654,6 +654,11 @@ export interface OutputSchema {
    * module's derived lane count.
    */
   lanes?: number
+  /**
+   * One value per logical lane even when the module is stereo
+   * (`#[output(…, mono)]`).
+   */
+  mono: boolean
   /** An `OutputPrecision` value. */
   precision: string
   /** A `BoundsKind` value. */

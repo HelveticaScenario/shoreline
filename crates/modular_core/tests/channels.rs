@@ -845,6 +845,63 @@ fn pan_has_a_lane_for_each_input_lane() {
     assert!(out[1].abs() < 1e-6, "{out:?}");
 }
 
+#[test]
+fn enosc_plays_stereo_and_its_split_outputs_mono() {
+    let patch = build(&[
+        ("e", "$enosc", json!({ "pitch": 0.0, "count": 4 })),
+        (
+            "low",
+            "$add",
+            json!({
+                "input": { "type": "cable", "module": "e", "port": "low", "lane": 0 },
+                "offset": 0.0,
+            }),
+        ),
+    ])
+    .unwrap();
+    let mut heard = false;
+    for _ in 0..512 {
+        let stereo = step(&patch, "e");
+        assert_eq!(stereo.len(), 2);
+        let module = &patch.sampleables["e"];
+        let [low, high] = ["low", "high"].map(|port| module.get_value_at(port, 0, 0));
+        assert!((stereo[0] + stereo[1] - low - high).abs() < 1e-3);
+        heard |= stereo[0] != stereo[1];
+    }
+    assert!(heard, "the sides differ");
+    // A split output is mono, so what reads it stays mono.
+    assert_eq!(patch.sampleables["e"].port_lanes("low"), 1);
+    assert_eq!(step(&patch, "low").len(), 1);
+}
+
+#[test]
+fn enosc_reads_a_stereo_phase_warp_folded() {
+    let render = |amount: Value| {
+        let patch = build(&[
+            ("l", "$signal", signal(json!(1.0))),
+            ("r", "$signal", signal(json!(3.0))),
+            ("m", "$signal", signal(json!(2.0))),
+            (
+                "st",
+                "$stereo",
+                json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+            ),
+            (
+                "e",
+                "$enosc",
+                json!({
+                    "pitch": 0.0,
+                    "count": 4,
+                    "phase": { "type": "pulsar", "amount": amount },
+                }),
+            ),
+        ])
+        .unwrap();
+        (0..512).flat_map(|_| step(&patch, "e")).collect::<Vec<_>>()
+    };
+    assert_eq!(render(cable("st", 0)), render(cable("m", 0)));
+}
+
 fn wav(channels: usize) -> Value {
     json!({ "type": "wav_ref", "path": format!("file{channels}"), "channels": channels })
 }

@@ -26,8 +26,9 @@ fn build_enosc(params: Value) -> Patch {
     )
 }
 
-/// One second of each of `ports` on `lane`, rendered together.
-fn render_ports<const N: usize>(patch: &Patch, ports: [&str; N], lane: usize) -> [Vec<f32>; N] {
+/// One second of each `(port, index)`, rendered together. The index is
+/// physical: a stereo lane's left side is `2 · lane`, its right `2 · lane + 1`.
+fn render_ports<const N: usize>(patch: &Patch, ports: [(&str, usize); N]) -> [Vec<f32>; N] {
     let mut out = std::array::from_fn(|_| Vec::new());
     let blocks = SAMPLE_RATE as usize / BLOCK_SIZE;
     for _ in 0..blocks {
@@ -38,16 +39,16 @@ fn render_ports<const N: usize>(patch: &Patch, ports: [&str; N], lane: usize) ->
             module.ensure_processed_to(BLOCK_SIZE);
         }
         for index in 0..BLOCK_SIZE {
-            for (samples, port) in out.iter_mut().zip(ports) {
-                samples.push(patch.sampleables["dut"].get_value_at(port, lane, index));
+            for (samples, (port, at)) in out.iter_mut().zip(ports) {
+                samples.push(patch.sampleables["dut"].get_value_at(port, at, index));
             }
         }
     }
     out
 }
 
-fn render_port(patch: &Patch, port: &str, lane: usize) -> Vec<f32> {
-    let [samples] = render_ports(patch, [port], lane);
+fn render_port(patch: &Patch, port: &str, index: usize) -> Vec<f32> {
+    let [samples] = render_ports(patch, [(port, index)]);
     samples
 }
 
@@ -129,7 +130,7 @@ fn scales_repeat_at_their_last_note() {
 fn spread_stacks_voices_up_the_scale() {
     // Spread 14/3 is 7 semitones per voice: C then G.
     let patch = build_enosc(json!({ "pitch": 0.0, "count": 2, "spread": 14.0 / 3.0 }));
-    let [root, other] = render_ports(&patch, ["root", "other"], 0);
+    let [root, other] = render_ports(&patch, [("root", 0), ("other", 0)]);
     assert_hz(frequency(&root), C4_HZ);
     assert_hz(frequency(&other), C4_HZ * 2f32.powf(7.0 / 12.0));
 }
@@ -140,10 +141,16 @@ fn split_outputs_sum_to_the_mix() {
         "pitch": -1.0, "count": 5, "spread": 2.0, "detune": 2.0, "balance": 2.0,
         "crossFm": 1.0, "fold": 1.0,
     }));
-    let [output, odd, even, low, high, root, other] = render_ports(
+    let [left, right, low, high, root, other] = render_ports(
         &patch,
-        ["all", "odd", "even", "low", "high", "root", "other"],
-        0,
+        [
+            ("all", 0),
+            ("all", 1),
+            ("low", 0),
+            ("high", 0),
+            ("root", 0),
+            ("other", 0),
+        ],
     );
     // The mix gain for 5 voices at balance 2, where each voice is 2^(4 · 0.4³)
     // louder than the one below. The root output's gain is a fixed 0.7 and the
@@ -151,19 +158,16 @@ fn split_outputs_sum_to_the_mix() {
     let ratio = 2f32.powf(4.0 * 0.4f32.powi(3));
     let amplitude_sum: f32 = (0..5).map(|i| ratio.powi(i)).sum();
     let mix_gain = (0.5 + (0.5 + 0.007_874_016) / ratio) / amplitude_sum;
-    let peak = output.iter().fold(0.0f32, |m, v| m.max(v.abs()));
+    let mix: Vec<f32> = left.iter().zip(&right).map(|(l, r)| l + r).collect();
+    let peak = mix.iter().fold(0.0f32, |m, v| m.max(v.abs()));
     assert!(peak > 0.1, "mix is silent");
-    for i in 0..output.len() {
+    for i in 0..mix.len() {
         assert!(
-            (odd[i] + even[i] - output[i]).abs() < 1e-3,
-            "odd + even at {i}"
-        );
-        assert!(
-            (low[i] + high[i] - output[i]).abs() < 1e-3,
+            (low[i] + high[i] - mix[i]).abs() < 1e-3,
             "low + high at {i}"
         );
         let rebuilt = root[i] / 0.7 * mix_gain + other[i] / 0.6;
-        assert!((rebuilt - output[i]).abs() < 1e-3, "root + other at {i}");
+        assert!((rebuilt - mix[i]).abs() < 1e-3, "root + other at {i}");
     }
 }
 
@@ -173,7 +177,8 @@ fn widest_input_sets_the_lane_count() {
         "pitch": [0.0, 1.0], "spread": [1.0, 2.0, 3.0],
     }));
     let module = &patch.sampleables["dut"];
-    assert_eq!(module.port_lanes("all"), 3);
+    assert_eq!(module.port_lanes("root"), 3);
+    assert_eq!(module.port_lanes("all"), 6);
 }
 
 #[test]
@@ -192,11 +197,14 @@ fn outputs_stay_bounded_across_options() {
                 "fold": 5.0, "cheby": 5.0, "segment": 5.0, "effectOrder": order,
                 "balance": -5.0,
             }));
-            for sample in render_port(&patch, "all", 1) {
-                assert!(
-                    sample.is_finite() && sample.abs() < 12.0,
-                    "{mode}: {sample}"
-                );
+            let sides: [_; 2 * LANES] = std::array::from_fn(|index| ("all", index));
+            for (index, samples) in render_ports(&patch, sides).iter().enumerate() {
+                for &sample in samples {
+                    assert!(
+                        sample.is_finite() && sample.abs() < 12.0,
+                        "{mode}, index {index}: {sample}"
+                    );
+                }
             }
         }
     }
