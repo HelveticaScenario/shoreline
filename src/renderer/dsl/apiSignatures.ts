@@ -3,7 +3,7 @@
  * DSL lib (`buildLibSource`), which declares every function, method, and
  * option object a patch can call.
  *
- * Functions are keyed by their dotted name (`$setMasterGain`, `$phase.bend`,
+ * Functions are keyed by their dotted name (`$setMainGain`, `$phase.bend`,
  * `$v.osc`), methods by name, and the chain modules of an audio value by
  * their dotted path (`lpf`, `mi.chorus`). Audio and video values are separate
  * families, since their methods share names (`range`, `fold`) but not

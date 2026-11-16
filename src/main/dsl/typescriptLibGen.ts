@@ -1125,13 +1125,13 @@ function $wavMeta(path: string): WavMeta;
 function $setTempo(tempo: number): void;
 
 /**
- * Set the master gain applied to the final mix.
+ * Set the main gain applied to the final mix.
  * @param gain Gain as a {@link LaneSum<Signal>} (2.5 is default, 5.0 is unity)
- * @example $setMasterGain(2.5) // 50% gain (default)
- * @example $setMasterGain(5.0) // unity
- * @example $setMasterGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
+ * @example $setMainGain(2.5) // 50% gain (default)
+ * @example $setMainGain(5.0) // unity
+ * @example $setMainGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
  */
-function $setMasterGain(gain: LaneSum<Signal>): void;
+function $setMainGain(gain: LaneSum<Signal>): void;
 
 /**
  * An XY oscilloscope as the patch's picture: shorthand for

@@ -1,7 +1,7 @@
 /**
  * Source edits behind the mixer's controls: a track's mute and solo buttons
  * rewrite its label's prefix, its gain fader and pan knob the options of its
- * `.track(...)`, and the master fader the `$setMasterGain(...)` level.
+ * `.track(...)`, and the master fader the `$setMainGain(...)` level.
  *
  * A track is found at its label's anchor, the offset the label had when the
  * playing patch ran, moved along with the user's edits since, and must still
@@ -233,8 +233,8 @@ export function computeTrackOptionEdit(
 }
 
 /**
- * Compute the text edit that sets the master gain: updates the numeric
- * literal in the last `$setMasterGain(...)` outside any function,
+ * Compute the text edit that sets the main gain: updates the numeric
+ * literal in the last `$setMainGain(...)` outside any function,
  * or appends a new call at the end of the source. A call inside a function
  * is never the one edited: whether and when it runs is the function's
  * caller's business. Returns null when that call's argument is not a
@@ -242,7 +242,7 @@ export function computeTrackOptionEdit(
  * statement of its own at the top of the patch, so whether it runs depends
  * on a branch or loop.
  */
-export function computeSetMasterGainEdit(
+export function computeSetMainGainEdit(
     source: string,
     value: number,
 ): TrackSourceEdit | null {
@@ -253,7 +253,7 @@ export function computeSetMasterGainEdit(
         if (
             ts.isCallExpression(node) &&
             ts.isIdentifier(node.expression) &&
-            node.expression.text === '$setMasterGain' &&
+            node.expression.text === '$setMainGain' &&
             !insideFunction(node) &&
             (!last || node.getStart(file) > last.getStart(file))
         ) {
@@ -278,7 +278,7 @@ export function computeSetMasterGainEdit(
     return {
         end: source.length,
         start: source.length,
-        text: `${needsNewline ? '\n' : ''}$setMasterGain(${newText})\n`,
+        text: `${needsNewline ? '\n' : ''}$setMainGain(${newText})\n`,
     };
 }
 

@@ -849,8 +849,8 @@ export class GraphBuilder implements ChainHost {
     private tempo: number = 120;
     /** Whether $setTempo was explicitly called in the DSL */
     private tempoExplicitlySet: boolean = false;
-    /** Master gain signal. */
-    private masterGain: PolySignal = DEFAULT_OUTPUT_GAIN;
+    /** Main gain signal. */
+    private mainGain: PolySignal = DEFAULT_OUTPUT_GAIN;
     /** Time signature numerator (beats per bar) for ROOT_CLOCK */
     private timeSignatureNumerator: number = 4;
     /** Time signature denominator (beat value) for ROOT_CLOCK */
@@ -1167,11 +1167,11 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Set the master gain
-     * @param gain - Signal value for master gain (2.5 is default, 5.0 is unity)
+     * Set the main gain
+     * @param gain - Signal value for main gain (2.5 is default, 5.0 is unity)
      */
-    setMasterGain(gain: PolySignal): void {
-        this.masterGain = gain;
+    setMainGain(gain: PolySignal): void {
+        this.mainGain = gain;
     }
 
     /**
@@ -1327,7 +1327,7 @@ export class GraphBuilder implements ChainHost {
             // Module-id suffix per group, assigned in source order. Keys are
             // track names, unique and never '__main__' (a name is an
             // identifier); suffixes seed the hidden __vu* module ids, so they
-            // are unique too — 'main' is reserved for the master gain stage,
+            // are unique too — 'main' is reserved for the main gain stage,
             // and names that sanitize alike get a numeric disambiguator.
             const skByOrdinal = new Map<number, string>();
             const usedSk = new Set<string>(['main']);
@@ -1526,26 +1526,26 @@ export class GraphBuilder implements ChainHost {
             // Apply end of chain processing and global output gain. A
             // numeric output gain is lifted into a _smoothControl so the
             // master fader can drive it live; the fader's source edits go
-            // through $setMasterGain. A signal-valued master gain renders as
+            // through $setMainGain. A signal-valued main gain renders as
             // a locked, live-tracking fader.
             this.processingEndOfChain = true;
-            const masterGainControllable = typeof this.masterGain === 'number';
-            const masterGainValue = masterGainControllable
-                ? (this.masterGain as number)
+            const mainGainControllable = typeof this.mainGain === 'number';
+            const mainGainValue = mainGainControllable
+                ? (this.mainGain as number)
                 : null;
-            const masterGainSignal = masterGainControllable
-                ? smoothControlFactory(this.masterGain, {
+            const mainGainSignal = mainGainControllable
+                ? smoothControlFactory(this.mainGain, {
                       ...OUT_GAIN_RANGE,
                       id: '__vuGain_main',
                   })
-                : this.masterGain;
+                : this.mainGain;
             const gainedMix = gainFactory(
                 this.endOfChainCb(finalMix),
-                masterGainSignal,
+                mainGainSignal,
             );
 
             // The root output's lanes are device channels, so whatever stereo
-            // the end-of-chain callback or a signal master gain brings in is
+            // the end-of-chain callback or a signal main gain brings in is
             // folded, keeping each lane on its own channel.
             signalFactory(monoFactory(gainedMix), { id: 'ROOT_OUTPUT' });
 
@@ -1555,12 +1555,12 @@ export class GraphBuilder implements ChainHost {
             vuMeters.push({
                 baseChannel: 0,
                 channels: 2,
-                gain: masterGainValue,
-                gainLocked: !masterGainControllable,
-                gainModuleId: masterGainControllable ? '__vuGain_main' : null,
-                gainSource: masterGainControllable
+                gain: mainGainValue,
+                gainLocked: !mainGainControllable,
+                gainModuleId: mainGainControllable ? '__vuGain_main' : null,
+                gainSource: mainGainControllable
                     ? undefined
-                    : controlSourceTap(this.masterGain),
+                    : controlSourceTap(this.mainGain),
                 key: '__main__',
                 label: 'Main',
                 main: true,
@@ -1817,7 +1817,7 @@ export class GraphBuilder implements ChainHost {
         this.deferredOutputs.clear();
         this.trackTaps = [];
         this.tempo = 120;
-        this.masterGain = DEFAULT_OUTPUT_GAIN;
+        this.mainGain = DEFAULT_OUTPUT_GAIN;
         this.timeSignatureNumerator = 4;
         this.timeSignatureDenominator = 4;
         this.groove = undefined;

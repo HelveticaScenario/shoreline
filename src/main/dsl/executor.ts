@@ -283,8 +283,8 @@ export function executePatchScript(
         }
         builder.setTempo(tempo);
     };
-    const $setMasterGain = (gain: PolySignal) => {
-        builder.setMasterGain(gain);
+    const $setMainGain = (gain: PolySignal) => {
+        builder.setMainGain(gain);
     };
 
     const $setTimeSignature = (numerator: number, denominator: number) => {
@@ -846,7 +846,7 @@ export function executePatchScript(
         $trackTap,
         // Global settings
         $setTempo,
-        $setMasterGain,
+        $setMainGain,
         $setTimeSignature,
         $setGroove,
         $swing,

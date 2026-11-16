@@ -75,7 +75,7 @@ export const API_CONTROLS: Record<
     Record<string, Record<string, ControlSource>>
 > = {
     audio: {
-        $setMasterGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
+        $setMainGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
         track: {
             gain: { spec: LEVEL },
             pan: { spec: closedControl(-5, 5, 0) },

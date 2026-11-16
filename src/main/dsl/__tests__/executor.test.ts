@@ -1691,8 +1691,8 @@ describe('global settings', () => {
         expect(() => execPatch('$setTempo(140)')).not.toThrow();
     });
 
-    test('$setMasterGain does not throw', () => {
-        expect(() => execPatch('$setMasterGain(5.0)')).not.toThrow();
+    test('$setMainGain does not throw', () => {
+        expect(() => execPatch('$setMainGain(5.0)')).not.toThrow();
     });
 
     test('$setTempo rejects a non-finite tempo with a pointer to $setTempo', () => {

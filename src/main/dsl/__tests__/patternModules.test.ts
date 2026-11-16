@@ -60,7 +60,7 @@ describe('a pattern builds the graph of its $cycle', () => {
         [`bus: $bus((m) => m); out: SEQ.saw().track({ sends: [bus, SEQ] })`],
         [`out: $delay($saw(SEQ), 0.25, { feedback: SEQ })`],
         [`out: $saw('c3').amp($g1(SEQ))`],
-        [`$setMasterGain(SEQ); out: $saw('c3')`],
+        [`$setMainGain(SEQ); out: $saw('c3')`],
         [`const d = $deferred(); out: $saw(d); d.set(SEQ)`],
         [`out: $pWarp($sine('c3'), $phase.mirror(SEQ))`],
         [`out: $mix([SEQ, 'g4'])`],

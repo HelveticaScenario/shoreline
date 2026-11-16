@@ -67,7 +67,7 @@ import {
 } from './app/videoPreviewAnchors';
 import { transformErrorsWithSourceLocations } from './app/validationErrorLocations';
 import {
-    computeSetMasterGainEdit,
+    computeSetMainGainEdit,
     computeTrackOptionEdit,
     computeTrackStateEdit,
 } from './dsl/trackSourceEdit';
@@ -1323,7 +1323,7 @@ function App() {
     );
 
     /** Write `gain` into the source — the track's `gain` option, or
-     *  $setMasterGain for the master. */
+     *  $setMainGain for the master. */
     const writeVuGainEdit = useCallback(
         (key: string, gain: number) => {
             const outputs = vuOutputsRef.current;
@@ -1332,9 +1332,9 @@ function App() {
                 return;
             }
             if (outputs[idx].main) {
-                // The master fader's source of truth is $setMasterGain.
+                // The master fader's source of truth is $setMainGain.
                 applyVuSourceEdit(key, (source) =>
-                    computeSetMasterGainEdit(source, gain),
+                    computeSetMainGainEdit(source, gain),
                 );
             } else {
                 applyVuSourceEdit(key, (source, anchor, name) =>
@@ -1477,7 +1477,7 @@ function App() {
     );
 
     /** Right-click on a meter: back to the default gain (unity for tracks,
-     *  the master gain default for the master), property removed
+     *  the main gain default for the master), property removed
      *  or rewritten accordingly. */
     const handleVuGainReset = useCallback(
         (key: string) => {
@@ -1492,7 +1492,7 @@ function App() {
 
             if (isMain) {
                 applyVuSourceEdit(key, (source) =>
-                    computeSetMasterGainEdit(source, resetGain),
+                    computeSetMainGainEdit(source, resetGain),
                 );
             } else {
                 applyVuSourceEdit(key, (source, anchor, name) =>

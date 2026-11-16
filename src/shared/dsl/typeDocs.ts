@@ -552,14 +552,14 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Set the master gain applied to the final mix. 2.5 is the default (50%); 5.0 is unity gain.',
+            'Set the main gain applied to the final mix. 2.5 is the default (50%); 5.0 is unity gain.',
         examples: [
-            '$setMasterGain(2.5) // 50% gain (default)',
-            '$setMasterGain(5.0) // unity gain',
-            "$setMasterGain($sine('1hz')) // modulated gain",
+            '$setMainGain(2.5) // 50% gain (default)',
+            '$setMainGain(5.0) // unity gain',
+            "$setMainGain($sine('1hz')) // modulated gain",
         ],
         group: 'Global Settings',
-        name: '$setMasterGain',
+        name: '$setMainGain',
         params: [
             {
                 name: 'gain',
@@ -567,7 +567,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
                 description: 'Gain level (2.5 default, 5.0 unity)',
             },
         ],
-        signature: '$setMasterGain(gain: LaneSum<Signal>): void',
+        signature: '$setMainGain(gain: LaneSum<Signal>): void',
     },
     // ---- Controls -----
     {
@@ -765,7 +765,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Set a custom processor applied to the final mix just before the master gain. ' +
+            'Set a custom processor applied to the final mix just before the main gain. ' +
             'The callback receives the fully mixed Collection and should return a processed signal.',
         examples: [
             `$setEndOfChainCb((mix) => $lpf(mix, '2000hz'));`,

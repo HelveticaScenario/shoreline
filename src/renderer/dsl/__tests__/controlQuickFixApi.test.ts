@@ -61,9 +61,9 @@ describe('computeControlQuickFixes — API methods and functions', () => {
     });
 
     test('a global function param wraps', () => {
-        const { source, fixes } = fixesAt(`$setMasterGain(2.|5)`);
+        const { source, fixes } = fixesAt(`$setMainGain(2.|5)`);
         expect(apply(source, wrapFix(fixes))).toBe(
-            `$setMasterGain($slider('gain', 2.5, 0, 5))`,
+            `$setMainGain($slider('gain', 2.5, 0, 5))`,
         );
     });
 
@@ -348,7 +348,7 @@ describe('computeControlQuickFixes — stray and trailing commas', () => {
 describe('control quick-fixes never produce malformed JavaScript', () => {
     const VALID = [
         `const bus = $bus((m) => m).track()\n$pulse('a3', { width: 2.5, pwm: 1 }).lpf('100hz', 2,).track({ gain: 2.5 })\n$sine('c4').track({ sends: [bus, 1] })`,
-        `$sine(0).lpf('100hz', 1.0).wet(2.5).track({ gain: 2.5 })\n$setMasterGain(2.5)\n$c('a3').erratic(1, { speed: 1.5, })`,
+        `$sine(0).lpf('100hz', 1.0).wet(2.5).track({ gain: 2.5 })\n$setMainGain(2.5)\n$c('a3').erratic(1, { speed: 1.5, })`,
         `function f() {\n  return $saw(\n    'a3', // pitch\n    { width: 1 /* x */ },\n  ).track()\n}\n$phase.bend(1.5, $phase.fold(1))`,
         `$v.out($v.osc(4, $v.time).osc(0.1).osc(4).wet(1))\n$adsr($pulse('2hz'), { attack: 0.1 }).range(0, 5)`,
     ];

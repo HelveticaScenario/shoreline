@@ -86,13 +86,13 @@ describe('vuMeters emission', () => {
             portName: 'output',
         });
         expect(main.muteModuleId).toBeUndefined();
-        // The lifted master gain seeds the builder's output-gain default.
+        // The lifted main gain seeds the builder's output-gain default.
         expect(moduleById(patch, '__vuGain_main').params.value).toBe(2.5);
     });
 
-    test('$setMasterGain seeds the lifted master gain', () => {
+    test('$setMainGain seeds the lifted main gain', () => {
         const patch = execPatch(`
-            $setMasterGain(4)
+            $setMainGain(4)
             out: $sine('c4')
         `);
         expect(moduleById(patch, '__vuGain_main').params.value).toBe(4);
@@ -102,7 +102,7 @@ describe('vuMeters emission', () => {
 
     test('a signal-valued output gain locks the master fader', () => {
         const patch = execPatch(`
-            $setMasterGain($sine('0.1hz').range(0, 5))
+            $setMainGain($sine('0.1hz').range(0, 5))
             out: $sine('c4')
         `);
         const meters = vuMeters(patch);
@@ -268,7 +268,7 @@ describe('track names', () => {
         ]);
     });
 
-    test("a 'main' track never collides with the master gain id", () => {
+    test("a 'main' track never collides with the main gain id", () => {
         const patch = execPatch(`main: $sine('c4')`);
         expect(vuMeters(patch)[0].moduleId).toBe('__vuTap_main_2');
         expect(moduleById(patch, '__vuGain_main').moduleType).toBe(

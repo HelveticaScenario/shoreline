@@ -8,7 +8,7 @@ import {
     type TrackState,
 } from '../../../shared/dsl/trackLabels';
 import {
-    computeSetMasterGainEdit,
+    computeSetMainGainEdit,
     computeTrackOptionEdit,
     computeTrackStateEdit,
 } from '../trackSourceEdit';
@@ -267,31 +267,31 @@ describe('computeTrackOptionEdit — .track options', () => {
     });
 });
 
-describe('computeSetMasterGainEdit — master fader', () => {
+describe('computeSetMainGainEdit — master fader', () => {
     const master = (source: string, value: number) =>
-        applied(source, computeSetMasterGainEdit(source, value));
+        applied(source, computeSetMainGainEdit(source, value));
 
     test('updates an existing numeric call', () => {
-        expect(master(`$setMasterGain(2.5)\nlead: $sine('c4')`, 4)).toBe(
-            `$setMasterGain(4)\nlead: $sine('c4')`,
+        expect(master(`$setMainGain(2.5)\nlead: $sine('c4')`, 4)).toBe(
+            `$setMainGain(4)\nlead: $sine('c4')`,
         );
     });
 
     test('appends a call when none exists', () => {
         expect(master(`lead: $sine('c4')`, 3.2)).toBe(
-            `lead: $sine('c4')\n$setMasterGain(3.2)\n`,
+            `lead: $sine('c4')\n$setMainGain(3.2)\n`,
         );
     });
 
-    test('a signal-driven master gain is not edited', () => {
+    test('a signal-driven main gain is not edited', () => {
         expect(
-            master(`$setMasterGain($sine('1hz'))\nlead: $sine('c4')`, 4),
+            master(`$setMainGain($sine('1hz'))\nlead: $sine('c4')`, 4),
         ).toBeNull();
     });
 
     test('a commented-out call does not count', () => {
-        expect(master(`// $setMasterGain(1)\nlead: $sine('c4')\n`, 4)).toBe(
-            `// $setMasterGain(1)\nlead: $sine('c4')\n$setMasterGain(4)\n`,
+        expect(master(`// $setMainGain(1)\nlead: $sine('c4')\n`, 4)).toBe(
+            `// $setMainGain(1)\nlead: $sine('c4')\n$setMainGain(4)\n`,
         );
     });
 });

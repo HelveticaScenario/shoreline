@@ -4,7 +4,7 @@
  * Module calls — direct factories (`$saw(...)`, `$unstable.filter.lp(...)`)
  * and chain modules on audio signals (`.lpf(...)`) — resolve through the module
  * schemas, which carry each param's signal type, range, and default. Every
- * other API call — functions (`$setMasterGain`, `$phase.bend`, `$v.osc`),
+ * other API call — functions (`$setMainGain`, `$phase.bend`, `$v.osc`),
  * methods (`.track`, `.amp`, `.range`), and video chains — resolves
  * through the generated DSL lib's signatures (apiSignatures.ts), in the
  * family of its receiver (receiverFamily.ts), with ranges and defaults from
