@@ -1,3 +1,3 @@
 kind: Fixed
-body: Saving a new untitled file keeps the cursor and scroll position instead of jumping back to the top, even when saving over a file that is already open, and a new untitled file always opens at the top.
+body: Saving a new untitled file or renaming an open one keeps the cursor and scroll position instead of jumping back to the top, even when saving over a file that is already open, and a new untitled file always opens at the top.
 time: 2026-11-15T16:17:21.947767-05:00

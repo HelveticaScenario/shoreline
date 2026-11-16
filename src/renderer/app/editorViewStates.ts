@@ -27,7 +27,11 @@ export interface EditorViewStates {
         editor: ViewStateEditor | null,
         bufferId: string | undefined,
     ): void;
-    /** Call once the editor shows the new buffer's model (a passive effect). */
+    /**
+     * Call once the editor shows the new buffer's model, and again whenever
+     * its text is written (passive effects): a move onto the shown buffer
+     * replaces its text along with its view state.
+     */
     afterShow(): void;
     /** Carries `fromId`'s view state to `toId`, replacing any `toId` had. */
     move(fromId: string, toId: string): void;
@@ -87,6 +91,9 @@ export function createEditorViewStates(): EditorViewStates {
                     states.set(toId, state);
                 } else {
                     states.delete(toId);
+                }
+                if (toId === shownId) {
+                    restorePending = true;
                 }
             }
             states.delete(fromId);

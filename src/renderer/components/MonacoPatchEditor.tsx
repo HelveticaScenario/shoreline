@@ -291,9 +291,10 @@ export function MonacoPatchEditor({
         openModelPathsRef.current = paths;
     }, [monaco, openFiles]);
 
-    // The Editor's own view-state store is off (it keys by path and never
-    // forgets), so the buffer's view state is saved here before the Editor's
-    // passive effect swaps models, and restored below once it has.
+    // View states live in `viewStates`, which follows buffers whose ids
+    // change, so the Editor's own store is off. A buffer's view state is saved
+    // here, before the Editor's passive effect swaps models, and restored
+    // below once it has.
     useLayoutEffect(() => {
         viewStates.beforeShow(editor, currentFile);
     }, [editor, currentFile, viewStates]);
@@ -344,7 +345,7 @@ export function MonacoPatchEditor({
     // another buffer's text (an untitled buffer saved over an open file).
     useEffect(() => {
         viewStates.afterShow();
-    }, [editor, currentFile, viewStates]);
+    }, [editor, currentFile, value, viewStates]);
 
     const handleMount: OnMount = (ed) => {
         setEditor(ed);

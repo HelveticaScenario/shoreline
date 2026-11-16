@@ -66,6 +66,20 @@ describe('createEditorViewStates', () => {
         expect(ed.line).toBe(40);
     });
 
+    test('a hidden buffer that moves onto the shown one restores its view state', () => {
+        const viewStates = createEditorViewStates();
+        const ed = fakeEditor();
+        show(viewStates, ed, 'untitled-1');
+        ed.line = 40;
+        show(viewStates, ed, '/w/song.mjs');
+        ed.line = 10;
+        viewStates.move('untitled-1', '/w/song.mjs');
+        // The shown model takes the moved buffer's text, moving the caret.
+        ed.line = 1;
+        viewStates.afterShow();
+        expect(ed.line).toBe(40);
+    });
+
     test('a hidden buffer that moves keeps its view state at the new id', () => {
         const viewStates = createEditorViewStates();
         const ed = fakeEditor();

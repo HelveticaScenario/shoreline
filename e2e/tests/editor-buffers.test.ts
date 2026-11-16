@@ -175,7 +175,9 @@ test.describe('editor buffers', () => {
         await window.keyboard.press('ControlOrMeta+s');
         await expect(window.locator('.dirty-dot')).toHaveCount(0);
 
-        expect(await caretView(window)).toEqual({ caret: 150, visible: true });
+        await expect
+            .poll(() => caretView(window))
+            .toEqual({ caret: 150, visible: true });
     });
 
     test('saving an untitled buffer over an open file keeps the cursor', async ({
@@ -201,7 +203,9 @@ test.describe('editor buffers', () => {
         expect(
             await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
         ).toBe(LONG_PATCH);
-        expect(await caretView(window)).toEqual({ caret: 150, visible: true });
+        await expect
+            .poll(() => caretView(window))
+            .toEqual({ caret: 150, visible: true });
     });
 
     test('a new untitled buffer opens at the top, whatever its number held', async ({

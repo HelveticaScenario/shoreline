@@ -63,11 +63,12 @@ export function useEditorBuffers({
     }, [buffers]);
 
     const [viewStates] = useState(createEditorViewStates);
+    const untitledIdsKey = JSON.stringify(
+        buffers.flatMap((b) => (b.kind === 'untitled' ? [b.id] : [])),
+    );
     useEffect(() => {
-        viewStates.setOpenUntitled(
-            buffers.flatMap((b) => (b.kind === 'untitled' ? [b.id] : [])),
-        );
-    }, [buffers, viewStates]);
+        viewStates.setOpenUntitled(JSON.parse(untitledIdsKey) as string[]);
+    }, [untitledIdsKey, viewStates]);
 
     const watchedPathsKey = JSON.stringify(
         buffers.flatMap((b) => (b.kind === 'file' ? [b.filePath] : [])).sort(),
