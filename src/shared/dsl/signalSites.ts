@@ -554,9 +554,12 @@ export function collectSignalSites(
         if (ts.isPropertyAccessExpression(value)) {
             return memberChannels(value.expression, value.name.text);
         }
-        // A lane carries its collection's channels.
         if (ts.isElementAccessExpression(value)) {
-            return channelsOf(value.expression);
+            const key = value.argumentExpression;
+            // A lane carries its collection's channels.
+            return ts.isStringLiteralLike(key)
+                ? memberChannels(value.expression, key.text)
+                : channelsOf(value.expression);
         }
         if (ts.isCallExpression(value)) {
             return callChannels(value);
