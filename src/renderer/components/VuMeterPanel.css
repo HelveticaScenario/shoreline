@@ -27,7 +27,7 @@
     border-radius: 0 3px 3px 0;
 }
 
-/* Bus strips sit past the main strip, pinned with it. */
+/* Bus strips sit just left of the main strip, pinned with it. */
 .vu-meter-buses {
     display: flex;
     align-items: stretch;

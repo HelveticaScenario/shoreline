@@ -609,16 +609,6 @@ export function VuMeterPanel({
                     ))
                 )}
             </div>
-            {mainOutput && (
-                <VuMeter
-                    key={mainOutput.key}
-                    output={mainOutput}
-                    ghost={ghosts.get(mainOutput.key)}
-                    index={0}
-                    suppressed={false}
-                    {...meterProps}
-                />
-            )}
             {busOutputs.length > 0 && (
                 <div className="vu-meter-buses">
                     {busOutputs.map((output, i) => (
@@ -632,6 +622,16 @@ export function VuMeterPanel({
                         />
                     ))}
                 </div>
+            )}
+            {mainOutput && (
+                <VuMeter
+                    key={mainOutput.key}
+                    output={mainOutput}
+                    ghost={ghosts.get(mainOutput.key)}
+                    index={0}
+                    suppressed={false}
+                    {...meterProps}
+                />
             )}
         </div>
     );

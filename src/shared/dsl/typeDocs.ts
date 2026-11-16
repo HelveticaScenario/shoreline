@@ -726,7 +726,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'A send-return bus: one stereo lane, the mix of every signal sent to it through the `sends` option of `.track()`. ' +
             "Chain effects on it and label the result to hear it. That track is the bus: its name is what `sends` takes, and reads as the track's signal like any other name. " +
-            'A bus has one track, and a bus track cannot send to another bus. The mixer shows bus tracks to the right of the main strip.',
+            'A bus has one track, and a bus track cannot send to another bus. The mixer shows bus tracks on the right, just left of the main strip.',
         examples: [
             "fx: $bus().plate()\ntone: $saw('a').track({ sends: [fx, 3] })\nbass: $sine('a2').track({ sends: fx })",
             "// One track feeding two buses at different levels\nverb: $bus().plate().track({ gain: 3 })\necho: $bus().delay(0.25)\nkeys: $saw('c3').track({ sends: [[verb, 2], [echo, 4]] })",

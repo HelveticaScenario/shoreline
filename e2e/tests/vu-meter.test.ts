@@ -338,9 +338,10 @@ test.describe('vu meter panel', () => {
         await window.evaluate(() => {
             window.__TEST_API__!.setMixerVisible(true);
         });
-        // A bus strip sits past the main strip, lettered like a return.
+        // A bus strip sits just left of the main strip, lettered like a
+        // return.
         const bus = window.locator(
-            '.vu-meter--main + .vu-meter-buses > .vu-meter[data-vu-key="fx"]',
+            '.vu-meter-buses:has(+ .vu-meter--main) > .vu-meter[data-vu-key="fx"]',
         );
         await expect(bus).toHaveCount(1);
         await expect(bus.locator('.vu-btn-mute')).toHaveText('A');
