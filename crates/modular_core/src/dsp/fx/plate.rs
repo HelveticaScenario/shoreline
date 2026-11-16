@@ -14,7 +14,7 @@ use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::types::SwapGlide;
 
 // ─── Reference sample rate ───────────────────────────────────────────────────
@@ -89,15 +89,16 @@ fn scale_samples(ref_samples: usize, sample_rate: f32) -> usize {
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct PlateParams {
     #[input(
-        "signal to reverberate; all lanes are mixed to mono",
+        "signal to reverberate; all lanes and both sides are mixed to mono",
         type = audio,
     )]
-    input: PolySignal,
+    input: PairSignal,
     #[input(
         "how much treble enters the reverb: -5 dull, +5 full bandwidth",
         type = control,
         default = 2.02,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     bandwidth: Option<LaneSum>,
@@ -106,6 +107,7 @@ struct PlateParams {
         type = control,
         default = 4.09,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     damping: Option<LaneSum>,
@@ -114,6 +116,7 @@ struct PlateParams {
         type = control,
         default = -2.0,
         range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     decay: Option<LaneSum>,
@@ -122,6 +125,7 @@ struct PlateParams {
         type = control,
         default = 0.0,
         control_range = (-5.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     modulation: Option<LaneSum>,
@@ -134,7 +138,7 @@ struct PlateParams {
 struct PlateOutputs {
     #[output(
         "output",
-        "stereo reverb, fully wet, as left and right lanes",
+        "stereo reverb, fully wet, as one stereo lane",
         type = cv,
         default
     )]
@@ -241,9 +245,9 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$plate", stereo = mono,
+    name = "$plate", stereo = stereo,
     docs = PLATE_DOCS,
-    lanes = 2,
+    lanes = 1,
     has_init,
     args(input)
 )]
@@ -356,7 +360,6 @@ impl Plate {
 
     fn update(&mut self, sample_rate: f32) {
         let lens = self.state.lengths;
-        let num_input_lanes = self.params.input.lanes();
 
         // ── Read parameters ──────────────────────────────────────────────
 
@@ -388,23 +391,9 @@ impl Plate {
         let mod_v = self.params.modulation.value_or(0.0);
         let mod_excursion = mod_v * lens.mod_excursion_scale;
 
-        // ── Sum input lanes to mono ───────────────────────────────────
+        // ── Sum every lane and side to mono ───────────────────────────
 
-        let mut left_in = 0.0f32;
-        let mut right_in = 0.0f32;
-        for lane in 0..num_input_lanes {
-            let sample = self.params.input.get_value(lane);
-            if lane % 2 == 0 {
-                left_in += sample;
-            } else {
-                right_in += sample;
-            }
-        }
-        // With an odd lane count the final lane has no stereo partner,
-        // so feed it to both sides (a mono input drives left and right equally).
-        if num_input_lanes % 2 == 1 {
-            right_in += self.params.input.get_value(num_input_lanes - 1);
-        }
+        let [left_in, right_in] = self.params.input.sum_sides();
         let mono_in = (left_in + right_in) * 0.5;
 
         // ── Input bandwidth filter ───────────────────────────────────────
@@ -572,12 +561,18 @@ mod tests {
         let constructors = get_constructors();
         let deserializers = get_params_deserializers();
         let deserializer = deserializers.get("$plate").unwrap();
-        let cached = deserializer(params).unwrap();
+        let mut cached = deserializer(params).unwrap();
+        // Built as a patch builds a stereo module: one lane of two sides, with
+        // each input lane on both sides, as a mono producer reaches it.
+        cached.params.expand_lanes(&crate::types::LaneExpansion {
+            channels: 2,
+            producer: &|_, _| 1,
+        });
         let deserialized = DeserializedParams {
             params: cached.params,
-            lane_count: cached.lane_count,
+            lane_count: cached.lane_count * 2,
             f64_inputs: false,
-            channels: 1,
+            channels: 2,
         };
         constructors.get("$plate").unwrap()(
             "test-plate",
@@ -620,7 +615,7 @@ mod tests {
     fn recovers_after_non_finite_input() {
         // A non-finite input sample must not lodge in the tank's recursive
         // state: once the input is finite again, the reverb builds a tail.
-        use crate::poly::PolySignal;
+        use crate::poly::{PairSignal, PolySignal};
         use crate::types::{OutputStruct, Signal};
 
         let mut outputs = super::PlateOutputs::default();
@@ -629,14 +624,14 @@ mod tests {
             outputs,
             state: Default::default(),
             params: super::PlateParams {
-                input: PolySignal::mono(Signal::Volts(f32::NAN)),
+                input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(f32::NAN))),
                 bandwidth: None,
                 damping: None,
                 decay: None,
                 modulation: None,
             },
             _lane_count: 2,
-            _channels: 1,
+            _channels: 2,
             _block_index: Default::default(),
         };
         m.init(SAMPLE_RATE);
@@ -644,7 +639,7 @@ mod tests {
             m.update(SAMPLE_RATE);
         }
 
-        m.params.input = PolySignal::mono(Signal::Volts(1.0));
+        m.params.input = PairSignal::from_mono(PolySignal::mono(Signal::Volts(1.0)));
         let mut energy = 0.0f32;
         for _ in 0..48000 {
             m.update(SAMPLE_RATE);
@@ -688,11 +683,11 @@ mod tests {
         let right_energy: f32 = right.iter().map(|s| s * s).sum();
         assert!(
             left_energy > 0.0,
-            "left lane should have energy from impulse"
+            "left side should have energy from impulse"
         );
         assert!(
             right_energy > 0.0,
-            "right lane should have energy from impulse"
+            "right side should have energy from impulse"
         );
     }
 
@@ -704,7 +699,7 @@ mod tests {
             .iter()
             .zip(right.iter())
             .all(|(l, r)| (l - r).abs() < 1e-10);
-        assert!(!identical, "left and right lanes should be decorrelated");
+        assert!(!identical, "left and right sides should be decorrelated");
     }
 
     #[test]

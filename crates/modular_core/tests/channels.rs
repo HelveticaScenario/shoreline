@@ -568,6 +568,12 @@ const PER_SIDE: &[(&str, &[&str])] = &[
         "$granularSampler",
         &["trigger", "time", "size", "shape", "freq", "rootFreq"],
     ),
+    ("$dattorro", &["input"]),
+    ("$plate", &["input"]),
+    ("$unstable.reverb", &["input"]),
+    ("$unstable.reverb2", &["input"]),
+    ("$reverb", &["input"]),
+    ("$mi.chorus", &["input"]),
     ("$supersaw", &["freq", "detune", "fm", "sync"]),
 ];
 

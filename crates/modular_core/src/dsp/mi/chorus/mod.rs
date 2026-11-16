@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
+use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::types::SwapGlide;
 
 use ensemble::{Ensemble, EnsembleRates};
@@ -19,15 +19,16 @@ const DEPTH_DEFAULT: f32 = 2.5;
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct ChorusParams {
     #[input(
-        "signal to thicken; even lanes feed the left side, odd the right, and an odd last lane feeds both",
+        "signal to thicken: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         type = audio,
     )]
-    input: PolySignal,
+    input: PairSignal,
     #[input(
         "how much chorus joins the dry signal, from none (0) to an even blend (5)",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     amount: Option<LaneSum>,
@@ -36,6 +37,7 @@ struct ChorusParams {
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
+        fold,
     )]
     #[deserr(default)]
     depth: Option<LaneSum>,
@@ -44,7 +46,7 @@ struct ChorusParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ChorusOutputs {
-    #[output("output", "the chorused signal, as left and right lanes", type = cv, default)]
+    #[output("output", "the chorused signal, as one stereo lane", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -75,9 +77,9 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
 };
 
 #[module(
-    name = "$mi.chorus", stereo = mono,
+    name = "$mi.chorus", stereo = stereo,
     docs = CHORUS_DOCS,
-    lanes = 2,
+    lanes = 1,
     has_init,
     args(input)
 )]
@@ -112,7 +114,7 @@ impl Chorus {
 
     fn update(&mut self, _sample_rate: f32) {
         let p = &self.params;
-        let (left, right) = fold_to_stereo(p.input.lanes(), |lane| p.input.get_value(lane));
+        let [left, right] = p.input.sum_sides();
         let sample_rate = self.state.sample_rate;
         let knobs = [
             self.state.amount.follow(
@@ -134,28 +136,6 @@ impl Chorus {
         self.outputs.sample.set(0, left);
         self.outputs.sample.set(1, right);
     }
-}
-
-/// `lanes` of input folded to stereo, as `$dattorro` folds them: even
-/// lanes left, odd right, an odd last lane to both. A non-finite sample
-/// reads 0, which would otherwise linger in the delay lines.
-fn fold_to_stereo(lanes: usize, sample: impl Fn(usize) -> f32) -> (f32, f32) {
-    let finite = |lane| {
-        let s = sample(lane);
-        if s.is_finite() { s } else { 0.0 }
-    };
-    let (mut left, mut right) = (0.0, 0.0);
-    for lane in 0..lanes {
-        if lane % 2 == 0 {
-            left += finite(lane);
-        } else {
-            right += finite(lane);
-        }
-    }
-    if lanes % 2 == 1 {
-        right += finite(lanes - 1);
-    }
-    (left, right)
 }
 
 /// The amount and depth knobs as 0–1, a NaN or infinite knob holding its
