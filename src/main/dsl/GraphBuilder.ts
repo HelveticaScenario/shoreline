@@ -898,10 +898,7 @@ export class GraphBuilder implements ChainHost {
         return id;
     }
 
-    /**
-     * Add or update a module in the graph
-     */
-    addModule(
+    private addModule(
         moduleType: string,
         explicitId?: string,
         sourceLocation?: { line: number; column: number },
@@ -936,6 +933,43 @@ export class GraphBuilder implements ChainHost {
 
         this.modules.set(id, moduleState);
         return new ModuleNode(this, id, moduleType, schema);
+    }
+
+    /**
+     * Add a module and finish it with `build`. If `build` throws, the module
+     * leaves no trace in the graph, so a script that catches the error
+     * patches as though the call never ran.
+     */
+    buildModule<T>(
+        moduleType: string,
+        explicitId: string | undefined,
+        sourceLocation: { line: number; column: number } | undefined,
+        build: (node: ModuleNode) => T,
+    ): T {
+        const previousCounter = this.counters.get(moduleType);
+        const node = this.addModule(moduleType, explicitId, sourceLocation);
+        const counterAfterAdd = this.counters.get(moduleType);
+        try {
+            return build(node);
+        } catch (error) {
+            const { id } = node;
+            this.modules.delete(id);
+            this.sourceLocationMap.delete(id);
+            this.moduleChannels.delete(id);
+            for (const port of [...this.rangedPorts]) {
+                if (port.startsWith(`${id}:`)) {
+                    this.rangedPorts.delete(port);
+                }
+            }
+            if (this.counters.get(moduleType) === counterAfterAdd) {
+                if (previousCounter === undefined) {
+                    this.counters.delete(moduleType);
+                } else {
+                    this.counters.set(moduleType, previousCounter);
+                }
+            }
+            throw error;
+        }
     }
 
     /**

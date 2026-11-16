@@ -91,13 +91,6 @@ export interface DSLExecutionResult {
     outputResolutions: OutputResolutionRecord[];
 }
 
-/** The bands of a `$xover`. */
-type XoverBands = Collection & {
-    _low: Collection;
-    _mid: Collection;
-    _high: Collection;
-};
-
 /** What the engine reports about a decoded WAV or media audio track. */
 interface LoadedWav {
     channels: number;
@@ -399,35 +392,45 @@ export function executePatchScript(
 
         const sourceLocation = captureSourceLocation();
 
-        // Create a $buffer module in the graph
-        const node = builder.addModule('$buffer', config?.id, sourceLocation);
-
-        // Resolve the input signal and set params
-        const resolvedInput = replaceSignals(input);
-        node._setParam('input', resolvedInput);
-        builder.setModuleChannels(node.id, builder.liftedChannelsOf([input]));
-        node._setParam('length', lengthSeconds);
-
-        // Derive lane count from the input signal
-        const derivedLanes = deriveLaneCountChecked(
+        return builder.buildModule(
             '$buffer',
-            node.getParamsSnapshot(),
+            config?.id,
             sourceLocation,
+            (node): BufferOutputRef => {
+                // Resolve the input signal and set params
+                const resolvedInput = replaceSignals(input);
+                node._setParam('input', resolvedInput);
+                builder.setModuleChannels(
+                    node.id,
+                    builder.liftedChannelsOf([input]),
+                );
+                node._setParam('length', lengthSeconds);
+
+                // Derive lane count from the input signal
+                const derivedLanes = deriveLaneCountChecked(
+                    '$buffer',
+                    node.getParamsSnapshot(),
+                    sourceLocation,
+                );
+                if (derivedLanes !== undefined) {
+                    node._setDerivedLaneCount(derivedLanes);
+                }
+                const lanes = derivedLanes ?? 1;
+
+                const frameCount = Math.max(
+                    1,
+                    Math.ceil(lengthSeconds * sampleRate),
+                );
+
+                return {
+                    type: 'buffer_ref',
+                    module: node.id,
+                    port: 'buffer',
+                    lanes,
+                    frameCount,
+                };
+            },
         );
-        if (derivedLanes !== undefined) {
-            node._setDerivedLaneCount(derivedLanes);
-        }
-        const lanes = derivedLanes ?? 1;
-
-        const frameCount = Math.max(1, Math.ceil(lengthSeconds * sampleRate));
-
-        return {
-            type: 'buffer_ref',
-            module: node.id,
-            port: 'buffer',
-            lanes,
-            frameCount,
-        };
     };
 
     const $cycle = userNamespaceTree['$cycle'];
@@ -574,120 +577,6 @@ export function executePatchScript(
     builder.registerChainMethod('delay', (self, ...args) =>
         $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
     );
-
-    interface OttConfig {
-        /**
-         * Optional side-chain detector signal. When connected, the same
-         * crossover network splits the sidechain into low/mid/high and each
-         * band's compressor keys off the matching sidechain band — the gain is
-         * still applied to `input`. Enables band-aware ducking (e.g. only
-         * sidechain the low band against a kick).
-         */
-        sidechain?: PolySignal;
-        /** wet/dry blend, 0–5 (default 5 = fully wet) */
-        depth?: PolySignal;
-        /** low/mid crossover (V/Oct, default ~120 Hz) */
-        lowMidFreq?: PolySignal;
-        /** mid/high crossover (V/Oct, default ~2500 Hz) */
-        midHighFreq?: PolySignal;
-        /** downward threshold in volts (default 1.0) */
-        threshold?: PolySignal;
-        /** downward ratio (default 4) */
-        ratio?: PolySignal;
-        /** upward threshold in volts (default 0.5) */
-        upwardThreshold?: PolySignal;
-        /** upward ratio (default 4) */
-        upwardRatio?: PolySignal;
-        /** envelope attack (seconds, default 0.003) */
-        attack?: PolySignal;
-        /** envelope release (seconds, default 0.05) */
-        release?: PolySignal;
-        /** per-band makeup as dB-voltage (-5V = -24dB, 0V = unity, +5V = +24dB, default 1V ≈ +4.8dB) */
-        makeup?: PolySignal;
-        /** per-band trim (V, 5 = unity, default 5) */
-        lowGain?: PolySignal;
-        midGain?: PolySignal;
-        highGain?: PolySignal;
-        id?: string;
-    }
-
-    const $xover = userNamespaceTree['$xover'];
-    const $comp = userNamespaceTree['$comp'];
-    const $amp = userNamespaceTree['$amp'];
-    const _crossfade = context.namespaceTree['_crossfade'];
-    if (
-        typeof $xover !== 'function' ||
-        typeof $comp !== 'function' ||
-        typeof $amp !== 'function' ||
-        typeof _crossfade !== 'function'
-    ) {
-        throw new Error(
-            'DSL execution error: "$ott" requires "$xover", "$comp", "$amp" and "_crossfade" modules',
-        );
-    }
-
-    /**
-     * `$ott` — three-band upward + downward compressor in the style of Xfer's
-     * OTT. Splits the input into low/mid/high via `$xover`, applies aggressive
-     * upward + downward compression to each band with `$comp`, sums the bands,
-     * and crossfades against the original input via `depth`.
-     *
-     * Per-band trim (`lowGain` / `midGain` / `highGain`) is linear, as in
-     * `.amp()`: 5 V = unity, 0 V = silence, 10 V = +6 dB.
-     *
-     * @example
-     * $ott(drums).out()
-     *
-     * @example
-     * // tame highs, push lows
-     * $ott(bus, { depth: 4, lowGain: 6, highGain: 4, threshold: 1.5 }).out()
-     */
-    const $ott = (input: PolySignal, config: OttConfig = {}): Collection => {
-        const compConf = {
-            attack: config.attack ?? 0.003,
-            makeup: config.makeup ?? 1.0,
-            ratio: config.ratio ?? 4,
-            release: config.release ?? 0.05,
-            threshold: config.threshold ?? 1.0,
-            upwardRatio: config.upwardRatio ?? 4,
-            upwardThreshold: config.upwardThreshold ?? 0.5,
-        };
-
-        const lowMidFreq = config.lowMidFreq ?? hz(120);
-        const midHighFreq = config.midHighFreq ?? hz(2500);
-        const xoverConf = { lowMidFreq, midHighFreq };
-
-        const bands = $xover(input, xoverConf) as XoverBands;
-
-        // Split the side-chain through an identical crossover so each band's
-        // compressor keys off the matching frequency range of the sidechain.
-        const scBands =
-            config.sidechain !== undefined
-                ? ($xover(config.sidechain, xoverConf) as XoverBands)
-                : null;
-
-        const lowComp = $comp(bands._low, {
-            ...compConf,
-            ...(scBands !== null && { sidechain: scBands._low }),
-        });
-        const midComp = $comp(bands._mid, {
-            ...compConf,
-            ...(scBands !== null && { sidechain: scBands._mid }),
-        });
-        const highComp = $comp(bands._high, {
-            ...compConf,
-            ...(scBands !== null && { sidechain: scBands._high }),
-        });
-
-        const low = $amp(lowComp, config.lowGain ?? 5);
-        const mid = $amp(midComp, config.midGain ?? 5);
-        const high = $amp(highComp, config.highGain ?? 5);
-
-        const wet = $mix([low, mid, high]) as Collection;
-
-        // `depth` 0 is the dry input alone, 5 the compressed bands alone.
-        return _crossfade(input, wet, config.depth ?? 5) as Collection;
-    };
 
     const $keyframes = userNamespaceTree['$keyframes'];
     if (typeof $keyframes !== 'function') {
@@ -969,7 +858,6 @@ export function executePatchScript(
         ),
         $buffer,
         $delay,
-        $ott,
         $cross,
         $wavMeta,
         // Built-in modules

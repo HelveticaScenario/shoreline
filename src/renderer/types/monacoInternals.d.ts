@@ -172,6 +172,16 @@ declare module 'monaco-editor/esm/vs/language/typescript/tsWorker.js' {
     export class TypeScriptWorker {
         constructor(ctx: unknown, createData: unknown);
         getLanguageService(): import('typescript').LanguageService;
+        getSyntacticDiagnostics(
+            fileName: string,
+        ): Promise<import('typescript').Diagnostic[]>;
+        getSemanticDiagnostics(
+            fileName: string,
+        ): Promise<import('typescript').Diagnostic[]>;
+        /** `diagnostics` without their source files, to cross to the main thread. */
+        static clearFiles(
+            diagnostics: readonly import('typescript').Diagnostic[],
+        ): import('typescript').Diagnostic[];
     }
 }
 
