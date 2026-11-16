@@ -15,6 +15,7 @@ import {
     withDiskChange,
     withSavedContent,
 } from '../buffers';
+import { createEditorViewStates } from '../editorViewStates';
 
 const writeErrorMessage = (result: FSWriteResult) =>
     ('error' in result && result.error) || 'Failed to save file';
@@ -60,6 +61,14 @@ export function useEditorBuffers({
     useEffect(() => {
         saveUnsavedBuffers(buffers);
     }, [buffers]);
+
+    const [viewStates] = useState(createEditorViewStates);
+    const untitledIdsKey = JSON.stringify(
+        buffers.flatMap((b) => (b.kind === 'untitled' ? [b.id] : [])),
+    );
+    useEffect(() => {
+        viewStates.setOpenUntitled(JSON.parse(untitledIdsKey) as string[]);
+    }, [untitledIdsKey, viewStates]);
 
     const watchedPathsKey = JSON.stringify(
         buffers.flatMap((b) => (b.kind === 'file' ? [b.filePath] : [])).sort(),
@@ -295,6 +304,7 @@ export function useEditorBuffers({
                 );
 
                 if (result.success) {
+                    viewStates.move(buffer.id, filePath);
                     setBuffers((prev) => {
                         const source = prev.find(
                             (b) => getBufferId(b) === idToSave,
@@ -380,7 +390,14 @@ export function useEditorBuffers({
                 }
             }
         },
-        [activeBufferId, buffers, refreshFileTree, onFileSaved, resolvePath],
+        [
+            activeBufferId,
+            buffers,
+            refreshFileTree,
+            onFileSaved,
+            resolvePath,
+            viewStates,
+        ],
     );
 
     const dismissSaveConflict = useCallback(() => setSaveConflict(null), []);
@@ -481,6 +498,7 @@ export function useEditorBuffers({
             if (result.success) {
                 const wasActive = activeBufferId === oldPath;
 
+                viewStates.move(oldPath, newPath);
                 setBuffers((prev) =>
                     prev.map((b) =>
                         b.kind === 'file' && b.filePath === oldPath
@@ -498,7 +516,7 @@ export function useEditorBuffers({
                 throw new Error(result.error || 'Failed to rename file');
             }
         },
-        [activeBufferId, refreshFileTree],
+        [activeBufferId, refreshFileTree, viewStates],
     );
 
     const deleteFile = useCallback(
@@ -697,5 +715,6 @@ export function useEditorBuffers({
         setActiveBufferId,
         setBuffers,
         setRenamingPath,
+        viewStates,
     };
 }
