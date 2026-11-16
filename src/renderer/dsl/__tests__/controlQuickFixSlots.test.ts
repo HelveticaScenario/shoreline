@@ -59,12 +59,16 @@ describe('computeControlQuickFixes — literals inside arguments', () => {
         ).toBe(0);
     });
 
-    test('a member of a nested object takes its own name', () => {
+    test('a member of a nested object takes its declared control', () => {
+        const eq = (member: string) =>
+            `$eq($saw('a3'), { sections: [{ freq: '1000hz', ${member} }] })`;
+        expect(wrapped(eq('gain: |3'))).toContain(
+            `gain: $slider('gain', 3, -24, 24)`,
+        );
+        expect(wrapped(eq('q: |4'))).toContain(`q: $slider('q', 4, 0.1, 20)`);
         expect(
-            wrapped(
-                `$eq($saw('a3'), { sections: [{ freq: '1khz', gain: |3 }] })`,
-            ),
-        ).toContain(`gain: $slider('gain', 3, 0, 5)`);
+            wrapped(`$eq($saw('a3'), { sections: [{ freq: '10|00hz' }] })`),
+        ).toContain(`freq: $slider('freq', '1000hz', '250hz', '4000hz')`);
     });
 
     test('a signal param with a non-signal alternative wraps', () => {
@@ -91,7 +95,7 @@ describe('computeControlQuickFixes — literals inside arguments', () => {
 });
 
 describe('computeControlQuickFixes — required API params', () => {
-    test('a missing required signal is added at 0 within its range', () => {
+    test('a missing required knob is added at 0 within its range', () => {
         const { source, fixes } = fixesAt(`$phase.bend(|)`);
         expect(apply(source, addFix(fixes, 'amount'))).toBe(
             `$phase.bend($slider('amount', 0, -5, 5))`,
@@ -102,5 +106,27 @@ describe('computeControlQuickFixes — required API params', () => {
         expect(apply(nested.source, addFix(nested.fixes, 'ratio'))).toContain(
             `$phase.sync($slider('ratio', 0, 0, 5))`,
         );
+    });
+
+    test('a missing required knob starts at its stated default', () => {
+        const { source, fixes } = fixesAt(`$phase.pwm(|)`);
+        expect(apply(source, addFix(fixes, 'width'))).toBe(
+            `$phase.pwm($slider('width', 2.5, 0, 5))`,
+        );
+    });
+
+    test('a missing required signal with no stated range is never added', () => {
+        for (const call of [
+            `$v.layer(|)`,
+            `$v.invert(|)`,
+            `$scopeXY(|)`,
+            `$sine('c4').range(|)`,
+            `$v.osc(1).scale(|)`,
+        ]) {
+            expect(
+                fixesAt(call).fixes.filter((f) => f.kind !== 'wrap'),
+                call,
+            ).toEqual([]);
+        }
     });
 });

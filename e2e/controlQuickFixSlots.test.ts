@@ -163,7 +163,7 @@ const RUNNABLE: {
         marked: `$eq($saw('a3'), { sections: [{ freq: '1000hz', gain: |3 }] }).out()`,
         name: 'a nested option member',
         title: `Wrap 'gain' in $slider`,
-        want: `gain: $slider('gain', 3, 0, 5)`,
+        want: `gain: $slider('gain', 3, -24, 24)`,
     },
     {
         marked: `$sine($quantizer($saw('1hz'), 'c|4')).out()`,
@@ -209,10 +209,19 @@ test.describe('control quick-fixes inside arguments', () => {
             flatten(`slice: [[0, 0.5], $slider('slice', 1.5, 0, 5)]`),
         );
 
-        await setCode(window, `$sine($keyframes([[1.5, |0], [2, 1]])).out()`);
+        // The call's unset `speed` always offers an add, so the widget opens
+        // and its rows show that the slice points offer no wrap.
+        await setCode(
+            window,
+            `$sampler('/wavs/x.wav', $pulse('2hz'), { slice: [[0, 0.|5], 1.5] }).out()`,
+        );
         await triggerQuickFix(window);
-        await window.waitForTimeout(1500);
-        const titles = await window.locator(ROWS).allInnerTexts();
+        const rows = window.locator(ROWS);
+        await expect(rows.first()).toBeVisible({ timeout: 20_000 });
+        const titles = await rows.allInnerTexts();
+        expect(titles.some((t) => t.includes(`Add slider for 'speed'`))).toBe(
+            true,
+        );
         expect(titles.filter((t) => t.includes('$slider'))).toEqual([]);
     });
 });

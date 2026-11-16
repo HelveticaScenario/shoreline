@@ -3,8 +3,9 @@
  *
  * Given a patch source and a cursor offset, produces the actions the editor
  * can offer there: replacing a literal argument, or a literal element or
- * member inside one (or a `$c`/`$signal` holding just one), with a control, adding a control for a signal param the
- * call doesn't set yet, or turning a `$slider` back into a `$c`. Every API
+ * member inside one (or a `$c`/`$signal` holding just one), with a control,
+ * adding a control for a signal param the call doesn't set yet, or turning
+ * a `$slider` back into a `$c`. Every API
  * call resolves — module factories and chains, functions, and signal methods
  * (paramCallResolver.ts) — and which control, and its label, range, and
  * initial value, come from the param's metadata (paramControls.ts).
@@ -25,7 +26,7 @@ import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import { hintedRef } from './apiParamControls';
 import type { ParamRef } from './apiParamControls';
 import type { ApiIndex } from './apiSignatures';
-import type { SlotStep } from './apiTypeReader';
+import type { SlotStep } from './apiTypeSlots';
 import { addFixes, dedupeLabel } from './controlAddFixes';
 import type { CodeStyle, TextEdit } from './listEdits';
 import {

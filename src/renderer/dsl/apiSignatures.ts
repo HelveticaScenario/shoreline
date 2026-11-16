@@ -12,7 +12,8 @@
  */
 import ts from 'typescript';
 
-import { hasHints, memberName, TypeReader } from './apiTypeReader';
+import { hasHints, TypeReader } from './apiTypeReader';
+import { memberName } from './apiTypeSlots';
 import type { ApiMember, ApiParam, ApiSignature } from './apiTypeReader';
 
 export type Family = 'audio' | 'video';

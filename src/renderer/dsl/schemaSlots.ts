@@ -3,7 +3,7 @@
  * tuple position, a member of a nested object (`$eq`'s `sections`) — read
  * from the param's JSON schema.
  */
-import type { SlotStep } from './apiTypeReader';
+import type { SlotStep } from './apiTypeSlots';
 
 type Json = Record<string, unknown>;
 
@@ -21,10 +21,22 @@ const refName = (s: Json): string | null =>
         ? s.$ref.slice('#/$defs/'.length)
         : null;
 
-/** A slot at a path inside a param, with the description of the deepest
- *  member the path steps into (null when it steps into none). */
+/** The `#[input]` metadata a nested signal member carries as `x-signal`. */
+export interface SignalMeta {
+    paramType: string;
+    defaultValue?: number;
+    minValue?: number;
+    maxValue?: number;
+    controlMin?: number;
+    controlMax?: number;
+}
+
+/** A slot at a path inside a param, with the deepest member on the path
+ *  that carries `#[input]` metadata, or else the description of the deepest
+ *  one that has a description (null when none does). */
 export interface SchemaSlot {
     description: string | null;
+    meta: SignalMeta | null;
 }
 
 /**
@@ -41,20 +53,35 @@ export function schemaSlot(
         return null;
     }
     if (path.length === 0) {
-        return holdsSignal(schema, defs, depth) ? { description: null } : null;
+        return holdsSignal(schema, defs, depth)
+            ? { description: null, meta: null }
+            : null;
     }
     const [step, ...rest] = path;
     for (const child of children(schema, step, defs, depth)) {
         const found = schemaSlot(child, rest, defs, depth + 1);
         if (found) {
+            if (found.meta || !('member' in step)) {
+                return found;
+            }
+            const meta = signalMeta(child['x-signal']);
+            if (meta) {
+                return { description: null, meta };
+            }
             const own =
-                'member' in step && typeof child.description === 'string'
+                typeof child.description === 'string'
                     ? child.description
                     : null;
-            return { description: found.description ?? own };
+            return { description: found.description ?? own, meta: null };
         }
     }
     return null;
+}
+
+function signalMeta(v: unknown): SignalMeta | null {
+    return isJson(v) && typeof v.paramType === 'string'
+        ? (v as unknown as SignalMeta)
+        : null;
 }
 
 function holdsSignal(s: Json, defs: Json, depth: number): boolean {

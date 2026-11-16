@@ -20,16 +20,13 @@ import {
     API_CONTROLS,
     controlRef,
     hintedRef,
+    nestedSignalRef,
     schemaParamRef,
 } from './apiParamControls';
 import type { ParamRef, SchemaEntry } from './apiParamControls';
 import { docHints } from './apiTypeReader';
-import type {
-    ApiParam,
-    ApiSignature,
-    DocHints,
-    SlotStep,
-} from './apiTypeReader';
+import type { ApiParam, ApiSignature, DocHints } from './apiTypeReader';
+import type { SlotStep } from './apiTypeSlots';
 import type { ParamLiteral } from './paramControls';
 import { createFamilyReader, splitChain } from './receiverFamily';
 import { schemaSlot } from './schemaSlots';
@@ -112,7 +109,8 @@ export function createCallResolver(
             schema.signalParams.some((p) => p.name === name);
         /** A slot inside param `name`. One reached through array elements
          *  alone takes the param's own control; one inside a nested member
-         *  takes a control named after that member. */
+         *  takes a control named after that member, from the `#[input]`
+         *  metadata its schema carries when it has some. */
         const paramSlot = (
             name: string,
             path: readonly SlotStep[],
@@ -130,6 +128,10 @@ export function createCallResolver(
             if (members.length === 0 && isSignalParam(name)) {
                 return schemaRef(schema, name);
             }
+            const label = members.at(-1) ?? name;
+            if (members.length > 0 && found.meta) {
+                return nestedSignalRef(found.meta, label);
+            }
             const prop = props[name] as { description?: unknown } | undefined;
             const description =
                 members.length > 0
@@ -137,10 +139,7 @@ export function createCallResolver(
                     : typeof prop?.description === 'string'
                       ? prop.description
                       : null;
-            return hintedRef(
-                members.at(-1) ?? name,
-                docHints(description ?? ''),
-            );
+            return hintedRef(label, docHints(description ?? ''));
         };
         return {
             argParam: (i) => {
