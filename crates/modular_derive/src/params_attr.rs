@@ -701,6 +701,11 @@ fn params(attr: TokenStream2, item: TokenStream2) -> syn::Result<TokenStream2> {
         };
 
         let field_name = ident.to_string().to_case(Case::Camel);
+        field.attrs.push(syn::parse_quote! {
+            #[schemars(transform = |schema: &mut schemars::Schema| {
+                crate::types::attach_signal_schema::<Self>(schema, #field_name);
+            })]
+        });
         let type_variant = param_type.variant();
         let carries_bounds = parsed.carries_bounds;
         let bounds_need_constant = parsed.bounds_need_constant;

@@ -1227,6 +1227,33 @@ pub trait SignalParamMeta {
     }
 }
 
+/// The `SignalParamSchema` fields an editor control is built from.
+const SIGNAL_SCHEMA_KEYS: [&str; 6] = [
+    "paramType",
+    "defaultValue",
+    "minValue",
+    "maxValue",
+    "controlMin",
+    "controlMax",
+];
+
+/// Writes signal param `name`'s type, range and default onto its JSON schema
+/// as `x-signal`, so a signal nested inside another param's value (an `$eq`
+/// band's `gain`) carries them where the editor finds it.
+pub fn attach_signal_schema<T: SignalParamMeta>(schema: &mut schemars::Schema, name: &str) {
+    let Some(meta) = T::signal_param_schemas()
+        .into_iter()
+        .find(|p| p.name == name)
+    else {
+        return;
+    };
+    let Ok(Value::Object(mut fields)) = serde_json::to_value(meta) else {
+        return;
+    };
+    fields.retain(|key, _| SIGNAL_SCHEMA_KEYS.contains(&key.as_str()));
+    schema.insert("x-signal".into(), Value::Object(fields));
+}
+
 struct ParsedNote {
     pitch_class: i32,
     octave: i32,

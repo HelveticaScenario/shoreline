@@ -1,0 +1,3 @@
+kind: Improved
+body: Writing a pattern as `$'c e g'` or `$"c e g"` now shows an error saying to use backticks (`` $`c e g` ``), with a quick fix that rewrites it.
+time: 2026-11-15T19:55:57.416138-05:00

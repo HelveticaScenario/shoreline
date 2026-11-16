@@ -2,9 +2,10 @@
  * Quick-fix analysis for turning DSL params into Control panel controls.
  *
  * Given a patch source and a cursor offset, produces the actions the editor
- * can offer there: replacing an existing literal argument (or a `$c`/`$signal`
- * holding just one) with a control, adding a control for a signal param the
- * call doesn't set yet, or turning a `$slider` back into a `$c`. Every API
+ * can offer there: replacing a literal argument, or a literal element or
+ * member inside one (or a `$c`/`$signal` holding just one), with a control,
+ * adding a control for a signal param the call doesn't set yet, or turning
+ * a `$slider` back into a `$c`. Every API
  * call resolves — module factories and chains, functions, and signal methods
  * (paramCallResolver.ts) — and which control, and its label, range, and
  * initial value, come from the param's metadata (paramControls.ts).
@@ -25,6 +26,7 @@ import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import { hintedRef } from './apiParamControls';
 import type { ParamRef } from './apiParamControls';
 import type { ApiIndex } from './apiSignatures';
+import type { SlotStep } from './apiTypeSlots';
 import { addFixes, dedupeLabel } from './controlAddFixes';
 import type { CodeStyle, TextEdit } from './listEdits';
 import {
@@ -121,33 +123,47 @@ export function computeControlQuickFixes(
     };
 
     /**
-     * The slot `expr` fills as an argument or option member of a call that
-     * resolves, with the param a control can drive there (null when none
-     * can); null when `expr` fills no such slot.
+     * The slot `expr` fills in an argument of a call that resolves — the
+     * argument itself, or an array element or object member inside it,
+     * however deep — with the param a control can drive there (null when
+     * none can); null when `expr` fills no such slot.
      */
     const slotOf = (expr: ts.Expression): { param: ParamRef | null } | null => {
-        const parent = expr.parent;
-        if (ts.isCallExpression(parent)) {
-            const at = parent.arguments.indexOf(expr);
-            const resolved = at >= 0 ? resolveCall(parent) : null;
-            return resolved ? { param: resolved.argParam(at) } : null;
-        }
-        if (ts.isPropertyAssignment(parent) && parent.initializer === expr) {
-            const obj = parent.parent;
-            const call = obj.parent;
-            if (!call || !ts.isCallExpression(call)) {
+        const path: SlotStep[] = [];
+        let node: ts.Expression = expr;
+        for (;;) {
+            const parent: ts.Node | undefined = node.parent;
+            if (!parent) {
                 return null;
             }
-            const members = resolveCall(call)?.options(
-                call.arguments.indexOf(obj),
-            );
-            if (!members) {
+            if (ts.isCallExpression(parent)) {
+                const at = parent.arguments.indexOf(node);
+                const resolved = at >= 0 ? resolveCall(parent) : null;
+                return resolved ? { param: resolved.slot(at, path) } : null;
+            }
+            if (ts.isArrayLiteralExpression(parent)) {
+                const at = parent.elements.indexOf(node);
+                // A spread before the element leaves its position unknown.
+                if (parent.elements.slice(0, at).some(ts.isSpreadElement)) {
+                    return null;
+                }
+                path.unshift({ element: at });
+                node = parent;
+            } else if (
+                ts.isPropertyAssignment(parent) &&
+                parent.initializer === node &&
+                ts.isObjectLiteralExpression(parent.parent)
+            ) {
+                const key = propertyName(parent);
+                if (!key) {
+                    return null;
+                }
+                path.unshift({ member: key });
+                node = parent.parent;
+            } else {
                 return null;
             }
-            const key = propertyName(parent);
-            return { param: (key && members.get(key)) || null };
         }
-        return null;
     };
 
     /**
@@ -189,7 +205,10 @@ export function computeControlQuickFixes(
             : wrapFixes(call, literal, hintedRef(name, {}));
     };
 
-    const argWraps = ((): ControlQuickFix[] => {
+    /** Fixes replacing the literal at the cursor, or the `$c`/`$signal`
+     *  holding one: a literal in any slot, or the value of an option member
+     *  whose key the cursor is on. */
+    const literalWraps = ((): ControlQuickFix[] => {
         for (const node of literalsAtCursor) {
             const consumable =
                 singleLiteralSignal(node, file) ??
@@ -202,26 +221,14 @@ export function computeControlQuickFixes(
                 return consumed;
             }
             const literal = asLiteral(node, file);
-            const parent = node.parent;
-            if (
-                !literal ||
-                !containsCursor(node) ||
-                !parent ||
-                !ts.isCallExpression(parent)
-            ) {
+            if (!literal || !containsCursor(node)) {
                 continue;
             }
-            const argIndex = parent.arguments.indexOf(node as ts.Expression);
-            const resolved = argIndex >= 0 ? resolveCall(parent) : null;
-            const param = resolved?.argParam(argIndex);
+            const param = slotOf(node as ts.Expression)?.param;
             if (param) {
                 return wrapFixes(node, literal, param);
             }
         }
-        return [];
-    })();
-
-    const optionWraps = ((): ControlQuickFix[] => {
         for (const node of literalsAtCursor) {
             if (!ts.isPropertyAssignment(node) || !containsCursor(node)) {
                 continue;
@@ -241,7 +248,7 @@ export function computeControlQuickFixes(
     })();
 
     const fixes = [
-        ...(argWraps.length > 0 ? argWraps : optionWraps),
+        ...literalWraps,
         ...(swappable
             ? unwrapFixes(file, literalsAtCursor, containsCursor)
             : []),
