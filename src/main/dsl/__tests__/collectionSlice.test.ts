@@ -100,7 +100,11 @@ describe('BaseCollection indexing and iteration', () => {
             ),
         );
         const root = new Collection(...cv.items);
-        markRoot(root, { outputs: [], values: { cv, gate } });
+        markRoot(root, {
+            outputs: [],
+            resolver: builder.outputResolver,
+            values: { cv, gate },
+        });
         type Named = { _cv: Collection; _gate: Collection };
 
         const [, second] = root;
@@ -122,7 +126,11 @@ describe('BaseCollection indexing and iteration', () => {
             ),
         );
         const root = new Collection(...stereo.items);
-        markRoot(root, { outputs: [], values: { stereo, voices } });
+        markRoot(root, {
+            outputs: [],
+            resolver: builder.outputResolver,
+            values: { stereo, voices },
+        });
 
         const second = root[1] as unknown as {
             _stereo: Collection;

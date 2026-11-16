@@ -181,6 +181,70 @@ describe('a root read as a signal itself', () => {
     });
 });
 
+describe('a scoped root', () => {
+    function scopedPorts(source: string): string[] {
+        return run(source).patch.scopes.flatMap((s) =>
+            s.lanes.map((l) => l.portName),
+        );
+    }
+
+    test('draws the output its input takes', () => {
+        expect(scopedPorts('$perc($`0`.scope()).out()')).toEqual(['trig']);
+    });
+
+    test('draws the output it is first resolved to', () => {
+        expect(
+            scopedPorts(
+                'const seq = $`c e`.scope()\n$adsr(seq).out()\n$saw(seq).out()',
+            ),
+        ).toEqual(['gate']);
+    });
+
+    test('draws the output it was resolved to before the scope', () => {
+        expect(
+            scopedPorts('const seq = $`0`\n$perc(seq).out()\nseq.scope()'),
+        ).toEqual(['trig']);
+    });
+
+    test('is recorded only where it is plugged in', () => {
+        expect(
+            run('$perc($`0`.scope()).out()').outputResolutions.map(
+                ({ slot, output }) => `${slot} ${output}`,
+            ),
+        ).toEqual(['trigger trig']);
+    });
+
+    test('never plugged in, draws the output it reads as itself', () => {
+        expect(scopedPorts('$`c e`.scope()')).toEqual(['cv']);
+    });
+
+    test('read by name, draws that output', () => {
+        expect(scopedPorts('$perc($`0`.scope()._gate).out()')).toEqual([
+            'gate',
+        ]);
+    });
+
+    test('a slice of it plugged in takes it too', () => {
+        expect(
+            scopedPorts('const seq = $`[c,e]`.scope()\n$perc(seq[1]).out()'),
+        ).toEqual(['trig', 'trig']);
+    });
+
+    test('joined with another and plugged in takes both', () => {
+        expect(
+            scopedPorts(
+                'const a = $`c`.scope()\nconst b = $`e`.scope()\n$adsr(a.concat(b)).out()',
+            ),
+        ).toEqual(['gate', 'gate']);
+    });
+
+    test('a named output draws that output', () => {
+        expect(scopedPorts('$perc($`0`._gate.scope()).out()')).toEqual([
+            'gate',
+        ]);
+    });
+});
+
 describe('a call that throws', () => {
     test('leaves the next call recording as usual', () => {
         const { outputResolutions } = run(
