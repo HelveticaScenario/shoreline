@@ -101,8 +101,13 @@ export declare class Synthesizer {
   getModuleStates(): Record<string, any>
   getTransportState(): TransportSnapshot
   enableLink(enabled: boolean): void
-  /** Refresh the device cache (re-enumerates all hosts and devices) */
-  refreshDeviceCache(): void
+  /**
+   * Re-enumerate audio devices. The devices this synthesizer has open stay
+   * listed even where ALSA cannot report them while open. JACK is
+   * re-read only with `rescan_jack`, and never while a JACK stream runs,
+   * whose clients a rescan would collide with.
+   */
+  refreshDeviceCache(rescanJack?: boolean | undefined | null): void
   /** Get the full device cache snapshot */
   getDeviceCache(): DeviceCacheSnapshot
   /** Get the current audio state (host, devices, sample rate, etc.) */

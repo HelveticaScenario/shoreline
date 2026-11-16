@@ -3,8 +3,8 @@
  * "What's new" panel after updating, and Help → Release Notes.
  *
  * The update check runs for real against a stubbed `fetch` in the main
- * process, as does Help → Release Notes. The bundled changelog has no notes
- * yet, so the What's new test replaces its IPC handler with fixture notes.
+ * process, as does Help → Release Notes. The What's new test replaces its IPC
+ * handler with fixture notes, so it does not depend on the bundled changelog.
  */
 
 import * as fs from 'fs';
@@ -15,6 +15,11 @@ import { test, expect } from '../fixtures';
 const INSTALLED_VERSION = '0.0.130';
 const FULL_CHANGELOG_URL =
     'https://github.com/HelveticaScenario/shoreline/blob/master/CHANGELOG.md';
+
+/** The newest release in the CHANGELOG.md the app bundles at build time. */
+const BUNDLED_LATEST_VERSION = fs
+    .readFileSync(path.join(__dirname, '..', '..', 'CHANGELOG.md'), 'utf8')
+    .match(/^## v(\d+\.\d+\.\d+)/m)?.[1];
 
 const RELEASES = [
     {
@@ -117,18 +122,18 @@ async function stubMainProcess(
     releases: unknown[] | null,
 ) {
     await electronApp.evaluate(
-        ({ app, shell }, { version, releases }) => {
-            app.getVersion = () => version;
+        ({ app, shell }, stub) => {
+            app.getVersion = () => stub.version;
             const opened: string[] = [];
             (globalThis as Record<string, unknown>).__openedUrls = opened;
             shell.openExternal = async (url: string) => {
                 opened.push(url);
             };
             globalThis.fetch = async () => {
-                if (!releases) {
+                if (!stub.releases) {
                     throw new TypeError('fetch failed');
                 }
-                return new Response(JSON.stringify(releases), {
+                return new Response(JSON.stringify(stub.releases), {
                     headers: { 'Content-Type': 'application/json' },
                     status: 200,
                 });
@@ -148,11 +153,11 @@ async function clickHelpMenuItem(
     electronApp: ElectronApplication,
     label: string,
 ) {
-    await electronApp.evaluate(({ Menu }, label) => {
+    await electronApp.evaluate(({ Menu }, itemLabel) => {
         const help = Menu.getApplicationMenu()?.items.find(
             (item) => item.role === 'help',
         );
-        help?.submenu?.items.find((item) => item.label === label)?.click();
+        help?.submenu?.items.find((item) => item.label === itemLabel)?.click();
     }, label);
 }
 
@@ -162,9 +167,9 @@ async function replaceHandler(
     result: unknown,
 ) {
     await electronApp.evaluate(
-        ({ ipcMain }, { channel, result }) => {
-            ipcMain.removeHandler(channel);
-            ipcMain.handle(channel, () => result);
+        ({ ipcMain }, handler) => {
+            ipcMain.removeHandler(handler.channel);
+            ipcMain.handle(handler.channel, () => handler.result);
         },
         { channel, result },
     );
@@ -311,10 +316,9 @@ test.describe('release notes', () => {
         await clickHelpMenuItem(electronApp, 'Release Notes');
 
         const panel = window.locator('.release-notes-panel');
+        expect(BUNDLED_LATEST_VERSION).toBeDefined();
         await expect(panel).toContainText('Release Notes');
-        await expect(panel).toContainText(
-            'There are no release notes to show yet.',
-        );
+        await expect(panel).toContainText(`Version ${BUNDLED_LATEST_VERSION}`);
         await expect(
             panel.getByRole('link', { name: 'Full changelog on GitHub' }),
         ).toBeVisible();
