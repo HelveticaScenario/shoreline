@@ -1,0 +1,13 @@
+kind: Breaking
+body: |-
+    `$ott` is gone. Build the same three-band squash from `$xover` and `$comp`:
+
+    ```js
+    // before
+    $ott(drums).out()
+    // after
+    const bands = $xover(drums, { lowMidFreq: '120hz', midHighFreq: '2500hz' })
+    const squash = { threshold: 1, ratio: 4, upwardThreshold: 0.5, upwardRatio: 4, attack: 0.003, release: 0.05, makeup: 1 }
+    $mix([bands._low, bands._mid, bands._high].map((band) => $comp(band, squash))).out()
+    ```
+time: 2026-11-15T21:07:26.8073-05:00
