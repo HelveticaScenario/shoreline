@@ -646,14 +646,15 @@ function App() {
     useEffect(() => {
         vuOutputsRef.current = vuOutputs;
     }, [vuOutputs]);
-    /** Whether the editor shows the buffer whose patch is playing, so mixer
-     *  edits land in the source the mixer's tracks came from. */
-    const vuSourceEditableRef = useRef(false);
+    /** The buffer the mixer's tracks were built from. It stays through a
+     *  stop, while the mixer still shows those tracks. */
+    const vuSourceIdRef = useRef<string | null>(null);
+    /** The buffer the editor shows: mixer edits land in the code only while
+     *  it is the one the mixer's tracks came from. */
+    const visibleBufferIdRef = useRef<string | undefined>(undefined);
     useEffect(() => {
-        vuSourceEditableRef.current =
-            visibleCode.bufferId !== undefined &&
-            visibleCode.bufferId === runningControlsSource;
-    }, [visibleCode.bufferId, runningControlsSource]);
+        visibleBufferIdRef.current = visibleCode.bufferId;
+    }, [visibleCode.bufferId]);
     const isMixerVisibleRef = useRef(false);
     useEffect(() => {
         isMixerVisibleRef.current = bottomPanel.tab === 'mixer';
@@ -730,7 +731,7 @@ function App() {
      * Mirror a mixer control change into the DSL source of the track named
      * `key`, at its label's tracked decoration. Returns whether an edit was
      * written; skipped silently when the editor shows another buffer than the
-     * one playing, or when the track has no editable form for it (a
+     * one the mixer's tracks came from, or when the track has no editable form for it (a
      * non-literal value, a renamed label).
      */
     const applyVuSourceEdit = useCallback(
@@ -744,7 +745,12 @@ function App() {
         ): boolean => {
             const model = editorRef.current?.getModel();
             const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
-            if (!model || idx === -1 || !vuSourceEditableRef.current) {
+            if (
+                !model ||
+                idx === -1 ||
+                vuSourceIdRef.current === null ||
+                visibleBufferIdRef.current !== vuSourceIdRef.current
+            ) {
                 return false;
             }
             // The main strip has no label: its edit finds its own place.
@@ -1763,6 +1769,7 @@ function App() {
                         scopeDecorationsRef.current = pending.scopeDecorations;
                         vuDecorationsRef.current?.clear();
                         vuDecorationsRef.current = pending.vuDecorations;
+                        vuSourceIdRef.current = pending.controlsSource;
                         eqController.commit(pending.eqPanels);
                         commitControlAnchors(pending.controlAnchors);
                         commitVideoPreviews(pending.videoPreviews);
@@ -2165,6 +2172,7 @@ function App() {
                     scopeDecorationsRef.current = newScopeDecorations;
                     vuDecorationsRef.current?.clear();
                     vuDecorationsRef.current = newVuDecorations;
+                    vuSourceIdRef.current = submittedSourceId;
                     setScopeViews(views);
                     setSliderDefs(newSliderDefs);
                     setButtonDefs(newButtonDefs);

@@ -279,6 +279,27 @@ test.describe('vu meter panel', () => {
         expect(reverted).toContain(`lead: $sine($hz(440))\n`);
     });
 
+    test('mixer controls still edit the code while the patch is stopped', async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+        await window.getByRole('button', { name: /Stop/ }).click();
+        await window.waitForTimeout(500);
+
+        await window
+            .locator('.vu-meter[data-vu-key="lead"] .vu-btn-mute')
+            .click();
+        await window
+            .locator('.vu-meter--main .vu-meter-canvas')
+            .click({ position: { x: 20, y: 15 } });
+        await window.waitForTimeout(300);
+        const edited = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        expect(edited).toContain(`_lead: $sine`);
+        expect(edited).toMatch(/\$setMainGain\([\d.]+\)/);
+    });
+
     test('the main fader writes $setMainGain into the code', async ({
         window,
     }) => {
