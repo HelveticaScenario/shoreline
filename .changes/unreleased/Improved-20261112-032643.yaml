@@ -1,3 +1,0 @@
-kind: Improved
-body: '`$macro` is deprecated and will be removed in a later release; its docs name the `$mi.*` module that replaces each of its engines.'
-time: 2026-11-12T03:26:43.095521-05:00
