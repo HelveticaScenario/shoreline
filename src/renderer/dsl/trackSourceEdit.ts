@@ -3,9 +3,11 @@
  * rewrite its label's prefix, its gain fader and pan knob the options of its
  * `.track(...)`, and the master fader the `$setMasterGain(...)` level.
  *
- * Tracks are found by name, which a mute or solo edit leaves as it is. Each
- * function returns one text edit, or null when the source has no editable
- * form for it; the caller then applies only the live graph update.
+ * A track is found at its label's anchor, the offset the label had when the
+ * playing patch ran, moved along with the user's edits since, and must still
+ * carry the track's name there. Each function returns one text edit, or null
+ * when the source has no editable form for it; the caller then applies only
+ * the live graph update.
  */
 import ts from 'typescript';
 
@@ -14,9 +16,8 @@ import { propertyName } from '../../shared/dsl/ast/names';
 import { parseDsl } from '../../shared/dsl/ast/parse';
 import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import {
-    analyzeTrackLabels,
+    parseTrackLabel,
     type TrackState,
-    type TrackStatement,
     withTrackState,
 } from '../../shared/dsl/trackLabels';
 import { callParens, closingTokenStart } from './listEdits';
@@ -113,31 +114,39 @@ function insideFunction(node: ts.Node): boolean {
     return false;
 }
 
-/** The track named `name` in `file`. */
-function trackNamed(
+/** The labelled statement of track `name` whose label starts at `anchor`. */
+function trackAt(
     file: ts.SourceFile,
+    anchor: number,
     name: string,
-): TrackStatement | undefined {
-    return analyzeTrackLabels(ts, file).tracks.find(
-        (t) => t.track.name === name,
+): ts.LabeledStatement | undefined {
+    const statement = file.statements.find(
+        (st): st is ts.LabeledStatement =>
+            ts.isLabeledStatement(st) && st.label.getStart(file) === anchor,
     );
+    if (!statement || !ts.isExpressionStatement(statement.statement)) {
+        return undefined;
+    }
+    const track = parseTrackLabel(statement.label.text);
+    return 'error' in track || track.name !== name ? undefined : statement;
 }
 
-/** The edit that gives the track named `name` the label prefix of `state`. */
+/** The edit that gives track `name` the label prefix of `state`. */
 export function computeTrackStateEdit(
     source: string,
+    anchor: number,
     name: string,
     state: TrackState,
 ): TrackSourceEdit | null {
-    const file = parseDsl(source);
-    const statement = trackNamed(file, name);
+    const statement = trackAt(parseDsl(source), anchor, name);
     if (!statement) {
         return null;
     }
-    const { labelStart, labelEnd } = statement;
-    const label = source.slice(labelStart, labelEnd);
+    const label = statement.label.text;
     const text = withTrackState(label, state);
-    return text === label ? null : { end: labelEnd, start: labelStart, text };
+    return text === label
+        ? null
+        : { end: statement.label.end, start: anchor, text };
 }
 
 /** `expression` without the `.scope(...)` calls chained at its end. */
@@ -162,59 +171,65 @@ function isTrackCall(e: ts.Expression): e is ts.CallExpression {
     );
 }
 
+/** Whether `.track(...)` can chain onto `e` as written, without parentheses. */
+function chainable(e: ts.Expression): boolean {
+    return (
+        ts.isCallExpression(e) ||
+        ts.isPropertyAccessExpression(e) ||
+        ts.isElementAccessExpression(e) ||
+        ts.isIdentifier(e) ||
+        ts.isParenthesizedExpression(e) ||
+        ts.isTaggedTemplateExpression(e) ||
+        ts.isArrayLiteralExpression(e)
+    );
+}
+
 /**
  * The edit that sets (`value` a number) or removes (`value` null) option
- * `prop` of the track named `name`: in its `.track(...)`, appended to its
- * expression when it has none. A track whose expression is a name bound to a
- * `.track(...)` elsewhere is not edited.
+ * `prop` of track `name`: in the `.track(...)` its label's expression ends
+ * with, or in one appended to that expression. `fromTrack` says the label's
+ * value was a `.track(...)` made elsewhere, such as in a helper, which this
+ * edits nothing of.
  */
 export function computeTrackOptionEdit(
     source: string,
+    anchor: number,
     name: string,
     prop: 'gain' | 'pan',
     value: number | null,
+    fromTrack: boolean,
 ): TrackSourceEdit | null {
     const file = parseDsl(source);
-    const statement = trackNamed(file, name);
+    const statement = trackAt(file, anchor, name);
     if (!statement) {
         return null;
     }
+    const expression = (statement.statement as ts.ExpressionStatement)
+        .expression;
     const newText =
         value === null ? null : String(Number(value.toPrecision(4)));
-    const target = withoutScopes(statement.expression);
+    const target = withoutScopes(expression);
     if (isTrackCall(target)) {
         return trackOptionEdit(file, target, prop, newText);
     }
-    if (newText === null || boundToTrack(file, target)) {
+    if (newText === null || fromTrack) {
         return null;
     }
+    // After any scopes, which keep drawing the signal they drew.
+    const call = `.track({ ${prop}: ${newText} })`;
+    if (chainable(expression)) {
+        return {
+            end: expression.getEnd(),
+            start: expression.getEnd(),
+            text: call,
+        };
+    }
+    const start = expression.getStart(file);
     return {
-        end: target.getEnd(),
-        start: target.getEnd(),
-        text: `.track({ ${prop}: ${newText} })`,
+        end: expression.getEnd(),
+        start,
+        text: `(${source.slice(start, expression.getEnd())})${call}`,
     };
-}
-
-/** Whether `e` names a top-level const whose value is a `.track(...)`. */
-function boundToTrack(file: ts.SourceFile, e: ts.Expression): boolean {
-    if (!ts.isIdentifier(e)) {
-        return false;
-    }
-    for (const statement of file.statements) {
-        if (!ts.isVariableStatement(statement)) {
-            continue;
-        }
-        for (const d of statement.declarationList.declarations) {
-            if (
-                ts.isIdentifier(d.name) &&
-                d.name.text === e.text &&
-                d.initializer
-            ) {
-                return isTrackCall(withoutScopes(d.initializer));
-            }
-        }
-    }
-    return false;
 }
 
 /**

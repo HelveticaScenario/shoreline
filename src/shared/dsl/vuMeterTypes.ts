@@ -28,8 +28,8 @@ export interface VuMeterDef {
     solo: boolean;
     /**
      * Pan position (-5 left … +5 right) when the panel's knob controls it —
-     * stereo outs whose `pan` option is a number or absent. Null when pan is
-     * signal-driven or the out is mono (no knob).
+     * stereo tracks whose `pan` option is a number or absent. Null when pan is
+     * signal-driven or the track is mono (no knob).
      */
     pan: number | null;
     /** `_smoothControl` driving the stereo mixer's pan; null when `pan` is null. */
@@ -41,7 +41,7 @@ export interface VuMeterDef {
     panLocked: boolean;
     /**
      * Output gain in DSL units (audio taper; 5 = unity) when the panel's
-     * fader controls it — outs whose `gain` option is a number or absent.
+     * fader controls it — tracks whose `gain` option is a number or absent.
      * Null when gain is signal-driven.
      */
     gain: number | null;
@@ -57,6 +57,11 @@ export interface VuMeterDef {
     gainSource?: { moduleId: string; portName: string; lane: number };
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
+    /**
+     * Whether the track's label labels a `.track(...)` made elsewhere (in a
+     * helper or a const), whose options the mixer cannot rewrite.
+     */
+    fromTrack?: boolean;
     /**
      * Location of the track's label in the DSL source; absent for the
      * master meter.

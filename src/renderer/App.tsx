@@ -89,7 +89,10 @@ import {
 import type { ScopeView } from './types/editor';
 import { EqPanelController } from './eq/eqPanelController';
 import { type EqPanelSetup, disposeEqPanelSetup } from './eq/eqPanelSetup';
-import { setActiveInterpolationResolutions } from '../shared/dsl/spanTypes';
+import {
+    FIRST_LINE_COLUMN_OFFSET,
+    setActiveInterpolationResolutions,
+} from '../shared/dsl/spanTypes';
 import {
     drawOscilloscope,
     readScopeColors,
@@ -296,6 +299,13 @@ function App() {
     const scopeDecorationsRef =
         useRef<editor.IEditorDecorationsCollection | null>(null);
 
+    /** Tracked decorations on each track's label, index-aligned with
+     *  vuOutputs: mixer edits find the playing track's label through them as
+     *  the user edits around it. */
+    const vuDecorationsRef = useRef<editor.IEditorDecorationsCollection | null>(
+        null,
+    );
+
     /** Pending UI state waiting for the audio thread to apply a queued update */
     const pendingUIStateRef = useRef<{
         updateId: number;
@@ -307,6 +317,8 @@ function App() {
         /** Tracked decorations created at submit time, swapped into
          *  scopeDecorationsRef when the pending state is committed. */
         scopeDecorations: editor.IEditorDecorationsCollection | null;
+        /** Same contract as scopeDecorations, for vuDecorationsRef. */
+        vuDecorations: editor.IEditorDecorationsCollection | null;
         /** EQ panels of the pending patch, committed with it. */
         eqPanels: EqPanelSetup;
         /** Anchors on the pending patch's control calls, committed with it. */
@@ -717,23 +729,32 @@ function App() {
 
     /**
      * Mirror a mixer control change into the DSL source of the track named
-     * `key`. Returns whether an edit was written; skipped silently when the
-     * editor shows another buffer than the one playing, or when the track
-     * has no editable form for it (a non-literal value, a renamed label).
+     * `key`, at its label's tracked decoration. Returns whether an edit was
+     * written; skipped silently when the editor shows another buffer than the
+     * one playing, or when the track has no editable form for it (a
+     * non-literal value, a renamed label).
      */
     const applyVuSourceEdit = useCallback(
         (
             key: string,
             makeEdit: (
                 source: string,
+                anchor: number,
                 name: string,
             ) => { start: number; end: number; text: string } | null,
         ): boolean => {
             const model = editorRef.current?.getModel();
-            if (!model || !vuSourceEditableRef.current) {
+            const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
+            const range =
+                idx === -1 ? null : vuDecorationsRef.current?.getRange(idx);
+            if (!model || !range || !vuSourceEditableRef.current) {
                 return false;
             }
-            const edit = makeEdit(model.getValue(), key);
+            const anchor = model.getOffsetAt({
+                column: range.startColumn,
+                lineNumber: range.startLineNumber,
+            });
+            const edit = makeEdit(model.getValue(), anchor, key);
             if (!edit) {
                 return false;
             }
@@ -774,8 +795,8 @@ function App() {
                         ghost?.solo ?? audio.solo,
                     ),
                 );
-                const edited = applyVuSourceEdit(key, (source, name) =>
-                    computeTrackStateEdit(source, name, nextCode),
+                const edited = applyVuSourceEdit(key, (source, anchor, name) =>
+                    computeTrackStateEdit(source, anchor, name, nextCode),
                 );
                 if (edited) {
                     const mute = nextCode === 'mute';
@@ -832,8 +853,8 @@ function App() {
                 }
             }
 
-            applyVuSourceEdit(key, (source, name) =>
-                computeTrackStateEdit(source, name, nextState),
+            applyVuSourceEdit(key, (source, anchor, name) =>
+                computeTrackStateEdit(source, anchor, name, nextState),
             );
 
             // Code and audio agree again for this track.
@@ -899,12 +920,14 @@ function App() {
             if (idx === -1 || !outputs[idx].panModuleId) {
                 return;
             }
-            applyVuSourceEdit(key, (source, name) =>
+            applyVuSourceEdit(key, (source, anchor, name) =>
                 computeTrackOptionEdit(
                     source,
+                    anchor,
                     name,
                     'pan',
                     pan === 0 ? null : pan,
+                    outputs[idx].fromTrack === true,
                 ),
             );
         },
@@ -1314,8 +1337,15 @@ function App() {
                     computeSetMasterGainEdit(source, gain),
                 );
             } else {
-                applyVuSourceEdit(key, (source, name) =>
-                    computeTrackOptionEdit(source, name, 'gain', gain),
+                applyVuSourceEdit(key, (source, anchor, name) =>
+                    computeTrackOptionEdit(
+                        source,
+                        anchor,
+                        name,
+                        'gain',
+                        gain,
+                        outputs[idx].fromTrack === true,
+                    ),
                 );
             }
         },
@@ -1421,8 +1451,15 @@ function App() {
             }
             cancelVuEdit(`${key}:gain`);
             if (!outputs[idx].main && audioGain === UNITY_OUT_GAIN) {
-                applyVuSourceEdit(key, (source, name) =>
-                    computeTrackOptionEdit(source, name, 'gain', null),
+                applyVuSourceEdit(key, (source, anchor, name) =>
+                    computeTrackOptionEdit(
+                        source,
+                        anchor,
+                        name,
+                        'gain',
+                        null,
+                        outputs[idx].fromTrack === true,
+                    ),
                 );
             } else {
                 writeVuGainEdit(key, audioGain);
@@ -1439,8 +1476,8 @@ function App() {
         ],
     );
 
-    /** Right-click on a meter: back to the default gain (unity for outs,
-     *  the builder's output-gain default for the master), property removed
+    /** Right-click on a meter: back to the default gain (unity for tracks,
+     *  the master gain default for the master), property removed
      *  or rewritten accordingly. */
     const handleVuGainReset = useCallback(
         (key: string) => {
@@ -1458,8 +1495,15 @@ function App() {
                     computeSetMasterGainEdit(source, resetGain),
                 );
             } else {
-                applyVuSourceEdit(key, (source, name) =>
-                    computeTrackOptionEdit(source, name, 'gain', null),
+                applyVuSourceEdit(key, (source, anchor, name) =>
+                    computeTrackOptionEdit(
+                        source,
+                        anchor,
+                        name,
+                        'gain',
+                        null,
+                        outputs[idx].fromTrack === true,
+                    ),
                 );
             }
 
@@ -1730,6 +1774,8 @@ function App() {
                         // Swap decoration collections: dispose old, activate pending
                         scopeDecorationsRef.current?.clear();
                         scopeDecorationsRef.current = pending.scopeDecorations;
+                        vuDecorationsRef.current?.clear();
+                        vuDecorationsRef.current = pending.vuDecorations;
                         eqController.commit(pending.eqPanels);
                         commitControlAnchors(pending.controlAnchors);
                         commitVideoPreviews(pending.videoPreviews);
@@ -1754,6 +1800,7 @@ function App() {
                         // and point back at the buffer that is still playing.
                         pendingUIStateRef.current = null;
                         pending.scopeDecorations?.clear();
+                        pending.vuDecorations?.clear();
                         disposeEqPanelSetup(pending.eqPanels);
                         pending.controlAnchors?.dispose();
                         pending.videoPreviews.decorations?.clear();
@@ -2034,6 +2081,50 @@ function App() {
 
                 const newVuOutputs = (result.appliedPatch?.vuMeters ??
                     []) as VuMeterDef[];
+                // One decoration per meter on its label's first character;
+                // the master has none and takes a degenerate range so the
+                // indices stay aligned. Captured columns are V8 columns,
+                // shifted by the executor's indent on line 1 only.
+                let newVuDecorations: editor.IEditorDecorationsCollection | null =
+                    null;
+                if (editorInstance && model && newVuOutputs.length > 0) {
+                    newVuDecorations =
+                        editorInstance.createDecorationsCollection(
+                            newVuOutputs.map((vu) => {
+                                const loc = vu.sourceLocation;
+                                const line =
+                                    loc &&
+                                    Math.min(loc.line, model.getLineCount());
+                                const column =
+                                    loc &&
+                                    loc.column -
+                                        (loc.line === 1
+                                            ? FIRST_LINE_COLUMN_OFFSET
+                                            : 0);
+                                return {
+                                    options: {
+                                        stickiness:
+                                            editor.TrackedRangeStickiness
+                                                .NeverGrowsWhenTypingAtEdges,
+                                    },
+                                    range:
+                                        line && column
+                                            ? {
+                                                  endColumn: column + 1,
+                                                  endLineNumber: line,
+                                                  startColumn: column,
+                                                  startLineNumber: line,
+                                              }
+                                            : {
+                                                  endColumn: 1,
+                                                  endLineNumber: 1,
+                                                  startColumn: 1,
+                                                  startLineNumber: 1,
+                                              },
+                                };
+                            }),
+                        );
+                }
 
                 const newEqPanels = eqController.stage(result, editorInstance);
 
@@ -2065,6 +2156,7 @@ function App() {
                     // Any previously pending (but never committed) decorations
                     // Are cleaned up before storing the new pending state.
                     pendingUIStateRef.current?.scopeDecorations?.clear();
+                    pendingUIStateRef.current?.vuDecorations?.clear();
                     disposeEqPanelSetup(
                         pendingUIStateRef.current?.eqPanels ?? null,
                     );
@@ -2078,6 +2170,7 @@ function App() {
                         interpolationResolutions: interpolationMap,
                         previousRunning,
                         scopeDecorations: newScopeDecorations,
+                        vuDecorations: newVuDecorations,
                         scopeViews: views,
                         sliderDefs: newSliderDefs,
                         updateId: result.updateId,
@@ -2088,6 +2181,7 @@ function App() {
                     // Immediate trigger (or button click): swap decorations
                     // And apply UI state right away.
                     pendingUIStateRef.current?.scopeDecorations?.clear();
+                    pendingUIStateRef.current?.vuDecorations?.clear();
                     disposeEqPanelSetup(
                         pendingUIStateRef.current?.eqPanels ?? null,
                     );
@@ -2100,6 +2194,8 @@ function App() {
                     setRunningControlsSource(submittedSourceId);
                     scopeDecorationsRef.current?.clear();
                     scopeDecorationsRef.current = newScopeDecorations;
+                    vuDecorationsRef.current?.clear();
+                    vuDecorationsRef.current = newVuDecorations;
                     setScopeViews(views);
                     setSliderDefs(newSliderDefs);
                     setButtonDefs(newButtonDefs);

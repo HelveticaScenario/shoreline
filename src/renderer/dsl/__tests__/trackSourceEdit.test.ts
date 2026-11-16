@@ -1,6 +1,12 @@
 import { describe, expect, test } from 'vitest';
 
-import type { TrackState } from '../../../shared/dsl/trackLabels';
+import ts from 'typescript';
+
+import { parseDsl } from '../../../shared/dsl/ast/parse';
+import {
+    parseTrackLabel,
+    type TrackState,
+} from '../../../shared/dsl/trackLabels';
 import {
     computeSetMasterGainEdit,
     computeTrackOptionEdit,
@@ -15,15 +21,43 @@ function applied(source: string, edit: Edit): string | null {
         : null;
 }
 
+/** The offset of the last label in `source` naming track `name`. */
+function anchorOf(source: string, name: string): number {
+    const file = parseDsl(source);
+    const label = file.statements
+        .filter(ts.isLabeledStatement)
+        .map((st) => st.label)
+        .findLast((l) => {
+            const track = parseTrackLabel(l.text);
+            return !('error' in track) && track.name === name;
+        });
+    return label ? label.getStart(file) : -1;
+}
+
 const state = (source: string, name: string, next: TrackState) =>
-    applied(source, computeTrackStateEdit(source, name, next));
+    applied(
+        source,
+        computeTrackStateEdit(source, anchorOf(source, name), name, next),
+    );
 
 const option = (
     source: string,
     name: string,
     prop: 'gain' | 'pan',
     value: number | null,
-) => applied(source, computeTrackOptionEdit(source, name, prop, value));
+    fromTrack = false,
+) =>
+    applied(
+        source,
+        computeTrackOptionEdit(
+            source,
+            anchorOf(source, name),
+            name,
+            prop,
+            value,
+            fromTrack,
+        ),
+    );
 
 describe('computeTrackStateEdit — the label prefix', () => {
     test('mute writes _', () => {
@@ -118,10 +152,40 @@ describe('computeTrackOptionEdit — .track options', () => {
         ).toBe(`lead: $saw('c3').track({ gain: 3 }).scope()`);
     });
 
-    test('a track with a scope but no .track() gains one before the scope', () => {
+    test('a track with a scope but no .track() gains one after the scope', () => {
         expect(option(`lead: $saw('c3').scope()`, 'lead', 'gain', 3)).toBe(
-            `lead: $saw('c3').track({ gain: 3 }).scope()`,
+            `lead: $saw('c3').scope().track({ gain: 3 })`,
         );
+    });
+
+    test('a low-precedence expression is wrapped before gaining .track()', () => {
+        expect(
+            option(`lead: up ? $saw('c3') : $sine('c3')`, 'lead', 'gain', 3),
+        ).toBe(`lead: (up ? $saw('c3') : $sine('c3')).track({ gain: 3 })`);
+    });
+
+    test('a track made elsewhere gains no .track()', () => {
+        expect(option(`lead: mk('c3')`, 'lead', 'gain', 3, true)).toBeNull();
+    });
+
+    test('the edit lands on the anchored label, not a newer one of its name', () => {
+        const source = `lead: $sine('c2')\nlead: $saw('c3')`;
+        const anchor = source.lastIndexOf('lead');
+        expect(
+            applied(
+                source,
+                computeTrackStateEdit(source, anchor, 'lead', 'mute'),
+            ),
+        ).toBe(`lead: $sine('c2')\n_lead: $saw('c3')`);
+    });
+
+    test('an anchor no longer on the track is no edit', () => {
+        expect(
+            computeTrackStateEdit(`lead: $saw('c3')`, 3, 'lead', 'mute'),
+        ).toBeNull();
+        expect(
+            computeTrackStateEdit(`bass: $saw('c3')`, 0, 'lead', 'mute'),
+        ).toBeNull();
     });
 
     test('removing the last option drops .track()', () => {
@@ -175,7 +239,7 @@ describe('computeTrackOptionEdit — .track options', () => {
 
     test('a name bound to a .track() elsewhere is not edited', () => {
         const source = `const t = $saw('c3').track()\nlead: t`;
-        expect(option(source, 'lead', 'gain', 3)).toBeNull();
+        expect(option(source, 'lead', 'gain', 3, true)).toBeNull();
     });
 
     test('a name bound to a signal gains .track()', () => {
