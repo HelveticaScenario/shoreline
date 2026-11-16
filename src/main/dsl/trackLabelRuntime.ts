@@ -20,7 +20,12 @@ import {
     type TrackStatement,
 } from '../../shared/dsl/trackLabels';
 import { captureSourceLocation } from './captureSourceLocation';
-import { Bus, type GraphBuilder, Track } from './GraphBuilder';
+import {
+    Bus,
+    type GraphBuilder,
+    markTrackBinding,
+    Track,
+} from './GraphBuilder';
 import { createTrackTap, type TrackTap } from './trackTap';
 
 /**
@@ -112,11 +117,21 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
             Object.defineProperty(sandbox, name, {
                 configurable: false,
                 enumerable: false,
-                // A bus's name reads as the bus once its label has run, so
-                // it can take sends. Until then, and for every other track,
-                // the name reads as the track's final signal.
-                get: () =>
-                    buses.get(name) ?? (tap ??= createTrackTap(builder, name)),
+                // A bus's name reads as the bus once its label has run.
+                // Until then, and for every other track, the name reads as
+                // the track's final signal; a send to it reaches the bus its
+                // label turns out to label.
+                get: () => {
+                    const bus = buses.get(name);
+                    if (bus) {
+                        return bus;
+                    }
+                    if (!tap) {
+                        tap = createTrackTap(builder, name);
+                        markTrackBinding(tap, name);
+                    }
+                    return tap;
+                },
                 set: () => {
                     throw new Error(
                         `track ${name} is bound by its label and cannot be assigned`,

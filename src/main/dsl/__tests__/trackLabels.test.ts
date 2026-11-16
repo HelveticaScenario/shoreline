@@ -160,6 +160,12 @@ describe('track label errors', () => {
         ['a: 1\na$2: 2', /already a track named a/],
         ['const a = 1\na: 2', /already declared/],
         ['Math: 1', /DSL global/],
+        ['_s_x: 1', /cannot start with s_/],
+        ['S_S_x: 1', /cannot start with s_/],
+        ['arguments: 1', /cannot name a track/],
+        ['let: 1', /cannot name a track/],
+        ['if (1) { var a = 1 }\na: 2', /already declared/],
+        ['for (var a of [1]) {}\na: 2', /already declared/],
         ['$sine: 1', /DSL global/],
     ])('%s', (source, message) => {
         expect(() => exec(source)).toThrow(message);
@@ -223,6 +229,24 @@ reverb: verb
 lead: $saw('c3').track({ sends: verb })
 `),
         ).not.toThrow();
+    });
+
+    test('a send reaches a bus whose label comes later', () => {
+        const { patch } = exec(`
+lead: $saw('c3').track({ sends: [verb, 2] })
+verb: $bus((m) => m.lpf('c5'))
+`);
+        expect(meters(patch).map((m) => m.key)).toEqual(['lead', 'verb']);
+        expect(patch.modules.some((m) => m.moduleType === '$lpf')).toBe(true);
+    });
+
+    test('a send to a later track that is not a bus is an error', () => {
+        expect(() =>
+            exec(`
+lead: $saw('c3').track({ sends: kick })
+kick: $sine('c1')
+`),
+        ).toThrow(/not a \$bus/);
     });
 
     test('a send to anything but a bus is an error', () => {

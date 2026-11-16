@@ -43,6 +43,26 @@ function splitPrefix(text: string): [length: number, state: TrackState] {
 
 const IDENTIFIER = /^[\p{ID_Start}$][\p{ID_Continue}$‌‍]*$/u;
 
+/**
+ * Names a label may parse to but the patch can never read as its binding: the
+ * patch runs as a strict function body, which binds `arguments` itself and
+ * reserves the rest.
+ */
+const UNBINDABLE = new Set([
+    'arguments',
+    'await',
+    'eval',
+    'implements',
+    'interface',
+    'let',
+    'package',
+    'private',
+    'protected',
+    'public',
+    'static',
+    'yield',
+]);
+
 /** The track a label declares, or why the label declares none. */
 export function parseTrackLabel(text: string): TrackLabel | { error: string } {
     const [prefixLength, state] = splitPrefix(text);
@@ -51,6 +71,18 @@ export function parseTrackLabel(text: string): TrackLabel | { error: string } {
     const name = suffix ? rest.slice(0, suffix.index) : rest;
     if (name.length === 0 || name.startsWith('_') || !IDENTIFIER.test(name)) {
         return { error: `\`${text}\` is not a track label. ${FORMAT_HINT}` };
+    }
+    // A name that reads as a solo prefix would become another track once the
+    // mixer clears its own prefix.
+    if (/^[sS]_/.test(name)) {
+        return {
+            error: `\`${text}\`: a track name cannot start with s_ or S_, which marks a soloed track`,
+        };
+    }
+    if (UNBINDABLE.has(name)) {
+        return {
+            error: `\`${text}\`: ${name} cannot name a track, since a patch cannot read it as one`,
+        };
     }
     const mono = suffix?.[2] === 'm';
     const channel = suffix ? Number(suffix[1]) : 0;
@@ -106,7 +138,10 @@ export interface TrackLabelAnalysis {
     errors: TrackLabelError[];
 }
 
-/** Names the top-level declarations of `file` bind. */
+/**
+ * Names the patch's own scope binds: its top-level declarations and every
+ * `var` outside a function, which hoists to the top.
+ */
 function topLevelNames(ts: typeof TS, file: TS.SourceFile): Set<string> {
     const names = new Set<string>();
     const bind = (name: TS.BindingName): void => {
@@ -121,11 +156,7 @@ function topLevelNames(ts: typeof TS, file: TS.SourceFile): Set<string> {
         }
     };
     for (const statement of file.statements) {
-        if (ts.isVariableStatement(statement)) {
-            for (const declaration of statement.declarationList.declarations) {
-                bind(declaration.name);
-            }
-        } else if (
+        if (
             (ts.isFunctionDeclaration(statement) ||
                 ts.isClassDeclaration(statement)) &&
             statement.name
@@ -133,6 +164,23 @@ function topLevelNames(ts: typeof TS, file: TS.SourceFile): Set<string> {
             names.add(statement.name.text);
         }
     }
+    const visit = (node: TS.Node): void => {
+        if (ts.isFunctionLike(node) || ts.isClassLike(node)) {
+            return;
+        }
+        if (
+            ts.isVariableDeclarationList(node) &&
+            (node.parent === undefined ||
+                node.parent.parent === file ||
+                (node.flags & ts.NodeFlags.BlockScoped) === 0)
+        ) {
+            for (const declaration of node.declarations) {
+                bind(declaration.name);
+            }
+        }
+        ts.forEachChild(node, visit);
+    };
+    ts.forEachChild(file, visit);
     return names;
 }
 

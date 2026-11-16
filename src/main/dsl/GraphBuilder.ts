@@ -194,6 +194,8 @@ interface OutGroupVuState {
     /** Location of the track's label in the DSL source */
     sourceLocation?: { line: number; column: number };
     scopes: TrackScope[];
+    /** Whether the label's value was a `.track(...)` result. */
+    fromTrack: boolean;
 }
 
 /** Internal storage for a stereo output group */
@@ -213,21 +215,34 @@ export interface MonoOutGroup extends OutGroupVuState {
 }
 
 /** The bus a send names: a bus, or a bus's `.track()`. */
-function sendBus(value: unknown): Bus | undefined {
+function sendBus(value: unknown): Bus | string | undefined {
     if (value instanceof Bus) {
         return value;
     }
     if (value instanceof Track && value.source instanceof Bus) {
         return value.source;
     }
+    // A track's name read before its label runs: a bus if its label turns
+    // out to label one, which `toPatch` settles.
+    if (typeof value === 'object' && value !== null) {
+        return TRACK_BINDINGS.get(value);
+    }
     return undefined;
+}
+
+/** Each track name's binding read before its label ran, by the value read. */
+const TRACK_BINDINGS = new WeakMap<object, string>();
+
+/** Mark `value` as track `name`'s binding, read before its label ran. */
+export function markTrackBinding(value: object, name: string): void {
+    TRACK_BINDINGS.set(value, name);
 }
 
 /**
  * Whether `value` is one `[bus, gain]` pair rather than a list of sends: a
  * bus followed by something that is neither a bus nor a pair.
  */
-function isSendPair(value: unknown): value is [Bus | Track, PolySignal] {
+function isSendPair(value: unknown): value is [unknown, PolySignal] {
     if (!Array.isArray(value) || value.length !== 2) {
         return false;
     }
@@ -242,7 +257,7 @@ function isSendPair(value: unknown): value is [Bus | Track, PolySignal] {
 /** The `[bus, gain]` pairs of a track's `sends` option. */
 function resolveSends(
     sends: Send | Send[] | undefined,
-): [Bus, PolySignal | undefined][] {
+): [Bus | string, PolySignal | undefined][] {
     if (sends === undefined) {
         return [];
     }
@@ -824,7 +839,7 @@ export class GraphBuilder implements ChainHost {
     private sourceLocationMap = new Map<string, SourceLocation>();
     /** Track all deferred outputs for string replacement during toPatch */
     private deferredOutputs = new Map<string, DeferredModuleOutput>();
-    /** `$trackTap` taps, resolved against their labeled out in toPatch */
+    /** `$trackTap` taps, resolved against their track by name in toPatch */
     private trackTaps: {
         label: string;
         tap: PendingTrackTap;
@@ -843,6 +858,14 @@ export class GraphBuilder implements ChainHost {
     /** Global groove template for ROOT_CLOCK; straight when unset */
     private groove: GrooveTemplate | undefined = undefined;
     private busses: Bus[] = [];
+    /** Each labelled bus, by its track's name. */
+    private bussesByName = new Map<string, Bus>();
+    /** Sends to a track name read before its label ran; settled in toPatch. */
+    private pendingSends: {
+        name: string;
+        outputs: ModuleOutput[];
+        gain: PolySignal | undefined;
+    }[] = [];
     private endOfChainCb: (
         mixed: Collection,
     ) => Collection | CollectionWithRange = (e) => e;
@@ -1238,6 +1261,15 @@ export class GraphBuilder implements ChainHost {
      * which adds overhead from lane count derivation on every patch build.
      */
     toPatch(): PatchGraph {
+        for (const { name, outputs, gain } of this.pendingSends) {
+            const bus = this.bussesByName.get(name);
+            if (!bus) {
+                throw new Error(
+                    `.track sends: ${name} is a track, not a $bus, so nothing can be sent to it`,
+                );
+            }
+            bus.addSend(outputs, gain);
+        }
         this.processingBusses = true;
         for (const bus of this.busses) {
             // Lock the bus from having more sends applied to it
@@ -1264,7 +1296,7 @@ export class GraphBuilder implements ChainHost {
         // sorted into source order before emission.
         const vuMeters: (VuMeterDef & { ordinal: number })[] = [];
 
-        // Each labeled out's signals, for `$trackTap` taps.
+        // Each track's signals, by name, for `$trackTap` taps.
         const outsByLabel = new Map<
             string,
             {
@@ -1344,8 +1376,8 @@ export class GraphBuilder implements ChainHost {
                     const gainValue = gainControllable
                         ? ((group.gain as number | undefined) ?? UNITY_OUT_GAIN)
                         : null;
-                    // A signal gain is averaged to one lane, so the out stays
-                    // one lane wide, and a mono out's is folded with it.
+                    // A signal gain is averaged to one lane, so the track stays
+                    // one lane wide, and a mono track's is folded with it.
                     const gainSource = gainControllable
                         ? smoothControlFactory(gainValue, {
                               ...OUT_GAIN_RANGE,
@@ -1439,6 +1471,7 @@ export class GraphBuilder implements ChainHost {
                     vuMeters.push({
                         baseChannel,
                         channels: group.type === 'stereo' ? 2 : 1,
+                        fromTrack: group.fromTrack,
                         gain: gainValue,
                         gainLocked: !gainControllable,
                         gainModuleId: gainControllable
@@ -1569,7 +1602,7 @@ export class GraphBuilder implements ChainHost {
             }
             return (signalFactory(first, { ...range }) as Collection).items[0];
         };
-        // Every tap of an out shares its sources.
+        // Every tap of a track shares its sources.
         const outSources = new Map<string, TrackTapSources>();
         for (const { label, tap, sourceLocation } of this.trackTaps) {
             const out = outsByLabel.get(trackNameKey(label));
@@ -1777,6 +1810,8 @@ export class GraphBuilder implements ChainHost {
         this.eqPanels = [];
         this.counters.clear();
         this.outGroups.clear();
+        this.bussesByName.clear();
+        this.pendingSends = [];
         this.outGroupOrdinal = 0;
         this.sourceLocationMap.clear();
         this.deferredOutputs.clear();
@@ -1840,11 +1875,16 @@ export class GraphBuilder implements ChainHost {
                 throw new Error(`track ${name} has no signal`);
             }
             for (const [sendTo, gain] of resolveSends(options.sends)) {
-                sendTo.addSend(outputs, gain);
+                if (typeof sendTo === 'string') {
+                    this.pendingSends.push({ gain, name: sendTo, outputs });
+                } else {
+                    sendTo.addSend(outputs, gain);
+                }
             }
         }
         const state = {
             displayName: declaration.displayName,
+            fromTrack: track !== undefined,
             gain: options.gain,
             label: name,
             mute: declaration.state === 'mute',
@@ -1862,7 +1902,10 @@ export class GraphBuilder implements ChainHost {
                   spread: options.spread,
                   type: 'stereo',
               };
-        bus?.addOutGroup(group);
+        if (bus) {
+            bus.addOutGroup(group);
+            this.bussesByName.set(name, bus);
+        }
         const existing = this.outGroups.get(channel) ?? [];
         existing.push(group);
         this.outGroups.set(channel, existing);
@@ -1880,8 +1923,8 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Register an `$trackTap` tap. It resolves in toPatch, so the out may be
-     * declared after the tap; a label no out declares throws there.
+     * Register an `$trackTap` tap. It resolves in toPatch, so the track may
+     * be labelled after the tap; a name no track has throws there.
      */
     addTrackTap(
         label: string,
