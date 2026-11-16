@@ -766,10 +766,10 @@ function App() {
     );
 
     /**
-     * Mixer M/S click. A track is muted, soloed or neither: a click turns its
-     * own state on, or back off, so soloing a muted track unmutes it. A plain
-     * click live-updates every mute gate whose effective value changed (solo
-     * reaches across tracks and groups) and rewrites the track's label prefix — the same
+     * Mixer M/S click. Mute and solo toggle on their own, and a soloed
+     * track plays whether or not it is muted. A plain click live-updates
+     * every mute gate whose effective value changed (solo reaches across
+     * tracks and groups) and rewrites the track's label prefix — the same
      * edit-code + edit-live-graph contract as sliders, with no patch re-eval.
      * A code-only click edits the source alone: the audio keeps running
      * unchanged and the buttons' outer (code) sections ghost until a patch
@@ -782,51 +782,37 @@ function App() {
             if (idx === -1) {
                 return;
             }
-            const toggled = (from: TrackState): TrackState =>
-                from === prop ? null : prop;
-            const stateOf = (mute: boolean, solo: boolean): TrackState =>
-                solo ? 'solo' : mute ? 'mute' : null;
+            const audio = outputs[idx];
 
             if (codeOnly) {
-                const audio = outputs[idx];
                 const ghost = vuGhostsRef.current.get(key);
-                const nextCode = toggled(
-                    stateOf(
-                        ghost?.mute ?? audio.mute,
-                        ghost?.solo ?? audio.solo,
-                    ),
-                );
+                const code: TrackState = {
+                    mute: ghost?.mute ?? audio.mute,
+                    solo: ghost?.solo ?? audio.solo,
+                };
+                const nextCode = { ...code, [prop]: !code[prop] };
                 const edited = applyVuSourceEdit(key, (source, anchor, name) =>
                     computeTrackStateEdit(source, anchor, name, nextCode),
                 );
                 if (edited) {
-                    const mute = nextCode === 'mute';
-                    const solo = nextCode === 'solo';
                     setVuGhostProp(
                         key,
-                        'mute',
-                        mute === audio.mute ? undefined : mute,
-                    );
-                    setVuGhostProp(
-                        key,
-                        'solo',
-                        solo === audio.solo ? undefined : solo,
+                        prop,
+                        nextCode[prop] === audio[prop]
+                            ? undefined
+                            : nextCode[prop],
                     );
                 }
                 return;
             }
 
-            const nextState = toggled(
-                stateOf(outputs[idx].mute, outputs[idx].solo),
-            );
+            const nextState: TrackState = {
+                mute: audio.mute,
+                solo: audio.solo,
+                [prop]: !audio[prop],
+            };
             const next = outputs.map((o, i) =>
-                i === idx
-                    ? {
-                          ...o,
-                          mute: nextState === 'mute',
-                          solo: nextState === 'solo',
-                      }
-                    : o,
+                i === idx ? { ...o, ...nextState } : o,
             );
 
             const tracksOf = (list: VuMeterDef[]) =>
@@ -852,9 +838,8 @@ function App() {
                 computeTrackStateEdit(source, anchor, name, nextState),
             );
 
-            // Code and audio agree again for this track.
-            setVuGhostProp(key, 'mute', undefined);
-            setVuGhostProp(key, 'solo', undefined);
+            // Code and audio agree again for this control.
+            setVuGhostProp(key, prop, undefined);
 
             // Optimistic UI; the source of truth reasserts on the next eval.
             // Mirror into the ref synchronously so a rapid second toggle reads

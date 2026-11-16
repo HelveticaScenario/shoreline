@@ -840,7 +840,7 @@ class BaseCollection<Plain = Collection, Ranged = CollectionWithRange> {
   /**
    * How this signal mixes into its track. A track is heard once its
    * statement is labelled: the label names it and sets its mute, solo and
-   * channels (\`_name\` mutes, \`S_name\` solos, \`name$2\` plays on channels
+   * channels (\`_name\` mutes, \`S_name\` solos, \`S__name\` does both, \`name$2\` plays on channels
    * 2 and 3, \`name$2m\` in mono on channel 2, \`name$drums\` into the group
    * track \`drums\`). The name then reads as the
    * track's final signal in the rest of the patch.

@@ -11,26 +11,98 @@ import {
 
 describe('parseTrackLabel', () => {
     test.each([
-        ['lead', { channel: 0, mono: false, name: 'lead', state: null }],
-        ['_lead', { channel: 0, mono: false, name: 'lead', state: 'mute' }],
-        ['s_lead', { channel: 0, mono: false, name: 'lead', state: 'solo' }],
-        ['S_lead', { channel: 0, mono: false, name: 'lead', state: 'solo' }],
-        ['lead$2', { channel: 2, mono: false, name: 'lead', state: null }],
-        ['lead$12m', { channel: 12, mono: true, name: 'lead', state: null }],
+        [
+            'lead',
+            {
+                channel: 0,
+                mono: false,
+                name: 'lead',
+                state: { mute: false, solo: false },
+            },
+        ],
+        [
+            '_lead',
+            {
+                channel: 0,
+                mono: false,
+                name: 'lead',
+                state: { mute: true, solo: false },
+            },
+        ],
+        [
+            's_lead',
+            {
+                channel: 0,
+                mono: false,
+                name: 'lead',
+                state: { mute: false, solo: true },
+            },
+        ],
+        [
+            'S_lead',
+            {
+                channel: 0,
+                mono: false,
+                name: 'lead',
+                state: { mute: false, solo: true },
+            },
+        ],
+        [
+            'lead$2',
+            {
+                channel: 2,
+                mono: false,
+                name: 'lead',
+                state: { mute: false, solo: false },
+            },
+        ],
+        [
+            'lead$12m',
+            {
+                channel: 12,
+                mono: true,
+                name: 'lead',
+                state: { mute: false, solo: false },
+            },
+        ],
         [
             '_bass_line$0m',
-            { channel: 0, mono: true, name: 'bass_line', state: 'mute' },
+            {
+                channel: 0,
+                mono: true,
+                name: 'bass_line',
+                state: { mute: true, solo: false },
+            },
         ],
-        ['snare', { channel: 0, mono: false, name: 'snare', state: null }],
-        ['s', { channel: 0, mono: false, name: 's', state: null }],
         [
-            'a$b',
-            { channel: 0, group: 'b', mono: false, name: 'a', state: null },
+            'snare',
+            {
+                channel: 0,
+                mono: false,
+                name: 'snare',
+                state: { mute: false, solo: false },
+            },
         ],
+        [
+            's',
+            {
+                channel: 0,
+                mono: false,
+                name: 's',
+                state: { mute: false, solo: false },
+            },
+        ],
+        ['a$b', { channel: 0, group: 'b', mono: false, name: 'a' }],
         [
             '_kick$drums',
-            { group: 'drums', groupStart: 6, name: 'kick', state: 'mute' },
+            {
+                group: 'drums',
+                groupStart: 6,
+                name: 'kick',
+                state: { mute: true, solo: false },
+            },
         ],
+        ['S__kick$drums', { group: 'drums', groupStart: 8, name: 'kick' }],
         ['lead$2', { group: null }],
     ])('%s', (label, expected) => {
         expect(parseTrackLabel(label)).toMatchObject(expected);
@@ -42,7 +114,7 @@ describe('parseTrackLabel', () => {
         });
     });
 
-    test.each(['__lead', 's__lead', '_', 'S_', '$2', 'x$63', 'x$64m'])(
+    test.each(['__lead', '_', 'S_', '$2', 'x$63', 'x$64m'])(
         '%s is not a track label',
         (label) => {
             expect(parseTrackLabel(label)).toHaveProperty('error');
@@ -55,15 +127,55 @@ describe('parseTrackLabel', () => {
     });
 });
 
-test('withTrackState rewrites only the prefix', () => {
-    expect(withTrackState('lead$2', 'mute')).toBe('_lead$2');
-    expect(withTrackState('_lead$2', 'solo')).toBe('S_lead$2');
-    expect(withTrackState('s_lead$2m', null)).toBe('lead$2m');
-    expect(withTrackState('snare', 'solo')).toBe('S_snare');
+test.each([
+    ['S__lead', 'lead'],
+    ['s__lead', 'lead'],
+    ['_S_lead$2', 'lead'],
+    ['_s_bass_line', 'bass_line'],
+])('%s is muted and soloed', (label, name) => {
+    expect(parseTrackLabel(label)).toMatchObject({
+        name,
+        prefixLength: 3,
+        state: { mute: true, solo: true },
+    });
 });
 
-test.each(['_1abc', 'S_1abc', '_9', 'S__x', 'a$1b', 'kick$_drums'])(
-    '%s: no track or group name starts with a digit or _',
+test.each(['_1abc', 'S_1abc', '_9', 'S___x', '_S__x', 'S_s_x', '_S_s_x'])(
+    '%s: no track name starts with a digit, _ or a solo prefix',
+    (label) => {
+        expect(parseTrackLabel(label)).toHaveProperty('error');
+    },
+);
+
+test('withTrackState writes S__ for a muted and soloed track', () => {
+    expect(withTrackState('lead$2', { mute: true, solo: true })).toBe(
+        'S__lead$2',
+    );
+    expect(withTrackState('_S_lead', { mute: true, solo: false })).toBe(
+        '_lead',
+    );
+    expect(withTrackState('S__lead', { mute: false, solo: false })).toBe(
+        'lead',
+    );
+});
+
+test('withTrackState rewrites only the prefix', () => {
+    expect(withTrackState('lead$2', { mute: true, solo: false })).toBe(
+        '_lead$2',
+    );
+    expect(withTrackState('_lead$2', { mute: false, solo: true })).toBe(
+        'S_lead$2',
+    );
+    expect(withTrackState('s_lead$2m', { mute: false, solo: false })).toBe(
+        'lead$2m',
+    );
+    expect(withTrackState('snare', { mute: false, solo: true })).toBe(
+        'S_snare',
+    );
+});
+
+test.each(['a$1b', 'kick$_drums', 'kick$S_drums'])(
+    '%s: no group name starts with a digit, _ or a solo prefix',
     (label) => {
         expect(parseTrackLabel(label)).toHaveProperty('error');
     },

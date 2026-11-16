@@ -102,7 +102,7 @@ function buildFixture() {
         group: null,
         mono: false,
         name,
-        state: null,
+        state: { mute: false, solo: false },
     });
     builder.addTrack(track('lifted'), factory('$saw')('c2'));
     builder.addTrack(

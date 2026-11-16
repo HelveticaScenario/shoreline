@@ -85,6 +85,22 @@ d: $sine('b4')
         expect(gateOf(patch, 'd')).toBe(0);
     });
 
+    test('a track both muted and soloed plays, as a soloed track does', () => {
+        const { patch } = exec(`
+S__a: $sine('c4')
+_S_b: $sine('e4')
+c: $sine('g4')
+`);
+        expect(meters(patch)).toMatchObject([
+            { key: 'a', mute: true, solo: true },
+            { key: 'b', mute: true, solo: true },
+            { key: 'c', mute: false, solo: false },
+        ]);
+        expect(gateOf(patch, 'a')).toBe(5);
+        expect(gateOf(patch, 'b')).toBe(5);
+        expect(gateOf(patch, 'c')).toBe(0);
+    });
+
     test('muting keeps the hidden module ids, which follow the name', () => {
         const ids = (source: string) =>
             exec(source)
@@ -160,8 +176,8 @@ describe('track label errors', () => {
         ['a: 1\na$2: 2', /already a track named a/],
         ['const a = 1\na: 2', /already declared/],
         ['Math: 1', /DSL global/],
-        ['_s_x: 1', /cannot start with s_/],
-        ['S_S_x: 1', /cannot start with s_/],
+        ['S_s_x: 1', /cannot start with s_/],
+        ['_S_S_x: 1', /cannot start with s_/],
         ['arguments: 1', /cannot name a track/],
         ['let: 1', /cannot name a track/],
         ['if (1) { var a = 1 }\na: 2', /already declared/],

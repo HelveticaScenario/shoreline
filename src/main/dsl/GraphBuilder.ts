@@ -173,7 +173,7 @@ const TRACK_OPTION_NAMES = new Set(['gain', 'pan', 'spread', 'sends']);
 export interface TrackDeclaration {
     name: string;
     displayName: string;
-    state: 'mute' | 'solo' | null;
+    state: { mute: boolean; solo: boolean };
     channel: number;
     mono: boolean;
     /** The group track this track plays into instead of output channels. */
@@ -204,6 +204,8 @@ interface OutGroupVuState {
     group: string | null;
     /** Whether this track is a group's: rooted at a `$group()`. */
     isGroup: boolean;
+    /** Whether this track is a bus's: rooted at a `$bus()`. */
+    isBus: boolean;
 }
 
 /** Internal storage for a stereo output group */
@@ -1422,6 +1424,7 @@ export class GraphBuilder implements ChainHost {
                         fromTrack: group.fromTrack,
                         group: group.group,
                         isGroup: group.isGroup,
+                        isBus: group.isBus,
                         gain: gainValue,
                         gainLocked: !gainControllable,
                         gainModuleId: gainControllable
@@ -1883,13 +1886,14 @@ export class GraphBuilder implements ChainHost {
             fromTrack: track !== undefined,
             group: declaration.group,
             isGroup: ownGroup !== undefined,
+            isBus: bus !== undefined,
             gain: options.gain,
             label: name,
-            mute: declaration.state === 'mute',
+            mute: declaration.state.mute,
             ordinal: this.outGroupOrdinal++,
             outputs,
             scopes: track?.scopes ?? [],
-            solo: declaration.state === 'solo',
+            solo: declaration.state.solo,
             sourceLocation,
         };
         const group: OutGroup = mono

@@ -165,6 +165,15 @@ describe('solo and mute across groups', () => {
         });
     });
 
+    test('a muted and soloed group plays with its members', () => {
+        expect(states(patch('', '', 'S__', ''))).toEqual({
+            bass: false,
+            drums: true,
+            kick: true,
+            snare: true,
+        });
+    });
+
     test('a muted group silences what plays through it', () => {
         expect(states(patch('', '', '_', ''))).toEqual({
             bass: true,

@@ -129,7 +129,9 @@ test.describe('vu meter panel', () => {
         ).not.toHaveClass(/vu-meter--suppressed/);
     });
 
-    test('solo on a muted track unmutes it', async ({ window }) => {
+    test('solo on a muted track keeps its mute and plays it', async ({
+        window,
+    }) => {
         await setupTwoOutPatch(window);
         const strip = window.locator('.vu-meter[data-vu-key="lead"]');
         await strip.locator('.vu-btn-mute').click();
@@ -140,11 +142,11 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`S_lead: $sine`);
-        expect(source).not.toMatch(/^_lead:/m);
+        expect(source).toContain(`S__lead: $sine`);
+        await expect(strip).not.toHaveClass(/vu-meter--suppressed/);
         await expect(strip.locator('.vu-btn-mute')).toHaveAttribute(
             'aria-pressed',
-            'false',
+            'true',
         );
         await expect(strip.locator('.vu-btn-solo')).toHaveAttribute(
             'aria-pressed',
@@ -316,7 +318,9 @@ test.describe('vu meter panel', () => {
         expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
     });
 
-    test('a bus track meters what is sent to it', async ({ window }) => {
+    test('a bus track meters what is sent to it', async ({
+        window,
+    }, testInfo) => {
         await window.waitForTimeout(3000);
         const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
         test.skip(!hasTestAPI, '__TEST_API__ not available');
@@ -331,6 +335,19 @@ test.describe('vu meter panel', () => {
             );
         });
         await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await window.evaluate(() => {
+            window.__TEST_API__!.setMixerVisible(true);
+        });
+        // A bus strip sits past the main strip, lettered like a return.
+        const bus = window.locator(
+            '.vu-meter--main + .vu-meter-buses > .vu-meter[data-vu-key="fx"]',
+        );
+        await expect(bus).toHaveCount(1);
+        await expect(bus.locator('.vu-btn-mute')).toHaveText('A');
+        await expect(
+            window.locator('.vu-meter-scroll .vu-meter[data-vu-key="dry"]'),
+        ).toHaveCount(1);
+        await window.screenshot({ path: testInfo.outputPath('buses.png') });
         await expect
             .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 15_000 })
             .toBeGreaterThan(0.01);

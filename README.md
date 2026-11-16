@@ -74,7 +74,7 @@ const carrier = $sine('440hz').phase(mod.amp(0.5));
 fm: carrier;
 ```
 
-**Tracks:** a label in front of a statement sends it to the mixer. `_name` mutes it, `S_name` solos it, and `name$2` plays it on channels 2 and 3 (`name$2m` in mono on channel 2), and `name$drums` plays it into the group track `drums`, a track that starts from `$group()`. `.track()` sets its gain, pan, spread and sends.
+**Tracks:** a label in front of a statement sends it to the mixer. `_name` mutes it, `S_name` solos it (`S__name` does both, and solo wins), and `name$2` plays it on channels 2 and 3 (`name$2m` in mono on channel 2), and `name$drums` plays it into the group track `drums`, a track that starts from `$group()`. `.track()` sets its gain, pan, spread and sends.
 
 ```javascript
 verb: $bus().plate().track({ gain: 3 });
