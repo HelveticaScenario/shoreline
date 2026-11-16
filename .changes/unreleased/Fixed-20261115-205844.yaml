@@ -1,0 +1,3 @@
+kind: Fixed
+body: A module call whose error a script catches with `try`/`catch` no longer leaves a broken module behind that stops the patch from running.
+time: 2026-11-15T20:58:44.43008-05:00
