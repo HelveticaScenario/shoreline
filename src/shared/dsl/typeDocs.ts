@@ -733,23 +733,23 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description:
             'Create a send-return bus. Signals are routed to the bus via `.send(bus, gain)` on any Collection. ' +
-            'The callback receives a Collection that is the mix of all sends, allowing effects or further routing to be applied.',
+            'The callback receives a Collection that is the mix of all sends and returns the processed signal; call `.out()` or `.outMono()` on the bus to hear it.',
         examples: [
-            'const fx = $bus((mixed) => $reverb(mixed).out());\n$saw(440).send(fx, 0.6);\n$sine(220).send(fx, 0.4);',
-            '// Multiple sends at different gain levels\nconst verb = $bus((mixed) => mixed.gain(0.8).out());\nvoices.send(verb, 0.5);',
+            'const fx = $bus((mixed) => $reverb(mixed)).out();\n$saw(440).send(fx, 0.6);\n$sine(220).send(fx, 0.4);',
+            '// Multiple sends at different gain levels\nconst verb = $bus((mixed) => mixed.gain(0.8)).out();\nvoices.send(verb, 0.5);',
         ],
         group: 'Advanced',
         name: '$bus',
         params: [
             {
                 name: 'cb',
-                type: '(mixed: Collection) => unknown',
+                type: '(mixed: Collection) => Poly<Signal> | void',
                 description:
-                    'Called at patch finalization with the mixed sends. Call .out() or return a signal.',
+                    'Called at patch finalization with the mixed sends. Returns the bus signal that `.out()` on the bus plays.',
             },
         ],
-        returns: 'Bus handle passed to .send()',
-        signature: '$bus(cb: (mixed: Collection) => unknown): Bus',
+        returns: 'Bus handle passed to .send(), with .out() and .outMono()',
+        signature: '$bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus',
     },
     {
         description:

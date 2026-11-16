@@ -1297,32 +1297,55 @@ function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /**
  * A send-return bus. Create one with {@link $bus}, then call \`.send(bus, gain)\` on
- * any {@link Collection} to route signals through it.
- * The bus callback receives a mixed {@link Collection} of all sends.
+ * any {@link Collection} to route signals through it, and \`.out()\` or
+ * \`.outMono()\` on the bus to hear its return.
  */
 class Bus {
   /** @internal */
   private constructor();
+
+  /**
+   * Send the bus's return to speakers as stereo.
+   *
+   * Options:
+${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
+   * @param options Stereo output options ({@link StereoOutOptions})
+   * @example
+   * const verb = $bus((mixed) => mixed.reverb()).out({ label: 'verb' });
+   * $saw('c3').send(verb, 2).out();
+   */
+  out(options?: StereoOutOptions): this;
+
+  /**
+   * Send the bus's return to speakers as mono.
+   *
+   * Options:
+${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
+   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link MonoOutOptions})
+   * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
+   * @example
+   * const echo = $bus((mixed) => $delay(mixed, 0.25)).outMono(1);
+   * $sine('c4').send(echo).outMono(0);
+   */
+  outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this;
 }
 
 /**
  * Create a send-return bus.
  *
  * The callback receives a {@link Collection} that is the mix of all signals
- * sent to this bus via \`.send(bus, gain)\`. Use it to add effects or route the
- * mixed signal to an output.
+ * sent to this bus via \`.send(bus, gain)\`, and returns the bus's return
+ * signal. Call \`.out()\` or \`.outMono()\` on the bus to hear it.
  *
- * @param cb Called during patch finalization with the mixed sends.
- *             The return value of this function is discarded, it's up to the cb to
- *             call \`.out()\` or \`.outMono()\` to actually hear anything.
+ * @param cb Called during patch finalization with the mixed sends; returns the processed signal
  * @returns A {@link Bus} handle passed to \`.send()\`
  *
  * @example
- * const reverb = $bus((mixed) => $plate(mixed).out());
- * $saw('a').send(reverb, 0.6);
- * $sine('a2').send(reverb, 0.4);
+ * const verb = $bus((mixed) => $plate(mixed)).out();
+ * $saw('a').send(verb, 0.6);
+ * $sine('a2').send(verb, 0.4);
  */
-function $bus(cb: (mixed: Collection) => unknown): Bus;
+function $bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus;
 
 /**
  * Tap the out labeled \`label\`: its audio after gain and mute/solo, plus its
