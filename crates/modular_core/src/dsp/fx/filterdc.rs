@@ -46,7 +46,7 @@ const FILTER_DC_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Recentring tube-style drive",
-        code: "$saw('c2').overdrive(4, { mode: 'asym' }).filterDC().out()",
+        code: "bass: $saw('c2').overdrive(4, { mode: 'asym' }).filterDC()",
     }],
 };
 

@@ -63,21 +63,21 @@ const P_WARP_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Pulsar sweep",
             code: r#"
-                $pSine(
+                tone: $pSine(
                   $pWarp(
                     $ramp('c3'),
                     $phase.pulsar($sine('0.1hz').range(0, 4)),
                     { freq: 'c3' },
                   ),
-                ).out()
+                )
             "#,
         },
         DocExample {
             title: "Crushed feedback tone",
             code: r#"
-                $pSine(
+                tone: $pSine(
                   $pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1))),
-                ).out()
+                )
             "#,
         },
     ],

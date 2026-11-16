@@ -337,18 +337,16 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Tremolo that changes depth each beat",
             code: r#"
-                $saw('c3')
-                  .amp(
-                    $sine('4hz')
-                      .range(2, 5)
-                      .erratic(2, { trigger: $clock._beatTrigger }),
-                  )
-                  .out()
+                keys: $saw('c3').amp(
+                  $sine('4hz')
+                    .range(2, 5)
+                    .erratic(2, { trigger: $clock._beatTrigger }),
+                )
             "#,
         },
         DocExample {
             title: "Pitch that drifts",
-            code: "$sine($c('a3').erratic(0.1, { speed: 1.5 })).out()",
+            code: "tone: $sine($c('a3').erratic(0.1, { speed: 1.5 }))",
         },
     ],
 };

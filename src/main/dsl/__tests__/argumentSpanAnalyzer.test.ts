@@ -21,21 +21,21 @@ function entries(source: string): string[] {
 
 describe('argument span registry', () => {
     test('is keyed by the patch line and column a factory captures', () => {
-        expect(entries("const a = 1\n  $sine('c4').out()")).toEqual([
+        expect(entries("const a = 1\n  $sine('c4').scope()")).toEqual([
             "2:3 module freq='c4'",
         ]);
     });
 
     test('config keys are read by name, quoted or not', () => {
-        expect(entries("$sine('c4', { 'phase': 0.25, [k]: 1 }).out()")).toEqual(
-            ["1:5 module freq='c4' phase=0.25"],
-        );
+        expect(
+            entries("$sine('c4', { 'phase': 0.25, [k]: 1 }).scope()"),
+        ).toEqual(["1:5 module freq='c4' phase=0.25"]);
     });
 
     test('a signed number is a literal; any other prefix expression is not', () => {
         expect(
             entries(
-                '$sine(-1).out()\n$sine(+2).out()\n$sine(-x).out()\n$sine(!1).out()',
+                '$sine(-1).scope()\n$sine(+2).scope()\n$sine(-x).scope()\n$sine(!1).scope()',
             ),
         ).toEqual(['1:5 module freq=-1', '2:1 module freq=+2']);
     });
@@ -43,7 +43,7 @@ describe('argument span registry', () => {
     test('a chain call is its module, with the receiver as first argument', () => {
         expect(
             entries(
-                "$saw('c3').lpf('800hz', 2).out()\n$('c*4').tr808.kick({ decay: 2 }).out()\nfoo.notAModule(1)",
+                "$saw('c3').lpf('800hz', 2).scope()\n$('c*4').tr808.kick({ decay: 2 }).scope()\nfoo.notAModule(1)",
             ),
         ).toEqual([
             "1:16 module cutoff='800hz' resonance=2",
@@ -55,16 +55,16 @@ describe('argument span registry', () => {
 
     test('a dotted callee resolves to the module it names', () => {
         const [kick808, kick909] = entries(
-            "$tr808.kick('c1').out()\n$tr909.kick('c1').out()",
+            "$tr808.kick('c1').scope()\n$tr909.kick('c1').scope()",
         );
         expect(kick808).toMatch(/^1:\d+ module trigger=/);
         expect(kick909).toMatch(/^2:\d+ module trigger=/);
     });
 
     test('array elements are recorded up to the first spread', () => {
-        expect(entries("$sine(['c4', , 'e4', ...more, 'g4']).out()")).toEqual([
-            "1:5 module freq.0='c4' freq.2='e4'",
-        ]);
+        expect(entries("$sine(['c4', , 'e4', ...more, 'g4']).scope()")).toEqual(
+            ["1:5 module freq.0='c4' freq.2='e4'"],
+        );
     });
 
     test('only a bare $ call is the pattern builder', () => {
@@ -153,30 +153,30 @@ describe('template interpolation', () => {
         // A loop variable hides the outer const of its name.
         expect(
             entries(
-                "const n = 'c4'\nfor (const n of ['d4']) { $sine(n).out() }",
+                "const n = 'c4'\nfor (const n of ['d4']) { $sine(n).scope() }",
             ),
         ).toEqual([]);
         // A `var` binds in its whole function, from inside any block.
         expect(
             entries(
-                "const x = 'c4'\nfunction f(c) { if (c) { var x = 'd4' } $sine(x).out() }",
+                "const x = 'c4'\nfunction f(c) { if (c) { var x = 'd4' } $sine(x).scope() }",
             ),
         ).toEqual([]);
         // A class static block holds its own `var`.
         expect(
             entries(
-                "const x = 'c4'\nclass K { static { if (1) { var x = 'd4' } $sine(x).out() } }",
+                "const x = 'c4'\nclass K { static { if (1) { var x = 'd4' } $sine(x).scope() } }",
             ),
         ).toEqual([]);
         expect(
             entries(
-                "const x = 'c4'\nclass K { static { var x = 'd4' } }\n$sine(x).out()",
+                "const x = 'c4'\nclass K { static { var x = 'd4' } }\n$sine(x).scope()",
             ),
         ).toEqual(["3:1 module freq='c4'"]);
         // A named class expression binds its own name inside itself.
         expect(
             entries(
-                "const x = 'c4'\nconst C = class x { m() { $sine(x).out() } }",
+                "const x = 'c4'\nconst C = class x { m() { $sine(x).scope() } }",
             ),
         ).toEqual([]);
     });

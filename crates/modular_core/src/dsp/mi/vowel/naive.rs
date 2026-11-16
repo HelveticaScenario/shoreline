@@ -252,9 +252,9 @@ const FORMANT_VOWEL_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Morphing vowels",
         code: r#"
-                const vowel = $sine('0.15hz').range(0, 5)
-                $mi.formantVowel('c2', { vowel }).out()
-            "#,
+            const vowel = $sine('0.15hz').range(0, 5)
+            bass: $mi.formantVowel('c2', { vowel })
+        "#,
     }],
 };
 

@@ -292,10 +292,10 @@ const LT909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Tom fill",
         code: r#"
-            $tr909.kick($`c*4`).out()
-            $tr909.highTom($`~ ~ ~ ~ ~ ~ c c`).out()
-            $tr909.midTom($`~ ~ ~ ~ ~ ~ ~ [c ~]`).out()
-            $tr909.lowTom($`~ ~ ~ ~ ~ ~ ~ [~ c]`).out()
+            kick: $tr909.kick($`c*4`)
+            highTom: $tr909.highTom($`~ ~ ~ ~ ~ ~ c c`)
+            midTom: $tr909.midTom($`~ ~ ~ ~ ~ ~ ~ [c ~]`)
+            lowTom: $tr909.lowTom($`~ ~ ~ ~ ~ ~ ~ [~ c]`)
         "#,
     }],
 };
@@ -318,8 +318,8 @@ const MT909_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Rolling tom groove",
         code: r#"
-            $tr909.kick($`c*4`).out()
-            $tr909.midTom($`~ c ~ c c ~ ~ c`).out()
+            kick: $tr909.kick($`c*4`)
+            midTom: $tr909.midTom($`~ c ~ c c ~ ~ c`)
         "#,
     }],
 };
@@ -343,7 +343,7 @@ const HT909_DOCS: ModuleDocs = ModuleDocs {
         title: "Tuned tom melody",
         code: r#"
             const toms = $`c3 ~ eb3 f3 ~ c3 bb2 ~`
-            $tr909.highTom(toms, { freq: toms }).out()
+            highTom: $tr909.highTom(toms, { freq: toms })
         "#,
     }],
 };

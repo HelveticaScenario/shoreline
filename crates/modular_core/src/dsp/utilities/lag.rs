@@ -58,15 +58,16 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Gliding bassline",
             code: r#"
-                $saw($slew($`c2 c3 eb2 g2`, { fall: 0.1 }))
-                  .lpf('c5', 2)
-                  .out()
+                tone: $saw($slew($`c2 c3 eb2 g2`, { fall: 0.1 })).lpf(
+                  'c5',
+                  2,
+                )
             "#,
         },
         DocExample {
             title: "Random notes that slide",
             code: r#"
-                $sine(
+                tone: $sine(
                   $slew(
                     $sah(
                       $noise('white').range('c3', 'c5'),
@@ -74,7 +75,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
                     ),
                     { fall: 0.05 },
                   ),
-                ).out()
+                )
             "#,
         },
     ],

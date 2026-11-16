@@ -20,6 +20,7 @@ import {
     type Collection,
     CollectionWithRange,
     DeferredModuleOutput,
+    Track,
 } from '../GraphBuilder';
 import { createTrackTap } from '../trackTap';
 
@@ -95,12 +96,21 @@ function buildFixture() {
 
     // Lane controls: lifted, so tapped directly, and wrapped around a gain
     // signal without a range of its own.
-    chain(factory('$saw')('c2'), 'out', { label: 'lifted' });
-    chain(factory('$saw')('c3'), 'out', {
-        gain: unranged(),
-        label: 'wrapped',
-        pan: lfo(),
+    const track = (name: string) => ({
+        channel: 0,
+        displayName: name,
+        mono: false,
+        name,
+        state: null,
     });
+    builder.addTrack(track('lifted'), factory('$saw')('c2'));
+    builder.addTrack(
+        track('wrapped'),
+        new Track(factory('$saw')('c3'), {
+            gain: unranged() as Collection,
+            pan: lfo(),
+        }),
+    );
     for (const label of ['lifted', 'wrapped']) {
         const tap = createTrackTap(builder, label);
         chains[`${label}.active`] = tap.active;

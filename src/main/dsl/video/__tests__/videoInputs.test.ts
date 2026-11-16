@@ -230,7 +230,7 @@ describe('$v inputs from the audio graph', () => {
         it('returns a 0..1 audio signal fed by a region of the video', () => {
             const result = exec(`
                 const level = $v.toCV($v.ramp(), { x: 0.25, y: 0.75, size: 0.1 });
-                $sine(level.range(100, 200)).out();
+                out: $sine(level.range(100, 200));
                 $v.out($v.hsv(0.5));
             `);
             expect(result.video!.cvSamples).toEqual([

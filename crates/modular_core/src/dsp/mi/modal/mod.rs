@@ -126,12 +126,12 @@ const MODAL_DOCS: ModuleDocs = ModuleDocs {
             title: "Marimba melody",
             code: r#"
                 const seq = $`c3 e3 g3 <a3 b3>`
-                $mi.modal(seq, { trigger: seq, structure: 1.4 }).out()
+                melody: $mi.modal(seq, { trigger: seq, structure: 1.4 })
             "#,
         },
         DocExample {
             title: "Bowed bell drone",
-            code: "$mi.modal('c2', { structure: 4, decay: 4 }).out()",
+            code: "bass: $mi.modal('c2', { structure: 4, decay: 4 })",
         },
     ],
 };

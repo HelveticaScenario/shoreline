@@ -90,9 +90,9 @@ const HH808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Hats with open offbeats",
         code: r#"
-            $tr808.kick($`c*4`).out()
+            kick: $tr808.kick($`c*4`)
             const open = $`~ c ~ c ~ c ~ c`
-            $tr808.hiHat($`c ~ c ~ c ~ c ~`, { open }).out()
+            hats: $tr808.hiHat($`c ~ c ~ c ~ c ~`, { open })
         "#,
     }],
 };

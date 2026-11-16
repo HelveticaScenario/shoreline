@@ -100,7 +100,7 @@ const SNARE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Backbeat",
-            code: "$mi.snare('d3', { trigger: $`~ c` }).out()",
+            code: "snare: $mi.snare('d3', { trigger: $`~ c` })",
         },
         DocExample {
             title: "Ringing, snappy roll",
@@ -112,7 +112,7 @@ const SNARE_DOCS: ModuleDocs = ModuleDocs {
                   decay: 4,
                   snappy: 4,
                 })
-                snare.out()
+                snare2: snare
             "#,
         },
     ],

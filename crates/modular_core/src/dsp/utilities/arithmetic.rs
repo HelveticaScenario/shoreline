@@ -11,7 +11,7 @@ const ADD_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Vibrato around a note",
-        code: "$sine($signal('a3').add($sine('5hz').amp(0.1))).out()",
+        code: "keys: $sine($signal('a3').add($sine('5hz').amp(0.1)))",
     }],
 };
 
@@ -34,7 +34,7 @@ const SUB_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "An octave down",
-        code: "$saw($signal('c3').sub(1)).out()",
+        code: "keys: $saw($signal('c3').sub(1))",
     }],
 };
 
@@ -58,7 +58,7 @@ const MUL_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Ring modulation",
-        code: "$sine('c3').mul($sine('c4')).out()",
+        code: "keys: $sine('c3').mul($sine('c4'))",
     }],
 };
 
@@ -81,7 +81,7 @@ const DIV_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "An LFO at half depth",
-        code: "$saw('c2').lpf($sine('0.5hz').div(2).add('c4')).out()",
+        code: "bass: $saw('c2').lpf($sine('0.5hz').div(2).add('c4'))",
     }],
 };
 
@@ -120,7 +120,7 @@ const EXP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "A fade-in that starts slow",
-        code: "$sine('c3').mul($saw('0.5hz').range(0, 1).exp(3)).out()",
+        code: "keys: $sine('c3').mul($saw('0.5hz').range(0, 1).exp(3))",
     }],
 };
 

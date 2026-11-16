@@ -237,22 +237,22 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Slowly scanned cloud",
             code: r#"
-                $grains('c4', '/wavs/pad.wav', 5, {
+                grains: $grains('c4', '/wavs/pad.wav', 5, {
                   start: $ramp('0.02hz').range(0, 5),
                   density: 4,
                   shape: 'bell',
-                }).out()
+                })
             "#,
         },
         DocExample {
             title: "Grain chords from a melody",
             code: r#"
                 const seq = $`<[c3, g3] [eb3, bb3]>`
-                $grains(seq, '/wavs/strings.wav', seq, {
+                grains: $grains(seq, '/wavs/strings.wav', seq, {
                   length: 2,
                   density: 3,
                   shape: 'tukey',
-                }).out()
+                })
             "#,
         },
     ],

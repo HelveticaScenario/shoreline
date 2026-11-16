@@ -50,14 +50,14 @@ describe('arithmetic methods', () => {
         ['div', '$div', 'divisor'],
         ['exp', '$exp', 'exponent'],
     ])('.%s() builds a %s with its operand', (method, moduleType, operand) => {
-        const [node] = run(`$sine('1hz').${method}(3).out()`).filter(
+        const [node] = run(`out: $sine('1hz').${method}(3)`).filter(
             (m) => m.moduleType === moduleType,
         );
         expect(node.params).toMatchObject({ [operand]: 3 });
     });
 
     test('a missing operand says which', () => {
-        expect(() => run(`$sine('1hz').exp().out()`)).toThrow(
+        expect(() => run(`out: $sine('1hz').exp()`)).toThrow(
             /missing required parameter `exponent`/,
         );
     });
@@ -71,7 +71,7 @@ describe('arithmetic methods', () => {
     });
 
     test('an empty collection builds nothing', () => {
-        const types = run(`$c().add(1).mul(2).round().out()`).map(
+        const types = run(`$c().add(1).mul(2).round()`).map(
             (m) => m.moduleType,
         );
         expect(types).not.toContain('$add');
@@ -165,7 +165,7 @@ describe('rounding methods', () => {
 
     test('$round, $floor and $ceil are globals', () => {
         const types = run(
-            '$round($sine("1hz")).add($floor(1.5)).add($ceil(0.5)).out()',
+            'out: $round($sine("1hz")).add($floor(1.5)).add($ceil(0.5))',
         ).map((m) => m.moduleType);
         expect(types).toEqual(
             expect.arrayContaining(['$round', '$floor', '$ceil']),

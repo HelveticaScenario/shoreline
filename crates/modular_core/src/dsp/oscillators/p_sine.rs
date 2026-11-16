@@ -42,12 +42,12 @@ const P_SINE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Bending sine",
         code: r#"
-            $pSine(
+            tone: $pSine(
               $pWarp(
                 $ramp('c3'),
                 $phase.bend($sine('0.2hz').range(-3, 3)),
               ),
-            ).out()
+            )
         "#,
     }],
 };

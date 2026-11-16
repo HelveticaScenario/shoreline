@@ -268,11 +268,11 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Scanning pad",
             code: r#"
-                $wavetable(
+                chord: $wavetable(
                   $chord('C3[m9]'),
                   '/wavs/tables/pad.wav',
                   $sine('0.1hz').range(0, 5),
-                ).out()
+                )
             "#,
         },
         DocExample {
@@ -280,9 +280,11 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const seq = $`c3 eb3 g3 bb3`
                 const env = $perc(seq, { decay: 0.5 })
-                $wavetable(seq, '/wavs/tables/pad.wav', env.range(0, 4))
-                  .amp(env)
-                  .out()
+                melody: $wavetable(
+                  seq,
+                  '/wavs/tables/pad.wav',
+                  env.range(0, 4),
+                ).amp(env)
             "#,
         },
     ],

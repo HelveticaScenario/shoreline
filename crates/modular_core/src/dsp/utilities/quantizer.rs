@@ -221,20 +221,18 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
                   $sine('0.13hz').range('c3', 'c5'),
                   'C(major)',
                 )
-                $sine(melody)
-                  .amp($perc(melody, { decay: 0.3 }))
-                  .out()
+                melody2: $sine(melody).amp($perc(melody, { decay: 0.3 }))
             "#,
         },
         DocExample {
             title: "Playing only the keys you hold",
             code: r#"
                 const midi = $midiCV({ lanes: 4 })
-                $sine(
+                melody: $sine(
                   $quantizer($sine('0.1hz').range('c3', 'c5'), midi, {
                     gate: midi,
                   }),
-                ).out()
+                )
             "#,
         },
     ],

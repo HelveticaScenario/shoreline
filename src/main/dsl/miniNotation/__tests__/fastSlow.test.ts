@@ -6,8 +6,8 @@ import { patternPayload } from '../../patterns';
 
 describe('playing a pattern outside a patch run', () => {
     test('a collection member and .cycle() say a pattern is played only while a patch runs', () => {
-        const pattern = $('c4 e4') as unknown as { out(): unknown };
-        expect(() => pattern.out()).toThrow(
+        const pattern = $('c4 e4') as unknown as { scope(): unknown };
+        expect(() => pattern.scope()).toThrow(
             /only be played while a patch runs/,
         );
         expect(() => $('c4 e4').cycle()).toThrow(

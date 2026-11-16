@@ -1,14 +1,14 @@
 /**
- * One out-group's VU meter entry, emitted by the GraphBuilder on
+ * One track's VU meter entry, emitted by the GraphBuilder on
  * `PatchGraph.vuMeters`. Rust reads the metering fields (moduleId / portName /
  * channels / muteModuleId); the rest is renderer metadata that rides through
  * `appliedPatch` untouched (same contract as `Scope.sourceLocation`).
  */
 export interface VuMeterDef {
     /**
-     * Stable identity: the label if present, else the next positional
-     * `out N` not claimed by a label. Unique across every meter, including
-     * the master's reserved `__main__`.
+     * Stable identity: the track's name, which its mute/solo prefix and
+     * channel suffix leave out. Unique across every meter, including the
+     * master's reserved `__main__`.
      */
     key: string;
     label: string | null;
@@ -58,10 +58,8 @@ export interface VuMeterDef {
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
     /**
-     * Location of the `.out(...)` / `.outMono(...)` call in the DSL source.
-     * Absent when several out groups share the call site (a loop or helper):
-     * a source edit there would rewrite every instance, so such meters'
-     * controls act on the live graph only.
+     * Location of the track's label in the DSL source; absent for the
+     * master meter.
      */
     sourceLocation?: { line: number; column: number };
 }

@@ -85,7 +85,7 @@ const FORMANT_DOCS: ModuleDocs = ModuleDocs {
         title: "Sweeping vowel bass",
         code: r#"
             const vowel = $sine('0.1hz').range(0, 2)
-            $mi.formant('c2', { formant: vowel }).out()
+            bass: $mi.formant('c2', { formant: vowel })
         "#,
     }],
 };

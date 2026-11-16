@@ -48,21 +48,21 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
                 const voice = $saw($`c3 eb3 g3 ~`).amp(
                   $perc($clock._beatTrigger, { decay: 0.15 }),
                 )
-                voice.out()
+                melody: voice
                 const echoes = $buffer(voice, 1)
-                $delayRead(echoes, 0.375).amp(2.5).out()
-                $delayRead(echoes, 0.75).amp(1.25).out()
+                melody2: $delayRead(echoes, 0.375).amp(2.5)
+                melody3: $delayRead(echoes, 0.75).amp(1.25)
             "#,
         },
         DocExample {
             title: "Chorused chord",
             code: r#"
                 const voice = $saw($chord('C3[m7]'))
-                voice.out()
-                $delayRead(
+                chord: voice
+                chord2: $delayRead(
                   $buffer(voice, 0.1),
                   $sine('0.3hz').range(0.01, 0.02),
-                ).out()
+                )
             "#,
         },
     ],

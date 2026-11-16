@@ -3,11 +3,7 @@
  * Used by both TypeScript lib generator (JSDoc) and the Docs panel (rendered docs).
  */
 
-import {
-    MONO_OUT_OPTIONS,
-    STEREO_OUT_OPTIONS,
-    outOptionsDefinition,
-} from './outOptions';
+import { TRACK_OPTIONS, trackOptionsDefinition } from './trackOptions';
 
 export interface TypeMethod {
     name: string;
@@ -38,8 +34,8 @@ export const DSL_TYPE_NAMES = [
     'CollectionWithRange',
     'Note',
     'HZ',
-    'StereoOutOptions',
-    'MonoOutOptions',
+    'Track labels',
+    'TrackOptions',
 ] as const;
 
 export type DslTypeName = (typeof DSL_TYPE_NAMES)[number];
@@ -57,9 +53,9 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Methods operate on every lane.',
         examples: [
             "const osc = $sine('c4')",
-            'osc.amp(2.5).out()                   // Chain methods',
+            'sound: osc.amp(2.5)                   // Chain methods',
             "$lpf(osc, 'c3', { q: 4 })            // Use as input to another module",
-            '$c(osc1, osc2, osc3).amp(2.5).out()  // Halve all, send to output',
+            'mix: $c(osc1, osc2, osc3).amp(2.5)  // Halve all, send to output',
             'const voices = $c(osc1, osc2, osc3)',
             'for (const v of voices) { ... }      // Iterate over one-lane collections',
             '[...voices]                          // Spread to array',
@@ -72,22 +68,14 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                     "scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this",
                 description:
                     "Add scope visualization for all outputs in the collection, overlaid on one scope. `split: 'vertical'` stacks one scope per lane; `split: 'horizontal'` fits them side by side.",
-                example: "$c(osc1, osc2).scope({ split: 'vertical' }).out()",
+                example: "mix: $c(osc1, osc2).scope({ split: 'vertical' })",
             },
             {
-                name: 'out',
-                signature: 'out(options?: StereoOutOptions): this',
+                name: 'track',
+                signature: 'track(options?: TrackOptions): Track',
                 description:
-                    'Send all outputs to speakers as stereo, summed together.',
-                example: '$c(osc1, osc2, osc3).out()',
-            },
-            {
-                name: 'outMono',
-                signature:
-                    'outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this',
-                description:
-                    'Send all outputs to a single speaker channel as mono, summed together.',
-                example: '$c(osc1, osc2).outMono(0, 0.3)',
+                    'How this signal mixes into its track: gain, pan, spread and sends. A track is heard once its statement is labelled.',
+                example: 'lead: $c(osc1, osc2).track({ gain: 3, pan: -2 })',
             },
             {
                 name: 'range',
@@ -103,7 +91,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                 description:
                     'Pass this collection through a transform function and return the result. ' +
                     'Enables inline transforms and reusable signal-processing helpers.',
-                example: '$c(osc1, osc2).pipe(all => all.amp(2.5)).out()',
+                example: 'mix: $c(osc1, osc2).pipe(all => all.amp(2.5))',
             },
             {
                 name: 'pipe',
@@ -113,7 +101,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                     'Call pipeFn once for every element in the provided array, ' +
                     'collecting all results into a Collection.',
                 example:
-                    "$c(osc1, osc2).pipe((col, cutoff) => $lpf(col, cutoff), ['200hz', '800hz', '3200hz']).out()",
+                    "mix: $c(osc1, osc2).pipe((col, cutoff) => $lpf(col, cutoff), ['200hz', '800hz', '3200hz'])",
             },
             {
                 name: 'pipeMix',
@@ -121,7 +109,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                     'pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal>): Collection',
                 description:
                     'Pipe this collection through a transform, then crossfade the original against the transformed signal (0 = original, 5 = transformed, default 2.5).',
-                example: "$c(osc1, osc2).pipeMix(s => $lpf(s, '1000hz')).out()",
+                example: "mix: $c(osc1, osc2).pipeMix(s => $lpf(s, '1000hz'))",
             },
             {
                 name: 'wet',
@@ -130,7 +118,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
                     'Every module whose first argument is a signal is also a method of this collection: `sig.lpf(...)` is `$lpf(sig, ...)`. ' +
                     '`.wet` after one crossfades the signal it was called on against the result: 0 is dry, 5 is wet, and the default 2.5 an equal mix. ' +
                     'After a stereo effect such as `.plate()`, which mixes every voice into one stereo lane, the dry voices are mixed into one too.',
-                example: "$saw('c3').lpf('800hz').plate().wet(1.5).out()",
+                example: "keys: $saw('c3').lpf('800hz').plate().wet(1.5)",
             },
         ],
         name: 'Collection',
@@ -147,7 +135,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         examples: [
             "const lfo = $sine('1hz').range(0, 5)  // LFO outputs 0 to +5",
             'lfo.add(1).range(-5, 5)              // Maps from 1 to 6',
-            '$r(lfo1, lfo2).range(0, 5).out()     // Each maps from its own range',
+            'mix: $r(lfo1, lfo2).range(0, 5)     // Each maps from its own range',
         ],
         methods: [
             {
@@ -185,9 +173,9 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Each output is also there by name behind an underscore, as in `seq._gate`; naming one yourself always uses that output, whatever the input. ' +
             'A pattern from `$` is such a module too: it is the sequencer that plays it.',
         examples: [
-            'const seq = $`c e g a`\n$saw(seq).amp($perc(seq)).out()   // pitch for the saw, triggers for the envelope',
-            'const seq = $`c3 ~ g3 ~`\n$sine(seq).amp(seq.adsr()).out()   // the gate opens the envelope',
-            'const seq = $`c e g a`\n$sine(seq).amp($adsr(seq._gate)).amp(seq._velocity).out()   // named outputs are used as they are',
+            'const seq = $`c e g a`\nmelody: $saw(seq).amp($perc(seq))   // pitch for the saw, triggers for the envelope',
+            'const seq = $`c3 ~ g3 ~`\nmelody: $sine(seq).amp(seq.adsr())   // the gate opens the envelope',
+            'const seq = $`c e g a`\nmelody: $sine(seq).amp($adsr(seq._gate)).amp(seq._velocity)   // named outputs are used as they are',
         ],
         name: 'Multi-output modules',
         seeAlso: ['Pattern', 'Collection', 'Signal'],
@@ -199,9 +187,9 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Every such use of one pattern shares one sequencer. ' +
             'The pattern methods each give a new pattern; on a scale pattern (one made by `.scale`) they give a scale pattern, which `.trans` transposes. To play a pattern with other sequencer settings, pass it to `$cycle` or call `.cycle(...)`, which makes a sequencer of its own.',
         examples: [
-            'const seq = $`c e g a`\n$saw(seq).amp($perc(seq)).out()   // one sequencer: pitch for the saw, triggers for the envelope',
-            "$`c3 ~ g3 ~`.fast(2).saw().lpf('800hz').out()   // pattern methods, then chain modules",
-            "$`0 2 4 7`.scale('c(major)').trans('<0 3>').saw().out()   // scale degrees, transposed every other cycle",
+            'const seq = $`c e g a`\nmelody: $saw(seq).amp($perc(seq))   // one sequencer: pitch for the saw, triggers for the envelope',
+            "melody: $`c3 ~ g3 ~`.fast(2).saw().lpf('800hz')   // pattern methods, then chain modules",
+            "melody: $`0 2 4 7`.scale('c(major)').trans('<0 3>').saw()   // scale degrees, transposed every other cycle",
         ],
         methods: [
             {
@@ -331,35 +319,38 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
     },
 
-    StereoOutOptions: {
-        definition: outOptionsDefinition(STEREO_OUT_OPTIONS),
+    'Track labels': {
+        definition: '[_ | S_]name[$channel | $channelm]: signal',
         description:
-            'Options for stereo output routing via the out() method. ' +
-            'Controls base channel, gain, panning, spread, the VU meter label, mute, and solo, and sends to buses.',
+            'A label in front of a top-level statement sends its signal to the mixer as a track. ' +
+            "The name is the track's name in the mixer, with underscores shown as spaces, and reads as the track's final signal in the rest of the patch " +
+            "(the bus itself for a labelled `$bus`). `_name` mutes the track and `S_name` (or `s_name`) solos it; the mixer's mute and solo buttons rewrite this prefix. " +
+            '`name$2` plays the track in stereo on channels 2 and 3, and `name$2m` in mono on channel 2; without a suffix a track plays in stereo on channels 0 and 1. ' +
+            'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
-            "$sine('c').out({ baseChannel: 4 })      // Output of channels 4 and 5",
-            "$sine('c').out({ gain: 2.5 })           // 50% gain",
-            "$sine('c').out({ pan: -2.5 })           // Pan left",
-            "$saw($chord('C3[m7]')).out({ spread: 5 })  // Lanes fanned edge to edge",
-            "$sine('c').out({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
-            "$sine('c').out({ sends: [verb, [echo, 2]] })  // Also feed two buses",
+            "lead: $saw('c3')                 // Stereo on channels 0 and 1",
+            "_pad$2: $sine($chord('C4[maj7]'))  // Muted, on channels 2 and 3",
+            'S_click$4m: $noise()             // Soloed, mono on channel 4',
+            "kick: $tr808.kick($`x ~ x ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
         ],
-        name: 'StereoOutOptions',
-        seeAlso: ['MonoOutOptions', 'Collection', 'Poly<Signal>'],
+        name: 'Track labels',
+        seeAlso: ['TrackOptions', 'Collection'],
     },
 
-    MonoOutOptions: {
-        definition: outOptionsDefinition(MONO_OUT_OPTIONS),
+    TrackOptions: {
+        definition: trackOptionsDefinition(TRACK_OPTIONS),
         description:
-            'Options for mono output routing via the outMono() method. ' +
-            'Controls the output lane, gain, the VU meter label, mute, and solo, and sends to buses.',
+            'Options of `.track()`: how a track mixes into the mixer. Its name, mute, solo and channels come from its label. ' +
+            "The mixer's gain and pan controls rewrite these options.",
         examples: [
-            "$sine('c').outMono({ channel: 2 })              // Output on channel 2",
-            "$sine('c').outMono({ channel: 2, gain: 2.5 })   // 50% gain",
-            "$sine('c').outMono(0, { label: 'sub' })         // Labelled VU meter",
+            "tone: $sine('c').track({ gain: 2.5 })           // 50% gain",
+            "tone: $sine('c').track({ pan: -2.5 })           // Pan left",
+            "chord: $saw($chord('C3[m7]')).track({ spread: 5 })  // Lanes fanned edge to edge",
+            "tone: $sine('c').track({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
+            "tone: $sine('c').track({ sends: [verb, [echo, 2]] })  // Also feed two buses",
         ],
-        name: 'MonoOutOptions',
-        seeAlso: ['StereoOutOptions', 'Collection', 'Poly<Signal>'],
+        name: 'TrackOptions',
+        seeAlso: ['Track labels', 'Collection', 'Poly<Signal>'],
     },
 };
 
@@ -420,7 +411,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a Collection holding the lanes of every argument, in order. Collections support chainable DSP methods, indexing, and spreading.',
         examples: [
-            '$c(osc1, osc2).amp(0.5).out()',
+            'mix: $c(osc1, osc2).amp(0.5)',
             '$c(osc1, osc2)[0]  // index access: a one-lane collection',
         ],
         group: 'Helpers',
@@ -430,7 +421,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description:
             'Create a CollectionWithRange holding the lanes of every ranged argument. The range() method maps each from its own range.',
-        examples: ['$r(lfo1, lfo2).range(0, 5).out()'],
+        examples: ['mix: $r(lfo1, lfo2).range(0, 5)'],
         group: 'Helpers',
         name: '$r',
         signature:
@@ -441,7 +432,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
             'Compute the Cartesian product of the given arrays. Returns every possible combination of one element from each array.',
         examples: [
             "$cartesian([220, 440], ['sine', 'saw'])\n// → [[220,'sine'],[220,'saw'],[440,'sine'],[440,'saw']]",
-            "$cartesian([1, 2], ['a', 'b']).pipe(\n  (osc, [freq, shape]) => $oscillator({ freq, shape }).out(),\n)",
+            "tones: $cartesian([1, 2], ['a', 'b']).pipe(\n  (osc, [freq, shape]) => $oscillator({ freq, shape }),\n)",
         ],
         group: 'Helpers',
         name: '$cartesian',
@@ -452,7 +443,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Tag a parameter value into signal group 1 (also $g2, $g3). Parameters in different groups multiply — the module gets the cartesian product of the group widths as voices — while parameters in the same group cycle together. Untagged parameters are group 0. Lower-numbered groups vary fastest. The product may not exceed 64 lanes, and $gN must wrap the entire parameter value.',
         examples: [
-            '$sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) }).out()\n// 3 x 2 = 6 voices',
+            'tone: $sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) })\n// 3 x 2 = 6 voices',
         ],
         group: 'Helpers',
         name: '$g1',
@@ -461,7 +452,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description: 'Tag a parameter value into signal group 2 — see $g1.',
         examples: [
-            '$sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) }).out()',
+            'tone: $sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) })',
         ],
         group: 'Helpers',
         name: '$g2',
@@ -470,7 +461,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description: 'Tag a parameter value into signal group 3 — see $g1.',
         examples: [
-            '$saw($g1(["c2", "c3"]), { shape: $g2([0, 2.5]), phaseOffset: $g3([0, 0.5]) }).out()',
+            'tone: $saw($g1(["c2", "c3"]), { shape: $g2([0, 2.5]), phaseOffset: $g3([0, 0.5]) })',
         ],
         group: 'Helpers',
         name: '$g3',
@@ -561,14 +552,14 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Set the global output gain applied to the final mix. 2.5 is the default (50%); 5.0 is unity gain.',
+            'Set the master gain applied to the final mix. 2.5 is the default (50%); 5.0 is unity gain.',
         examples: [
-            '$setOutputGain(2.5) // 50% gain (default)',
-            '$setOutputGain(5.0) // unity gain',
-            "$setOutputGain($sine('1hz')) // modulated gain",
+            '$setMasterGain(2.5) // 50% gain (default)',
+            '$setMasterGain(5.0) // unity gain',
+            "$setMasterGain($sine('1hz')) // modulated gain",
         ],
         group: 'Global Settings',
-        name: '$setOutputGain',
+        name: '$setMasterGain',
         params: [
             {
                 name: 'gain',
@@ -576,15 +567,15 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
                 description: 'Gain level (2.5 default, 5.0 unity)',
             },
         ],
-        signature: '$setOutputGain(gain: LaneSum<Signal>): void',
+        signature: '$setMasterGain(gain: LaneSum<Signal>): void',
     },
     // ---- Controls -----
     {
         description:
             'Create a UI slider bound to a signal module. The slider appears in the Control panel as soon as it is written. Dragging it rewrites the source value, and drives the audio engine in real time once the patch is evaluated.',
         examples: [
-            'const vol = $slider("Volume", 0.5, 0, 1);\n$sine(440).amp(vol).out();',
-            'const cutoff = $slider("Cutoff", 1000, 100, 8000);\n$saw(440).pipe(s => $lpf(s, cutoff)).out();',
+            'const vol = $slider("Volume", 0.5, 0, 1);\ntone: $sine(440).amp(vol);',
+            'const cutoff = $slider("Cutoff", 1000, 100, 8000);\ntone: $saw(440).pipe(s => $lpf(s, cutoff));',
         ],
         group: 'Controls',
         name: '$slider',
@@ -629,8 +620,8 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .hold for a fixed-length trigger per press.',
         examples: [
-            '$sine("c4").amp($adsr($btn("play"))).out();',
-            '// fixed 100 ms trigger per press, however long the button is held\n$sine("c4").amp($adsr($btn("hit").hold(0.1))).out();',
+            'lead: $sine("c4").amp($adsr($btn("play")));',
+            '// fixed 100 ms trigger per press, however long the button is held\nlead: $sine("c4").amp($adsr($btn("hit").hold(0.1)));',
         ],
         group: 'Controls',
         name: '$btn',
@@ -656,7 +647,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description:
             'Create a latched toggle button in the Control panel: clicking flips between 0V and 5V and rewrites the initial-state literal in the source, so the state survives re-execution.',
-        examples: ['$saw("c2").amp($toggleBtn("drone", false)).out();'],
+        examples: ['bass: $saw("c2").amp($toggleBtn("drone", false));'],
         group: 'Controls',
         name: '$toggleBtn',
         params: [
@@ -687,8 +678,8 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create a group of controls. Controls given the returned group as their last argument appear together in the Control panel under a collapsible header; groups nest through params.group. Clicking the header rewrites the collapsed literal in the source. Control labels need only be unique within their group.',
         examples: [
-            'const voice = $cGroup("Voice");\n$sine($slider("Pitch", "c4", "c2", "c6", voice)).amp($adsr($btn("Play", voice))).out();',
-            'const synth = $cGroup("Synth");\nconst amp = $cGroup("Amp", { collapsed: true, group: synth });\n$saw($slider("Root", "c3", "c2", "c5", synth)).amp($slider("Level", 0.5, 0, 1, amp)).out();',
+            'const voice = $cGroup("Voice");\ntone: $sine($slider("Pitch", "c4", "c2", "c6", voice)).amp($adsr($btn("Play", voice)));',
+            'const synth = $cGroup("Synth");\nconst amp = $cGroup("Amp", { collapsed: true, group: synth });\ntone: $saw($slider("Root", "c3", "c2", "c5", synth)).amp($slider("Level", 0.5, 0, 1, amp));',
         ],
         group: 'Controls',
         name: '$cGroup',
@@ -716,7 +707,7 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         description:
             'Create placeholder signals that can be assigned later. Useful for feedback loops.',
         examples: [
-            "const fb = $deferred();\nconst echoed = $delay($noise('white').amp(fb[0]), 0.25);\nfb.set(echoed);\nechoed.out();",
+            "const fb = $deferred();\nconst echoed = $delay($noise('white').amp(fb[0]), 0.25);\nfb.set(echoed);\nnoise: echoed;",
         ],
         group: 'Advanced',
         name: '$deferred',
@@ -733,11 +724,11 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
 
     {
         description:
-            'Create a send-return bus. Signals are routed to the bus through the `sends` option of `.out()` or `.outMono()`. ' +
-            'The callback receives a Collection that is the mix of all sends and returns the processed signal; call `.out()` or `.outMono()` on the bus to hear it.',
+            'Create a send-return bus. Signals are routed to the bus through the `sends` option of `.track()`. ' +
+            "The callback receives a Collection that is the mix of all sends and returns the processed signal; label the bus to hear it, and its label's name reads as the bus.",
         examples: [
-            "const fx = $bus((mixed) => $plate(mixed)).out();\n$saw('a').out({ sends: [fx, 3] });\n$sine('a2').out({ sends: fx });",
-            "// One out feeding two buses at different levels\nconst verb = $bus((mixed) => mixed.plate()).out();\nconst echo = $bus((mixed) => mixed.delay(0.25)).out();\n$saw('c3').out({ sends: [[verb, 2], [echo, 4]] });",
+            "fx: $bus((mixed) => $plate(mixed));\ntone: $saw('a').track({ sends: [fx, 3] });\nbass: $sine('a2').track({ sends: fx });",
+            "// One track feeding two buses at different levels\nverb: $bus((mixed) => mixed.plate());\necho: $bus((mixed) => mixed.delay(0.25));\nkeys: $saw('c3').track({ sends: [[verb, 2], [echo, 4]] });",
         ],
         group: 'Advanced',
         name: '$bus',
@@ -746,36 +737,35 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
                 name: 'cb',
                 type: '(mixed: Collection) => Poly<Signal> | void',
                 description:
-                    'Called at patch finalization with the mixed sends. Returns the bus signal that `.out()` on the bus plays.',
+                    "Called at patch finalization with the mixed sends. Returns the signal the bus's track plays.",
             },
         ],
-        returns:
-            "Bus handle named in an out's `sends`, with .out() and .outMono()",
+        returns: "Bus handle named in a track's `sends`, with .track()",
         signature: '$bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus',
     },
     {
         description:
-            'Tap the out labeled `label`: one lane of its audio after gain and mute/solo, stereo for a stereo out, ' +
+            'Tap the track named `name`: one lane of its audio after pan, gain and mute/solo, stereo for a stereo track, ' +
             'with `.active` (0–5V gate), `.level` (gain, 0–10), and `.panning` (-5–5) as ranged signals. ' +
-            'Follows live VU-panel changes. The out may be declared after the tap; an undeclared label is an error.',
+            'Follows live mixer changes. A track label already binds its name to this tap; `$trackTap` is for a name held in a string. A name no track has is an error.',
         examples: [
-            "$saw('c2').out({ label: 'bass' });\nconst bass = $trackTap('bass');\n$sine('c5').gain(bass.level).out({ pan: bass.panning });\n$sine('g5').gain(bass.active).out();",
+            "bass: $saw('c2')\nconst tap = $trackTap('bass')\nlead: $sine('c5').gain(tap.level).track({ pan: tap.panning })\nbell: $sine('g5').gain(tap.active)",
         ],
         group: 'Advanced',
         name: '$trackTap',
         params: [
             {
-                name: 'label',
+                name: 'name',
                 type: 'string',
-                description: 'Label of the out to follow',
+                description: 'Name of the track to follow',
             },
         ],
         returns: 'TrackTap',
-        signature: '$trackTap(label: string): TrackTap',
+        signature: '$trackTap(name: string): TrackTap',
     },
     {
         description:
-            'Set a custom processor applied to the final mix just before the global output gain. ' +
+            'Set a custom processor applied to the final mix just before the master gain. ' +
             'The callback receives the fully mixed Collection and should return a processed signal.',
         examples: [
             `$setEndOfChainCb((mix) => $lpf(mix, '2000hz'));`,

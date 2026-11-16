@@ -44,11 +44,11 @@ const WRAP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Wide melody folded into one octave",
         code: r#"
-            $sine(
+            tone: $sine(
               $wrap($`c2 g5 e3 b4 d6`, 'c4', 'c5', {
                 octave: true,
               }),
-            ).out()
+            )
         "#,
     }],
 };

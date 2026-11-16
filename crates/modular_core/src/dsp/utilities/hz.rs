@@ -43,7 +43,7 @@ const HZ_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Sweep set in Hz",
-        code: "$sine($hz($sine('0.2hz').range(200, 800))).out()",
+        code: "tone: $sine($hz($sine('0.2hz').range(200, 800)))",
     }],
 };
 

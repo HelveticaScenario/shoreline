@@ -67,20 +67,18 @@ function hints(source: string): string[] {
 describe('static resolution', () => {
     test('a root variable resolves per input', () => {
         expect(
-            hints(`const seq = $('c e g')\n$saw(seq).amp($perc(seq)).out()`),
+            hints(`const seq = $('c e g')\n$saw(seq).amp($perc(seq))`),
         ).toEqual(['$saw(seq‹cv›', 'mp($perc(seq‹trig›']);
     });
 
     test('a cycle resolves as argument, chain receiver and method receiver', () => {
         expect(
-            hints(
-                `const cyc = $('0*8')\ncyc.perc()\n$adsr(cyc)\ncyc.amp(2).out()`,
-            ),
+            hints(`const cyc = $('0*8')\ncyc.perc()\n$adsr(cyc)\ncyc.amp(2)`),
         ).toEqual(['cyc‹trig›', '$adsr(cyc‹gate›', 'cyc‹cv›']);
     });
 
     test('an inline chain puts the hint after the receiver', () => {
-        const source = `$('0*8').perc().out()`;
+        const source = `$('0*8').perc()`;
         const [site] = collect(source);
         expect(source.slice(0, site.end)).toBe(`$('0*8')`);
         expect(site.output).toBe('trig');
@@ -97,7 +95,7 @@ describe('static resolution', () => {
     test('an array built in a loop resolves by its element type', () => {
         expect(
             hints(
-                `const seqs = []\nfor (let i = 0; i < 5; i++) {\n    seqs.push($('c e g'))\n}\n$sine(seqs).amp($perc(seqs)).out()`,
+                `const seqs = []\nfor (let i = 0; i < 5; i++) {\n    seqs.push($('c e g'))\n}\n$sine(seqs).amp($perc(seqs))`,
             ),
         ).toEqual(['$sine(seqs‹cv›', 'p($perc(seqs‹trig›']);
     });
@@ -129,7 +127,7 @@ describe('static resolution', () => {
     test('named outputs, plain signals and pattern params get no site', () => {
         expect(
             hints(
-                `const seq = $('c e g')\n$saw(seq._cv).amp($perc(seq._trig)).out()\n$sine('c').amp(2)\n$cycle($('c'))`,
+                `const seq = $('c e g')\nout: $saw(seq._cv).amp($perc(seq._trig))\n$sine('c').amp(2)\n$cycle($('c'))`,
             ),
         ).toEqual([]);
     });
@@ -152,7 +150,7 @@ describe('static resolution', () => {
     test('a chain method option resolves by its own class', () => {
         expect(
             hints(
-                `const seq = $('c e')\n$sine('c').erratic(1, { trigger: seq, speed: seq }).out({ gain: seq })`,
+                `const seq = $('c e')\nout: $sine('c').erratic(1, { trigger: seq, speed: seq }).track({ gain: seq })`,
             ),
         ).toEqual([
             'trigger: seq‹trig›',
@@ -235,28 +233,28 @@ describe('static resolution', () => {
 
 describe('agreement with the runtime', () => {
     const sources = [
-        `const seq = $('c e g')\n$saw(seq).amp($perc(seq)).out()`,
-        `$saw($('c e g')).amp($perc($('c*4'))).out()`,
-        `const cyc = $('0*8')\ncyc.perc().out()\n$adsr(cyc).out()\ncyc.amp(2).out()`,
-        `$('0*8').adsr().out()`,
-        `const seqs = []\nfor (let i = 0; i < 3; i++) {\n    seqs.push($('c e g'))\n}\n$sine(seqs).amp($perc(seqs)).out()`,
-        `const a = $('c')\nconst b = $('e')\n$perc([a, b]).out()`,
-        `const seq = $('c e')\n$saw(seq, { sync: seq }).out()`,
-        `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nvoice($('c e g')).out()`,
-        `$perc($clock).out()\n$tr808.kick($clock).out()`,
-        `const seq = $('c e')\nseq.out()\n$sine('c').amp(seq).out()`,
-        `$sine('c').lpf($('c5 c6')).out()`,
-        `const seq = $('c e')\n$saw($g1([seq, seq]), { sync: $g2(seq) }).out()`,
+        `const seq = $('c e g')\nout: $saw(seq).amp($perc(seq))`,
+        `out: $saw($('c e g')).amp($perc($('c*4')))`,
+        `const cyc = $('0*8')\nout: cyc.perc()\nout2: $adsr(cyc)\nout3: cyc.amp(2)`,
+        `out: $('0*8').adsr()`,
+        `const seqs = []\nfor (let i = 0; i < 3; i++) {\n    seqs.push($('c e g'))\n}\nout: $sine(seqs).amp($perc(seqs))`,
+        `const a = $('c')\nconst b = $('e')\nout: $perc([a, b])`,
+        `const seq = $('c e')\nout: $saw(seq, { sync: seq })`,
+        `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nout: voice($('c e g'))`,
+        `out: $perc($clock)\nout2: $tr808.kick($clock)`,
+        `const seq = $('c e')\nout: seq\nout2: $sine('c').amp(seq)`,
+        `out: $sine('c').lpf($('c5 c6'))`,
+        `const seq = $('c e')\nout: $saw($g1([seq, seq]), { sync: $g2(seq) })`,
         `function f(s, m) {\n    return s.xover().wet(m)\n}\nf($clock, $('1 2'))`,
-        `function f(m) {\n    return $sine('c').pipeMix((x) => x.lpf('c'), m)\n}\nf($('1 2')).out()`,
-        `function f(s) {\n    return $sine('c').range(s, s)\n}\nf($('0 1')).out()`,
-        `function f(s) {\n    return $sine('c').amp($g1([s, s])).out({ gain: $g1(s) })\n}\nf($('0 1'))`,
-        `function f(s) {\n    return $mix([[s, 2.5]]).amp($step([s, 'c'], s))\n}\nf($('0 1')).out()`,
-        `function f(s) {\n    return $quantizer($sine('c'), s)\n}\nf($('c, e, g')).out()`,
-        `function f(s) {\n    return $sine('c').erratic(1, { trigger: s, speed: s })\n}\nf($('0 1')).out({ gain: $('1 2') })`,
+        `function f(m) {\n    return $sine('c').pipeMix((x) => x.lpf('c'), m)\n}\nout: f($('1 2'))`,
+        `function f(s) {\n    return $sine('c').range(s, s)\n}\nout: f($('0 1'))`,
+        `function f(s) {\n    return $sine('c').amp($g1([s, s])).track({ gain: $g1(s) })\n}\nout: f($('0 1'))`,
+        `function f(s) {\n    return $mix([[s, 2.5]]).amp($step([s, 'c'], s))\n}\nout: f($('0 1'))`,
+        `function f(s) {\n    return $quantizer($sine('c'), s)\n}\nout: f($('c, e, g'))`,
+        `function f(s) {\n    return $sine('c').erratic(1, { trigger: s, speed: s })\n}\nout: f($('0 1')).track({ gain: $('1 2') })`,
         `function f(s) {\n    return $delay(s, s, { feedback: s, feedbackCb: (m) => m.lpf(s) })\n}\nf($('0 1'))`,
         `function f(s) {\n    return $sine('c').delay(s).wet(s)\n}\nf($('0 1'))`,
-        `const seq = $('[c,e] [g,b]')\n$perc(seq.slice(1)).out()\n$saw(seq.chunk(1)).amp($perc(seq[1])).out()\nseq.slice(1).perc().out()`,
+        `const seq = $('[c,e] [g,b]')\nout: $perc(seq.slice(1))\nout2: $saw(seq.chunk(1)).amp($perc(seq[1]))\nout3: seq.slice(1).perc()`,
     ];
 
     test.each(sources)('%s', (source) => {
@@ -299,216 +297,218 @@ describe('fold sites', () => {
     const wide = `const wide = $stereo($saw('c3'), $saw('g3'))\n`;
 
     test('a stereo value into an input that folds', () => {
-        expect(folds(`${wide}$enosc(wide).out()`)).toEqual(['wide‹.mono()›']);
+        expect(folds(`${wide}out: $enosc(wide)`)).toEqual(['wide‹.mono()›']);
         expect(
-            folds(`${wide}$plate($saw('c3'), { decay: wide }).out()`),
+            folds(`${wide}out: $plate($saw('c3'), { decay: wide })`),
         ).toEqual(['wide‹.mono()›']);
-        expect(folds(`${wide}wide.enosc().out()`)).toEqual(['wide‹.mono()›']);
+        expect(folds(`${wide}out: wide.enosc()`)).toEqual(['wide‹.mono()›']);
         expect(
             folds(
-                `${wide}$sampler('kick.wav', 5, { slice: [[0, 0.5], wide] }).out()`,
+                `${wide}out: $sampler('kick.wav', 5, { slice: [[0, 0.5], wide] })`,
             ),
         ).toEqual(['wide‹.mono()›']);
     });
 
     test('a mono out folds what it sends', () => {
-        expect(folds(`$stereo(0, 1).outMono()`)).toEqual([
+        expect(folds(`out$0m: $stereo(0, 1)`)).toEqual([
             '$stereo(0, 1)‹.mono()›',
         ]);
-        expect(folds(`${wide}wide.lpf('c5').outMono(0)`)).toEqual([
+        expect(folds(`${wide}out$0m: wide.lpf('c5')`)).toEqual([
             "wide.lpf('c5')‹.mono()›",
         ]);
     });
 
     test('a module root folds through the output it reads', () => {
-        expect(folds(`$coinFlip($stereo('c', 'g')).outMono()`)).toEqual([
+        expect(folds(`out$0m: $coinFlip($stereo('c', 'g'))`)).toEqual([
             "$coinFlip($stereo('c', 'g'))‹._heads.mono()›",
         ]);
     });
 
     test('an input read side by side does not fold', () => {
-        expect(folds(`${wide}$pan(wide, 2).out()`)).toEqual([]);
-        expect(folds(`${wide}$mono(wide).outMono()`)).toEqual([]);
-        expect(folds(`${wide}wide.mono().outMono()`)).toEqual([]);
+        expect(folds(`${wide}out: $pan(wide, 2)`)).toEqual([]);
+        expect(folds(`${wide}out$0m: $mono(wide)`)).toEqual([]);
+        expect(folds(`${wide}out$0m: wide.mono()`)).toEqual([]);
     });
 
     test('a lifted module carries what its inputs carry', () => {
-        expect(folds(`${wide}$enosc(wide.lpf('c5').add(1)).out()`)).toEqual([
+        expect(folds(`${wide}out: $enosc(wide.lpf('c5').add(1))`)).toEqual([
             "wide.lpf('c5').add(1)‹.mono()›",
         ]);
-        expect(folds(`$saw('c3').lpf('c5').outMono()`)).toEqual([]);
-        expect(folds(`$enosc($saw($sine('1hz'))).out()`)).toEqual([]);
+        expect(folds(`out$0m: $saw('c3').lpf('c5')`)).toEqual([]);
+        expect(folds(`out: $enosc($saw($sine('1hz')))`)).toEqual([]);
     });
 
     test('a signal group carries the channels of its signals', () => {
-        expect(folds('$`0`.add($g1(0)).outMono()')).toEqual([]);
-        expect(folds(`$saw($g1(['c3', 'e3'])).outMono()`)).toEqual([]);
-        expect(folds(`${wide}$saw('c3').add($g1(wide)).outMono()`)).toEqual([
+        expect(folds('out$0m: $`0`.add($g1(0))')).toEqual([]);
+        expect(folds(`out$0m: $saw($g1(['c3', 'e3']))`)).toEqual([]);
+        expect(folds(`${wide}out$0m: $saw('c3').add($g1(wide))`)).toEqual([
             "$saw('c3').add($g1(wide))‹.mono()›",
         ]);
         expect(
-            folds(
-                'const $g1 = () => $stereo(0, 1)\n$`0`.add($g1(0)).outMono()',
-            ),
+            folds('const $g1 = () => $stereo(0, 1)\nout$0m: $`0`.add($g1(0))'),
         ).toEqual(['$`0`.add($g1(0))‹.mono()›']);
     });
 
     test('a lane or slice carries its collection’s channels', () => {
-        expect(folds(`$saw('c3').lane(0).outMono()`)).toEqual([]);
-        expect(folds(`$saw(['c3', 'e3']).slice(0, 1).outMono()`)).toEqual([]);
-        expect(folds(`${wide}wide.lane(0).outMono()`)).toEqual([
+        expect(folds(`out$0m: $saw('c3').lane(0)`)).toEqual([]);
+        expect(folds(`out$0m: $saw(['c3', 'e3']).slice(0, 1)`)).toEqual([]);
+        expect(folds(`${wide}out$0m: wide.lane(0)`)).toEqual([
             'wide.lane(0)‹.mono()›',
         ]);
     });
 
     test('a pattern’s cycle is mono', () => {
-        expect(folds(`$('c3 e3').cycle().outMono()`)).toEqual([]);
-        expect(folds('$saw($`c3 e3`.cycle()).outMono()')).toEqual([]);
+        expect(folds(`out$0m: $('c3 e3').cycle()`)).toEqual([]);
+        expect(folds('out$0m: $saw($`c3 e3`.cycle())')).toEqual([]);
     });
 
     test('a crossfade lifts with its playhead', () => {
-        expect(folds(`${wide}$cross(3, wide.range(0, 1)).outMono()`)).toEqual([
+        expect(folds(`${wide}out$0m: $cross(3, wide.range(0, 1))`)).toEqual([
             '$cross(3, wide.range(0, 1))‹.mono()›',
         ]);
         expect(
-            folds(`$cross(3, $sine('1hz').range(0, 1), [0, 5]).outMono()`),
+            folds(`out$0m: $cross(3, $sine('1hz').range(0, 1), [0, 5])`),
         ).toEqual([]);
     });
 
     test('a track tap’s controls are mono', () => {
-        const tap = `$saw('c2').out({ label: 'bass' })\nconst bass = $trackTap('bass')\n`;
-        expect(folds(`${tap}$sine('c5').out({ pan: bass.panning })`)).toEqual(
+        const tap = `bass2: $saw('c2')\nconst bass = $trackTap('bass')\n`;
+        expect(
+            folds(`${tap}out: $sine('c5').track({ pan: bass.panning })`),
+        ).toEqual([]);
+        expect(folds(`${tap}out$0m: bass.level`)).toEqual([]);
+        expect(folds(`${tap}out$0m: bass['level']`)).toEqual([]);
+        expect(folds(`${tap}const { active } = bass\nout$0m: active`)).toEqual(
             [],
         );
-        expect(folds(`${tap}bass.level.outMono()`)).toEqual([]);
-        expect(folds(`${tap}bass['level'].outMono()`)).toEqual([]);
-        expect(
-            folds(`${tap}const { active } = bass\nactive.outMono()`),
-        ).toEqual([]);
-        expect(folds(`${tap}bass.outMono()`)).toEqual(['bass‹.mono()›']);
+        expect(folds(`${tap}out$0m: bass`)).toEqual(['bass‹.mono()›']);
     });
 
     test('either side of a choice may be the value', () => {
-        expect(folds(`${wide}const x = 0 || wide\nx.outMono()`)).toEqual([
+        expect(folds(`${wide}const x = 0 || wide\nout$0m: x`)).toEqual([
             'x‹.mono()›',
         ]);
-        expect(folds(`const x = 0 || $saw('c3')\nx.outMono()`)).toEqual([]);
+        expect(folds(`const x = 0 || $saw('c3')\nout$0m: x`)).toEqual([]);
         const coin = `const coin = Math.random() > 0.5\n`;
         expect(
             folds(
-                `${coin}const x = coin ? $saw('c3') : $sine('c3')\nx.outMono()`,
+                `${coin}const x = coin ? $saw('c3') : $sine('c3')\nout$0m: x`,
             ),
         ).toEqual([]);
         expect(
             folds(
-                `${wide}${coin}const x = coin ? $saw('c3') : wide\nx.outMono()`,
+                `${wide}${coin}const x = coin ? $saw('c3') : wide\nout$0m: x`,
             ),
         ).toEqual(['x‹.mono()›']);
-        expect(folds(`const x = undefined ?? $saw('c3')\nx.outMono()`)).toEqual(
+        expect(folds(`const x = undefined ?? $saw('c3')\nout$0m: x`)).toEqual(
             [],
         );
     });
 
     test('a destructured const carries what it takes', () => {
-        expect(
-            folds(`const { _cv: pitch } = $('c3')\npitch.outMono()`),
-        ).toEqual([]);
-        expect(folds(`const { _cv } = $('c3')\n_cv.outMono()`)).toEqual([]);
+        expect(folds(`const { _cv: pitch } = $('c3')\nout$0m: pitch`)).toEqual(
+            [],
+        );
+        expect(folds(`const { _cv } = $('c3')\nout$0m: _cv`)).toEqual([]);
         expect(
             folds(
-                `const [a, b] = [$saw('c3'), $stereo(0, 1)]\na.outMono()\nb.outMono()`,
+                `const [a, b] = [$saw('c3'), $stereo(0, 1)]\nout$0m: a\nout2$0m: b`,
             ),
         ).toEqual(['b‹.mono()›']);
         expect(
-            folds(`${wide}const [a = wide] = [$saw('c3')]\na.outMono()`),
+            folds(`${wide}const [a = wide] = [$saw('c3')]\nout$0m: a`),
         ).toEqual(['a‹.mono()›']);
     });
 
     test('plain values, patterns and controls are mono', () => {
-        expect(folds(`$enosc('c3').out()`)).toEqual([]);
-        expect(folds(`$enosc($('c3 e3')).out()`)).toEqual([]);
-        expect(folds(`const n = 3\n$enosc(n).out()`)).toEqual([]);
-        expect(folds(`$saw($clock._tempo).outMono()`)).toEqual([]);
+        expect(folds(`out: $enosc('c3')`)).toEqual([]);
+        expect(folds(`out: $enosc($('c3 e3'))`)).toEqual([]);
+        expect(folds(`const n = 3\nout: $enosc(n)`)).toEqual([]);
+        expect(folds(`out$0m: $saw($clock._tempo)`)).toEqual([]);
     });
 
     test('a buffer reader carries what its buffer records', () => {
         expect(
-            folds(`${wide}$enosc($delayRead($buffer(wide, 1), 0.1)).out()`),
+            folds(`${wide}out: $enosc($delayRead($buffer(wide, 1), 0.1))`),
         ).toEqual(['$delayRead($buffer(wide, 1), 0.1)‹.mono()›']);
         expect(
             folds(
-                `const b = $buffer($saw('c3'), 1)\n$enosc($delayRead(b, 0.1)).out()`,
+                `const b = $buffer($saw('c3'), 1)\nout: $enosc($delayRead(b, 0.1))`,
             ),
         ).toEqual([]);
     });
 
     test('patterns and missing values are mono', () => {
-        expect(folds(`$enosc($('c3 e3').fast(2).slow(3)).out()`)).toEqual([]);
-        expect(folds(`$saw('c3').outMono(0, undefined)`)).toEqual([]);
+        expect(folds(`out: $enosc($('c3 e3').fast(2).slow(3))`)).toEqual([]);
+        expect(folds(`out$0m: $saw('c3').track({ gain: undefined })`)).toEqual(
+            [],
+        );
     });
 
     test('a range lifts with its bounds', () => {
         expect(
-            folds(`$enosc($sine('1hz').range($stereo(0, 1), 5)).out()`),
+            folds(`out: $enosc($sine('1hz').range($stereo(0, 1), 5))`),
         ).toEqual(["$sine('1hz').range($stereo(0, 1), 5)‹.mono()›"]);
-        expect(folds(`$enosc($sine('1hz').range(0, 5)).out()`)).toEqual([]);
+        expect(folds(`out: $enosc($sine('1hz').range(0, 5))`)).toEqual([]);
     });
 
     test("an out's folding options", () => {
-        expect(folds(`${wide}$saw('c3').out({ pan: wide })`)).toEqual([
+        expect(folds(`${wide}out: $saw('c3').track({ pan: wide })`)).toEqual([
             'wide‹.mono()›',
         ]);
-        expect(folds(`${wide}$saw('c3').out({ gain: wide })`)).toEqual([]);
-        expect(folds(`${wide}$saw('c3').outMono(0, wide)`)).toEqual([
-            'wide‹.mono()›',
-        ]);
-        expect(folds(`${wide}$saw('c3').outMono({ gain: wide })`)).toEqual([
-            'wide‹.mono()›',
-        ]);
+        expect(folds(`${wide}out: $saw('c3').track({ gain: wide })`)).toEqual(
+            [],
+        );
+        expect(
+            folds(`${wide}out$0m: $saw('c3').track({ gain: wide })`),
+        ).toEqual(['wide‹.mono()›']);
+        expect(
+            folds(`${wide}out$0m: $saw('c3').track({ gain: wide })`),
+        ).toEqual(['wide‹.mono()›']);
     });
 
     test("a stereo module's mono outputs are mono", () => {
-        expect(folds(`$enosc('c3').outMono()`)).toEqual([
+        expect(folds(`out$0m: $enosc('c3')`)).toEqual([
             "$enosc('c3')‹._all.mono()›",
         ]);
-        expect(folds(`$enosc('c3')._low.outMono()`)).toEqual([]);
-        expect(folds(`const e = $enosc('c3')\ne._root.outMono()`)).toEqual([]);
-        expect(
-            folds(`$enosc('c3').concat($enosc('g3'))._low.outMono()`),
-        ).toEqual([]);
-        expect(folds(`$enosc('c3').out()._high.outMono()`)).toEqual([]);
+        expect(folds(`out$0m: $enosc('c3')._low`)).toEqual([]);
+        expect(folds(`const e = $enosc('c3')\nout$0m: e._root`)).toEqual([]);
+        expect(folds(`out$0m: $enosc('c3').concat($enosc('g3'))._low`)).toEqual(
+            [],
+        );
+        expect(folds(`out$0m: $enosc('c3').scope()._high`)).toEqual([]);
     });
 
     test('a cycle of const bindings reads as unknown', () => {
-        expect(folds(`const a = b\nconst b = a\na._low.outMono()`)).toEqual([
+        expect(folds(`const a = b\nconst b = a\nout$0m: a._low`)).toEqual([
             'a._low‹.mono()›',
         ]);
     });
 
     test('an array folds element by element', () => {
-        expect(folds(`${wide}$enosc([wide, 'c3']).out()`)).toEqual([
+        expect(folds(`${wide}out: $enosc([wide, 'c3'])`)).toEqual([
             'wide‹.mono()›',
         ]);
     });
 
     test('a value only a run can tell may be stereo', () => {
-        expect(folds(`const d = $deferred()\n$enosc(d).out()`)).toEqual([
+        expect(folds(`const d = $deferred()\nout: $enosc(d)`)).toEqual([
             'd‹.mono()›',
         ]);
-        expect(folds(`const f = (x) => $enosc(x).out()`)).toEqual([
+        expect(folds(`const f = (x) => $enosc(x).scope()`)).toEqual([
             'x‹.mono()›',
         ]);
-        expect(folds(`$input.outMono()`)).toEqual(['$input‹.mono()›']);
-        expect(folds(`$sampler('kick.wav', 5).outMono()`)).toEqual([
+        expect(folds(`out$0m: $input`)).toEqual(['$input‹.mono()›']);
+        expect(folds(`out$0m: $sampler('kick.wav', 5)`)).toEqual([
             "$sampler('kick.wav', 5)‹.mono()›",
         ]);
-        expect(folds(`$inputMono.outMono()`)).toEqual([]);
+        expect(folds(`out$0m: $inputMono`)).toEqual([]);
     });
 
     test('a collection of mono and stereo may be stereo', () => {
-        expect(folds(`${wide}$c($saw('c3'), wide).outMono()`)).toEqual([
+        expect(folds(`${wide}out$0m: $c($saw('c3'), wide)`)).toEqual([
             "$c($saw('c3'), wide)‹.mono()›",
         ]);
-        expect(folds(`$c($saw('c3'), $saw('e3')).outMono()`)).toEqual([]);
+        expect(folds(`out$0m: $c($saw('c3'), $saw('e3'))`)).toEqual([]);
     });
 });

@@ -89,14 +89,14 @@ const TWO_OP_DOCS: ModuleDocs = ModuleDocs {
             title: "Evolving FM bass",
             code: r#"
                 const bright = $sine('0.2hz').range(0, 4)
-                $mi.twoOp('c2', { index: bright }).out()
+                bass: $mi.twoOp('c2', { index: bright })
             "#,
         },
         DocExample {
             title: "Sub-octave growl",
             code: r#"
                 const op = $mi.twoOp('c1', { index: 3, feedback: -3 })
-                op._subOctave.out()
+                bass: op._subOctave
             "#,
         },
     ],

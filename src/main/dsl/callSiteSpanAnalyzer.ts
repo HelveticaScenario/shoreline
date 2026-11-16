@@ -19,13 +19,7 @@ import { forEachDescendant } from '../../shared/dsl/ast/walk';
 import type { CallSiteSpanRegistry } from './sourceAnalysisTypes';
 
 /** Method names tracked for call expression spans (property access calls) */
-const DSL_METHODS_TO_TRACK = new Set([
-    'scope',
-    'out',
-    'outMono',
-    'eq',
-    'preview',
-]);
+const DSL_METHODS_TO_TRACK = new Set(['scope', 'track', 'eq', 'preview']);
 
 /** Standalone function names tracked for call expression spans */
 const DSL_FUNCTIONS_TO_TRACK = new Set([

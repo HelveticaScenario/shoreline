@@ -23,6 +23,7 @@ import {
 } from './outputResolutionRule';
 import { type Channels, collectionChannels, liftedChannels } from './channels';
 import { FIRST_LINE_COLUMN_OFFSET } from './spanTypes';
+import { parseTrackLabel } from './trackLabels';
 
 /** What a module call's params are named and which read signals. */
 export interface ModuleSiteInfo {
@@ -126,14 +127,8 @@ export function siteOfRecord(
     return undefined;
 }
 
-/**
- * The options of each out that fold a stereo signal: a stereo out's pan
- * and spread go to `$pan`'s, and a mono out folds its gain.
- */
-const FOLDING_OPTIONS: Readonly<Record<string, readonly string[]>> = {
-    out: ['pan', 'spread'],
-    outMono: ['gain'],
-};
+/** The options of a stereo track that fold: its pan and spread go to `$pan`'s. */
+const STEREO_TRACK_FOLDING = ['pan', 'spread'];
 
 /** The helpers that tag a param value into a cartesian signal group. */
 const SIGNAL_GROUP_HELPERS = new Set(['$g1', '$g2', '$g3']);
@@ -400,7 +395,7 @@ export function collectSignalSites(
 
     /** Whether `type` is an output or collection: it has their methods. */
     const isOutput = (type: TS.Type): boolean =>
-        checker.getPropertyOfType(type, 'outMono') !== undefined;
+        checker.getPropertyOfType(type, 'track') !== undefined;
 
     const receivesSignals = (type: TS.Type): boolean =>
         isUnknown(type) || isOutput(type);
@@ -590,7 +585,7 @@ export function collectSignalSites(
     };
 
     /** Chain methods that hand back their receiver. */
-    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope']);
+    const RETURNS_RECEIVER = new Set(['scope']);
 
     /** Methods that hand back some of their receiver's lanes. */
     const TAKES_LANES = new Set(['lane', 'slice']);
@@ -801,6 +796,46 @@ export function collectSignalSites(
         return 'unknown';
     };
 
+    /** Whether `expression` is a `.track(...)`, scoped or not. */
+    const isTrackChain = (expression: TS.Expression): boolean => {
+        let e = expression;
+        while (
+            ts.isCallExpression(e) &&
+            ts.isPropertyAccessExpression(e.expression)
+        ) {
+            if (e.expression.name.text === 'track') {
+                return true;
+            }
+            if (e.expression.name.text !== 'scope') {
+                return false;
+            }
+            e = e.expression.expression;
+        }
+        return false;
+    };
+
+    /** Whether `call` is chained into the expression of a mono track's label. */
+    const isMonoTrackCall = (call: TS.CallExpression): boolean => {
+        let node: TS.Node = call;
+        while (
+            ts.isPropertyAccessExpression(node.parent) ||
+            (ts.isCallExpression(node.parent) &&
+                node.parent.expression === node)
+        ) {
+            node = node.parent;
+        }
+        const labelled = node.parent?.parent;
+        if (
+            !ts.isExpressionStatement(node.parent) ||
+            !labelled ||
+            !ts.isLabeledStatement(labelled)
+        ) {
+            return false;
+        }
+        const track = parseTrackLabel(labelled.label.text);
+        return !('error' in track) && track.mono;
+    };
+
     const visitCall = (node: TS.CallExpression): void => {
         const callee = node.expression;
         const name = dottedName(callee);
@@ -842,16 +877,16 @@ export function collectSignalSites(
             optionClasses &&
             receivesSignals(checker.getTypeAtLocation(callee.expression))
         ) {
-            const method = callee.name.text;
-            const folding = own(FOLDING_OPTIONS, method) ?? [];
-            // A mono out folds what it sends.
-            emitValue(
-                site,
-                RECEIVER_SLOT,
-                callee.expression,
-                'cv',
-                method === 'outMono',
-            );
+            // A mono track folds what it plays, gain included.
+            const monoTrack =
+                callee.name.text === 'track' && isMonoTrackCall(node);
+            const folding =
+                callee.name.text !== 'track'
+                    ? []
+                    : monoTrack
+                      ? ['gain']
+                      : STEREO_TRACK_FOLDING;
+            emitValue(site, RECEIVER_SLOT, callee.expression, 'cv', monoTrack);
             node.arguments.forEach((arg, i) => {
                 if (ts.isObjectLiteralExpression(arg)) {
                     forEachField(arg, (key, value) =>
@@ -864,13 +899,7 @@ export function collectSignalSites(
                         ),
                     );
                 } else {
-                    emitValue(
-                        site,
-                        argumentSlot(i),
-                        arg,
-                        'cv',
-                        method === 'outMono' && i === 1,
-                    );
+                    emitValue(site, argumentSlot(i), arg, 'cv', false);
                 }
             });
         }
@@ -882,6 +911,32 @@ export function collectSignalSites(
         }
         ts.forEachChild(node, visit);
     };
+    // A track label reads its expression as the track's signal; the run
+    // records it where the label's `=` stands once overwritten, one past the
+    // label's start. A mono track folds it.
+    for (const statement of sourceFile.statements) {
+        if (
+            !ts.isLabeledStatement(statement) ||
+            !ts.isExpressionStatement(statement.statement)
+        ) {
+            continue;
+        }
+        const track = parseTrackLabel(statement.label.text);
+        // A `.track(...)` reads its receiver itself, as a chain method.
+        if ('error' in track || isTrackChain(statement.statement.expression)) {
+            continue;
+        }
+        const { line, character } = sourceFile.getLineAndCharacterOfPosition(
+            statement.label.getStart(sourceFile) + 1,
+        );
+        emitValue(
+            { column: character + 1, line: line + 1 },
+            RECEIVER_SLOT,
+            statement.statement.expression,
+            'cv',
+            track.mono,
+        );
+    }
     visit(sourceFile);
     return sites;
 }

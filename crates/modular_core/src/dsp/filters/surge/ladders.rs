@@ -106,13 +106,11 @@ const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
         title: "Fat ladder bass",
         code: r#"
             const seq = $`a1 ~ a1 [a2 a1] ~ e2 g1 ~`
-            $unstable.filter
-              .legacyLadder(
-                $saw(seq),
-                $perc(seq, { decay: 0.25 }).range('c3', 'c6'),
-                3,
-              )
-              .out()
+            melody: $unstable.filter.legacyLadder(
+              $saw(seq),
+              $perc(seq, { decay: 0.25 }).range('c3', 'c6'),
+              3,
+            )
         "#,
     }],
 };
@@ -322,13 +320,11 @@ const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
         title: "Screaming acid line",
         code: r#"
             const seq = $`c2 c3 [~ c2] eb3 c2 [g2 c3] bb1 c2`
-            $unstable.filter
-              .diodeLadder(
-                $saw(seq),
-                $perc(seq, { decay: 0.15 }).range('c3', 'c7'),
-                4,
-              )
-              .out()
+            melody: $unstable.filter.diodeLadder(
+              $saw(seq),
+              $perc(seq, { decay: 0.15 }).range('c3', 'c7'),
+              4,
+            )
         "#,
     }],
 };

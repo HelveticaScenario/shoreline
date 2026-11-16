@@ -26,10 +26,9 @@ import { isSignalGroupLike } from './signalGroups';
  * separate call sites.
  */
 export const CHAIN_METHODS: ChainMethods = {
-    out: {},
-    outMono: {},
     range: {},
     scope: {},
+    track: {},
     wet: {},
 };
 

@@ -410,20 +410,20 @@ const MACRO_DOCS: ModuleDocs = ModuleDocs {
             title: "Struck modal melody",
             code: r#"
                 const seq = $`c4 g4 eb4 <bb4 f4>`
-                $macro(seq, 'modalResonator', {
+                melody: $macro(seq, 'modalResonator', {
                   trigger: seq,
                   timbre: 1,
                   lpgDecay: 3,
-                }).out()
+                })
             "#,
         },
         DocExample {
             title: "Chord stabs",
             code: r#"
-                $macro('c3', 'chords', {
+                keys: $macro('c3', 'chords', {
                   trigger: $clock._beatTrigger,
                   harmonics: 1,
-                }).out()
+                })
             "#,
         },
     ],

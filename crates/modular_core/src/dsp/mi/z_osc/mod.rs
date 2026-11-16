@@ -87,7 +87,7 @@ const Z_OSC_DOCS: ModuleDocs = ModuleDocs {
         title: "Resonant sweep",
         code: r#"
             const sweep = $sine('0.2hz').range(1, 4)
-            $mi.zOsc('c2', { cutoff: sweep, mode: 1 }).out()
+            bass: $mi.zOsc('c2', { cutoff: sweep, mode: 1 })
         "#,
     }],
 };

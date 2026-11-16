@@ -33,35 +33,35 @@ function ports(source: string, moduleType: string, param: string): string[] {
 
 describe('resolution by input type', () => {
     test('a pitch input takes the cycle cv', () => {
-        expect(ports(`$saw($('c e g')).out()`, '$saw', 'freq')).toEqual(['cv']);
+        expect(ports(`out: $saw($('c e g'))`, '$saw', 'freq')).toEqual(['cv']);
     });
 
     test('a trig input takes the cycle trig', () => {
-        expect(ports(`$perc($('c e g')).out()`, '$perc', 'trigger')).toEqual([
+        expect(ports(`out: $perc($('c e g'))`, '$perc', 'trigger')).toEqual([
             'trig',
         ]);
     });
 
     test('a gate input takes the cycle gate', () => {
-        expect(ports(`$adsr($('c e g')).out()`, '$adsr', 'gate')).toEqual([
+        expect(ports(`out: $adsr($('c e g'))`, '$adsr', 'gate')).toEqual([
             'gate',
         ]);
     });
 
     test('a control input takes the default, not another cv output', () => {
         expect(
-            ports(`$sine('c').amp($('0 2 5')).out()`, '$amp', 'factor'),
+            ports(`out: $sine('c').amp($('0 2 5'))`, '$amp', 'factor'),
         ).toEqual(['cv']);
     });
 
     test('a trig input takes the first trigger of the clock', () => {
-        expect(ports(`$perc($clock).out()`, '$perc', 'trigger')).toEqual([
+        expect(ports(`out: $perc($clock)`, '$perc', 'trigger')).toEqual([
             'barTrigger',
         ]);
     });
 
     test('a gate input falls back to a trigger', () => {
-        expect(ports(`$adsr($clock).out()`, '$adsr', 'gate')).toEqual([
+        expect(ports(`out: $adsr($clock)`, '$adsr', 'gate')).toEqual([
             'barTrigger',
         ]);
     });
@@ -69,7 +69,7 @@ describe('resolution by input type', () => {
     test('a trig input falls back to a gate', () => {
         expect(
             ports(
-                `$perc($coinFlip($clock._beatTrigger, 2.5)).out()`,
+                `out: $perc($coinFlip($clock._beatTrigger, 2.5))`,
                 '$perc',
                 'trigger',
             ),
@@ -77,7 +77,7 @@ describe('resolution by input type', () => {
     });
 
     test('a cv input takes the default', () => {
-        expect(ports(`$saw($clock).out()`, '$saw', 'freq')).toEqual([
+        expect(ports(`out: $saw($clock)`, '$saw', 'freq')).toEqual([
             'playhead',
         ]);
     });
@@ -85,7 +85,7 @@ describe('resolution by input type', () => {
     test('with nothing matching, the default is used', () => {
         expect(
             ports(
-                `$sine($coinFlip($clock._beatTrigger, 2.5)).out()`,
+                `out: $sine($coinFlip($clock._beatTrigger, 2.5))`,
                 '$sine',
                 'freq',
             ),
@@ -95,7 +95,7 @@ describe('resolution by input type', () => {
     test('a config-object input resolves by its own type', () => {
         expect(
             ports(
-                `const seq = $('c e')\n$saw(seq, { sync: seq }).out()`,
+                `const seq = $('c e')\nout: $saw(seq, { sync: seq })`,
                 '$saw',
                 'sync',
             ),
@@ -105,17 +105,17 @@ describe('resolution by input type', () => {
 
 describe('explicit outputs', () => {
     test('a named output is never re-resolved', () => {
-        expect(
-            ports(`$perc($('c e g')._cv).out()`, '$perc', 'trigger'),
-        ).toEqual(['cv']);
-        expect(ports(`$saw($('c e g')._trig).out()`, '$saw', 'freq')).toEqual([
+        expect(ports(`out: $perc($('c e g')._cv)`, '$perc', 'trigger')).toEqual(
+            ['cv'],
+        );
+        expect(ports(`out: $saw($('c e g')._trig)`, '$saw', 'freq')).toEqual([
             'trig',
         ]);
     });
 
     test('the default output has a named property', () => {
         expect(
-            ports(`$perc($clock._playhead).out()`, '$perc', 'trigger'),
+            ports(`out: $perc($clock._playhead)`, '$perc', 'trigger'),
         ).toEqual(['playhead']);
     });
 });
@@ -126,7 +126,7 @@ describe('arrays', () => {
 for (let i = 0; i < 3; i++) {
     seqs.push($('c e g'))
 }
-$sine(seqs).amp($perc(seqs)).out()`;
+out: $sine(seqs).amp($perc(seqs))`;
         const { patch } = run(source);
         expect(
             patch.modules.filter((m) => m.moduleType === '$cycle'),
@@ -145,17 +145,17 @@ $sine(seqs).amp($perc(seqs)).out()`;
 
 describe('chaining', () => {
     test('. resolves the receiver by the chained module', () => {
-        expect(ports(`$('0*8').perc().out()`, '$perc', 'trigger')).toEqual([
+        expect(ports(`out: $('0*8').perc()`, '$perc', 'trigger')).toEqual([
             'trig',
         ]);
-        expect(ports(`$('0*8').adsr().out()`, '$adsr', 'gate')).toEqual([
+        expect(ports(`out: $('0*8').adsr()`, '$adsr', 'gate')).toEqual([
             'gate',
         ]);
-        expect(ports(`$('c e g').saw().out()`, '$saw', 'freq')).toEqual(['cv']);
+        expect(ports(`out: $('c e g').saw()`, '$saw', 'freq')).toEqual(['cv']);
     });
 
     test('a chain method reads its receiver as cv', () => {
-        expect(ports(`$('c e g').amp(2).out()`, '$amp', 'input')).toEqual([
+        expect(ports(`out: $('c e g').amp(2)`, '$amp', 'input')).toEqual([
             'cv',
         ]);
     });
@@ -165,7 +165,7 @@ describe('chain method options', () => {
     test('an option resolves by its own input', () => {
         expect(
             ports(
-                `$sine('c').erratic(1, { trigger: $('c e') }).out()`,
+                `out: $sine('c').erratic(1, { trigger: $('c e') })`,
                 '$erratic',
                 'trigger',
             ),
@@ -175,7 +175,7 @@ describe('chain method options', () => {
 
 describe('a root read as a signal itself', () => {
     test('is the output a cv input takes', () => {
-        expect(ports(`$sine($('c e')[0]).out()`, '$sine', 'freq')).toEqual([
+        expect(ports(`out: $sine($('c e')[0])`, '$sine', 'freq')).toEqual([
             'cv',
         ]);
     });
@@ -184,7 +184,7 @@ describe('a root read as a signal itself', () => {
 describe('a call that throws', () => {
     test('leaves the next call recording as usual', () => {
         const { outputResolutions } = run(
-            `const seq = $('c e')\ntry { $sine('c').amp('nope') } catch {}\n$adsr(seq).out()`,
+            `const seq = $('c e')\ntry { $sine('c').amp('nope') } catch {}\nout: $adsr(seq)`,
         );
         expect(outputResolutions.map((r) => `${r.slot} ${r.output}`)).toEqual([
             'gate gate',
@@ -201,30 +201,30 @@ describe('resolution records', () => {
 
     test('module calls record the param each root went into', () => {
         expect(
-            records(`const seq = $('c e g')\n$saw(seq).amp($perc(seq)).out()`),
+            records(`const seq = $('c e g')\nout: $saw(seq).amp($perc(seq))`),
         ).toEqual(['2 freq cv', '2 trigger trig']);
     });
 
     test('array elements record their index', () => {
         expect(
-            records(`const a = $('c')\nconst b = $('e')\n$perc([a, b]).out()`),
+            records(`const a = $('c')\nconst b = $('e')\nout: $perc([a, b])`),
         ).toEqual(['3 trigger.0 trig', '3 trigger.1 trig']);
     });
 
     test('. records the chained module param', () => {
-        expect(records(`$('0*8').perc().out()`)).toEqual(['1 trigger trig']);
+        expect(records(`out: $('0*8').perc()`)).toEqual(['1 trigger trig']);
     });
 
     test('chain methods record the receiver and argument index', () => {
         expect(
             records(
-                `const seq = $('c e g')\nseq.range(0, 1, -5, 5).out()\n$sine('1hz').range(seq, 5).out()`,
+                `const seq = $('c e g')\nout: seq.range(0, 1, -5, 5)\nout2: $sine('1hz').range(seq, 5)`,
             ),
         ).toEqual(['2 receiver cv', '3 0 cv']);
     });
 
     test('a receiver that only reads outputs is recorded', () => {
-        expect(records(`const seq = $('c e g')\nseq.out()`)).toEqual([
+        expect(records(`const seq = $('c e g')\nout: seq`)).toEqual([
             '2 receiver cv',
         ]);
     });
@@ -232,7 +232,7 @@ describe('resolution records', () => {
     test('named outputs and single-output modules record nothing', () => {
         expect(
             records(
-                `const seq = $('c e g')\n$saw(seq._cv).amp($perc(seq._trig)).out()`,
+                `const seq = $('c e g')\nout: $saw(seq._cv).amp($perc(seq._trig))`,
             ),
         ).toEqual([]);
     });
@@ -240,7 +240,7 @@ describe('resolution records', () => {
     test('a helper function records at its own call sites', () => {
         expect(
             records(
-                `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nvoice($('c e g')).out()`,
+                `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nout: voice($('c e g'))`,
             ),
         ).toEqual(['2 freq cv', '2 trigger trig']);
     });
