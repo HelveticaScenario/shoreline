@@ -712,6 +712,12 @@ type WavMeta = {
 };
 
 /**
+ * A send to a {@link Bus}: the bus alone sends at full level, a
+ * \`[bus, gain]\` pair at \`gain\`.
+ */
+type Send = Bus | [bus: Bus, gain: Poly<Signal>];
+
+/**
  * Options for stereo output routing via the out() method.
  * @see {@link Collection.out}
  */
@@ -798,6 +804,9 @@ ${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
    * @param options Stereo output options ({@link StereoOutOptions})
    * @example $sine("c4").out({ gain: 2.5, pan: -2 })
    * @example $saw(['c3', 'e3', 'g3']).out({ label: 'chord' })
+   * @example
+   * const verb = $bus((wet) => wet.plate().out());
+   * $saw('c3').out({ sends: [verb, 2] });
    */
   out(options?: StereoOutOptions): this;
 
@@ -895,14 +904,6 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @example $saw('c3').plate().wet(1.5).out()
    */
   wet(mix?: Poly<Signal>): Collection;
-
-  /**
-   * Register all lanes as a send to a bus, with optional gain.
-   * @param bus The {@link Bus} to send to
-   * @param gain Send level as {@link Poly<Signal>}
-   * @returns This collection for chaining
-   */
-  send(bus: Bus, gain?: Poly<Signal>): this;
 }
 
 /**
@@ -1296,8 +1297,8 @@ interface ControlGroupParams {
 function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /**
- * A send-return bus. Create one with {@link $bus}, then call \`.send(bus, gain)\` on
- * any {@link Collection} to route signals through it.
+ * A send-return bus. Create one with {@link $bus}, then name it in the
+ * \`sends\` option of any \`.out()\` or \`.outMono()\` to route signals through it.
  * The bus callback receives a mixed {@link Collection} of all sends.
  */
 class Bus {
@@ -1309,18 +1310,18 @@ class Bus {
  * Create a send-return bus.
  *
  * The callback receives a {@link Collection} that is the mix of all signals
- * sent to this bus via \`.send(bus, gain)\`. Use it to add effects or route the
+ * sent to this bus through an out's \`sends\` option. Use it to add effects or route the
  * mixed signal to an output.
  *
  * @param cb Called during patch finalization with the mixed sends.
  *             The return value of this function is discarded, it's up to the cb to
  *             call \`.out()\` or \`.outMono()\` to actually hear anything.
- * @returns A {@link Bus} handle passed to \`.send()\`
+ * @returns A {@link Bus} handle named in \`sends\`
  *
  * @example
  * const reverb = $bus((mixed) => $plate(mixed).out());
- * $saw('a').send(reverb, 0.6);
- * $sine('a2').send(reverb, 0.4);
+ * $saw('a').out({ sends: [reverb, 3] });
+ * $sine('a2').outMono(0, { sends: [reverb, 2] });
  */
 function $bus(cb: (mixed: Collection) => unknown): Bus;
 

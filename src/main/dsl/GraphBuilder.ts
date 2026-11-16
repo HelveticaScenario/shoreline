@@ -146,6 +146,9 @@ export function $cartesian<A extends unknown[][]>(
     ) as ElementsOf<A>[];
 }
 
+/** A send to a bus: the bus alone sends at full level, `[bus, gain]` at `gain`. */
+export type Send = Bus | [bus: Bus, gain: PolySignal];
+
 /** Options for stereo output routing */
 export interface StereoOutOptions {
     /** Base output channel (0-62, default 0). Left plays on baseChannel, right on baseChannel+1 */
@@ -162,6 +165,8 @@ export interface StereoOutOptions {
     mute?: boolean;
     /** When any output is soloed, only soloed outputs are audible */
     solo?: boolean;
+    /** Buses this output also feeds, before its gain, pan, mute and solo */
+    sends?: Send | Send[];
 }
 
 /** Options for mono output routing */
@@ -176,6 +181,8 @@ export interface MonoOutOptions {
     mute?: boolean;
     /** When any output is soloed, only soloed outputs are audible */
     solo?: boolean;
+    /** Buses this output also feeds, before its gain, pan, mute and solo */
+    sends?: Send | Send[];
 }
 
 /** VU meter / mute / solo state shared by both out group kinds */
@@ -240,6 +247,48 @@ function resolveMonoOutArgs(
 }
 
 /**
+ * Whether `value` is one `[bus, gain]` pair rather than a list of sends: a
+ * bus followed by something that is neither a bus nor a pair.
+ */
+function isSendPair(value: unknown): value is [Bus, PolySignal] {
+    if (!Array.isArray(value) || value.length !== 2) {
+        return false;
+    }
+    const [bus, gain] = value as unknown[];
+    return (
+        bus instanceof Bus &&
+        !(gain instanceof Bus) &&
+        !(Array.isArray(gain) && gain[0] instanceof Bus)
+    );
+}
+
+/** The `[bus, gain]` pairs of an out's `sends` option. */
+function resolveSends(
+    sends: Send | Send[] | undefined,
+): [Bus, PolySignal | undefined][] {
+    if (sends === undefined) {
+        return [];
+    }
+    const entries = sends instanceof Bus || isSendPair(sends) ? [sends] : sends;
+    if (!Array.isArray(entries)) {
+        throw new Error(
+            '.out sends must be a $bus, a [bus, gain] pair, or an array of them',
+        );
+    }
+    return entries.map((entry: unknown) => {
+        if (entry instanceof Bus) {
+            return [entry, undefined];
+        }
+        if (isSendPair(entry)) {
+            return [entry[0], entry[1]];
+        }
+        throw new Error(
+            '.out sends: each send must be a $bus or a [bus, gain] pair',
+        );
+    });
+}
+
+/**
  * Live-display tap for a locked VU control: the (module, port, lane)
  * address the engine samples so the panel can track the signal. Collections
  * and arrays tap their first lane. A deferred output's placeholder id is
@@ -288,7 +337,7 @@ export class Bus {
 
     addSend(value: ModuleOutput | ModuleOutput[], gain?: PolySignal): void {
         if (this.locked) {
-            throw new Error('`.send` is not allowed in $bus callbacks');
+            throw new Error('`sends` is not allowed in $bus callbacks');
         }
         const outputs = Array.isArray(value) ? [...value] : [value];
         const group: SendGroup = {
@@ -449,6 +498,7 @@ export class BaseCollection<T extends ModuleOutput> {
      * @param options.label - Label shown on this output's VU meter
      * @param options.mute - Silence this output (still metered)
      * @param options.solo - When any output is soloed, only soloed outputs are audible
+     * @param options.sends - Buses this output also feeds: a bus, a `[bus, gain]` pair, or an array of them
      */
     out(options: StereoOutOptions = {}): this {
         if (this.items.length > 0) {
@@ -467,7 +517,7 @@ export class BaseCollection<T extends ModuleOutput> {
 
     /**
      * Send all outputs to speakers as mono
-     * @param channelOrOptions - Output channel (0-63, default 0), or `{ channel, gain, label, mute, solo }` options
+     * @param channelOrOptions - Output channel (0-63, default 0), or `{ channel, gain, label, mute, solo, sends }` options
      * @param gainOrOptions - Output gain, or the same options (an explicit `channel` there wins)
      */
     outMono(
@@ -482,18 +532,6 @@ export class BaseCollection<T extends ModuleOutput> {
                 loc,
             );
         }
-        return this;
-    }
-
-    /**
-     * Add self to the send-return bus
-     *
-     * @param bus
-     * @param gain
-     * @returns
-     */
-    send(bus: Bus, gain?: PolySignal): this {
-        bus.addSend(this.items, gain);
         return this;
     }
 
@@ -1800,6 +1838,9 @@ export class GraphBuilder implements ChainHost {
         this.registerOutLabel(options.label);
 
         const outputs = Array.isArray(value) ? [...value] : [value];
+        for (const [bus, gain] of resolveSends(options.sends)) {
+            bus.addSend(outputs, gain);
+        }
         const group: StereoOutGroup = {
             gain: options.gain,
             label: options.label,
@@ -1842,6 +1883,9 @@ export class GraphBuilder implements ChainHost {
         this.registerOutLabel(options.label);
 
         const outputs = Array.isArray(value) ? [...value] : [value];
+        for (const [bus, gain] of resolveSends(options.sends)) {
+            bus.addSend(outputs, gain);
+        }
         const group: MonoOutGroup = {
             gain: options.gain,
             label: options.label,

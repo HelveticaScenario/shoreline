@@ -590,7 +590,7 @@ export function collectSignalSites(
     };
 
     /** Chain methods that hand back their receiver. */
-    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope', 'send']);
+    const RETURNS_RECEIVER = new Set(['out', 'outMono', 'scope']);
 
     /** Methods that hand back some of their receiver's lanes. */
     const TAKES_LANES = new Set(['lane', 'slice']);

@@ -60,13 +60,6 @@ describe('computeControlQuickFixes — API methods and functions', () => {
         );
     });
 
-    test('send() fills its gain positionally', () => {
-        const { source, fixes } = fixesAt(`$sine('c4').send(bus|)`);
-        expect(apply(source, addFix(fixes, 'gain'))).toBe(
-            `$sine('c4').send(bus, $slider('gain', 5, 0, 5))`,
-        );
-    });
-
     test('outMono() sets its gain through the option object', () => {
         const { source, fixes } = fixesAt(`$sine('c4').outMono(0|)`);
         expect(apply(source, addFix(fixes, 'gain'))).toBe(

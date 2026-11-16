@@ -25,7 +25,6 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "scope",
     "out",
     "outMono",
-    "send",
     "pipe",
     "pipeMix",
     "wet",

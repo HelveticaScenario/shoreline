@@ -26,6 +26,11 @@ const LEVEL_FIELDS: readonly OutOptionField[] = [
         name: 'solo',
         type: 'boolean',
     },
+    {
+        doc: 'Buses this output also feeds, before its gain, pan, mute and solo: a bus, a `[bus, gain]` pair, or an array of them',
+        name: 'sends',
+        type: 'Send | Send[]',
+    },
 ];
 
 export const STEREO_OUT_OPTIONS: readonly OutOptionField[] = [
