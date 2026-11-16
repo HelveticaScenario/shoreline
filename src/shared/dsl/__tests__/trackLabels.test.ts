@@ -62,6 +62,13 @@ test('withTrackState rewrites only the prefix', () => {
     expect(withTrackState('snare', 'solo')).toBe('S_snare');
 });
 
+test.each(['_1abc', 'S_1abc', '_9', 'S__x', 'a$1b', 'kick$_drums'])(
+    '%s: no track or group name starts with a digit or _',
+    (label) => {
+        expect(parseTrackLabel(label)).toHaveProperty('error');
+    },
+);
+
 test.each(['a$b$c', 'a$_b', 'a$', 'a$2x'])(
     '%s has no valid suffix',
     (label) => {
