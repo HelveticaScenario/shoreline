@@ -34,10 +34,26 @@ function anchorOf(source: string, name: string): number {
     return label ? label.getStart(file) : -1;
 }
 
-const state = (source: string, name: string, next: TrackState) =>
+const STATES: Record<string, TrackState> = {
+    both: { mute: true, solo: true },
+    mute: { mute: true, solo: false },
+    none: { mute: false, solo: false },
+    solo: { mute: false, solo: true },
+};
+
+const state = (
+    source: string,
+    name: string,
+    next: 'mute' | 'solo' | 'both' | null,
+) =>
     applied(
         source,
-        computeTrackStateEdit(source, anchorOf(source, name), name, next),
+        computeTrackStateEdit(
+            source,
+            anchorOf(source, name),
+            name,
+            STATES[next ?? 'none'],
+        ),
     );
 
 const option = (
@@ -78,6 +94,18 @@ describe('computeTrackStateEdit — the label prefix', () => {
         );
         expect(state(`s_lead$0m: $saw('c3')`, 'lead', 'mute')).toBe(
             `_lead$0m: $saw('c3')`,
+        );
+    });
+
+    test('muted and soloed writes S__, and each clears on its own', () => {
+        expect(state(`_lead: $saw('c3')`, 'lead', 'both')).toBe(
+            `S__lead: $saw('c3')`,
+        );
+        expect(state(`_S_lead: $saw('c3')`, 'lead', 'mute')).toBe(
+            `_lead: $saw('c3')`,
+        );
+        expect(state(`S__lead: $saw('c3')`, 'lead', 'solo')).toBe(
+            `S_lead: $saw('c3')`,
         );
     });
 
@@ -174,17 +202,17 @@ describe('computeTrackOptionEdit — .track options', () => {
         expect(
             applied(
                 source,
-                computeTrackStateEdit(source, anchor, 'lead', 'mute'),
+                computeTrackStateEdit(source, anchor, 'lead', STATES.mute),
             ),
         ).toBe(`lead: $sine('c2')\n_lead: $saw('c3')`);
     });
 
     test('an anchor no longer on the track is no edit', () => {
         expect(
-            computeTrackStateEdit(`lead: $saw('c3')`, 3, 'lead', 'mute'),
+            computeTrackStateEdit(`lead: $saw('c3')`, 3, 'lead', STATES.mute),
         ).toBeNull();
         expect(
-            computeTrackStateEdit(`bass: $saw('c3')`, 0, 'lead', 'mute'),
+            computeTrackStateEdit(`bass: $saw('c3')`, 0, 'lead', STATES.mute),
         ).toBeNull();
     });
 

@@ -320,11 +320,11 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Track labels': {
-        definition: '[_ | S_]name[$channel | $channelm]: signal',
+        definition: '[_ | S_ | S__]name[$channel | $channelm]: signal',
         description:
             'A label in front of a top-level statement sends its signal to the mixer as a track. ' +
             "The name is the track's name in the mixer, with underscores shown as spaces, and reads as the track's final signal in the rest of the patch " +
-            "(and, for a track that starts from `$bus()`, as the bus other tracks send to). `_name` mutes the track and `S_name` (or `s_name`) solos it; the mixer's mute and solo buttons rewrite this prefix. " +
+            "(and, for a track that starts from `$bus()`, as the bus other tracks send to). `_name` mutes the track, `S_name` (or `s_name`) solos it, and `S__name` (or `_S_name`) does both, in which case it plays, as a soloed track does; the mixer's mute and solo buttons rewrite this prefix. " +
             '`name$2` plays the track in stereo on channels 2 and 3, and `name$2m` in mono on channel 2; without a suffix a track plays in stereo on channels 0 and 1. ' +
             'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
