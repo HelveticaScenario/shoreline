@@ -179,6 +179,27 @@ lead: $saw('c3').track({ sends: low })
         ).toHaveLength(1);
     });
 
+    test('a send level is any signal but a track name', () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick: $sine('c1')
+a: $saw('c3').track({ sends: [verb, 2] })
+b: $saw('c3').track({ sends: [verb, $sine('1hz').range(0, 5)] })
+c: $saw('c3').track({ sends: [[verb, $c(kick)], [verb, 'c4'], [verb, [1, 2]]] })
+d: $saw('c3').track({ sends: [verb, kick.level] })
+x: $bus().reverb().concat($sine('c3'))
+`),
+        ).toEqual([]);
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick: $sine('c1')
+a: $saw('c3').track({ sends: [verb, kick] })
+`),
+        ).toHaveLength(1);
+    });
+
     test('a signal that only reads a bus is not a send target', () => {
         expect(
             labelErrors(`

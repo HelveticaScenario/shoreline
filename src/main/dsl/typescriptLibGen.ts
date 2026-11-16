@@ -715,7 +715,14 @@ type WavMeta = {
  * A send to a bus, named by its track's name: the name alone sends at full
  * level, a \`[name, gain]\` pair at \`gain\`.
  */
-type Send = BusTap | [bus: BusTap, gain: Poly<Signal>];
+type Send = BusTap | [bus: BusTap, gain: SendLevel];
+
+/**
+ * A send's level: any signal but a track's name, which in a send is always
+ * another bus to send to. Wrap a track's name to use it as a level:
+ * \`[bus, $c(name)]\`.
+ */
+type SendLevel = Poly<Signal> & { readonly active?: never };
 
 /**
  * Options of {@link BaseCollection.track}: how a track mixes into the
@@ -1382,6 +1389,13 @@ class RangedBusSignal extends RangedCollection<BusSignal, RangedBusSignal> {
    * @param options Track options ({@link BusTrackOptions})
    */
   override track(options?: BusTrackOptions): Track<this>;
+
+  /**
+   * This bus signal's lane followed by those of \`other\`, still rooted at
+   * the bus.
+   * @param other Any signal
+   */
+  override concat(other: Collection | CollectionWithRange | BusRooted): this;
 }
 
 /** A signal rooted at a bus: \`$bus()\` or methods chained on it. */
