@@ -734,23 +734,24 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     {
         description:
             'Create a send-return bus. Signals are routed to the bus through the `sends` option of `.out()` or `.outMono()`. ' +
-            'The callback receives a Collection that is the mix of all sends, allowing effects or further routing to be applied.',
+            'The callback receives a Collection that is the mix of all sends and returns the processed signal; call `.out()` or `.outMono()` on the bus to hear it.',
         examples: [
-            "const fx = $bus((mixed) => $plate(mixed).out());\n$saw('a').out({ sends: [fx, 3] });\n$sine('a2').out({ sends: fx });",
-            "// One out feeding two buses at different levels\nconst verb = $bus((mixed) => mixed.plate().out());\nconst echo = $bus((mixed) => mixed.delay(0.25).out());\n$saw('c3').out({ sends: [[verb, 2], [echo, 4]] });",
+            "const fx = $bus((mixed) => $plate(mixed)).out();\n$saw('a').out({ sends: [fx, 3] });\n$sine('a2').out({ sends: fx });",
+            "// One out feeding two buses at different levels\nconst verb = $bus((mixed) => mixed.plate()).out();\nconst echo = $bus((mixed) => mixed.delay(0.25)).out();\n$saw('c3').out({ sends: [[verb, 2], [echo, 4]] });",
         ],
         group: 'Advanced',
         name: '$bus',
         params: [
             {
                 name: 'cb',
-                type: '(mixed: Collection) => unknown',
+                type: '(mixed: Collection) => Poly<Signal> | void',
                 description:
-                    'Called at patch finalization with the mixed sends. Call .out() or return a signal.',
+                    'Called at patch finalization with the mixed sends. Returns the bus signal that `.out()` on the bus plays.',
             },
         ],
-        returns: "Bus handle named in an out's `sends`",
-        signature: '$bus(cb: (mixed: Collection) => unknown): Bus',
+        returns:
+            "Bus handle named in an out's `sends`, with .out() and .outMono()",
+        signature: '$bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus',
     },
     {
         description:

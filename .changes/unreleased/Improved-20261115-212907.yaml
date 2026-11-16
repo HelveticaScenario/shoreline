@@ -1,0 +1,4 @@
+kind: Improved
+body: |-
+    A `$bus` callback can return its signal and you hear it by calling `.out()` or `.outMono()` on the bus itself, as in `const verb = $bus((mixed) => mixed.reverb()).out()`.
+time: 2026-11-15T21:29:07.831883-05:00

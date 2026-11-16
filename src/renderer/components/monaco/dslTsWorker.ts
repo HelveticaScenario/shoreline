@@ -1,9 +1,11 @@
 /**
  * Monaco's TypeScript worker, extended with the DSL's signal-site collector
  * so output-resolution hints reuse the program the editor already keeps warm,
- * and with the extract and inline refactors Monaco's code actions leave out.
+ * with the extract and inline refactors Monaco's code actions leave out, and
+ * with a plain diagnostic for `$'…'` in place of the parser's.
  */
 
+import type { Diagnostic } from 'typescript';
 import { initialize } from 'monaco-editor/esm/vs/common/initialize.js';
 import { typescript as ts } from 'monaco-editor/esm/vs/language/typescript/lib/typescriptServices.js';
 import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js';
@@ -19,8 +21,38 @@ import {
     type LocalRefactorEdits,
     type RefactorStyle,
 } from './localRefactors';
+import {
+    withDollarQuoteDiagnostics,
+    withoutDollarQuoteTypeErrors,
+} from './dollarQuotes';
 
 class DslTypeScriptWorker extends TypeScriptWorker {
+    override async getSyntacticDiagnostics(
+        fileName: string,
+    ): Promise<Diagnostic[]> {
+        const sourceFile = this.getLanguageService()
+            .getProgram()
+            ?.getSourceFile(fileName);
+        const diagnostics = await super.getSyntacticDiagnostics(fileName);
+        return sourceFile
+            ? TypeScriptWorker.clearFiles(
+                  withDollarQuoteDiagnostics(ts, sourceFile, diagnostics),
+              )
+            : diagnostics;
+    }
+
+    override async getSemanticDiagnostics(
+        fileName: string,
+    ): Promise<Diagnostic[]> {
+        const sourceFile = this.getLanguageService()
+            .getProgram()
+            ?.getSourceFile(fileName);
+        const diagnostics = await super.getSemanticDiagnostics(fileName);
+        return sourceFile
+            ? withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics)
+            : diagnostics;
+    }
+
     /**
      * `tables` rides every call: Monaco stops an idle worker and starts a
      * fresh one, so nothing set once on the worker would last.

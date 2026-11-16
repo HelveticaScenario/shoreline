@@ -71,6 +71,13 @@ export const MONO_OUT_OPTIONS: readonly OutOptionField[] = [
     ...LEVEL_FIELDS,
 ];
 
+/** The fields a bus's own outs take: a bus cannot send to another bus. */
+export function withoutSends(
+    fields: readonly OutOptionField[],
+): OutOptionField[] {
+    return fields.filter((f) => f.name !== 'sends');
+}
+
 /** One-line type expression, e.g. `interface { label?: string; ... }`. */
 export function outOptionsDefinition(
     fields: readonly OutOptionField[],

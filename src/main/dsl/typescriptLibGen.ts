@@ -23,6 +23,7 @@ import {
     STEREO_OUT_OPTIONS,
     renderOutOptionsJsDocList,
     renderOutOptionsMembers,
+    withoutSends,
 } from '../../shared/dsl/outOptions';
 import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import { ALIGNMENT_MODES } from './alignmentModes';
@@ -734,6 +735,24 @@ ${renderOutOptionsMembers(MONO_OUT_OPTIONS)}
 }
 
 /**
+ * Options for a bus's own stereo out: those of {@link StereoOutOptions}
+ * but \`sends\`, since a bus cannot send to another bus.
+ * @see {@link Bus.out}
+ */
+interface BusStereoOutOptions {
+${renderOutOptionsMembers(withoutSends(STEREO_OUT_OPTIONS))}
+}
+
+/**
+ * Options for a bus's own mono out: those of {@link MonoOutOptions}
+ * but \`sends\`, since a bus cannot send to another bus.
+ * @see {@link Bus.outMono}
+ */
+interface BusMonoOutOptions {
+${renderOutOptionsMembers(withoutSends(MONO_OUT_OPTIONS))}
+}
+
+/**
  * Every signal in a patch: an ordered set of lanes, one voice each, with
  * chainable DSP methods. Indexing and iteration give one-lane collections
  * of the same type, so \`osc[0]\` is still a signal with every method.
@@ -1298,32 +1317,55 @@ function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /**
  * A send-return bus. Create one with {@link $bus}, then name it in the
- * \`sends\` option of any \`.out()\` or \`.outMono()\` to route signals through it.
- * The bus callback receives a mixed {@link Collection} of all sends.
+ * \`sends\` option of any \`.out()\` or \`.outMono()\` to route signals through it,
+ * and call \`.out()\` or \`.outMono()\` on the bus to hear its return.
  */
 class Bus {
   /** @internal */
   private constructor();
+
+  /**
+   * Send the bus's return to speakers as stereo.
+   *
+   * Options:
+${renderOutOptionsJsDocList(withoutSends(STEREO_OUT_OPTIONS))}
+   * @param options Stereo output options ({@link BusStereoOutOptions})
+   * @example
+   * const verb = $bus((mixed) => mixed.reverb()).out({ label: 'verb' });
+   * $saw('c3').out({ sends: [verb, 2] });
+   */
+  out(options?: BusStereoOutOptions): this;
+
+  /**
+   * Send the bus's return to speakers as mono.
+   *
+   * Options:
+${renderOutOptionsJsDocList(withoutSends(MONO_OUT_OPTIONS))}
+   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link BusMonoOutOptions})
+   * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
+   * @example
+   * const echo = $bus((mixed) => $delay(mixed, 0.25)).outMono(1);
+   * $sine('c4').outMono(0, { sends: echo });
+   */
+  outMono(channelOrOptions?: number | BusMonoOutOptions, gainOrOptions?: Poly<Signal> | BusMonoOutOptions): this;
 }
 
 /**
  * Create a send-return bus.
  *
  * The callback receives a {@link Collection} that is the mix of all signals
- * sent to this bus through an out's \`sends\` option. Use it to add effects or route the
- * mixed signal to an output.
+ * sent to this bus through an out's \`sends\` option, and returns the bus's
+ * return signal. Call \`.out()\` or \`.outMono()\` on the bus to hear it.
  *
- * @param cb Called during patch finalization with the mixed sends.
- *             The return value of this function is discarded, it's up to the cb to
- *             call \`.out()\` or \`.outMono()\` to actually hear anything.
+ * @param cb Called during patch finalization with the mixed sends; returns the processed signal
  * @returns A {@link Bus} handle named in \`sends\`
  *
  * @example
- * const reverb = $bus((mixed) => $plate(mixed).out());
- * $saw('a').out({ sends: [reverb, 3] });
- * $sine('a2').outMono(0, { sends: [reverb, 2] });
+ * const verb = $bus((mixed) => $plate(mixed)).out();
+ * $saw('a').out({ sends: [verb, 3] });
+ * $sine('a2').outMono(0, { sends: [verb, 2] });
  */
-function $bus(cb: (mixed: Collection) => unknown): Bus;
+function $bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus;
 
 /**
  * Tap the out labeled \`label\`: its audio after gain and mute/solo, plus its
@@ -1420,58 +1462,6 @@ function $g2(signals: Poly<Signal>): SignalGroup;
  * }).out()
  */
 function $g3(signals: Poly<Signal>): SignalGroup;
-
-/**
- * \`$ott\` — three-band upward + downward compressor in the style of Xfer's OTT.
- *
- * Splits the input into low / mid / high via \`$xover\`, then runs each band
- * through \`$comp\` with both upward and downward compression engaged at fast
- * attack/release ballistics. Bands are summed and crossfaded against the
- * original input via \`depth\`.
- *
- * Per-band trim (\`lowGain\` / \`midGain\` / \`highGain\`) is linear, as in
- * \`.amp()\`: 5 V = unity, 0 V = silence, 10 V = +6 dB.
- *
- * \`\`\`js
- * $ott($saw('c2')).out()
- * $ott($mix([$saw('c2'), $noise('white')]), { depth: 4, lowGain: 6, highGain: 4, threshold: 1.5 }).out()
- * \`\`\`
- */
-function $ott(input: Collection | CollectionWithRange, config?: {
-    /**
-     * Optional side-chain detector signal. The same crossover network splits
-     * the sidechain into low/mid/high and each band's compressor keys off the
-     * matching band — the gain is still applied to \`input\`.
-     */
-    sidechain?: Collection | CollectionWithRange;
-    /** wet/dry blend, 0–5 (default 5 = fully wet) */
-    depth?: Poly<Signal>;
-    /** low/mid crossover (V/Oct, default ~120 Hz) */
-    lowMidFreq?: Poly<Signal>;
-    /** mid/high crossover (V/Oct, default ~2500 Hz) */
-    midHighFreq?: Poly<Signal>;
-    /** downward stage threshold in volts (default 1.0) */
-    threshold?: Poly<Signal>;
-    /** downward stage ratio: > 1 compresses, < 1 expands (boosts loud), 1 = passthrough. Default 4 */
-    ratio?: Poly<Signal>;
-    /** upward stage threshold in volts (default 0.5) */
-    upwardThreshold?: Poly<Signal>;
-    /** upward stage ratio: > 1 boosts quiet, < 1 gates quiet, 1 = passthrough. Default 4 */
-    upwardRatio?: Poly<Signal>;
-    /** envelope attack in seconds (default 0.003) */
-    attack?: Poly<Signal>;
-    /** envelope release in seconds (default 0.05) */
-    release?: Poly<Signal>;
-    /** per-band makeup gain as dB-voltage (-5V = -24dB, 0V = unity, +5V = +24dB, default 1V ≈ +4.8dB) */
-    makeup?: Poly<Signal>;
-    /** low-band trim — 5 = unity (default 5) */
-    lowGain?: Poly<Signal>;
-    /** mid-band trim — 5 = unity (default 5) */
-    midGain?: Poly<Signal>;
-    /** high-band trim — 5 = unity (default 5) */
-    highGain?: Poly<Signal>;
-    id?: string;
-}): Collection;
 
 /**
  * @param count Size of the output
