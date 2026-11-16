@@ -9,7 +9,7 @@ body: |-
     $signal($v.video('/clips/loop.mp4').audio[1]).outMono(2)
     // after
     const drums = $sampler('/wavs/break.wav', $clock._beatTrigger)
-    $right(drums).outMono(1)
-    $right($v.video('/clips/loop.mp4').audio).outMono(2)
+    drums$1m: $right(drums)
+    soundtrack$2m: $right($v.video('/clips/loop.mp4').audio)
     ```
 time: 2026-11-13T04:40:33.984697-05:00

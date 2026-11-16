@@ -6,7 +6,7 @@ body: |-
     // before: four voices mixed to stereo, fanned out by width
     $granular($saw($chord('C3[m7]')), $pulse('8hz'), { width: 4, spread: 2 }).out()
     // after: four stereo lanes, fanned out by $pan
-    $pan($granular($saw($chord('C3[m7]')), $pulse('8hz'), { spread: 2 }), 0, { spread: 4 }).out()
+    cloud: $pan($granular($saw($chord('C3[m7]')), $pulse('8hz'), { spread: 2 }), 0, { spread: 4 })
 
     // before: each voice on its own lane
     $granular($saw($chord('C3[m7]')), $pulse('8hz'))._voices
