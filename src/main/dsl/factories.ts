@@ -1,6 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
 import { deriveLaneCount } from '@modular/core';
-import type { AnyCollection, ScopeConfig } from './GraphBuilder';
 import {
     BaseCollection,
     GraphBuilder,
@@ -539,7 +538,11 @@ export class DSLContext {
                             root = node._output(output.name);
                         }
                     }
-                    markRoot(root!, { outputs: rootOutputs, values: named });
+                    markRoot(root!, {
+                        outputs: rootOutputs,
+                        resolver: this.builder.outputResolver,
+                        values: named,
+                    });
                     return root! as MultiOutput;
                 },
             );
@@ -551,11 +554,6 @@ export class DSLContext {
      */
     getBuilder(): GraphBuilder {
         return this.builder;
-    }
-
-    scope<T extends AnyCollection>(target: T, config?: ScopeConfig): T {
-        this.builder.addScope(target.items, config, captureSourceLocation());
-        return target;
     }
 }
 
