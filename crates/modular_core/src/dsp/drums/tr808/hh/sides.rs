@@ -14,7 +14,7 @@ const R132: f32 = 100.0e3;
 const VR3: f32 = 2.0e6;
 
 /// One lane of both hats.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 pub(super) struct Lane {
     closed: Voices<Closed>,
     open: Voices<Open>,

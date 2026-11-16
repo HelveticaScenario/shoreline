@@ -92,7 +92,7 @@ impl ImpulseTrain {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 pub struct NaiveSynth {
     pulse: ImpulseTrain,
     coloration: Svf,

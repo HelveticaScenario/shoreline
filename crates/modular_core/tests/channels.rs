@@ -300,10 +300,10 @@ fn a_stereo_signal_carries_half_the_lanes() {
 }
 
 #[test]
-fn widening_to_stereo_keeps_the_left_side_running() {
-    // A slow slew settled at 0 V, then swapped to a stereo 5 V input: its left
-    // side carries on from 0 V and climbs, while its right side is new and,
-    // like any fresh slew, starts at its input.
+fn widening_to_stereo_carries_both_sides_on_from_the_left() {
+    // A slow slew settled at 0 V, then swapped to a stereo 5 V input: both
+    // sides carry on from 0 V and climb, the new right side starting from
+    // the left side's state.
     let mono = build(&[
         ("k", "$signal", signal(json!(0.0))),
         (
@@ -341,7 +341,31 @@ fn widening_to_stereo_keeps_the_left_side_running() {
         after[0] > 0.0 && after[0] < 0.1,
         "left carries on: {after:?}"
     );
-    assert_eq!(after[1], 5.0, "right starts fresh: {after:?}");
+    assert_eq!(after[1], after[0], "right carries on: {after:?}");
+}
+
+#[test]
+fn a_widened_oscillator_keeps_its_phase_on_both_sides() {
+    let mono = build(&[("osc", "$sine", json!({ "freq": 0.0 }))]).unwrap();
+    for _ in 0..1234 {
+        step(&mono, "osc");
+    }
+    let (stereo, _) = insert(&[
+        ("k", "$signal", signal(json!(0.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("k", 0), "right": cable("k", 0) }),
+        ),
+        ("osc", "$sine", json!({ "freq": cable("st", 0) })),
+    ])
+    .unwrap();
+    let before = step(&mono, "osc")[0];
+    swap(&mono, &stereo);
+    let after = step(&stereo, "osc");
+    let delta = (after[0] - before).abs();
+    assert!(delta < 0.1, "left carries on: {before} {after:?}");
+    assert_eq!(after[0], after[1], "right carries on: {after:?}");
 }
 
 #[test]
@@ -916,6 +940,56 @@ fn a_two_channel_file_makes_its_players_stereo() {
     assert_eq!(lanes("cloud"), 4);
     // What reads a stereo player lifts to stereo.
     assert_eq!(lanes("filtered"), 2);
+}
+
+#[test]
+fn a_widened_drum_rings_on_in_every_lane_and_side() {
+    // Two kick lanes ringing in one group, widened to stereo mid-hit by a
+    // stereo accent: each lane's left side rings on as before and its right
+    // side rings with it, holding the same controls.
+    for hold in [false, true] {
+        let mono_modules = |accent: Value| {
+            vec![
+                ("clk", "$pulse", json!({ "freq": [2.0, 3.0] })),
+                ("a", "$signal", signal(json!(2.5))),
+                (
+                    "st",
+                    "$stereo",
+                    json!({ "left": cable("a", 0), "right": cable("a", 0) }),
+                ),
+                (
+                    "kick",
+                    "$tr808.kick",
+                    json!({ "trigger": [cable("clk", 0), cable("clk", 1)], "accent": accent, "hold": hold }),
+                ),
+            ]
+        };
+        let kept = build(&mono_modules(cable("a", 0))).unwrap();
+        let old = build(&mono_modules(cable("a", 0))).unwrap();
+        for _ in 0..3000 {
+            assert_eq!(step(&kept, "kick"), step(&old, "kick"));
+        }
+        let (wide, _) = insert(&mono_modules(cable("st", 0))).unwrap();
+        swap(&old, &wide);
+        let mut heard = 0.0f32;
+        for n in 0..2000 {
+            let expected = step(&kept, "kick");
+            let got = step(&wide, "kick");
+            assert_eq!(got.len(), 4);
+            for lane in 0..2 {
+                for side in 0..2 {
+                    let v = got[lane * 2 + side];
+                    assert!(
+                        (v - expected[lane]).abs() < 1e-4,
+                        "sample {n}, lane {lane} side {side}: {v} vs {}",
+                        expected[lane]
+                    );
+                }
+            }
+            heard = heard.max(expected[1].abs());
+        }
+        assert!(heard > 0.1, "the kicks ring");
+    }
 }
 
 #[test]

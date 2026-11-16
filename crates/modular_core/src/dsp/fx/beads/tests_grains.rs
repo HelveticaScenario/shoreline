@@ -625,6 +625,7 @@ fn spread_places_each_grain_across_both_sides() {
 /// A module whose input reads a stereo producer, so it plays both voices of
 /// each lane even when `step` later feeds both sides alike.
 fn construct_stereo(mut params: GranularParams, sample_rate: f32) -> Granular {
+    // Read as a stereo producer's two sides, until `step` feeds them alike.
     params.input = PolySignal::mono(Signal::cable("src", "output", 0));
     params.expand_lanes(&LaneExpansion {
         channels: 2,
@@ -686,8 +687,20 @@ fn a_voice_that_falls_idle_gives_up_its_recording() {
     let mut old = construct_stereo(p.clone(), SR);
     old.on_patch_update();
     record(&mut old);
+    // The voice keeps its recording while it fades out, through an update
+    // that lands before the fade ends, and gives it up at the first update
+    // after.
+    let mut narrowed = construct(p.clone(), SR);
+    transfer(&mut old, &mut narrowed);
+    assert!(records(&narrowed, 1));
+    let mut fading = construct(p.clone(), SR);
+    transfer(&mut narrowed, &mut fading);
+    assert!(records(&fading, 1));
+    for n in 0..4800 {
+        step(&mut fading, sine(220.0, n, SR, 1.0), 0.0, SR);
+    }
     let mut new = construct(p.clone(), SR);
-    transfer(&mut old, &mut new);
+    transfer(&mut fading, &mut new);
     assert!(recording_level(&new, 0) > 0);
     assert!(!records(&new, 1));
 
@@ -700,6 +713,227 @@ fn a_voice_that_falls_idle_gives_up_its_recording() {
         let (l, r) = step(&mut wide, sine(220.0, n, SR, 1.0), 0.0, SR);
         assert!(l.is_finite() && r.is_finite());
     }
+}
+
+/// Run `a` and `b` side by side over a sine and a steady trigger, asserting
+/// they agree on both sides.
+fn assert_play_alike(
+    a: &mut Granular,
+    b: &mut Granular,
+    from: usize,
+    samples: usize,
+    sample_rate: f32,
+) {
+    for n in from..from + samples {
+        let x = sine(330.0, n, sample_rate, 3.0);
+        let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+        let (l1, r1) = step(a, x, trig, sample_rate);
+        let (l2, r2) = step(b, x, trig, sample_rate);
+        assert!((l1 - l2).abs() < 1e-4, "left at {n}: {l1} {l2}");
+        assert!((r1 - r2).abs() < 1e-4, "right at {n}: {r1} {r2}");
+    }
+}
+
+fn wet_params() -> GranularParams {
+    wet_params_at(GranularQuality::Digital)
+}
+
+fn wet_params_at(quality: GranularQuality) -> GranularParams {
+    let mut p = grains_params(quality);
+    p.mix = poly_volts(&[3.5]);
+    p.feedback = poly_volts(&[2.0]);
+    p.size = poly_volts(&[1.25]);
+    p
+}
+
+#[test]
+fn widening_starts_the_right_voice_where_the_left_is() {
+    // A module kept mono beside one widened to stereo mid-grain, just after
+    // a trigger: with both sides fed alike, the widened one plays on exactly
+    // as before, at every quality and through the resampler.
+    for sample_rate in [SR, 44_100.0] {
+        for quality in ALL_QUALITIES {
+            let p = || wet_params_at(quality);
+            let mut kept = make_grains(p(), sample_rate);
+            let mut widened = make_grains(p(), sample_rate);
+            assert_play_alike(&mut kept, &mut widened, 0, 19_503, sample_rate);
+            let mut stereo = construct_stereo(p(), sample_rate);
+            transfer(&mut widened, &mut stereo);
+            assert_eq!(recording_level(&stereo, 1), recording_level(&stereo, 0));
+            assert_play_alike(&mut kept, &mut stereo, 19_503, 10_000, sample_rate);
+        }
+    }
+}
+
+#[test]
+fn widening_with_a_quality_change_starts_both_sides_afresh() {
+    let mut old = make_grains(wet_params(), SR);
+    record(&mut old);
+    let mut stereo = construct_stereo(wet_params_at(GranularQuality::DirtyTape), SR);
+    transfer(&mut old, &mut stereo);
+    assert!(!stereo.params.mono);
+    assert_eq!(recording_level(&stereo, 0), 0);
+    assert_eq!(recording_level(&stereo, 1), 0);
+    for n in 0..4800 {
+        let (l, r) = step(&mut stereo, sine(220.0, n, SR, 1.0), 0.0, SR);
+        assert!(l.is_finite() && r.is_finite());
+    }
+}
+
+#[test]
+fn narrowing_crossfades_the_right_side_without_a_jump() {
+    // A stereo lane whose sides differ, narrowed to one voice: the right
+    // side crossfades from its own grains to the left voice's, never
+    // jumping further in one sample than the grains already move.
+    // Fully wet: the dry signal follows the edit's new input on its own.
+    let mut p = wet_params();
+    p.mix = poly_volts(&[5.0]);
+    let mut stereo = construct_stereo(p.clone(), SR);
+    stereo.on_patch_update();
+    let sides = |n: usize| {
+        let (l, r) = (sine(330.0, n, SR, 3.0), sine(495.0, n, SR, 3.0));
+        PolySignal::poly(&[Signal::Volts(l), Signal::Volts(r)])
+    };
+    let mut right = Vec::new();
+    for n in 0..20_000 {
+        stereo.params.input = sides(n);
+        stereo.params.trigger = poly_volts(&[if n % 1500 < 10 { 5.0 } else { 0.0 }]);
+        stereo.update(SR);
+        right.push(stereo.outputs.sample.get(1));
+    }
+    let mut mono = construct(p, SR);
+    transfer(&mut stereo, &mut mono);
+    assert!(mono.params.mono);
+    for n in 20_000..21_000 {
+        let (_, r) = step(&mut mono, sine(330.0, n, SR, 3.0), 0.0, SR);
+        right.push(r);
+    }
+    let jump = |range: std::ops::Range<usize>| {
+        range
+            .map(|n| (right[n] - right[n - 1]).abs())
+            .fold(0.0f32, f32::max)
+    };
+    let before = jump(19_000..20_000);
+    let across = jump(20_000..20_200);
+    assert!(across <= before * 1.5 + 1e-3, "{across} vs {before}");
+}
+
+/// Play a stereo lane with its right side at `right_hz`, narrow it to one
+/// voice at the left's 330 Hz, apply `then` a few samples into the
+/// crossfade, and return the right side's largest one-sample jump before
+/// the narrowing and across both updates. A stereo module after `then`
+/// plays 330 Hz on both sides.
+fn right_jumps_across_a_narrowing(
+    right_hz: f32,
+    then: fn(&mut Granular) -> Granular,
+) -> (f32, f32) {
+    let mut p = wet_params();
+    p.mix = poly_volts(&[5.0]);
+    let mut stereo = construct_stereo(p.clone(), SR);
+    stereo.on_patch_update();
+    let sides = |n: usize| {
+        let (l, r) = (sine(330.0, n, SR, 3.0), sine(right_hz, n, SR, 3.0));
+        PolySignal::poly(&[Signal::Volts(l), Signal::Volts(r)])
+    };
+    let mut right = Vec::new();
+    for n in 0..20_000 {
+        stereo.params.input = sides(n);
+        stereo.params.trigger = poly_volts(&[if n % 1500 < 10 { 5.0 } else { 0.0 }]);
+        stereo.update(SR);
+        right.push(stereo.outputs.sample.get(1));
+    }
+    let mut mono = construct(p, SR);
+    transfer(&mut stereo, &mut mono);
+    for n in 20_000..20_040 {
+        let (_, r) = step(&mut mono, sine(330.0, n, SR, 3.0), 0.0, SR);
+        right.push(r);
+    }
+    let mut next = then(&mut mono);
+    for n in 20_040..21_000 {
+        if next.params.mono {
+            right.push(step(&mut next, sine(330.0, n, SR, 3.0), 0.0, SR).1);
+        } else {
+            let x = sine(330.0, n, SR, 3.0);
+            next.params.input = PolySignal::poly(&[Signal::Volts(x), Signal::Volts(x)]);
+            next.params.trigger = poly_volts(&[0.0]);
+            next.update(SR);
+            right.push(next.outputs.sample.get(1));
+        }
+    }
+    let jump = |range: std::ops::Range<usize>| {
+        range
+            .map(|n| (right[n] - right[n - 1]).abs())
+            .fold(0.0f32, f32::max)
+    };
+    (jump(19_000..20_000), jump(20_000..20_300))
+}
+
+#[test]
+fn an_update_during_the_narrowing_crossfade_lets_it_finish() {
+    let (before, across) = right_jumps_across_a_narrowing(495.0, |mono| {
+        let mut again = construct(wet_params_at_mix(5.0), SR);
+        transfer(mono, &mut again);
+        assert!(again.params.mono);
+        again
+    });
+    assert!(across <= before * 1.5 + 1e-3, "{across} vs {before}");
+}
+
+#[test]
+fn widening_during_the_narrowing_crossfade_carries_on_without_a_jump() {
+    // The right side plays the left's pitch throughout, so the right voice
+    // it starts from the left carries on what it played.
+    let (before, across) = right_jumps_across_a_narrowing(330.0, |mono| {
+        let mut stereo = construct_stereo(wet_params_at_mix(5.0), SR);
+        transfer(mono, &mut stereo);
+        assert!(!stereo.params.mono);
+        stereo
+    });
+    assert!(across <= before * 1.5 + 1e-3, "{across} vs {before}");
+}
+
+fn wet_params_at_mix(mix: f32) -> GranularParams {
+    let mut p = wet_params();
+    p.mix = poly_volts(&[mix]);
+    p
+}
+
+#[test]
+fn widening_a_frozen_recording_keeps_it_on_both_sides() {
+    let mut p = wet_params();
+    p.freeze = poly_volts(&[5.0]);
+    let mut m = make_grains(wet_params(), SR);
+    record(&mut m);
+    let mut stereo = construct_stereo(p, SR);
+    transfer(&mut m, &mut stereo);
+    let (mut l, mut r) = (Vec::new(), Vec::new());
+    for n in 0..24_000 {
+        let trig = if n % 1500 < 10 { 5.0 } else { 0.0 };
+        stereo.params.freeze = poly_volts(&[5.0]);
+        let (a, b) = step(&mut stereo, 0.0, trig, SR);
+        l.push(a);
+        r.push(b);
+    }
+    assert!(rms(&l) > 0.05, "left {}", rms(&l));
+    assert!(
+        rms(&r) > 0.9 * rms(&l),
+        "right {} left {}",
+        rms(&r),
+        rms(&l)
+    );
+}
+
+#[test]
+fn narrowing_plays_the_lane_on_from_its_left_voice() {
+    let mut kept = construct_stereo(wet_params(), SR);
+    kept.on_patch_update();
+    let mut narrowed = construct_stereo(wet_params(), SR);
+    narrowed.on_patch_update();
+    assert_play_alike(&mut kept, &mut narrowed, 0, 20_000, SR);
+    let mut mono = construct(wet_params(), SR);
+    transfer(&mut narrowed, &mut mono);
+    assert!(mono.params.mono);
+    assert_play_alike(&mut kept, &mut mono, 20_000, 10_000, SR);
 }
 
 #[test]

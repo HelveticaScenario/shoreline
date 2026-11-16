@@ -7,6 +7,7 @@ import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { Family } from './apiSignatures';
 import type { DocHints } from './apiTypeReader';
 import type { ParamSpec } from './paramControls';
+import type { SignalMeta } from './schemaSlots';
 
 export type SchemaEntry = Schemas[number];
 
@@ -84,6 +85,8 @@ export const API_CONTROLS: Record<
             gain: { spec: LEVEL },
             gainOrOptions: { label: 'gain', spec: LEVEL },
         },
+        // An even duty cycle leaves the phase unwarped.
+        '$phase.pwm': { width: { spec: closedControl(0, 5, 2.5) } },
         pipeMix: { mix: { spec: MIX_SPEC } },
         send: { gain: { spec: LEVEL } },
         wet: { mix: { spec: MIX_SPEC } },
@@ -122,12 +125,36 @@ export function paramSpec(
     name: string,
 ): ParamSpec | undefined {
     const p = schema.signalParams.find((s) => s.name === name);
-    // A param without a declared default starts its control at 0.
-    if (!p) {
-        return undefined;
-    }
-    const meta: Omit<ParamSpec, 'defaultValue'> & { defaultValue?: number } = p;
-    return { ...meta, defaultValue: meta.defaultValue ?? 0 };
+    return p ? specOf(p) : undefined;
+}
+
+/** An input's `#[input]` metadata as a control spec. One without a declared
+ *  default starts its control at 0. */
+function specOf(
+    meta: Omit<ParamSpec, 'defaultValue'> & { defaultValue?: number },
+): ParamSpec {
+    const { paramType, minValue, maxValue, controlMin, controlMax } = meta;
+    return {
+        controlMax,
+        controlMin,
+        defaultValue: meta.defaultValue ?? 0,
+        maxValue,
+        minValue,
+        paramType,
+    };
+}
+
+/** A control for a signal nested inside a param's value, from the
+ *  `#[input]` metadata its schema carries. */
+export function nestedSignalRef(meta: SignalMeta, label: string): ParamRef {
+    return {
+        knownDefault:
+            meta.defaultValue !== undefined ||
+            meta.paramType === 'gate' ||
+            meta.paramType === 'trig',
+        label,
+        spec: specOf(meta),
+    };
 }
 
 export function controlRef(
@@ -159,16 +186,30 @@ export function controlRef(
     };
 }
 
-/** A param spec from doc-stated hints, over the generic 0–5 knob. */
-export function hintedRef(name: string, hints: DocHints): ParamRef {
+/** A param spec from doc-stated hints, over the generic 0–5 knob. Without
+ *  a stated default it starts at 0, or the range's nearest end to 0. Its
+ *  default is known when stated, or when the param is `required` (no unset
+ *  value to keep) and its docs state a range, which makes it a knob rather
+ *  than a signal to wire in. */
+export function hintedRef(
+    name: string,
+    hints: DocHints,
+    required = false,
+): ParamRef {
     const spec: ParamSpec = hints.range
-        ? closedControl(hints.range.min, hints.range.max, hints.range.min)
+        ? closedControl(
+              hints.range.min,
+              hints.range.max,
+              Math.min(Math.max(0, hints.range.min), hints.range.max),
+          )
         : { ...GENERIC_SPEC };
     if (hints.defaultValue !== undefined) {
         spec.defaultValue = hints.defaultValue;
     }
     return {
-        knownDefault: hints.defaultValue !== undefined,
+        knownDefault:
+            hints.defaultValue !== undefined ||
+            (required && hints.range !== undefined),
         label: name,
         spec,
     };

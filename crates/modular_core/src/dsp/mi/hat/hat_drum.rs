@@ -43,7 +43,7 @@ impl HatRates {
 /// A hi-hat's noise source, VCA and filter, as Plaits' template parameters
 /// choose them.
 pub trait Model {
-    type Noise: MetallicNoise;
+    type Noise: MetallicNoise + Copy;
     /// Whether the band-pass's resonance rises with the tone.
     const RESONANCE: bool;
     /// Whether the envelope cuts off faster once below 1/2.
@@ -53,6 +53,7 @@ pub trait Model {
 }
 
 /// `$mi.hiHat`: `HiHat<SquareNoise, SwingVCA, true, false>`.
+#[derive(Clone, Copy)]
 pub struct SquareHat;
 
 impl Model for SquareHat {
@@ -71,6 +72,7 @@ impl Model for SquareHat {
 }
 
 /// `$mi.ringHat`: `HiHat<RingModNoise, LinearVCA, false, true>`.
+#[derive(Clone, Copy)]
 pub struct RingHat;
 
 impl Model for RingHat {
@@ -92,6 +94,7 @@ pub struct HatKnobs {
     pub noisiness: f32,
 }
 
+#[derive(Clone, Copy)]
 pub struct HiHat<M: Model> {
     envelope: f32,
     noise_clock: f32,

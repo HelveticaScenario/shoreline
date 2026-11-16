@@ -38,7 +38,7 @@ struct PSawOscillatorOutputs {
 }
 
 /// Per-lane state for shape glide and phase tracking
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     shape: SwapGlide,
     /// Previous phase, kept in f64 so the DPW differencing (which divides a

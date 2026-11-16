@@ -129,7 +129,7 @@ fn compress(
     sample * gain * makeup
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct LaneState {
     envelope: f32,
     input_gain: Cached<f32>,

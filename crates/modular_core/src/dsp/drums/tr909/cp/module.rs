@@ -73,9 +73,10 @@ struct CpState {
     groups: Groups<ClapDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Clap>,
+    #[seed_side(keep)]
     noise: Noise,
 }
 
@@ -184,7 +185,7 @@ impl crate::types::PatchUpdateHandler for Cp909 {
         let count = self.lane_count();
         self.state
             .groups
-            .layout::<CpInputs<&[f32]>>(&mut self.lane_state, count);
+            .layout::<CpInputs<&[f32]>>(&mut self.lane_state, count, self._channels);
     }
 }
 

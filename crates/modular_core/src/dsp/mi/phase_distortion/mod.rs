@@ -146,7 +146,7 @@ struct Controls {
     amount: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     oscillator: PdOscillator,
     ratio: SwapGlide,

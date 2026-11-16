@@ -5,6 +5,9 @@
  */
 import ts from 'typescript';
 
+import { memberName, TypeSlots } from './apiTypeSlots';
+import type { ApiSlot, SlotStep } from './apiTypeSlots';
+
 /** A parameter or option member's doc-stated range and default, if any. */
 export interface DocHints {
     range?: { min: number; max: number };
@@ -21,9 +24,14 @@ export interface ApiParam {
     /** Takes a signal as the argument itself. */
     signal: boolean;
     rest: boolean;
+    /** May be left out: marked optional, given a default, or a rest. */
+    optional: boolean;
     hints: DocHints;
     /** Members of an option object this parameter accepts, by key. */
     options: ReadonlyMap<string, ApiMember> | null;
+    /** The slot at `path` inside the argument, or null when it takes no
+     *  signal. */
+    slot(path: readonly SlotStep[]): ApiSlot | null;
 }
 
 export type ApiSignature = readonly ApiParam[];
@@ -43,6 +51,7 @@ export class TypeReader {
     private readonly signalMemo = new Map<string, boolean>();
     /** The `Video*` interfaces and every interface extending one. */
     private readonly videoInterfaces: ReadonlySet<string>;
+    private readonly slots: TypeSlots;
 
     constructor(
         private readonly file: ts.SourceFile,
@@ -68,6 +77,14 @@ export class TypeReader {
             }
         }
         this.videoInterfaces = video;
+        this.slots = new TypeSlots(file, aliases, interfaces, {
+            isOutput: (name) => OUTPUT_TYPES.has(name),
+            isSignal: (type) => this.isSignal(type),
+            memberHints: (m) => {
+                const hints = docHints(jsDocText(m));
+                return hasHints(hints) ? hints : undefined;
+            },
+        });
     }
 
     signature(decl: ts.SignatureDeclarationBase): ApiParam[] {
@@ -89,8 +106,13 @@ export class TypeReader {
                           paramDocs.get(`${name}.${key}`),
                       )
                     : null,
+                optional:
+                    rest ||
+                    p.questionToken !== undefined ||
+                    p.initializer !== undefined,
                 rest,
                 signal: type ? this.isSignal(type) : false,
+                slot: (path) => (type ? this.slots.slot(type, path) : null),
             };
         });
         // The summary describes an undocumented first parameter unless it
@@ -137,6 +159,10 @@ export class TypeReader {
             const name = type.typeName.getText(this.file);
             if (SIGNAL_ALIASES.has(name)) {
                 return true;
+            }
+            const arg = type.typeArguments?.[0];
+            if (name === 'OrArray' && arg) {
+                return this.isSignal(arg, depth + 1);
             }
             const memo = this.signalMemo.get(name);
             if (memo !== undefined) {
@@ -259,17 +285,6 @@ export class TypeReader {
             h.types.some((t) => names.has(t.expression.getText(this.file))),
         );
     }
-}
-
-export function memberName(name: ts.PropertyName): string | null {
-    if (
-        ts.isIdentifier(name) ||
-        ts.isStringLiteral(name) ||
-        ts.isPrivateIdentifier(name)
-    ) {
-        return name.text;
-    }
-    return null;
 }
 
 export function hasHints(hints: DocHints): boolean {

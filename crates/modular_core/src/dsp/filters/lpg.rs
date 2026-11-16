@@ -78,7 +78,7 @@ struct LpgOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, SeedSide)]
 struct LpgLane {
     /// False until the lane has processed a sample.
     running: bool,

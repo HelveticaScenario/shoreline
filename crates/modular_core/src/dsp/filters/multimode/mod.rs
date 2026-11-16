@@ -161,8 +161,10 @@ pub struct Multimode {
 #[derive(Default)]
 struct MultimodeState {
     sample_rate: f32,
-    /// Lane count the groups' elements were last set up for.
+    /// Lane count the groups' elements were last set up for, counting
+    /// sides, and the channels per lane.
     lanes: usize,
+    channels: usize,
 }
 
 /// `read(lane)` for the first `active` lanes from `base`, 0 for dead
@@ -282,7 +284,14 @@ impl Multimode {
 impl crate::types::PatchUpdateHandler for Multimode {
     fn on_patch_update(&mut self) {
         let rate = self.core_rate();
-        let (old, lanes) = (self.state.lanes, self.lane_count());
+        let (mut old, lanes) = (self.state.lanes, self.lane_count());
+        // Each group holds four sides, so when the channels per lane change
+        // the groups no longer line up with their lanes: every lane starts
+        // from rest, as in a fresh module.
+        if self.state.channels != self._channels {
+            old = 0;
+            self.state.channels = self._channels;
+        }
         let groups = lanes.div_ceil(SIMD_WIDTH);
         for group in self.lane_state.iter_mut().take(groups) {
             group.configure(rate);

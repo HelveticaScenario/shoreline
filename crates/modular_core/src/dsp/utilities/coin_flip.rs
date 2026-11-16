@@ -33,7 +33,7 @@ struct CoinFlipOutputs {
     tails: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct CoinFlipLaneState {
     rng: LcgRng,
     seeded: bool,

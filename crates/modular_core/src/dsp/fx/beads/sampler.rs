@@ -322,7 +322,6 @@ impl GranularSampler {
 
 impl PatchUpdateHandler for GranularSampler {
     fn on_patch_update(&mut self) {
-        self.state.chain.set_mono(self.params.mono);
         let media = self.params.quality.media();
         if media != self.state.media {
             self.configure(media);
@@ -340,6 +339,12 @@ impl PatchUpdateHandler for GranularSampler {
                 }
             }
         }
+        if self.state.chain.mono() && !self.params.mono {
+            self.state.pending.mirror_left_voices();
+        }
+        self.state
+            .chain
+            .set_mono(&mut self.lane_state, self.params.mono);
     }
 }
 

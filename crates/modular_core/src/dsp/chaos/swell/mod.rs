@@ -153,7 +153,7 @@ struct Wave {
     dir: [f32; 2],
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct LaneState {
     waves: [Wave; MAX_WAVES],
     /// Wave slots in play: the `waves` param plus any still fading out.

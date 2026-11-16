@@ -1,7 +1,7 @@
 use super::super::tests::{SR, poly_volts, rms};
 use super::super::wav_load::MIN_LOADED_FRAMES;
 use super::*;
-use crate::types::{Connect, LaneExpansion, OutputStruct, SampleBuffer};
+use crate::types::{Connect, LaneExpansion, OutputStruct, SampleBuffer, Signal};
 
 const PATH: &str = "pad.wav";
 
@@ -45,14 +45,24 @@ fn make(params: GranularSamplerParams, wav: &HashMap<String, Arc<WavData>>) -> G
 
 /// A module up to the point where state transfer happens.
 fn construct(
+    params: GranularSamplerParams,
+    wav: &HashMap<String, Arc<WavData>>,
+) -> GranularSampler {
+    construct_from(params, wav, 1)
+}
+
+/// As [`construct`], with each cable read from a producer with `producer`
+/// channels.
+fn construct_from(
     mut params: GranularSamplerParams,
     wav: &HashMap<String, Arc<WavData>>,
+    producer: usize,
 ) -> GranularSampler {
     // One voice per side of each lane, inputs expanded as the patch does.
     let lanes = 2 * sampler_lane_count(&params);
     params.expand_lanes(&LaneExpansion {
         channels: 2,
-        producer: &|_, _| 1,
+        producer: &|_, _| producer,
     });
     let mut outputs = GranularSamplerOutputs::default();
     outputs.set_all_lanes(lanes);
@@ -259,6 +269,46 @@ fn a_one_channel_file_plays_each_lane_from_one_voice() {
         &sine_wav(2, SR),
     );
     assert!(!stereo.params.mono);
+}
+
+#[test]
+fn widening_carries_the_right_side_on_from_the_left() {
+    // Two modules play a one-channel file; one is widened mid-grain, its
+    // trigger then read from a stereo producer whose sides `step` feeds
+    // alike. It plays on exactly as the one kept mono.
+    let wav = sine_wav(1, SR);
+    let p = || {
+        let mut p = sampler_params(GranularQuality::Digital, 1);
+        p.size = poly_volts(&[4.0]);
+        p
+    };
+    let mut kept = make(p(), &wav);
+    let mut widened = make(p(), &wav);
+    let step = |m: &mut GranularSampler, n: usize| {
+        let level = if n % 2400 < 10 { 5.0 } else { 0.0 };
+        m.params.trigger = poly_volts(&[level, level]);
+        m.update(SR);
+        (m.outputs.sample.get(0), m.outputs.sample.get(1))
+    };
+    for n in 0..5000 {
+        assert_eq!(step(&mut kept, n), step(&mut widened, n));
+    }
+    let mut stereo_params = p();
+    stereo_params.trigger = Some(PolySignal::mono(Signal::cable("clk", "output", 0)));
+    let mut stereo = construct_from(stereo_params, &wav, 2);
+    transfer(&mut widened, &mut stereo);
+    assert!(!stereo.params.mono);
+    let mut heard = 0.0f32;
+    for n in 5000..15_000 {
+        let (l1, r1) = step(&mut kept, n);
+        let (l2, r2) = step(&mut stereo, n);
+        assert!(
+            (l1 - l2).abs() < 1e-4 && (r1 - r2).abs() < 1e-4,
+            "at {n}: {l1} {r1} vs {l2} {r2}"
+        );
+        heard = heard.max(r2.abs());
+    }
+    assert!(heard > 0.05, "silent");
 }
 
 #[test]

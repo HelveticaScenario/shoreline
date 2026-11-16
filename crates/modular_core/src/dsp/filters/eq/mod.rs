@@ -28,7 +28,7 @@ struct ParametricEqOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct ParametricEqLane {
     /// Per-section integrator states.
     ic1: [f32; MAX_EQ_SECTIONS],

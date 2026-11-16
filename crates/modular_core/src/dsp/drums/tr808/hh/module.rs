@@ -131,6 +131,7 @@ impl Hh808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.closed),
@@ -160,6 +161,7 @@ impl Hh808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Hh808ParamsBlockInputs {
@@ -243,10 +245,10 @@ impl crate::types::PatchUpdateHandler for Hh808 {
         let count = self.lane_count();
         self.state
             .closed
-            .layout::<ClosedSide<&[f32]>>(&mut self.lane_state, count);
+            .layout::<ClosedSide<&[f32]>>(&mut self.lane_state, count, self._channels);
         self.state
             .open
-            .layout::<OpenSide<&[f32]>>(&mut self.lane_state, count);
+            .layout::<OpenSide<&[f32]>>(&mut self.lane_state, count, self._channels);
     }
 }
 

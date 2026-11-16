@@ -122,7 +122,7 @@ impl CrossoverPoint {
 
 // ── Per-lane state ────────────────────────────────────────────────────────
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct LaneState {
     /// LOW band: LR4 lowpass at the low/mid point.
     low_lp: Lr4State,

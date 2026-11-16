@@ -52,7 +52,7 @@ pub struct AnalogKnobs {
 }
 
 /// The controls derived from the pitch, tone and decay.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Controls {
     /// The excitation's gain, which keeps the hit's level across pitches.
     scale: f32,
@@ -73,6 +73,7 @@ fn diode(x: f32) -> f32 {
     }
 }
 
+#[derive(Clone, Copy)]
 pub struct AnalogBassDrum {
     pulse_remaining: i32,
     fm_pulse_remaining: i32,
@@ -229,6 +230,7 @@ impl AnalogBassDrum {
 
 /// Plaits' overdrive: a soft clipper whose output gain keeps the level as the
 /// drive rises.
+#[derive(Clone, Copy)]
 pub struct Overdrive {
     /// Plaits' one-sample interpolators of the two gains.
     pre_gain: Ramp,

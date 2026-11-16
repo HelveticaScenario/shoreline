@@ -113,7 +113,7 @@ struct BdState {
     groups: Groups<KickDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Kick>,
     /// The bridged-T for the lane's `freq` and `decay`.
@@ -142,6 +142,7 @@ impl Bd808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -167,6 +168,7 @@ impl Bd808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Bd808ParamsBlockInputs {
@@ -268,7 +270,7 @@ impl crate::types::PatchUpdateHandler for Bd808 {
         let count = self.lane_count();
         self.state
             .groups
-            .layout::<BdInputs<&[f32]>>(&mut self.lane_state, count);
+            .layout::<BdInputs<&[f32]>>(&mut self.lane_state, count, self._channels);
     }
 }
 

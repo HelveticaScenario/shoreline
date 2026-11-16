@@ -496,11 +496,28 @@ impl GlideMark {
     }
 }
 
+/// Starts the side a lane gains when its module widens to stereo from the
+/// lane's left side, so the new side carries on instead of starting fresh.
+/// Runs on the audio thread: an implementation copies into storage it
+/// already holds and never allocates. State the sides must not share, such
+/// as a random sequence, keeps its own. A hand-written implementation
+/// names every field in a destructuring pattern, so a field added later
+/// fails to compile until it is copied or kept.
+pub trait SeedSide {
+    fn seed_side(&mut self, left: &Self);
+}
+
+impl SeedSide for f32 {
+    fn seed_side(&mut self, left: &Self) {
+        *self = *left;
+    }
+}
+
 /// Passes a control value through unchanged, except that the first
 /// [`update`](Self::update) after a patch swap that changed the param's source
 /// glides from the pre-swap value onto the new input with a decaying offset.
 /// The current value is read through `Deref`.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, SeedSide)]
 pub struct SwapGlide {
     /// Current value; `NaN` until the first `update`, so a freshly
     /// constructed module starts on its input with no glide.
@@ -1208,6 +1225,33 @@ pub trait SignalParamMeta {
     {
         vec![]
     }
+}
+
+/// The `SignalParamSchema` fields an editor control is built from.
+const SIGNAL_SCHEMA_KEYS: [&str; 6] = [
+    "paramType",
+    "defaultValue",
+    "minValue",
+    "maxValue",
+    "controlMin",
+    "controlMax",
+];
+
+/// Writes signal param `name`'s type, range and default onto its JSON schema
+/// as `x-signal`, so a signal nested inside another param's value (an `$eq`
+/// band's `gain`) carries them where the editor finds it.
+pub fn attach_signal_schema<T: SignalParamMeta>(schema: &mut schemars::Schema, name: &str) {
+    let Some(meta) = T::signal_param_schemas()
+        .into_iter()
+        .find(|p| p.name == name)
+    else {
+        return;
+    };
+    let Ok(Value::Object(mut fields)) = serde_json::to_value(meta) else {
+        return;
+    };
+    fields.retain(|key, _| SIGNAL_SCHEMA_KEYS.contains(&key.as_str()));
+    schema.insert("x-signal".into(), Value::Object(fields));
 }
 
 struct ParsedNote {
