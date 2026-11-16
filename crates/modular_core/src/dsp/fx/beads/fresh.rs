@@ -15,12 +15,26 @@ impl FreshBuffers {
     /// A buffer as long as `media` records for each of `voices`. Main thread
     /// only.
     pub fn allocate(voices: usize, media: Media) -> Self {
+        Self((0..voices).map(|_| recording(media)).collect())
+    }
+
+    /// As [`Self::allocate`], but a voice `idle` picks gets a share of
+    /// `silence` instead, which it takes in exchange for any recording it
+    /// holds. Main thread only.
+    pub fn allocate_sounding(
+        voices: usize,
+        media: Media,
+        idle: impl Fn(usize) -> bool,
+        silence: &GrainBuffer,
+    ) -> Self {
         Self(
             (0..voices)
-                .map(|_| {
-                    let mut buffer = GrainBuffer::default();
-                    buffer.allocate_frames(media.max_delay());
-                    buffer
+                .map(|v| {
+                    if idle(v) {
+                        silence.clone()
+                    } else {
+                        recording(media)
+                    }
                 })
                 .collect(),
         )
@@ -39,6 +53,25 @@ impl FreshBuffers {
             _ => false,
         }
     }
+
+    /// Take back the recording of idle voice `voice` in exchange for its share
+    /// of silence, to drop with the params on the main thread.
+    /// Allocation-free.
+    pub fn release(&mut self, voice: usize, buffer: &mut GrainBuffer) {
+        if let Some(silence) = self.0.get_mut(voice)
+            && buffer.records()
+            && !silence.records()
+        {
+            std::mem::swap(buffer, silence);
+        }
+    }
+}
+
+/// An empty buffer as long as `media` records. Main thread only.
+fn recording(media: Media) -> GrainBuffer {
+    let mut buffer = GrainBuffer::default();
+    buffer.allocate_frames(media.max_delay());
+    buffer
 }
 
 impl Clone for FreshBuffers {

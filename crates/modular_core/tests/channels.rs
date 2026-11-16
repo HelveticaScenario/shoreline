@@ -557,6 +557,17 @@ fn quantizer_snaps_each_side() {
 /// editor can show where a stereo signal folds.
 const PER_SIDE: &[(&str, &[&str])] = &[
     ("$pan", &["input"]),
+    (
+        "$granular",
+        &[
+            "input", "trigger", "freeze", "time", "size", "shape", "freq", "rootFreq", "feedback",
+            "mix",
+        ],
+    ),
+    (
+        "$granularSampler",
+        &["trigger", "time", "size", "shape", "freq", "rootFreq"],
+    ),
     ("$dattorro", &["input"]),
     ("$plate", &["input"]),
     ("$unstable.reverb", &["input"]),
@@ -874,34 +885,6 @@ fn enosc_plays_stereo_and_its_split_outputs_mono() {
     assert_eq!(step(&patch, "low").len(), 1);
 }
 
-#[test]
-fn enosc_reads_a_stereo_phase_warp_folded() {
-    let render = |amount: Value| {
-        let patch = build(&[
-            ("l", "$signal", signal(json!(1.0))),
-            ("r", "$signal", signal(json!(3.0))),
-            ("m", "$signal", signal(json!(2.0))),
-            (
-                "st",
-                "$stereo",
-                json!({ "left": cable("l", 0), "right": cable("r", 0) }),
-            ),
-            (
-                "e",
-                "$enosc",
-                json!({
-                    "pitch": 0.0,
-                    "count": 4,
-                    "phase": { "type": "pulsar", "amount": amount },
-                }),
-            ),
-        ])
-        .unwrap();
-        (0..512).flat_map(|_| step(&patch, "e")).collect::<Vec<_>>()
-    };
-    assert_eq!(render(cable("st", 0)), render(cable("m", 0)));
-}
-
 fn wav(channels: usize) -> Value {
     json!({ "type": "wav_ref", "path": format!("file{channels}"), "channels": channels })
 }
@@ -933,6 +916,34 @@ fn a_two_channel_file_makes_its_players_stereo() {
     assert_eq!(lanes("cloud"), 4);
     // What reads a stereo player lifts to stereo.
     assert_eq!(lanes("filtered"), 2);
+}
+
+#[test]
+fn enosc_reads_a_stereo_phase_warp_folded() {
+    let render = |amount: Value| {
+        let patch = build(&[
+            ("l", "$signal", signal(json!(1.0))),
+            ("r", "$signal", signal(json!(3.0))),
+            ("m", "$signal", signal(json!(2.0))),
+            (
+                "st",
+                "$stereo",
+                json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+            ),
+            (
+                "e",
+                "$enosc",
+                json!({
+                    "pitch": 0.0,
+                    "count": 4,
+                    "phase": { "type": "pulsar", "amount": amount },
+                }),
+            ),
+        ])
+        .unwrap();
+        (0..512).flat_map(|_| step(&patch, "e")).collect::<Vec<_>>()
+    };
+    assert_eq!(render(cable("st", 0)), render(cable("m", 0)));
 }
 
 #[test]

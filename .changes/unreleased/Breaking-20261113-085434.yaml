@@ -1,0 +1,16 @@
+kind: Breaking
+body: |-
+    `$granular` and `$granularSampler` give one stereo lane per lane, recording and playing each side, with `spread` scattering every grain across both. The `width` option and the `_voices` output are gone: the main output has a lane per voice, and `$pan` with `spread` fans the lanes out. `$granularSampler` plays a two-channel file in stereo on every lane. Each lane now carries its own dry signal, so a single input spread over several lanes (a chord on `freq`, say) passes its dry signal on every lane: lower `mix` or the level to taste.
+
+    ```js
+    // before: four voices mixed to stereo, fanned out by width
+    $granular($saw($chord('C3[m7]')), $pulse('8hz'), { width: 4, spread: 2 }).out()
+    // after: four stereo lanes, fanned out by $pan
+    $pan($granular($saw($chord('C3[m7]')), $pulse('8hz'), { spread: 2 }), 0, { spread: 4 }).out()
+
+    // before: each voice on its own lane
+    $granular($saw($chord('C3[m7]')), $pulse('8hz'))._voices
+    // after: the main output
+    $granular($saw($chord('C3[m7]')), $pulse('8hz'))
+    ```
+time: 2026-11-13T08:54:34.988125-05:00
