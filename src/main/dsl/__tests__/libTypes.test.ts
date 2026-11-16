@@ -170,6 +170,25 @@ lead: $saw('c3').track({ sends: kick })
         );
     });
 
+    test('a name bound to an untyped value is a signal', () => {
+        expect(
+            labelErrors(`
+function chain(s) { return s.lpf(1) }
+lead: chain($saw('c3'))
+lead.lpf(2)
+`),
+        ).toEqual([]);
+    });
+
+    test('a bus name sends before its label', () => {
+        expect(
+            labelErrors(`
+lead: $saw('c3').track({ sends: verb })
+verb: $bus((m) => m)
+`),
+        ).toEqual([]);
+    });
+
     test('labels are not reported as unused', () => {
         expect(labelErrors(`lead: $saw('c3')`)).toEqual([]);
     });

@@ -771,7 +771,7 @@ class Track<S = Collection> {
  * a labelled bus, the track's final signal otherwise.
  * @internal
  */
-declare function __trackBinding<T>(value: T): T extends Bus | Track<Bus> ? Bus : TrackTap;
+declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [Bus | Track<Bus>] ? Bus : TrackTap;
 
 /**
  * Every signal in a patch: an ordered set of lanes, one voice each, with

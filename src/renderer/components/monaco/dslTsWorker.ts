@@ -7,12 +7,19 @@
  */
 
 import type {
+    CodeFixAction,
     DefinitionInfo,
     Diagnostic,
     DocumentHighlights,
+    FormatCodeSettings,
     InlayHint,
+    NavigationTree,
+    QuickInfo,
     ReferenceEntry,
+    RenameInfo,
+    RenameInfoOptions,
     RenameLocation,
+    TextChange,
     TextSpan,
 } from 'typescript';
 import { initialize } from 'monaco-editor/esm/vs/common/initialize.js';
@@ -35,9 +42,12 @@ import {
     withoutDollarQuoteTypeErrors,
 } from './dollarQuotes';
 import {
+    bindingPosition,
     mapSpan,
+    onLabelOutsideName,
     trackLabelView,
     withinPatch,
+    withinPatchDiagnostics,
     withTrackLabelDiagnostics,
     type TrackLabelView,
 } from './trackLabelBindings';
@@ -99,7 +109,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         if (!sourceFile || !view) {
             return diagnostics;
         }
-        return withinPatch(
+        return withinPatchDiagnostics(
             view,
             withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
         );
@@ -111,6 +121,18 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         const diagnostics = await super.getSuggestionDiagnostics(fileName);
         const view = this.view(fileName);
         return view ? withinPatch(view, diagnostics) : diagnostics;
+    }
+
+    /** `position` moved from a track label's name onto its declaration. */
+    private at(fileName: string, position: number): number {
+        const view = this.view(fileName);
+        return view ? bindingPosition(view, position) : position;
+    }
+
+    /** Whether `span` in `fileName` lies within the patch's own text. */
+    private inPatch(fileName: string, span: TextSpan): boolean {
+        const view = this.view(fileName);
+        return !view || span.start + span.length <= view.length;
     }
 
     /** `span` in `fileName` moved onto the patch's own text, or null. */
@@ -141,7 +163,10 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         position: number,
     ): Promise<readonly DefinitionInfo[] | undefined> {
         return this.mapEntries(
-            await super.getDefinitionAtPosition(fileName, position),
+            await super.getDefinitionAtPosition(
+                fileName,
+                this.at(fileName, position),
+            ),
         );
     }
 
@@ -150,7 +175,10 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         position: number,
     ): Promise<ReferenceEntry[] | undefined> {
         return this.mapEntries(
-            await super.getReferencesAtPosition(fileName, position),
+            await super.getReferencesAtPosition(
+                fileName,
+                this.at(fileName, position),
+            ),
         );
     }
 
@@ -164,7 +192,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return this.mapEntries(
             await super.findRenameLocations(
                 fileName,
-                position,
+                this.at(fileName, position),
                 findInStrings,
                 findInComments,
                 providePrefixAndSuffixTextForRename,
@@ -179,7 +207,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
     ): Promise<DocumentHighlights[] | undefined> {
         const highlights = await super.getDocumentHighlights(
             fileName,
-            position,
+            this.at(fileName, position),
             filesToSearch,
         );
         return highlights?.map((h) => ({
@@ -191,6 +219,131 @@ class DslTypeScriptWorker extends TypeScriptWorker {
                     : [];
             }),
         }));
+    }
+
+    override async getQuickInfoAtPosition(
+        fileName: string,
+        position: number,
+    ): Promise<QuickInfo | undefined> {
+        const info = await super.getQuickInfoAtPosition(
+            fileName,
+            this.at(fileName, position),
+        );
+        const textSpan = info && this.patchSpan(fileName, info.textSpan);
+        return info && textSpan ? { ...info, textSpan } : undefined;
+    }
+
+    override async getRenameInfo(
+        fileName: string,
+        position: number,
+        options: RenameInfoOptions,
+    ): Promise<RenameInfo> {
+        const view = this.view(fileName);
+        if (view && onLabelOutsideName(view, position)) {
+            return {
+                canRename: false,
+                localizedErrorMessage:
+                    "Rename a track from its name, not its label's prefix or channel",
+            };
+        }
+        const info = await super.getRenameInfo(
+            fileName,
+            this.at(fileName, position),
+            options,
+        );
+        if (!info.canRename) {
+            return info;
+        }
+        const triggerSpan = this.patchSpan(fileName, info.triggerSpan);
+        return triggerSpan
+            ? { ...info, triggerSpan }
+            : { canRename: false, localizedErrorMessage: 'Nothing to rename' };
+    }
+
+    override async getNavigationTree(
+        fileName: string,
+    ): Promise<NavigationTree | undefined> {
+        const tree = await super.getNavigationTree(fileName);
+        const keep = (node: NavigationTree): NavigationTree | null => {
+            const spans = node.spans.filter((span) =>
+                this.inPatch(fileName, span),
+            );
+            if (spans.length === 0) {
+                return null;
+            }
+            return {
+                ...node,
+                childItems: node.childItems
+                    ?.map(keep)
+                    .filter((n): n is NavigationTree => n !== null),
+                spans,
+            };
+        };
+        return tree && (keep(tree) ?? undefined);
+    }
+
+    override async getCodeFixesAtPosition(
+        fileName: string,
+        start: number,
+        end: number,
+        errorCodes: number[],
+        formatOptions: FormatCodeSettings,
+    ): Promise<readonly CodeFixAction[]> {
+        const fixes = await super.getCodeFixesAtPosition(
+            fileName,
+            start,
+            end,
+            errorCodes,
+            formatOptions,
+        );
+        return fixes.filter((fix) =>
+            fix.changes.every((change) =>
+                change.textChanges.every((c) =>
+                    this.inPatch(change.fileName, c.span),
+                ),
+            ),
+        );
+    }
+
+    override async getFormattingEditsForDocument(
+        fileName: string,
+        options: FormatCodeSettings,
+    ): Promise<TextChange[]> {
+        const edits = await super.getFormattingEditsForDocument(
+            fileName,
+            options,
+        );
+        return edits.filter((e) => this.inPatch(fileName, e.span));
+    }
+
+    override async getFormattingEditsForRange(
+        fileName: string,
+        start: number,
+        end: number,
+        options: FormatCodeSettings,
+    ): Promise<TextChange[]> {
+        const edits = await super.getFormattingEditsForRange(
+            fileName,
+            start,
+            end,
+            options,
+        );
+        return edits.filter((e) => this.inPatch(fileName, e.span));
+    }
+
+    override async getFormattingEditsAfterKeystroke(
+        fileName: string,
+        position: number,
+        ch: string,
+        options: FormatCodeSettings,
+    ): Promise<TextChange[]> {
+        const edits = await super.getFormattingEditsAfterKeystroke(
+            fileName,
+            position,
+            ch,
+            options,
+        );
+        return edits.filter((e) => this.inPatch(fileName, e.span));
     }
 
     override async provideInlayHints(
@@ -234,7 +387,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         end: number,
         invoked: boolean,
     ): Promise<LocalRefactor[]> {
-        return localRefactors(
+        const refactors = localRefactors(
             ts,
             this.getLanguageService(),
             fileName,
@@ -242,6 +395,18 @@ class DslTypeScriptWorker extends TypeScriptWorker {
             end,
             invoked,
         );
+        // A track's name has no value to inline: its binding is the label.
+        const view = this.view(fileName);
+        const definitions =
+            view &&
+            this.getLanguageService().getDefinitionAtPosition(fileName, start);
+        const isTrackName =
+            !!view &&
+            !!definitions?.length &&
+            definitions.every((d) => d.textSpan.start >= view.length);
+        return isTrackName
+            ? refactors.filter((r) => r.kind !== 'refactor.inline.variable')
+            : refactors;
     }
 
     async getLocalRefactorEdits(
@@ -252,7 +417,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         action: string,
         style: RefactorStyle,
     ): Promise<LocalRefactorEdits | null> {
-        return localRefactorEdits(
+        const result = localRefactorEdits(
             ts,
             this.getLanguageService(),
             fileName,
@@ -262,6 +427,23 @@ class DslTypeScriptWorker extends TypeScriptWorker {
             action,
             style,
         );
+        const view = this.view(fileName);
+        if (!result || !view) {
+            return result;
+        }
+        // Edits to the appended declarations land nowhere in the buffer; one
+        // that reaches across the patch's end, or writes a binding into it,
+        // would corrupt the patch.
+        const edits = result.edits.filter((e) => e.start < view.length);
+        if (
+            edits.some(
+                (e) =>
+                    e.end > view.length || e.newText.includes('__trackBinding'),
+            )
+        ) {
+            return null;
+        }
+        return { ...result, edits };
     }
 }
 

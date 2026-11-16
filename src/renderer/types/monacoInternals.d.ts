@@ -206,6 +206,41 @@ declare module 'monaco-editor/esm/vs/language/typescript/tsWorker.js' {
             start: number,
             end: number,
         ): Promise<readonly import('typescript').InlayHint[]>;
+        getQuickInfoAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<import('typescript').QuickInfo | undefined>;
+        getRenameInfo(
+            fileName: string,
+            position: number,
+            options: import('typescript').RenameInfoOptions,
+        ): Promise<import('typescript').RenameInfo>;
+        getNavigationTree(
+            fileName: string,
+        ): Promise<import('typescript').NavigationTree | undefined>;
+        getCodeFixesAtPosition(
+            fileName: string,
+            start: number,
+            end: number,
+            errorCodes: number[],
+            formatOptions: import('typescript').FormatCodeSettings,
+        ): Promise<readonly import('typescript').CodeFixAction[]>;
+        getFormattingEditsForDocument(
+            fileName: string,
+            options: import('typescript').FormatCodeSettings,
+        ): Promise<import('typescript').TextChange[]>;
+        getFormattingEditsForRange(
+            fileName: string,
+            start: number,
+            end: number,
+            options: import('typescript').FormatCodeSettings,
+        ): Promise<import('typescript').TextChange[]>;
+        getFormattingEditsAfterKeystroke(
+            fileName: string,
+            position: number,
+            ch: string,
+            options: import('typescript').FormatCodeSettings,
+        ): Promise<import('typescript').TextChange[]>;
         /** The mirror model named `fileName`, or null for a lib. */
         protected _getModel(
             fileName: string,
