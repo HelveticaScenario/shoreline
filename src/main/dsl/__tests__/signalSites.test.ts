@@ -84,6 +84,12 @@ describe('static resolution', () => {
         expect(site.output).toBe('trig');
     });
 
+    test('a scope reads no output of its receiver', () => {
+        expect(hints('$perc($`0`.scope())\n$`c e`.scope()')).toEqual([
+            '$`0`.scope()‹trig›',
+        ]);
+    });
+
     test('the clock resolves by input', () => {
         expect(hints(`$perc($clock)\n$adsr($clock)\n$saw($clock)`)).toEqual([
             '$perc($clock‹barTrigger›',
@@ -243,6 +249,7 @@ describe('agreement with the runtime', () => {
         `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nout: voice($('c e g'))`,
         `out: $perc($clock)\nout2: $tr808.kick($clock)`,
         `const seq = $('c e')\nout: seq\nout2: $sine('c').amp(seq)`,
+        'out: $perc($`0`.scope())\nfunction f(s) {\n    return $adsr(s.scope())\n}\nf($`0 1`)',
         `out: $sine('c').lpf($('c5 c6'))`,
         `const seq = $('c e')\nout: $saw($g1([seq, seq]), { sync: $g2(seq) })`,
         `function f(s, m) {\n    return s.xover().wet(m)\n}\nf($clock, $('1 2'))`,

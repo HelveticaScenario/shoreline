@@ -1356,6 +1356,9 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "objc2-core-audio",
+ "objc2-core-audio-types",
+ "objc2-core-foundation",
  "parking_lot",
  "petgraph",
  "profiling",
@@ -1369,6 +1372,7 @@ dependencies = [
  "serde_json",
  "symphonia",
  "tracy-client 0.17.6",
+ "windows 0.62.2",
 ]
 
 [[package]]

@@ -10,7 +10,10 @@ import {
     RECEIVER_SLOT,
     type OutputClass,
 } from '../../shared/dsl/outputResolutionRule';
-import type { ChainMethods } from '../../shared/dsl/signalSites';
+import {
+    FOLLOWS_RECEIVER,
+    type ChainMethods,
+} from '../../shared/dsl/signalSites';
 import {
     BaseCollection,
     Collection,
@@ -67,12 +70,15 @@ for (const proto of [
             continue;
         }
         const method = (proto as Record<string, ChainMethod>)[name];
+        const recordsReceiver = !FOLLOWS_RECEIVER.has(name);
         (proto as Record<string, ChainMethod>)[name] = function (...args) {
             const builder = builderOf(this);
             return builder
                 ? builder.outputResolver.withCall(
                       [
-                          [RECEIVER_SLOT, this, 'cv'],
+                          ...(recordsReceiver
+                              ? [[RECEIVER_SLOT, this, 'cv'] as CallSlot]
+                              : []),
                           ...slotsOf(args, optionClasses),
                       ],
                       () => method.apply(this, args),

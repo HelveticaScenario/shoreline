@@ -567,7 +567,13 @@ export class BaseCollection<T extends ModuleOutput> {
     scope(config?: ScopeConfig): this {
         if (this.items.length > 0) {
             const loc = captureSourceLocation();
-            this.items[0].builder.addScope(this.items, config, loc);
+            const { builder } = this.items[0];
+            const set = outputSetOf(this);
+            if (set) {
+                builder.scopeRoot(set, this.items, config, loc);
+            } else {
+                builder.addScope(this.items, config, loc);
+            }
         }
         return this;
     }
@@ -649,7 +655,12 @@ function sliceRoot(
                   ) => AnyCollection)(...indices.map((i) => value.items[i]))
                 : value;
     }
-    markRoot(sliced, { outputs: set.outputs, values });
+    markRoot(sliced, {
+        outputs: set.outputs,
+        parents: [set],
+        resolver: set.resolver,
+        values,
+    });
 }
 
 /**
@@ -662,7 +673,8 @@ function concatRoots(joined: object, a: object, b: object): void {
     if (!set) {
         return;
     }
-    const other = outputSetOf(b)?.values ?? {};
+    const otherSet = outputSetOf(b);
+    const other = otherSet?.values ?? {};
     const names = Object.keys(set.values);
     const otherNames = Object.keys(other);
     if (names.join() !== otherNames.join()) {
@@ -677,7 +689,12 @@ function concatRoots(joined: object, a: object, b: object): void {
         const value = set.values[name] as AnyCollection;
         values[name] = value.concat(other[name] as AnyCollection);
     }
-    markRoot(joined, { outputs: set.outputs, values });
+    markRoot(joined, {
+        outputs: set.outputs,
+        parents: otherSet ? [set, otherSet] : [set],
+        resolver: set.resolver,
+        values,
+    });
 }
 
 /**
@@ -829,6 +846,8 @@ export class GraphBuilder implements ChainHost {
     /** Chain methods backed by a DSL helper rather than a module (`delay`). */
     private chainHelpers = new Map<string, ChainFunction>();
     private scopes: ScopeWithLocation[] = [];
+    /** The roots among the scoped values, which draw the output they are taken as. */
+    private scopeRoots = new Map<ScopeWithLocation, OutputSet>();
     /** `ui: true` EQ panels, collected by `toPatch`. */
     private eqPanels: EqPanelDef[] = [];
     /** Output groups keyed by baseChannel */
@@ -1697,7 +1716,7 @@ export class GraphBuilder implements ChainHost {
                             ...scope,
                             // A deferred lane resolves to its output only
                             // now, so a mono one's second trace drops here.
-                            lanes: scope.lanes
+                            lanes: this.scopedLanes(scope)
                                 .map((lane) => this.resolveScopeLane(lane))
                                 .filter(
                                     (lane) =>
@@ -1807,6 +1826,7 @@ export class GraphBuilder implements ChainHost {
         this.modules.clear();
         this.rangedPorts.clear();
         this.scopes = [];
+        this.scopeRoots.clear();
         this.eqPanels = [];
         this.counters.clear();
         this.outGroups.clear();
@@ -1975,10 +1995,48 @@ export class GraphBuilder implements ChainHost {
             ];
         }
 
-        const outputs = Array.isArray(value) ? value : [value];
-        // A lane that may be stereo draws both sides; a mono one reads the
-        // same on either, so its second trace would only repeat the first.
-        const lanes = outputs.flatMap((o) => {
+        const scope: ScopeWithLocation = {
+            lanes: this.scopeLanes(Array.isArray(value) ? value : [value]),
+            msPerFrame,
+            range,
+            sourceLocation,
+            split,
+            triggerThreshold: thresh,
+        };
+        this.scopes.push(scope);
+        return scope;
+    }
+
+    /**
+     * Scope a multi-output root as the output it is first taken as, by an
+     * input or by name, before or after the scope: `$perc($('0').scope())`
+     * draws the trigger `$perc` takes. A root never taken draws the output it
+     * reads as itself.
+     */
+    scopeRoot(
+        set: OutputSet,
+        value: ModuleOutput[],
+        config: ScopeConfig | undefined,
+        sourceLocation?: { line: number; column: number },
+    ) {
+        this.scopeRoots.set(this.addScope(value, config, sourceLocation), set);
+    }
+
+    /** The lanes `scope` draws, a scoped root's those of the output it was taken as. */
+    private scopedLanes(scope: ScopeWithLocation): ScopeWithLocation['lanes'] {
+        const set = this.scopeRoots.get(scope);
+        const name = set && this.outputResolver.firstChoice(set);
+        return name
+            ? this.scopeLanes((set.values[name] as AnyCollection).items)
+            : scope.lanes;
+    }
+
+    /**
+     * A lane that may be stereo draws both sides; a mono one reads the same
+     * on either, so its second trace would only repeat the first.
+     */
+    private scopeLanes(outputs: ModuleOutput[]): ScopeWithLocation['lanes'] {
+        return outputs.flatMap((o) => {
             const lane = {
                 lane: o.lane,
                 moduleId: o.moduleId,
@@ -1987,15 +2045,6 @@ export class GraphBuilder implements ChainHost {
             return this.channelsOf(o) === 'mono'
                 ? [lane]
                 : [lane, { ...lane, side: 1 }];
-        });
-
-        this.scopes.push({
-            lanes,
-            msPerFrame,
-            range,
-            sourceLocation,
-            split,
-            triggerThreshold: thresh,
         });
     }
 
