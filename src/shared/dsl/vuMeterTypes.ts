@@ -61,7 +61,7 @@ export interface VuMeterDef {
     group?: string | null;
     /** Whether this track is a group's, which other tracks can play into. */
     isGroup?: boolean;
-    /** Whether this track is a bus's, which the mixer shows past the main. */
+    /** Whether this track is a bus's, which the mixer shows beside the main. */
     isBus?: boolean;
     /**
      * Whether the track's label labels a `.track(...)` made elsewhere (in a
