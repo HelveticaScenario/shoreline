@@ -20,7 +20,7 @@ import {
     type TrackStatement,
 } from '../../shared/dsl/trackLabels';
 import { captureSourceLocation } from './captureSourceLocation';
-import type { GraphBuilder } from './GraphBuilder';
+import { type GraphBuilder, markTrackBinding } from './GraphBuilder';
 import { createTrackTap, type TrackTap } from './trackTap';
 
 /**
@@ -112,9 +112,13 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
                 configurable: false,
                 enumerable: false,
                 // The name reads as the track's tap, whether or not its
-                // label has run; `sends` takes it to reach a bus track.
+                // label has run. Marked with the name, it is what `sends`
+                // takes to reach a bus track.
                 get: () => {
-                    tap ??= createTrackTap(builder, name);
+                    if (!tap) {
+                        tap = createTrackTap(builder, name);
+                        markTrackBinding(tap, name);
+                    }
                     return tap;
                 },
                 set: () => {

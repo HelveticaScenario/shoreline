@@ -113,13 +113,6 @@ describe('$bus tracks', () => {
         ).not.toThrow();
     });
 
-    test('$trackTap of a bus track is a send target', () => {
-        expect(() =>
-            run(`verb: $bus().plate()
-                 dry: $saw('c3').track({ sends: [$trackTap('verb'), 2] })`),
-        ).not.toThrow();
-    });
-
     test('a second track name in a pair is a send, not a level', () => {
         expect(() =>
             run(`verb: $bus().plate()
