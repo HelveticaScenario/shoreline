@@ -340,6 +340,19 @@ describe('fold sites', () => {
         expect(folds(`$enosc($saw($sine('1hz'))).out()`)).toEqual([]);
     });
 
+    test('a signal group carries the channels of its signals', () => {
+        expect(folds('$`0`.add($g1(0)).outMono()')).toEqual([]);
+        expect(folds(`$saw($g1(['c3', 'e3'])).outMono()`)).toEqual([]);
+        expect(folds(`${wide}$saw('c3').add($g1(wide)).outMono()`)).toEqual([
+            "$saw('c3').add($g1(wide))‹.mono()›",
+        ]);
+        expect(
+            folds(
+                'const $g1 = () => $stereo(0, 1)\n$`0`.add($g1(0)).outMono()',
+            ),
+        ).toEqual(['$`0`.add($g1(0))‹.mono()›']);
+    });
+
     test('plain values, patterns and controls are mono', () => {
         expect(folds(`$enosc('c3').out()`)).toEqual([]);
         expect(folds(`$enosc($('c3 e3')).out()`)).toEqual([]);
