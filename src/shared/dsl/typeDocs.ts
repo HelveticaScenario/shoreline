@@ -320,17 +320,19 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     'Track labels': {
-        definition: '[_ | S_]name[$channel | $channelm]: signal',
+        definition: '[_ | S_]name[$channel | $channelm | $group]: signal',
         description:
             'A label in front of a top-level statement sends its signal to the mixer as a track. ' +
             "The name is the track's name in the mixer, with underscores shown as spaces, and reads as the track's final signal in the rest of the patch " +
             "(and, for a track that starts from `$bus()`, as the bus other tracks send to). `_name` mutes the track and `S_name` (or `s_name`) solos it; the mixer's mute and solo buttons rewrite this prefix. " +
             '`name$2` plays the track in stereo on channels 2 and 3, and `name$2m` in mono on channel 2; without a suffix a track plays in stereo on channels 0 and 1. ' +
+            '`name$drums` plays the track into the group track `drums` instead of the output: a group is a track that starts from `$group()`, and it alone reaches the output, through its own suffix. ' +
             'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
             "lead: $saw('c3')                 // Stereo on channels 0 and 1",
             "_pad$2: $sine($chord('C4[maj7]'))  // Muted, on channels 2 and 3",
             'S_click$4m: $noise()             // Soloed, mono on channel 4',
+            'kick$drums: $tr808.kick($`c ~ c ~`)\nhats$drums: $tr808.hiHat($`c*8`)\ndrums: $group().comp()  // Both drums through one compressor',
             "kick: $tr808.kick($`c ~ c ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
         ],
         name: 'Track labels',
@@ -722,6 +724,21 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
         signature: '$deferred(lanes?: number): DeferredCollection',
     },
 
+    {
+        description:
+            "A group: one stereo lane, the sum of every track whose label ends in `$` and the name of this group's track. Those tracks play into the group after their own pan, gain, mute and solo, and reach the output only through it. " +
+            'Chain effects on it and label the result: that track is the group. It plays to the main output, to the channels of its own `$N` / `$Nm` suffix, or into another group, so groups nest. ' +
+            'A group has one track, a group track can send to buses, and a bus track cannot play into a group. The mixer shows a group with its tracks beside it, and can fold them away.',
+        examples: [
+            'kick$drums: $tr808.kick($`c ~ c ~`)\nhats$drums: $tr808.hiHat($`c*8`)\ndrums: $group().comp().track({ gain: 4 })',
+            "// Groups nest: drums and bass share a rhythm group on channels 2 and 3\nkick$drums: $tr808.kick($`c ~ c ~`)\ndrums$rhythm: $group()\nbass$rhythm: $saw('c2')\nrhythm$2: $group().lpf('c7')",
+        ],
+        group: 'Advanced',
+        name: '$group',
+        params: [],
+        returns: "The group's signal, to chain on and label",
+        signature: '$group(): GroupSignal',
+    },
     {
         description:
             'A send-return bus: one stereo lane, the mix of every signal sent to it through the `sends` option of `.track()`. ' +
