@@ -80,7 +80,9 @@ export function createChainInstaller(target: ChainTarget): ChainInstaller {
         }
         const result = host.chainFunction(path)(receiver, ...args);
         markWet(result, receiver);
-        carryBusRoot(result, receiver);
+        if (!outputSetOf(result)) {
+            carryBusRoot(result, receiver);
+        }
         return result;
     };
 

@@ -771,15 +771,15 @@ class Track<S = Collection> {
  * final signal, which \`sends\` also takes when the track is a bus.
  * @internal
  */
-declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [BusSignal | Track<BusSignal>] ? BusTap : TrackTap;
+declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [BusRooted | Track<BusRooted>] ? BusTap : TrackTap;
 
 /**
  * Every signal in a patch: an ordered set of lanes, one voice each, with
  * chainable DSP methods. Indexing and iteration give one-lane collections
  * of the same type, so \`osc[0]\` is still a signal with every method.
  */
-interface BaseCollection<Plain = Collection> extends ModuleChain<Plain> {}
-class BaseCollection<Plain = Collection> {
+interface BaseCollection<Plain = Collection, Ranged = CollectionWithRange> extends ModuleChain<Plain, Ranged> {}
+class BaseCollection<Plain = Collection, Ranged = CollectionWithRange> {
   /** Number of lanes in the collection */
   readonly length: number;
   /** Lane \`index\` as a one-lane collection */
@@ -959,20 +959,10 @@ class Collection extends BaseCollection {
 }
 
 /**
- * A {@link Collection} whose range the engine knows, as LFOs, envelopes,
- * controls and other modulation sources return, and as chains that keep a
- * range (add, mul, round, erratic…) pass on. The range() method maps from it.
- * 
- * @example
- * const lfo = $sine('2hz')             // Outputs -5 to +5
- * lfo.range(200, 2000)                 // Remap to 200-2000
- * $adsr($clock._beatTrigger, { attack: 0.1 }).range(0, 1)
- * tone: $r($sine('1hz'), $sine('2hz')).range(0, 5)  // Each maps from its own range
- *
- * @see {@link Collection} - for signals without a known range
- * @see {@link $r} - helper to create CollectionWithRange
+ * A signal whose range the engine knows: a {@link CollectionWithRange}, or
+ * a {@link RangedBusSignal} when rooted at a bus.
  */
-class CollectionWithRange extends BaseCollection {
+class RangedCollection<Plain, Ranged extends Plain> extends BaseCollection<Plain, Ranged> {
   /** Sets a ranged collection apart from one whose range is unknown. */
   #ranged: true;
   protected constructor();
@@ -989,6 +979,24 @@ class CollectionWithRange extends BaseCollection {
    * @example $sine("1hz").range(0, 5).range(5, 0)  // flipped
    */
   override range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin?: Poly<Signal>, inMax?: Poly<Signal>): CollectionWithRange;
+}
+
+/**
+ * A {@link Collection} whose range the engine knows, as LFOs, envelopes,
+ * controls and other modulation sources return, and as chains that keep a
+ * range (add, mul, round, erratic…) pass on. The range() method maps from it.
+ * 
+ * @example
+ * const lfo = $sine('2hz')             // Outputs -5 to +5
+ * lfo.range(200, 2000)                 // Remap to 200-2000
+ * $adsr($clock._beatTrigger, { attack: 0.1 }).range(0, 1)
+ * tone: $r($sine('1hz'), $sine('2hz')).range(0, 5)  // Each maps from its own range
+ *
+ * @see {@link Collection} - for signals without a known range
+ * @see {@link $r} - helper to create CollectionWithRange
+ */
+class CollectionWithRange extends RangedCollection<Collection, CollectionWithRange> {
+  protected constructor();
 }
 
 /**
@@ -1325,16 +1333,20 @@ interface ControlGroupParams {
  */
 function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
+/** @internal */
+declare const __busRoot: unique symbol;
+
 /**
  * The signal of a send-return bus, from {@link $bus}: one stereo lane, the
- * mix of everything sent to it. Chain methods keep it a bus signal, so
- * \`$bus().plate().wet(2)\` is one too. The track labelling it is the bus's
+ * mix of everything sent to it. Chain methods that give one signal keep it a
+ * bus signal, so \`$bus().plate().wet(2)\` is one too; one output picked from
+ * a module with several is an ordinary signal. The track labelling it is the bus's
  * track, whose name tracks send to.
  */
-class BusSignal extends BaseCollection<BusSignal> {
+class BusSignal extends BaseCollection<BusSignal, RangedBusSignal> {
   private constructor();
   /** Sets a bus signal apart from any other. */
-  #bus: true;
+  readonly [__busRoot]: true;
 
   /**
    * How the bus mixes into its track.
@@ -1347,7 +1359,33 @@ ${renderTrackOptionsJsDocList(BUS_TRACK_OPTIONS)}
    * keys: $saw('c3').track({ sends: [verb, 2] })
    */
   override track(options?: BusTrackOptions): Track<this>;
+
+  /**
+   * This bus signal's lane followed by those of \`other\`, still rooted at
+   * the bus.
+   * @param other Any signal
+   */
+  override concat(other: Collection | CollectionWithRange | BusRooted): this;
 }
+
+/**
+ * A {@link BusSignal} whose range the engine knows, as chain methods such as
+ * \`.reverb()\` give on a bus signal.
+ */
+class RangedBusSignal extends RangedCollection<BusSignal, RangedBusSignal> {
+  private constructor();
+  /** Sets a bus signal apart from any other. */
+  readonly [__busRoot]: true;
+
+  /**
+   * How the bus mixes into its track.
+   * @param options Track options ({@link BusTrackOptions})
+   */
+  override track(options?: BusTrackOptions): Track<this>;
+}
+
+/** A signal rooted at a bus: \`$bus()\` or methods chained on it. */
+type BusRooted = BusSignal | RangedBusSignal;
 
 /**
  * A bus track's final signal, as its label's name reads: a {@link TrackTap}
@@ -1768,12 +1806,20 @@ function renderRangedChainMethod(
     const ranged = rangedArgs(moduleSchema, args, tagged, null);
     const lines = [
         ...doc,
-        `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): CollectionWithRange;`,
+        `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): Ranged;`,
     ];
     // The ranged overload already covers a declared range while the receiver
     // is the declaring module's only tagged param, as for `$clamp`.
     if (ranged.some((arg, i) => arg !== args[i])) {
-        lines.push(...renderChainMethod(moduleSchema, indent, false));
+        lines.push(
+            ...renderChainMethod(
+                moduleSchema,
+                indent,
+                false,
+                'Plain',
+                'Ranged',
+            ),
+        );
     }
     return lines;
 }
@@ -2147,9 +2193,11 @@ function renderChainMethod(
     moduleSchema: Schema,
     indent: string,
     withDeclared = true,
-    // What a plain signal result is typed as; a chain from `$bus()` keeps
-    // its own type, through the chain interfaces' `Plain` parameter.
+    // What a plain and a ranged signal result are typed as; a chain from
+    // `$bus()` keeps its own type, through the chain interfaces' `Plain` and
+    // `Ranged` parameters.
     plain = 'Collection',
+    ranged = 'CollectionWithRange',
 ): string[] {
     const methodName = chainMethodName(moduleSchema.name);
     const { args, doc } = chainSignature(moduleSchema, indent);
@@ -2158,15 +2206,15 @@ function renderChainMethod(
     const returnType =
         (moduleSchema.outputs ?? []).length > 1
             ? qualifiedMultiOutputInterfaceName(moduleSchema)
-            : getFactoryReturnType(moduleSchema) === 'Collection'
-              ? plain
-              : getFactoryReturnType(moduleSchema);
+            : ({ Collection: plain, CollectionWithRange: ranged }[
+                  getFactoryReturnType(moduleSchema)
+              ] ?? getFactoryReturnType(moduleSchema));
     const lines: string[] = [];
     const declared = declaredRangeArgs(moduleSchema, args);
     if (declared && withDeclared) {
         lines.push(
             ...doc,
-            `${indent}${methodName}(${declared.join(', ')}): CollectionWithRange;`,
+            `${indent}${methodName}(${declared.join(', ')}): ${ranged};`,
         );
     }
     lines.push(
@@ -2464,14 +2512,14 @@ export function generateDSL(schemas: Schemas): string {
         lines.push('');
         lines.push(`/** The \`$${dotted}\` modules as chain methods. */`);
         lines.push(
-            `interface ModuleChain${pascal(dotted)}<Plain = Collection> {`,
+            `interface ModuleChain${pascal(dotted)}<Plain = Collection, Ranged = CollectionWithRange> {`,
         );
         for (const s of node.leaves) {
-            lines.push(...renderChainMethod(s, '  ', true, 'Plain'));
+            lines.push(...renderChainMethod(s, '  ', true, 'Plain', 'Ranged'));
         }
         for (const seg of sortedChildren(node)) {
             lines.push(
-                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))}<Plain>;`,
+                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))}<Plain, Ranged>;`,
             );
         }
         lines.push('}');
@@ -2488,12 +2536,16 @@ export function generateDSL(schemas: Schemas): string {
         " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
         ' */',
     );
-    lines.push('interface ModuleChain<Plain = Collection> {');
+    lines.push(
+        'interface ModuleChain<Plain = Collection, Ranged = CollectionWithRange> {',
+    );
     for (const s of chainRoot.leaves) {
-        lines.push(...renderChainMethod(s, '  ', true, 'Plain'));
+        lines.push(...renderChainMethod(s, '  ', true, 'Plain', 'Ranged'));
     }
     for (const seg of sortedChildren(chainRoot)) {
-        lines.push(`  readonly ${seg}: ModuleChain${pascal(seg)}<Plain>;`);
+        lines.push(
+            `  readonly ${seg}: ModuleChain${pascal(seg)}<Plain, Ranged>;`,
+        );
     }
     lines.push(
         ...renderDelayDoc('  ', chainDelayHeader),
@@ -2504,7 +2556,7 @@ export function generateDSL(schemas: Schemas): string {
     lines.push('');
     // Merged into the class, so each overload narrows BaseCollection's method.
     lines.push('/** Chain methods that keep a ranged signal ranged. */');
-    lines.push('interface CollectionWithRange {');
+    lines.push('interface RangedCollection<Plain, Ranged extends Plain> {');
     for (const s of chainRoot.leaves) {
         const overloads = renderRangedChainMethod(s, '  ');
         if (overloads) {

@@ -308,7 +308,7 @@ export class Bus {
 }
 
 /**
- * A signal or bus with the options it mixes into the mixer with. It is not
+ * A signal with the options it mixes into the mixer with. It is not
  * a signal: a track is heard by labelling it, and only `.scope()` chains on
  * it, drawing the track's mixdown.
  */
@@ -1729,7 +1729,7 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * Register the track a label declares, from the labelled value: a
-     * signal, a `$bus`, or either's `.track()`.
+     * signal or its `.track()`.
      */
     addTrack(
         declaration: TrackDeclaration,
@@ -1837,10 +1837,12 @@ export class GraphBuilder implements ChainHost {
             return false;
         }
         const [bus, gain] = value as unknown[];
+        // A track's name second is a second send, never a level, so a
+        // name that is no bus is reported instead of becoming a gain.
         return (
             this.sendTarget(bus) !== undefined &&
-            this.sendTarget(gain) === undefined &&
-            !(Array.isArray(gain) && this.sendTarget(gain[0]) !== undefined)
+            trackBindingName(gain) === undefined &&
+            !(Array.isArray(gain) && trackBindingName(gain[0]) !== undefined)
         );
     }
 
@@ -1860,7 +1862,7 @@ export class GraphBuilder implements ChainHost {
             return new Error(
                 target === undefined
                     ? `track ${track}: sends takes a bus track's name, a [name, gain] pair, or an array of them`
-                    : `track ${track}: sends cannot reach ${target}, which is not a bus. A bus is a track that starts from $bus()`,
+                    : `track ${track}: sends cannot reach ${target}, which is not a bus. A bus is a track whose signal is $bus() or methods chained on it; to set a send's level from a track, wrap its name, as in [bus, $c(name)]`,
             );
         };
         if (!Array.isArray(entries)) {

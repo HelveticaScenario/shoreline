@@ -1,3 +1,4 @@
+import { trackNameKey } from '../../shared/dsl/trackLabels';
 import { captureSourceLocation } from './captureSourceLocation';
 import {
     asRanged,
@@ -6,6 +7,7 @@ import {
     DeferredCollection,
     DeferredModuleOutput,
     type GraphBuilder,
+    markTrackBinding,
     type ModuleOutput,
 } from './GraphBuilder';
 
@@ -108,5 +110,7 @@ export function createTrackTap(builder: GraphBuilder, label: string): TrackTap {
     }
     const pending = new PendingTrackTap(builder);
     builder.addTrackTap(label, pending, captureSourceLocation());
+    // A tap is what its track's name reads as, so `sends` takes it too.
+    markTrackBinding(pending.tap, trackNameKey(label));
     return pending.tap;
 }

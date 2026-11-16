@@ -2,7 +2,8 @@
  * Which bus a signal is rooted at: what `$bus()` returns, and every signal
  * chained from one (`$bus().plate().wet(2)`). A track labelling such a signal
  * is that bus's track, the one sends reach by its name. A signal that merely
- * reads a bus, as a module argument or in a mix, is rooted at none.
+ * reads a bus, as a module argument or in a mix, is rooted at none, and so
+ * is a module's set of several outputs and any one picked from it.
  */
 const ROOTS = new WeakMap<object, object>();
 

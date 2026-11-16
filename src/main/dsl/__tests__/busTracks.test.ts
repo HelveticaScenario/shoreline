@@ -93,6 +93,46 @@ describe('$bus tracks', () => {
         ).toThrow(/sends cannot reach fx, which is not a bus/);
     });
 
+    test('a ranged chain result is still rooted at its bus', () => {
+        expect(() =>
+            run(`verb: $bus().reverb()
+                 dry: $saw('c3').track({ sends: verb })`),
+        ).not.toThrow();
+    });
+
+    test('an output picked from a module with several is not a bus', () => {
+        expect(() =>
+            run(`low: $bus().xover()._low
+                 dry: $saw('c3').track({ sends: low })`),
+        ).toThrow(/which is not a bus/);
+        expect(() =>
+            run(`const b = $bus()
+                 verb: b.plate()
+                 env: b.motionFollower()
+                 dry: $saw('c3').track({ sends: verb })`),
+        ).not.toThrow();
+    });
+
+    test('$trackTap of a bus track is a send target', () => {
+        expect(() =>
+            run(`verb: $bus().plate()
+                 dry: $saw('c3').track({ sends: [$trackTap('verb'), 2] })`),
+        ).not.toThrow();
+    });
+
+    test('a second track name in a pair is a send, not a level', () => {
+        expect(() =>
+            run(`verb: $bus().plate()
+                 lead: $sine('c4')
+                 dry: $saw('c3').track({ sends: [verb, lead] })`),
+        ).toThrow(/sends cannot reach lead, which is not a bus/);
+        expect(() =>
+            run(`verb: $bus().plate()
+                 lead: $sine('c4')
+                 dry: $saw('c3').track({ sends: [verb, $c(lead)] })`),
+        ).not.toThrow();
+    });
+
     test('a bus has one track', () => {
         expect(() =>
             run(`const b = $bus()

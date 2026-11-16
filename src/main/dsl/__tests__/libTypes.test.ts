@@ -149,6 +149,29 @@ pad: $sine('c4').amp($motionFollower(verb)).amp(verb.active)
         ).toEqual([]);
     });
 
+    test('ranged chain results and concat keep a bus chain a bus', () => {
+        expect(
+            labelErrors(`
+verb: $bus().reverb()
+fold: $bus().fold(2).lpf('c5')
+wide: $bus().concat($sine('c3'))
+lead: $saw('c3').track({ sends: [verb, fold, wide] })
+`),
+        ).toEqual([]);
+        expect(
+            labelErrors(`
+a: $bus()
+b: $bus().reverb().track({ sends: a })
+`),
+        ).toHaveLength(1);
+        expect(
+            labelErrors(`
+low: $bus().xover()._low
+lead: $saw('c3').track({ sends: low })
+`),
+        ).toHaveLength(1);
+    });
+
     test('a signal that only reads a bus is not a send target', () => {
         expect(
             labelErrors(`

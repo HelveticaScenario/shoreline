@@ -81,15 +81,6 @@ describe('track sends', () => {
         expect(busSends(built, 1)).toEqual(toB);
     });
 
-    test('a track name as a gain is a gain, not a second send', () => {
-        const built = patchOf(
-            `${BUSES}kick: $sine('c1')\nlead: $saw('c3').track({ sends: [a, kick] })`,
-        );
-        expect(busSends(built, 0)).toHaveLength(1);
-        expect(busSends(built, 0)[0]).toMatch(/^\$saw-1@/);
-        expect(busSends(built, 1)).toEqual([]);
-    });
-
     test('every track sending to a bus is mixed into it', () => {
         const built = patchOf(
             `${BUSES}lead: $saw('c3').track({ sends: a })\nbass$1m: $sine('c4').track({ sends: [a, 2] })`,
