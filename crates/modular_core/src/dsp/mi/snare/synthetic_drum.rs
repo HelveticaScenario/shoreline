@@ -49,7 +49,7 @@ pub struct SyntheticKnobs {
 }
 
 /// The controls derived from the decay, attack FM and snappiness.
-#[derive(Default)]
+#[derive(Clone, Copy, Default)]
 struct Envelopes {
     /// The attack FM squared, as Plaits squares it.
     fm_amount: f32,
@@ -68,6 +68,7 @@ fn distorted_sine(phase: f32) -> f32 {
     2.0 * triangle / (1.0 + triangle.abs())
 }
 
+#[derive(Clone, Copy)]
 pub struct SyntheticSnareDrum {
     phase: [f32; 2],
     drum_amplitude: f32,

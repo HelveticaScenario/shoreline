@@ -103,9 +103,10 @@ struct SdState {
     groups: Groups<SnareDrum>,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct Lane {
     voices: Voices<Snare>,
+    #[seed_side(keep)]
     noise: Noise,
     rate: Cached<f32, f32>,
     /// C67's per-sample fall through the tone pot at its knob's travel.
@@ -133,6 +134,7 @@ impl Sd909 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -158,6 +160,7 @@ impl Sd909 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Sd909ParamsBlockInputs {
@@ -262,7 +265,7 @@ impl crate::types::PatchUpdateHandler for Sd909 {
         let count = self.lane_count();
         self.state
             .groups
-            .layout::<SdInputs<&[f32]>>(&mut self.lane_state, count);
+            .layout::<SdInputs<&[f32]>>(&mut self.lane_state, count, self._channels);
     }
 }
 

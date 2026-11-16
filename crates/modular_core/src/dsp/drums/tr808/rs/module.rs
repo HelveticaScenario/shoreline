@@ -96,7 +96,7 @@ struct ClState {
 
 /// A rim shot lane: its circuits, and its resonators tuned to its
 /// `freq` with the output gain levelling it.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct RimLane {
     voices: Voices<Rim>,
     controls: Cached<f32, (RimControls, f32)>,
@@ -104,7 +104,7 @@ struct RimLane {
 
 /// A claves lane: its circuits, and its resonator tuned to its `freq`
 /// and `decay` with the output gain levelling `freq`.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct ClavesLane {
     voices: Voices<Claves>,
     t: Cached<(f32, f32), (BridgedT, f32)>,
@@ -142,6 +142,7 @@ impl Rs808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -166,6 +167,7 @@ impl Rs808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Rs808ParamsBlockInputs {
@@ -321,6 +323,7 @@ impl Cl808 {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let inputs = [
             Live::new(&p.trigger),
@@ -346,6 +349,7 @@ impl Cl808 {
         _sample_rate: f32,
     ) -> Option<()> {
         let lanes = self.lane_count();
+        self.state.hold.lay_out(lanes, self.channels());
         let p = &self.params;
         let mut scratch = Default::default();
         let Cl808ParamsBlockInputs {

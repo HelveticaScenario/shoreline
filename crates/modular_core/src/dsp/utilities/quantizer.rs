@@ -124,7 +124,7 @@ struct QuantizerOutputs {
 }
 
 /// Per-lane state for tracking note changes.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct LaneState {
     /// Previous quantized voltage (None until the first note is chosen)
     prev_quantized: Option<f64>,

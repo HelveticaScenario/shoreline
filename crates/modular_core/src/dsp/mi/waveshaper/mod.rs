@@ -157,7 +157,7 @@ struct Controls {
     overtone_gain: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     slope: SlopeOscillator,
     triangle: SlopeOscillator,

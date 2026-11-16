@@ -106,7 +106,7 @@ struct LorenzOutputs {
 /// x, y, z evolve continuously every sample regardless of param changes —
 /// changing a param warps the vector field and bends the live trajectory
 /// rather than restarting the simulation from scratch.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct LaneState {
     x: f32,
     y: f32,

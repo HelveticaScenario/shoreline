@@ -65,7 +65,7 @@ fn input_range(bounds: Bounds) -> (f32, f32) {
     }
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     in_min: SwapGlide,
     in_max: SwapGlide,

@@ -49,7 +49,7 @@ struct FallingEdgeDetectorOutputs {
     output: PolyOutput,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct EdgeLaneState {
     last_input: f32,
     trigger_gate: TempGate,

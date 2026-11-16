@@ -274,6 +274,42 @@ struct PlaitsLaneState {
     trigger_latch: bool,
 }
 
+/// The engine voice keeps its own fresh state: it owns heap buffers that
+/// cannot be copied on the audio thread.
+impl crate::types::SeedSide for PlaitsLaneState {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            voice: _,
+            main_buffer: _,
+            aux_buffer: _,
+            harmonics: _,
+            timbre_amt: _,
+            fm_amt: _,
+            morph_amt: _,
+            timbre: _,
+            morph: _,
+            lpg_color: _,
+            lpg_decay: _,
+            mix: _,
+            trigger_schmitt: _,
+            trigger_latch: _,
+        } = left;
+        self.main_buffer = left.main_buffer;
+        self.aux_buffer = left.aux_buffer;
+        self.harmonics.seed_side(&left.harmonics);
+        self.timbre_amt.seed_side(&left.timbre_amt);
+        self.fm_amt.seed_side(&left.fm_amt);
+        self.morph_amt.seed_side(&left.morph_amt);
+        self.timbre.seed_side(&left.timbre);
+        self.morph.seed_side(&left.morph);
+        self.lpg_color.seed_side(&left.lpg_color);
+        self.lpg_decay.seed_side(&left.lpg_decay);
+        self.mix.seed_side(&left.mix);
+        self.trigger_schmitt = left.trigger_schmitt;
+        self.trigger_latch = left.trigger_latch;
+    }
+}
+
 impl Default for PlaitsLaneState {
     fn default() -> Self {
         let mut voice = Voice::new(BLOCK_SIZE, ENGINE_SAMPLE_RATE);

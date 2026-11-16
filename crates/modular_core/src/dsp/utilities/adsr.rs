@@ -157,7 +157,7 @@ enum EnvelopeStage {
 }
 
 /// Per-lane envelope state.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct LaneState {
     stage: EnvelopeStage,
     /// Current envelope level in `[0, 1]`; scaled to 0–5V on output.

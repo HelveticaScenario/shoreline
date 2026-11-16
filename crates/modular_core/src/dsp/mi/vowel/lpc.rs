@@ -32,13 +32,15 @@ fn phoneme(index: usize) -> Frame {
     Frame::from_fields(&LPC_PHONEMES[at..at + FIELDS])
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 pub struct LpcVowels {
     /// The noise of unvoiced consonants, as Plaits draws its global
     /// generator.
+    #[seed_side(keep)]
     pub(super) random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so a patch update never reseeds it.
+    #[seed_side(keep)]
     pub(super) seeded: bool,
     synth: LpcSynth,
     clock: LpcClock,

@@ -30,7 +30,7 @@ struct HoldOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 struct HoldLaneState {
     schmitt: SchmittTrigger,
     elapsed: f32,

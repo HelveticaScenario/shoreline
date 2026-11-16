@@ -80,6 +80,37 @@ pub struct StringModel {
     key: [f32; 4],
 }
 
+impl crate::types::SeedSide for StringModel {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            string: _,
+            stretch: _,
+            damping_filter: _,
+            dc_x: _,
+            dc_y: _,
+            delay: _,
+            dispersion_noise: _,
+            curved_bridge: _,
+            src_phase: _,
+            out_sample: _,
+            controls: _,
+            key: _,
+        } = left;
+        self.string.seed_side(&left.string);
+        self.stretch.seed_side(&left.stretch);
+        self.damping_filter = left.damping_filter;
+        self.dc_x = left.dc_x;
+        self.dc_y = left.dc_y;
+        self.delay = left.delay;
+        self.dispersion_noise = left.dispersion_noise;
+        self.curved_bridge = left.curved_bridge;
+        self.src_phase = left.src_phase;
+        self.out_sample = left.out_sample;
+        self.controls = left.controls;
+        self.key = left.key;
+    }
+}
+
 impl StringModel {
     /// A string with lines sized for `rates`. Allocates.
     pub fn new(rates: &StringRates) -> Self {

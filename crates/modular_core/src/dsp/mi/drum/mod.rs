@@ -36,6 +36,7 @@ pub(super) fn rises(schmitt: &mut SchmittTrigger, trigger: Option<f32>) -> bool 
 
 /// A 0–5 V knob as Plaits' 0–1, gliding across patch updates and holding its
 /// last finite value through NaN and infinite input.
+#[derive(Clone, Copy)]
 pub(super) struct Knob {
     glide: SwapGlide,
     held: f32,

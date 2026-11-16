@@ -61,7 +61,7 @@ pub trait Filter: Copy + Default {
     /// Extra per-lane state beyond the register block — the comb's delay line.
     /// `()` for kernels whose state fits the registers. Constructed by `Default`
     /// during module construction (main thread, so it may allocate).
-    type Extra: Default;
+    type Extra: Default + crate::types::SeedSide;
 
     /// Build the raw target coefficients `N` for `mode` at `freq_semi` (semitones
     /// from A440), `reso` (0..1), running at `rate` Hz (2×base when oversampled).
@@ -140,6 +140,48 @@ impl<E: Default> Default for FilterLane<E> {
             fade_down: Halfband2xDown::default(),
         }
     }
+}
+
+impl<E: crate::types::SeedSide> crate::types::SeedSide for FilterLane<E> {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            c: _,
+            tc: _,
+            dc: _,
+            n: _,
+            r: _,
+            last_cutoff: _,
+            last_reso: _,
+            first_run: _,
+            up: _,
+            down: _,
+            extra: _,
+            fade_c: _,
+            fade_r: _,
+            fade_up: _,
+            fade_down: _,
+        } = left;
+        self.c = left.c;
+        self.tc = left.tc;
+        self.dc = left.dc;
+        self.n = left.n;
+        self.r = left.r;
+        self.last_cutoff = left.last_cutoff;
+        self.last_reso = left.last_reso;
+        self.first_run = left.first_run;
+        self.up = left.up;
+        self.down = left.down;
+        crate::types::SeedSide::seed_side(&mut self.extra, &left.extra);
+        self.fade_c = left.fade_c;
+        self.fade_r = left.fade_r;
+        self.fade_up = left.fade_up;
+        self.fade_down = left.fade_down;
+    }
+}
+
+/// Kernels with no state beyond the register block.
+impl crate::types::SeedSide for () {
+    fn seed_side(&mut self, _left: &Self) {}
 }
 
 impl<E> FilterLane<E> {

@@ -27,7 +27,7 @@ struct PercussionEnvelopeOutputs {
 }
 
 /// Per-lane envelope state
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     current_level: f32,
     trigger_schmitt: SchmittTrigger,

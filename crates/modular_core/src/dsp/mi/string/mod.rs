@@ -172,6 +172,19 @@ struct StringVoice {
     remaining_noise_samples: usize,
 }
 
+impl crate::types::SeedSide for StringVoice {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            excitation: _,
+            model: _,
+            remaining_noise_samples: _,
+        } = left;
+        self.excitation = left.excitation;
+        self.model.seed_side(&left.model);
+        self.remaining_noise_samples = left.remaining_noise_samples;
+    }
+}
+
 /// The controls every string of a lane shares for a sample.
 struct Shared {
     accent: f32,
@@ -275,6 +288,40 @@ struct Voice {
     /// Whether `random` has its per-instance seed. Transfers with the voice,
     /// so its noise stays continuous across patch updates.
     seeded: bool,
+}
+
+/// A new side keeps its own `random`, so the sides' noise stays independent.
+impl crate::types::SeedSide for Voice {
+    fn seed_side(&mut self, left: &Self) {
+        let Self {
+            strings: _,
+            f0: _,
+            active: _,
+            random: _,
+            limiter: _,
+            trigger: _,
+            structure: _,
+            brightness: _,
+            decay: _,
+            accent: _,
+            accent_state: _,
+            held: _,
+            seeded: _,
+        } = left;
+        for (string, left) in self.strings.iter_mut().zip(&left.strings) {
+            string.seed_side(left);
+        }
+        self.f0 = left.f0;
+        self.active = left.active;
+        self.limiter = left.limiter;
+        self.trigger = left.trigger;
+        self.structure = left.structure;
+        self.brightness = left.brightness;
+        self.decay = left.decay;
+        self.accent = left.accent;
+        self.accent_state = left.accent_state;
+        self.held = left.held;
+    }
 }
 
 impl Default for Voice {

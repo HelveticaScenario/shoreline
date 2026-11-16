@@ -84,12 +84,14 @@ pub struct Controls {
     pub gain: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 pub struct Speaker {
     /// The noise of unvoiced frames, as Plaits draws its global generator.
+    #[seed_side(keep)]
     pub(super) random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so a patch update never reseeds it.
+    #[seed_side(keep)]
     pub(super) seeded: bool,
     synth: LpcSynth,
     clock: LpcClock,

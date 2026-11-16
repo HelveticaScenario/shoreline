@@ -382,14 +382,24 @@ impl PatchUpdateHandler for ClockedDelay {
         // A quality change clears every voice, and a voice new to this
         // module still holds the silent stand-in: both take a fresh buffer,
         // which needs no clearing here. Other voices keep recording into
-        // their own.
+        // their own, and a new side carrying on from its lane's left side
+        // copies that side's recording into its fresh buffer.
         let media = self.params.quality.media();
         let reconfigure = media != self.state.media;
+        let channels = self.channels().max(1);
         if let Some(fresh) = &mut self.params.fresh {
-            for (i, v) in self.lane_state.iter_mut().enumerate() {
+            for i in 0..self.lane_state.len() {
+                let (before, rest) = self.lane_state.split_at_mut(i);
+                let v = &mut rest[0];
                 if fresh.hand_out(i, &mut v.buffer, reconfigure) && !reconfigure {
-                    v.configure(media);
+                    let left = before.get(i - i % channels).map(|l| &l.buffer);
+                    let copied = v.awaits_left_recording
+                        && left.is_some_and(|left| v.buffer.copy_from(left));
+                    if !copied {
+                        v.configure(media);
+                    }
                 }
+                v.awaits_left_recording = false;
             }
         }
         if reconfigure {

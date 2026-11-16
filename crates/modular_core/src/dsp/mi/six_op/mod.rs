@@ -171,11 +171,13 @@ fn knob(volts: f32) -> f32 {
 }
 
 /// One lane: Plaits' `SixOpEngine` with one voice, a sample at a time.
+#[derive(Clone, Copy, SeedSide)]
 struct Lane {
     voice: FmVoice,
     trigger: SchmittTrigger,
     gate: bool,
     /// The LFO's generator for sample-and-hold, as Plaits draws its global one.
+    #[seed_side(keep)]
     random: Random,
     brightness: SwapGlide,
     envelope: SwapGlide,
@@ -189,6 +191,7 @@ struct Lane {
     patch: usize,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so its LFOs stay continuous across patch updates.
+    #[seed_side(keep)]
     seeded: bool,
 }
 

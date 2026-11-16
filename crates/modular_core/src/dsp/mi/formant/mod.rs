@@ -119,7 +119,7 @@ impl FormantState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     osc: GrainletPair,
     dc_blocker: OnePole,

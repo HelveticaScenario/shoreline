@@ -82,7 +82,7 @@ impl Rates {
 }
 
 /// One of Plaits' speech synths.
-pub trait Voice: Default {
+pub trait Voice: Default + Copy + crate::types::SeedSide {
     fn new(_rates: &Rates) -> Self {
         Self::default()
     }
@@ -111,6 +111,7 @@ fn knob(volts: f32) -> f32 {
 }
 
 /// One lane of a vowel module: its synth, then Plaits' limiter.
+#[derive(Clone, Copy)]
 pub struct Lane<V> {
     voice: V,
     limiter: Limiter,
@@ -120,6 +121,15 @@ pub struct Lane<V> {
     /// The last finite vowel and formant shift, which a NaN or infinite knob
     /// holds.
     held: [f32; 2],
+}
+
+impl<V: Voice> crate::types::SeedSide for Lane<V> {
+    fn seed_side(&mut self, left: &Self) {
+        let voice = self.voice;
+        *self = *left;
+        self.voice = voice;
+        self.voice.seed_side(&left.voice);
+    }
 }
 
 impl<V: Voice> Default for Lane<V> {

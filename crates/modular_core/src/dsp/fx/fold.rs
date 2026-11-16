@@ -47,7 +47,7 @@ struct FoldOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     amount: SwapGlide,
     /// Onset fade-in — suppresses the click when the module is first added
