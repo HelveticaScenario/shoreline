@@ -146,6 +146,9 @@ export function $cartesian<A extends unknown[][]>(
     ) as ElementsOf<A>[];
 }
 
+/** A send to a bus: the bus alone sends at full level, `[bus, gain]` at `gain`. */
+export type Send = Bus | [bus: Bus, gain: PolySignal];
+
 /** Options for stereo output routing */
 export interface StereoOutOptions {
     /** Base output channel (0-62, default 0). Left plays on baseChannel, right on baseChannel+1 */
@@ -162,6 +165,8 @@ export interface StereoOutOptions {
     mute?: boolean;
     /** When any output is soloed, only soloed outputs are audible */
     solo?: boolean;
+    /** Buses this output also feeds, before its gain, pan, mute and solo */
+    sends?: Send | Send[];
 }
 
 /** Options for mono output routing */
@@ -176,6 +181,8 @@ export interface MonoOutOptions {
     mute?: boolean;
     /** When any output is soloed, only soloed outputs are audible */
     solo?: boolean;
+    /** Buses this output also feeds, before its gain, pan, mute and solo */
+    sends?: Send | Send[];
 }
 
 /** VU meter / mute / solo state shared by both out group kinds */
@@ -240,6 +247,48 @@ function resolveMonoOutArgs(
 }
 
 /**
+ * Whether `value` is one `[bus, gain]` pair rather than a list of sends: a
+ * bus followed by something that is neither a bus nor a pair.
+ */
+function isSendPair(value: unknown): value is [Bus, PolySignal] {
+    if (!Array.isArray(value) || value.length !== 2) {
+        return false;
+    }
+    const [bus, gain] = value as unknown[];
+    return (
+        bus instanceof Bus &&
+        !(gain instanceof Bus) &&
+        !(Array.isArray(gain) && gain[0] instanceof Bus)
+    );
+}
+
+/** The `[bus, gain]` pairs of an out's `sends` option. */
+function resolveSends(
+    sends: Send | Send[] | undefined,
+): [Bus, PolySignal | undefined][] {
+    if (sends === undefined) {
+        return [];
+    }
+    const entries = sends instanceof Bus || isSendPair(sends) ? [sends] : sends;
+    if (!Array.isArray(entries)) {
+        throw new Error(
+            '.out sends must be a $bus, a [bus, gain] pair, or an array of them',
+        );
+    }
+    return entries.map((entry: unknown) => {
+        if (entry instanceof Bus) {
+            return [entry, undefined];
+        }
+        if (isSendPair(entry)) {
+            return [entry[0], entry[1]];
+        }
+        throw new Error(
+            '.out sends: each send must be a $bus or a [bus, gain] pair',
+        );
+    });
+}
+
+/**
  * Live-display tap for a locked VU control: the (module, port, lane)
  * address the engine samples so the panel can track the signal. Collections
  * and arrays tap their first lane. A deferred output's placeholder id is
@@ -273,13 +322,22 @@ interface SendGroup {
     gain?: PolySignal;
 }
 
+/**
+ * A send-return bus. Its callback runs in `toPatch`, once every send is
+ * known, so `.out`/`.outMono` reserve their out group (ordinal, label,
+ * channel) at the call and fill its outputs from the callback's result.
+ */
 export class Bus {
     private builder: GraphBuilder;
-    private cb: (mixed: Collection) => unknown;
+    private cb: (mixed: Collection) => PolySignal | void;
     private sendGroups: SendGroup[] = [];
+    private outGroups: OutGroup[] = [];
     private locked: boolean = false;
 
-    constructor(builder: GraphBuilder, cb: (mixed: Collection) => unknown) {
+    constructor(
+        builder: GraphBuilder,
+        cb: (mixed: Collection) => PolySignal | void,
+    ) {
         this.builder = builder;
         this.cb = cb;
 
@@ -288,7 +346,7 @@ export class Bus {
 
     addSend(value: ModuleOutput | ModuleOutput[], gain?: PolySignal): void {
         if (this.locked) {
-            throw new Error('`.send` is not allowed in $bus callbacks');
+            throw new Error('`sends` is not allowed in $bus callbacks');
         }
         const outputs = Array.isArray(value) ? [...value] : [value];
         const group: SendGroup = {
@@ -296,6 +354,58 @@ export class Bus {
             outputs,
         };
         this.sendGroups.push(group);
+    }
+
+    /**
+     * Send the bus's return (its callback's result) to speakers as stereo,
+     * with the same options as a collection's `.out()`.
+     */
+    out(options: StereoOutOptions = {}): this {
+        this.assertOpen('.out', options);
+        this.outGroups.push(
+            this.builder.addOut(
+                [],
+                { baseChannel: 0, ...options },
+                captureSourceLocation(),
+            ),
+        );
+        return this;
+    }
+
+    /**
+     * Send the bus's return (its callback's result) to speakers as mono,
+     * with the same arguments as a collection's `.outMono()`.
+     */
+    outMono(
+        channelOrOptions: number | MonoOutOptions = 0,
+        gainOrOptions?: PolySignal | MonoOutOptions,
+    ): this {
+        const options = resolveMonoOutArgs(channelOrOptions, gainOrOptions);
+        this.assertOpen('.outMono', options);
+        this.outGroups.push(
+            this.builder.addOutMono([], options, captureSourceLocation()),
+        );
+        return this;
+    }
+
+    /**
+     * Outs on a bus must be declared before `toPatch` runs its callback, and
+     * cannot send: a bus's return exists only once its callback has run.
+     */
+    private assertOpen(
+        method: string,
+        options: StereoOutOptions | MonoOutOptions,
+    ): void {
+        if (this.locked) {
+            throw new Error(
+                `\`${method}\` on a bus is not allowed in $bus callbacks`,
+            );
+        }
+        if (options.sends !== undefined) {
+            throw new Error(
+                `\`${method}\` on a bus cannot take \`sends\`: a bus cannot send to another bus`,
+            );
+        }
     }
 
     lock() {
@@ -313,7 +423,24 @@ export class Bus {
                 return coll;
             }),
         ) as Collection;
-        this.cb(mixed);
+        const result = this.cb(mixed);
+        if (this.outGroups.length === 0) {
+            return;
+        }
+        if (result === undefined || result === null) {
+            throw new Error(
+                '$bus callback must return a signal to route with `.out()`/`.outMono()`',
+            );
+        }
+        const outputs = this.builder.$c(result).items;
+        if (outputs.length === 0) {
+            throw new Error(
+                '$bus callback returned no signal to route with `.out()`/`.outMono()`',
+            );
+        }
+        for (const group of this.outGroups) {
+            group.outputs.push(...outputs);
+        }
     }
 }
 
@@ -449,6 +576,7 @@ export class BaseCollection<T extends ModuleOutput> {
      * @param options.label - Label shown on this output's VU meter
      * @param options.mute - Silence this output (still metered)
      * @param options.solo - When any output is soloed, only soloed outputs are audible
+     * @param options.sends - Buses this output also feeds: a bus, a `[bus, gain]` pair, or an array of them
      */
     out(options: StereoOutOptions = {}): this {
         if (this.items.length > 0) {
@@ -467,7 +595,7 @@ export class BaseCollection<T extends ModuleOutput> {
 
     /**
      * Send all outputs to speakers as mono
-     * @param channelOrOptions - Output channel (0-63, default 0), or `{ channel, gain, label, mute, solo }` options
+     * @param channelOrOptions - Output channel (0-63, default 0), or `{ channel, gain, label, mute, solo, sends }` options
      * @param gainOrOptions - Output gain, or the same options (an explicit `channel` there wins)
      */
     outMono(
@@ -482,18 +610,6 @@ export class BaseCollection<T extends ModuleOutput> {
                 loc,
             );
         }
-        return this;
-    }
-
-    /**
-     * Add self to the send-return bus
-     *
-     * @param bus
-     * @param gain
-     * @returns
-     */
-    send(bus: Bus, gain?: PolySignal): this {
-        bus.addSend(this.items, gain);
         return this;
     }
 
@@ -1178,7 +1294,6 @@ export class GraphBuilder implements ChainHost {
             bus.lock();
         }
         for (const bus of this.busses) {
-            // Its up to the bus callback functions to register themselves
             bus.finalize();
         }
 
@@ -1815,7 +1930,7 @@ export class GraphBuilder implements ChainHost {
         value: ModuleOutput | ModuleOutput[],
         options: StereoOutOptions = {},
         sourceLocation?: { line: number; column: number },
-    ): void {
+    ): StereoOutGroup {
         if (this.processingEndOfChain) {
             throw new Error(
                 '`.out` is not allowed in the end of chain processor callback.',
@@ -1834,6 +1949,9 @@ export class GraphBuilder implements ChainHost {
         this.registerOutLabel(options.label);
 
         const outputs = Array.isArray(value) ? [...value] : [value];
+        for (const [bus, gain] of resolveSends(options.sends)) {
+            bus.addSend(outputs, gain);
+        }
         const group: StereoOutGroup = {
             gain: options.gain,
             label: options.label,
@@ -1850,6 +1968,7 @@ export class GraphBuilder implements ChainHost {
         const existing = this.outGroups.get(baseChannel) ?? [];
         existing.push(group);
         this.outGroups.set(baseChannel, existing);
+        return group;
     }
 
     /**
@@ -1859,7 +1978,7 @@ export class GraphBuilder implements ChainHost {
         value: ModuleOutput | ModuleOutput[],
         options: MonoOutOptions = {},
         sourceLocation?: { line: number; column: number },
-    ): void {
+    ): MonoOutGroup {
         if (this.processingEndOfChain) {
             throw new Error(
                 '`.outMono` is not allowed in the end of chain processor callback.',
@@ -1876,6 +1995,9 @@ export class GraphBuilder implements ChainHost {
         this.registerOutLabel(options.label);
 
         const outputs = Array.isArray(value) ? [...value] : [value];
+        for (const [bus, gain] of resolveSends(options.sends)) {
+            bus.addSend(outputs, gain);
+        }
         const group: MonoOutGroup = {
             gain: options.gain,
             label: options.label,
@@ -1890,6 +2012,7 @@ export class GraphBuilder implements ChainHost {
         const existing = this.outGroups.get(channel) ?? [];
         existing.push(group);
         this.outGroups.set(channel, existing);
+        return group;
     }
 
     /** Validate an out label and record it for duplicate detection. */
