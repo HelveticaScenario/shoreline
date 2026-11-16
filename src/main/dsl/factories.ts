@@ -476,71 +476,76 @@ export class DSLContext {
                 params[ARGUMENT_SPANS_KEY] = mergedArgumentSpans;
             }
 
-            // Create the module node internally, passing source location
-            const node = this.builder.addModule(
+            return this.builder.buildModule(
                 schema.name,
                 id,
                 sourceLocation,
+                (node): ModuleReturn => {
+                    // Set all params
+                    for (const [key, value] of Object.entries(params)) {
+                        if (value !== undefined) {
+                            node._setParam(key, value);
+                        }
+                    }
+
+                    this.builder.setModuleChannels(
+                        node.id,
+                        schema.stereo === 'mono'
+                            ? 'mono'
+                            : schema.stereo === 'stereo'
+                              ? 'stereo'
+                              : schema.stereo === 'derived'
+                                ? fileChannels(
+                                      wavParamNames.map((name) => params[name]),
+                                  )
+                                : this.builder.liftedChannelsOf(
+                                      Object.values(params),
+                                  ),
+                    );
+
+                    // Derive lane count from params using Rust-side derivation (backed by LRU cache)
+                    // This handles modules with custom derivation logic (like mix, seq)
+                    // As well as standard inference from PolySignal inputs
+                    const laneCount = deriveLaneCountChecked(
+                        schema.name,
+                        node.getParamsSnapshot(),
+                        sourceLocation,
+                    );
+                    if (laneCount !== undefined) {
+                        node._setDerivedLaneCount(laneCount);
+                    }
+
+                    // Return based on output configuration
+                    if (outputs.length === 0) {
+                        // No outputs - return empty object (shouldn't happen in practice)
+                        return {} as MultiOutput;
+                    } else if (outputs.length === 1) {
+                        return node._output(outputs[0].name);
+                    }
+                    // Multiple outputs: the root holds every output by name as
+                    // `_<name>`, each a separate untagged object. Read as a signal
+                    // itself, the root is the output a `cv` input takes.
+                    const named: Record<
+                        string,
+                        Collection | CollectionWithRange
+                    > = {};
+                    let root: Collection | CollectionWithRange;
+                    const cvOutput = chooseOutput(rootOutputs, 'cv');
+                    for (const output of outputs) {
+                        const name = outputName(output.name);
+                        named[name] = node._output(output.name);
+                        if (name === cvOutput) {
+                            root = node._output(output.name);
+                        }
+                    }
+                    markRoot(root!, {
+                        outputs: rootOutputs,
+                        resolver: this.builder.outputResolver,
+                        values: named,
+                    });
+                    return root! as MultiOutput;
+                },
             );
-
-            // Set all params
-            for (const [key, value] of Object.entries(params)) {
-                if (value !== undefined) {
-                    node._setParam(key, value);
-                }
-            }
-
-            this.builder.setModuleChannels(
-                node.id,
-                schema.stereo === 'mono'
-                    ? 'mono'
-                    : schema.stereo === 'stereo'
-                      ? 'stereo'
-                      : schema.stereo === 'derived'
-                        ? fileChannels(
-                              wavParamNames.map((name) => params[name]),
-                          )
-                        : this.builder.liftedChannelsOf(Object.values(params)),
-            );
-
-            // Derive lane count from params using Rust-side derivation (backed by LRU cache)
-            // This handles modules with custom derivation logic (like mix, seq)
-            // As well as standard inference from PolySignal inputs
-            const laneCount = deriveLaneCountChecked(
-                schema.name,
-                node.getParamsSnapshot(),
-                sourceLocation,
-            );
-            if (laneCount !== undefined) {
-                node._setDerivedLaneCount(laneCount);
-            }
-
-            // Return based on output configuration
-            if (outputs.length === 0) {
-                // No outputs - return empty object (shouldn't happen in practice)
-                return {} as MultiOutput;
-            } else if (outputs.length === 1) {
-                return node._output(outputs[0].name);
-            }
-            // Multiple outputs: the root holds every output by name as
-            // `_<name>`, each a separate untagged object. Read as a signal
-            // itself, the root is the output a `cv` input takes.
-            const named: Record<string, Collection | CollectionWithRange> = {};
-            let root: Collection | CollectionWithRange;
-            const cvOutput = chooseOutput(rootOutputs, 'cv');
-            for (const output of outputs) {
-                const name = outputName(output.name);
-                named[name] = node._output(output.name);
-                if (name === cvOutput) {
-                    root = node._output(output.name);
-                }
-            }
-            markRoot(root!, {
-                outputs: rootOutputs,
-                resolver: this.builder.outputResolver,
-                values: named,
-            });
-            return root! as MultiOutput;
         };
     }
 

@@ -1938,43 +1938,6 @@ describe('fx modules', () => {
         expect(comps[0].params.upwardThreshold).toBeDefined();
         expect(comps[0].params.upwardRatio).toBeDefined();
     });
-
-    test('$ott builds 3-band split + 3 compressors + crossfade', () => {
-        const patch = execPatch('$ott($saw("C3")).out()');
-        // One $xover splits, three $comp instances run per band.
-        expect(findModules(patch, '$xover').length).toBe(1);
-        expect(findModules(patch, '$comp').length).toBe(3);
-    });
-
-    test('$ott with sidechain splits sidechain through second xover', () => {
-        const source = `
-            const kick = $sine("C2")
-            $ott($saw("C3"), { sidechain: kick }).out()
-        `;
-        const patch = execPatch(source);
-        // Two $xover instances: one for input, one for sidechain.
-        expect(findModules(patch, '$xover').length).toBe(2);
-        const comps = findModules(patch, '$comp');
-        expect(comps.length).toBe(3);
-        // Every band-compressor must have a sidechain wired up.
-        for (const c of comps) {
-            expect(c.params.sidechain).toBeDefined();
-        }
-    });
-
-    test('$ott honors custom config', () => {
-        const source = `
-            $ott($saw("C3"), {
-                depth: 4,
-                lowMidFreq: $hz(150),
-                midHighFreq: $hz(3000),
-                lowGain: 6, midGain: 5, highGain: 4,
-            }).out()
-        `;
-        const patch = execPatch(source);
-        expect(findModules(patch, '$xover').length).toBe(1);
-        expect(findModules(patch, '$comp').length).toBe(3);
-    });
 });
 
 // ─── Complex patches ─────────────────────────────────────────────────────────
@@ -2045,6 +2008,27 @@ describe('error handling', () => {
         expect(() => execPatch('\n$saw(Infinity).out()')).toThrow(
             '$saw at line 2: parameter `freq` must be a finite number',
         );
+    });
+
+    test('a module call whose error is caught leaves no module behind', () => {
+        const patch = execPatch(`
+            try {
+                $signal('foo');
+            } catch (_) {}
+            $signal(1).out();
+        `);
+        const signals = liftedSignals(patch);
+        expect(signals.map((m) => m.id)).toEqual(['$signal-1']);
+        expect(signals[0].params.value).toBe(1);
+    });
+
+    test('a $buffer call whose error is caught leaves no module behind', () => {
+        const patch = execPatch(`
+            try {
+                $buffer('foo', 1);
+            } catch (_) {}
+        `);
+        expect(findModules(patch, '$buffer')).toEqual([]);
     });
 
     test('$buffer with a non-finite input param reports the module and line', () => {

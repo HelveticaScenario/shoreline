@@ -1,0 +1,3 @@
+kind: Improved
+body: 'Audio settings keep the device list current on their own: plugging in or removing an interface shows up as soon as you reach for a device menu, so the Refresh Devices button is gone. Opening audio settings and starting up are faster on macOS and Windows, and Windows devices show their full names, such as "Speakers (Realtek Audio)".'
+time: 2026-11-15T21:46:00.823126-05:00

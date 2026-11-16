@@ -1,10 +1,18 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import electronAPI from '../electronAPI';
 import type {
     AudioDeviceInfo,
     CurrentAudioState,
     DeviceCacheSnapshot,
 } from '../../shared/ipcTypes';
+
+const DEVICE_REFRESH_INTERVAL_MS = 2000;
 
 interface AudioSettingsTabProps {
     isActive: boolean;
@@ -139,12 +147,17 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         [selectedOutputDevice, selectedInputDevice],
     );
 
+    // When the device list was last re-read, as `performance.now()`.
+    const lastDeviceRefreshAt = useRef(-Infinity);
+
     // Load data from device cache
     const loadData = useCallback(async () => {
         try {
             setLoading(true);
             setError(null);
 
+            await electronAPI.audio.refreshDeviceCache(true);
+            lastDeviceRefreshAt.current = performance.now();
             const [cache, state] = await Promise.all([
                 electronAPI.audio.getDeviceCache(),
                 electronAPI.audio.getCurrentState(),
@@ -173,7 +186,10 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         }
     }, []);
 
-    // When host changes, reset device selections to defaults for that host
+    // When host changes, reset device selections to defaults for that host.
+    // A refreshed device list leaves pending selections alone: a device that
+    // vanished stays selected and Apply reports it.
+    const hostSelectionsResolved = useRef<string | null>(null);
     useEffect(() => {
         if (!deviceCache || !selectedHostId) {
             return;
@@ -182,9 +198,10 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         const hostData = deviceCache.hosts.find(
             (h) => h.hostId === selectedHostId,
         );
-        if (!hostData) {
+        if (!hostData || hostSelectionsResolved.current === selectedHostId) {
             return;
         }
+        hostSelectionsResolved.current = selectedHostId;
 
         // If current output device isn't in this host, select default
         const outputInHost = hostData.outputDevices.find(
@@ -250,21 +267,36 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         selectedOutputDevice,
     ]);
 
-    // Refresh devices from hardware
-    const refreshDevices = useCallback(async () => {
+    // Re-read the device list without touching pending selections. Runs as
+    // the pointer or focus reaches a device dropdown, ahead of the click or
+    // key that opens it: a native select's popup lists the options present
+    // when it opens. Re-reads at most every couple of seconds, since some
+    // hosts (ALSA) take far longer to list than a pointer takes to cross the
+    // dropdowns.
+    const deviceRefreshInFlight = useRef(false);
+    const refreshDeviceList = useCallback(async () => {
+        if (
+            deviceRefreshInFlight.current ||
+            performance.now() - lastDeviceRefreshAt.current <
+                DEVICE_REFRESH_INTERVAL_MS
+        ) {
+            return;
+        }
+        deviceRefreshInFlight.current = true;
         try {
-            setLoading(true);
             await electronAPI.audio.refreshDeviceCache();
-            await loadData();
+            setDeviceCache(await electronAPI.audio.getDeviceCache());
         } catch (err) {
             setError(
                 err instanceof Error
                     ? err.message
                     : 'Failed to refresh devices',
             );
-            setLoading(false);
+        } finally {
+            deviceRefreshInFlight.current = false;
+            lastDeviceRefreshAt.current = performance.now();
         }
-    }, [loadData]);
+    }, []);
 
     // Load on active
     useEffect(() => {
@@ -376,6 +408,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                         <h3>Audio Host</h3>
                         <select
                             className="device-select"
+                            onPointerEnter={refreshDeviceList}
+                            onFocus={refreshDeviceList}
                             value={selectedHostId || ''}
                             onChange={(e) =>
                                 setSelectedHostId(e.target.value || null)
@@ -394,6 +428,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                         <h3>Output Device</h3>
                         <select
                             className="device-select"
+                            onPointerEnter={refreshDeviceList}
+                            onFocus={refreshDeviceList}
                             value={selectedOutputDeviceId || ''}
                             onChange={(e) =>
                                 setSelectedOutputDeviceId(
@@ -422,6 +458,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                         <h3>Input Device</h3>
                         <select
                             className="device-select"
+                            onPointerEnter={refreshDeviceList}
+                            onFocus={refreshDeviceList}
                             value={selectedInputDeviceId || ''}
                             onChange={(e) =>
                                 setSelectedInputDeviceId(e.target.value || null)
@@ -500,13 +538,6 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                     </div>
 
                     <div className="settings-section settings-row">
-                        <button
-                            className="btn btn-secondary"
-                            onClick={refreshDevices}
-                            disabled={applying}
-                        >
-                            ↻ Refresh Devices
-                        </button>
                         <span className="action-spacer" />
                         <button
                             className="btn btn-primary"

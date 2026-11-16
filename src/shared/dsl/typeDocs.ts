@@ -335,13 +335,14 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         definition: outOptionsDefinition(STEREO_OUT_OPTIONS),
         description:
             'Options for stereo output routing via the out() method. ' +
-            'Controls base channel, gain, panning, spread, and the VU meter label, mute, and solo.',
+            'Controls base channel, gain, panning, spread, the VU meter label, mute, and solo, and sends to buses.',
         examples: [
             "$sine('c').out({ baseChannel: 4 })      // Output of channels 4 and 5",
             "$sine('c').out({ gain: 2.5 })           // 50% gain",
             "$sine('c').out({ pan: -2.5 })           // Pan left",
             "$saw($chord('C3[m7]')).out({ spread: 5 })  // Lanes fanned edge to edge",
             "$sine('c').out({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
+            "$sine('c').out({ sends: [verb, [echo, 2]] })  // Also feed two buses",
         ],
         name: 'StereoOutOptions',
         seeAlso: ['MonoOutOptions', 'Collection', 'Poly<Signal>'],
@@ -351,7 +352,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         definition: outOptionsDefinition(MONO_OUT_OPTIONS),
         description:
             'Options for mono output routing via the outMono() method. ' +
-            'Controls the output lane, gain, and the VU meter label, mute, and solo.',
+            'Controls the output lane, gain, the VU meter label, mute, and solo, and sends to buses.',
         examples: [
             "$sine('c').outMono({ channel: 2 })              // Output on channel 2",
             "$sine('c').outMono({ channel: 2, gain: 2.5 })   // 50% gain",
@@ -732,24 +733,25 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
 
     {
         description:
-            'Create a send-return bus. Signals are routed to the bus via `.send(bus, gain)` on any Collection. ' +
-            'The callback receives a Collection that is the mix of all sends, allowing effects or further routing to be applied.',
+            'Create a send-return bus. Signals are routed to the bus through the `sends` option of `.out()` or `.outMono()`. ' +
+            'The callback receives a Collection that is the mix of all sends and returns the processed signal; call `.out()` or `.outMono()` on the bus to hear it.',
         examples: [
-            'const fx = $bus((mixed) => $reverb(mixed).out());\n$saw(440).send(fx, 0.6);\n$sine(220).send(fx, 0.4);',
-            '// Multiple sends at different gain levels\nconst verb = $bus((mixed) => mixed.gain(0.8).out());\nvoices.send(verb, 0.5);',
+            "const fx = $bus((mixed) => $plate(mixed)).out();\n$saw('a').out({ sends: [fx, 3] });\n$sine('a2').out({ sends: fx });",
+            "// One out feeding two buses at different levels\nconst verb = $bus((mixed) => mixed.plate()).out();\nconst echo = $bus((mixed) => mixed.delay(0.25)).out();\n$saw('c3').out({ sends: [[verb, 2], [echo, 4]] });",
         ],
         group: 'Advanced',
         name: '$bus',
         params: [
             {
                 name: 'cb',
-                type: '(mixed: Collection) => unknown',
+                type: '(mixed: Collection) => Poly<Signal> | void',
                 description:
-                    'Called at patch finalization with the mixed sends. Call .out() or return a signal.',
+                    'Called at patch finalization with the mixed sends. Returns the bus signal that `.out()` on the bus plays.',
             },
         ],
-        returns: 'Bus handle passed to .send()',
-        signature: '$bus(cb: (mixed: Collection) => unknown): Bus',
+        returns:
+            "Bus handle named in an out's `sends`, with .out() and .outMono()",
+        signature: '$bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus',
     },
     {
         description:

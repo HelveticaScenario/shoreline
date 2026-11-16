@@ -33,7 +33,6 @@ export const CHAIN_METHODS: ChainMethods = {
     outMono: {},
     range: {},
     scope: {},
-    send: {},
     wet: {},
 };
 

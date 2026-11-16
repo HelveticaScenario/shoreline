@@ -26,6 +26,11 @@ const LEVEL_FIELDS: readonly OutOptionField[] = [
         name: 'solo',
         type: 'boolean',
     },
+    {
+        doc: 'Buses this output also feeds, before its gain, pan, mute and solo: a bus, a `[bus, gain]` pair, or an array of them',
+        name: 'sends',
+        type: 'Send | Send[]',
+    },
 ];
 
 export const STEREO_OUT_OPTIONS: readonly OutOptionField[] = [
@@ -65,6 +70,13 @@ export const MONO_OUT_OPTIONS: readonly OutOptionField[] = [
     },
     ...LEVEL_FIELDS,
 ];
+
+/** The fields a bus's own outs take: a bus cannot send to another bus. */
+export function withoutSends(
+    fields: readonly OutOptionField[],
+): OutOptionField[] {
+    return fields.filter((f) => f.name !== 'sends');
+}
 
 /** One-line type expression, e.g. `interface { label?: string; ... }`. */
 export function outOptionsDefinition(
