@@ -156,9 +156,11 @@ pub(super) struct Knobs {
     pub accent: (f32, GlideMark),
 }
 
+#[derive(Clone, Copy, SeedSide)]
 pub(super) struct Lane {
     drum: AnalogSnareDrum,
     /// The lane's noise, for the snares.
+    #[seed_side(keep)]
     random: Random,
     trigger: SchmittTrigger,
     tone: Knob,
@@ -168,6 +170,7 @@ pub(super) struct Lane {
     accent_state: Accent,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so its noise stays continuous across patch updates.
+    #[seed_side(keep)]
     seeded: bool,
 }
 

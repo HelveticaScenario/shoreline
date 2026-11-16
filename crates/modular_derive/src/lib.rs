@@ -10,6 +10,7 @@ mod message_handlers;
 mod module_attr;
 mod outputs;
 mod params_attr;
+mod seed_side;
 mod utils;
 
 use proc_macro::TokenStream;
@@ -63,6 +64,15 @@ pub fn block_inputs_macro_derive(input: TokenStream) -> TokenStream {
         Err(e) => return e.to_compile_error().into(),
     };
     block_inputs::impl_block_inputs_macro(&ast)
+}
+
+#[proc_macro_derive(SeedSide, attributes(seed_side))]
+pub fn seed_side_macro_derive(input: TokenStream) -> TokenStream {
+    let ast: DeriveInput = match syn::parse(input) {
+        Ok(v) => v,
+        Err(e) => return e.to_compile_error().into(),
+    };
+    seed_side::impl_seed_side_macro(&ast)
 }
 
 /// Documents a params struct's fields; see `params_attr`.

@@ -136,6 +136,14 @@ impl MonoHistory {
         self.data.fill(0.0);
     }
 
+    /// Become a copy of `other` when both hold storage of the same size.
+    /// Allocation-free.
+    pub fn copy_from(&mut self, other: &MonoHistory) {
+        if self.data.len() == other.data.len() {
+            self.data.copy_from_slice(&other.data);
+        }
+    }
+
     /// Record the input of engine sample `index`.
     #[inline]
     pub fn write(&mut self, index: u64, x: f32) {

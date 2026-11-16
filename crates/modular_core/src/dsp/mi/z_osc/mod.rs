@@ -117,7 +117,7 @@ impl ZOscState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     osc: ZOscillator,
     dc_blocker: OnePole,

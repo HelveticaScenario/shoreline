@@ -39,7 +39,7 @@ struct ScanOutputs {
     pub output: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     counter: f32,
     trigger_schmitt: SchmittTrigger,

@@ -144,8 +144,10 @@ pub struct Run<'a, D: Drum, I: Input> {
 /// A drum's groups, by their first lane: a group of four from each
 /// block's first, and a pair from each block's first and third.
 pub struct Groups<D: Drum> {
-    /// The lane count the groups are laid out for.
+    /// The lane count the groups are laid out for, counting sides, and
+    /// the channels per lane.
     lanes: usize,
+    channels: usize,
     quads: Box<[VoiceGroup<X4, D>]>,
     pairs: Box<[VoiceGroup<X2, D>]>,
 }
@@ -154,6 +156,7 @@ impl<D: Drum> Default for Groups<D> {
     fn default() -> Self {
         Self {
             lanes: 0,
+            channels: 1,
             quads: Box::default(),
             pairs: Box::default(),
         }
@@ -179,22 +182,43 @@ where
         };
         Self {
             lanes: 0,
+            channels: 1,
             quads: (0..quads).map(|_| VoiceGroup::default()).collect(),
             pairs: (0..pairs).map(|_| VoiceGroup::default()).collect(),
         }
     }
 
-    /// Lays out `count` lanes, gathering each lane's state from where
-    /// the last layout left it.
-    pub fn layout<A: LaneInputs<D>>(&mut self, lanes: &mut [A::Lane], count: usize) {
-        groups::<D>(self.lanes, |first, elements, width| {
-            let kept = &mut lanes[first.min(count)..(first + elements).min(count)];
-            match width {
-                Width::One => {}
-                Width::Pair => self.pairs[first / 2].unload::<A>(kept),
-                Width::Quad => self.quads[first / QUAD].unload::<A>(kept),
-            }
+    /// Lays out `count` lanes at `channels` per lane, gathering each
+    /// lane's state from where the last layout left it. When the channels
+    /// change, each side's circuits move to where that side now sits, and
+    /// a side a lane gains starts from its left side.
+    pub fn layout<A: LaneInputs<D>>(&mut self, lanes: &mut [A::Lane], count: usize, channels: usize)
+    where
+        A::Lane: crate::types::SeedSide,
+    {
+        let (old, new) = (self.channels.max(1), channels.max(1));
+        let moved = |side: usize| {
+            let (lane, side) = (side / old, side % old);
+            (side < new)
+                .then_some(lane * new + side)
+                .filter(|&k| k < count)
+        };
+        groups::<D>(self.lanes, |first, elements, width| match width {
+            Width::One => {}
+            Width::Pair => self.pairs[first / 2].unload_to::<A>(lanes, first, elements, moved),
+            Width::Quad => self.quads[first / QUAD].unload_to::<A>(lanes, first, elements, moved),
         });
+        if new > old {
+            let old_lanes = self.lanes / old;
+            for k in 0..count {
+                let (lane, side) = (k / new, k % new);
+                if side >= old && lane < old_lanes {
+                    let (left, rest) = lanes.split_at_mut(k);
+                    crate::types::SeedSide::seed_side(&mut rest[0], &left[k - side]);
+                }
+            }
+        }
+        self.channels = new;
         groups::<D>(count, |first, elements, width| {
             let members = &mut lanes[first..first + elements];
             match width {
@@ -289,9 +313,21 @@ where
         }
     }
 
-    /// Hands each element's circuits back to its lane in `members`.
-    fn unload<A: LaneInputs<D>>(&self, members: &mut [A::Lane]) {
-        for (element, lane) in members.iter_mut().enumerate() {
+    /// Hands the circuits of the group's `elements` elements, for lanes
+    /// from `first` on, back to lane `to(first + element)` of `lanes`, if
+    /// it has one.
+    fn unload_to<A: LaneInputs<D>>(
+        &self,
+        lanes: &mut [A::Lane],
+        first: usize,
+        elements: usize,
+        to: impl Fn(usize) -> Option<usize>,
+    ) {
+        for element in 0..elements {
+            let Some(k) = to(first + element) else {
+                continue;
+            };
+            let lane = &mut lanes[k];
             A::unload_sources(lane, element, &self.sources);
             let v = A::voices(lane);
             if self.parked & (1 << element) == 0 {

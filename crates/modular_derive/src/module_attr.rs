@@ -629,9 +629,30 @@ fn impl_module_macro_attr(
     // equal lengths swap the whole boxed slice (O(1) pointer swap); otherwise
     // the first `min(old, new)` lanes are swapped element-wise and the
     // surplus keeps its freshly-initialised value. When the channels per lane
-    // change, lane `l` side `c` takes old lane `l` side `c`, and a side the
-    // old module lacked starts fresh. No path allocates or clones on the audio
-    // thread.
+    // change, lane `l` side `c` takes old lane `l` side `c`, and a side a
+    // lane gains carries on from that lane's left side; only a lifted or
+    // file-derived module changes its channels. No path allocates or clones
+    // on the audio thread.
+    let changes_channels = matches!(
+        attr_args.stereo.as_ref().map(|i| i.to_string()).as_deref(),
+        None | Some("derived")
+    );
+    let seed_new_sides = if changes_channels {
+        quote! {
+            if old_channels < new_channels {
+                for k in 0..new_len {
+                    let side = k % new_channels;
+                    let lane = k / new_channels;
+                    if side >= old_channels && lane * old_channels < old_len {
+                        let (left, rest) = new_inner.lane_state.split_at_mut(k);
+                        crate::types::SeedSide::seed_side(&mut rest[0], &left[k - side]);
+                    }
+                }
+            }
+        }
+    } else {
+        quote! {}
+    };
     let lane_state_transfer = if has_lane_state_field {
         quote! {
             let new_len = new_inner.lane_state.len();
@@ -646,6 +667,7 @@ fn impl_module_macro_attr(
                         std::mem::swap(&mut new_inner.lane_state[k], &mut old_inner.lane_state[j]);
                     }
                 }
+                #seed_new_sides
             } else if new_len == old_len {
                 std::mem::swap(&mut new_inner.lane_state, &mut old_inner.lane_state);
             } else {

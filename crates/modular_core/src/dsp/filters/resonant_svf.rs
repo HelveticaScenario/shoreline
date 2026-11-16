@@ -135,7 +135,7 @@ impl CoeffCache {
     }
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 pub struct SvfLane {
     ic1: f32,
     ic2: f32,

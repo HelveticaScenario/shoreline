@@ -48,7 +48,7 @@ pub trait Shaper: Copy + Default {
 
 /// Per-lane runtime state: drive glide, onset fade, oversampling pair, and
 /// the shaper's own state. One instance per lane.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 pub struct ShapeLane<S: Shaper> {
     drive: SwapGlide,
     fade: FadeIn,

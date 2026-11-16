@@ -155,12 +155,14 @@ impl SwarmState {
 }
 
 /// One lane's swarm.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Lane {
     voices: [SwarmVoice; VOICES],
+    #[seed_side(keep)]
     random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so a patch update never reseeds a running swarm.
+    #[seed_side(keep)]
     seeded: bool,
     trigger: SchmittTrigger,
     limiter: Limiter,

@@ -55,7 +55,7 @@ struct ChebyOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     amount: SwapGlide,
     /// DC blocker (one-pole high-pass) on the output — the even-order harmonics

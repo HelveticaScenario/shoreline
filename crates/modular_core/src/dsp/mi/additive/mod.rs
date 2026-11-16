@@ -139,7 +139,7 @@ impl AdditiveState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     phase: f32,
     /// Plaits' smoothed, normalised amplitudes, one step per `period`.

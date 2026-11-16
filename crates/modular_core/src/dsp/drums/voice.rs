@@ -139,7 +139,7 @@ pub fn rails(v: f32) -> f32 {
 
 /// One output lane: the strike detector, the sounding circuit, and a
 /// cut-off one fading out under it, each with its accent trim less one.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, SeedSide)]
 pub struct Voices<C> {
     pub(super) strike: Strike,
     pub(super) voice: C,

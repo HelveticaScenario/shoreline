@@ -141,7 +141,7 @@ impl DivideDownState {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct Voice {
     oscillator: DivideDownOscillator,
     registration: SwapGlide,

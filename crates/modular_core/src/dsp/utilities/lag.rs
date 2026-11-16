@@ -40,7 +40,7 @@ struct LagProcessorOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct SlewLaneState {
     current_value: f32,
     initialized: bool,

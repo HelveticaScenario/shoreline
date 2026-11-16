@@ -24,7 +24,7 @@ struct SampleAndHoldOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct SampleAndHoldLaneState {
     trigger: SchmittTrigger,
     held_value: f32,
@@ -129,7 +129,7 @@ struct TrackAndHoldOutputs {
     sample: PolyOutput,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, SeedSide)]
 struct TrackAndHoldLaneState {
     gate: SchmittTrigger,
     /// The output voltage, kept here rather than read back from the output port

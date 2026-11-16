@@ -29,7 +29,7 @@ struct ClockDividerOutputs {
     pub output: PolyOutput,
 }
 
-#[derive(Default, Clone, Copy)]
+#[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     counter: u32,
     input_schmitt: SchmittTrigger,
