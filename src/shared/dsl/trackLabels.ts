@@ -7,8 +7,11 @@
  */
 import type * as TS from 'typescript';
 
-/** A track's mute/solo state, as its label prefix writes it. */
-export type TrackState = 'mute' | 'solo' | null;
+/** A track's mute and solo state, as its label prefix writes it. */
+export interface TrackState {
+    mute: boolean;
+    solo: boolean;
+}
 
 export interface TrackLabel {
     state: TrackState;
@@ -28,17 +31,24 @@ const MAX_STEREO_CHANNEL = 62;
 const MAX_MONO_CHANNEL = 63;
 
 const FORMAT_HINT =
-    'Track labels are name, _name (muted) or S_name (soloed), optionally followed by $channel or $channelm for a mono track, e.g. bass$2';
+    'Track labels are name, _name (muted), S_name (soloed) or S__name (both), optionally followed by $channel or $channelm for a mono track, e.g. bass$2';
 
-/** Prefix length and state of `text`'s mute/solo prefix. */
+/**
+ * Prefix length and state of `text`'s mute/solo prefix: `_` mutes, `s_` or
+ * `S_` solos, and both in either order (`S__`, `_S_`) do both.
+ */
 function splitPrefix(text: string): [length: number, state: TrackState] {
+    const both = /^(?:[sS]__|_[sS]_)/.exec(text);
+    if (both) {
+        return [3, { mute: true, solo: true }];
+    }
     if (/^[sS]_/.test(text)) {
-        return [2, 'solo'];
+        return [2, { mute: false, solo: true }];
     }
     if (text.startsWith('_')) {
-        return [1, 'mute'];
+        return [1, { mute: true, solo: false }];
     }
-    return [0, null];
+    return [0, { mute: false, solo: false }];
 }
 
 const IDENTIFIER = /^[\p{ID_Start}$][\p{ID_Continue}$‌‍]*$/u;
@@ -105,7 +115,7 @@ export function parseTrackLabel(text: string): TrackLabel | { error: string } {
 /** `text` with its mute/solo prefix replaced by the one `state` writes. */
 export function withTrackState(text: string, state: TrackState): string {
     const [prefixLength] = splitPrefix(text);
-    const prefix = state === 'mute' ? '_' : state === 'solo' ? 'S_' : '';
+    const prefix = (state.solo ? 'S_' : '') + (state.mute ? '_' : '');
     return prefix + text.slice(prefixLength);
 }
 

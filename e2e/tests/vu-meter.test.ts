@@ -129,7 +129,9 @@ test.describe('vu meter panel', () => {
         ).not.toHaveClass(/vu-meter--suppressed/);
     });
 
-    test('solo on a muted track unmutes it', async ({ window }) => {
+    test('solo on a muted track keeps its mute and plays it', async ({
+        window,
+    }) => {
         await setupTwoOutPatch(window);
         const strip = window.locator('.vu-meter[data-vu-key="lead"]');
         await strip.locator('.vu-btn-mute').click();
@@ -140,11 +142,11 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`S_lead: $sine`);
-        expect(source).not.toMatch(/^_lead:/m);
+        expect(source).toContain(`S__lead: $sine`);
+        await expect(strip).not.toHaveClass(/vu-meter--suppressed/);
         await expect(strip.locator('.vu-btn-mute')).toHaveAttribute(
             'aria-pressed',
-            'false',
+            'true',
         );
         await expect(strip.locator('.vu-btn-solo')).toHaveAttribute(
             'aria-pressed',

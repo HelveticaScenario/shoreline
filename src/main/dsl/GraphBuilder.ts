@@ -171,7 +171,7 @@ const TRACK_OPTION_NAMES = new Set(['gain', 'pan', 'spread', 'sends']);
 export interface TrackDeclaration {
     name: string;
     displayName: string;
-    state: 'mute' | 'solo' | null;
+    state: { mute: boolean; solo: boolean };
     channel: number;
     mono: boolean;
 }
@@ -1887,11 +1887,11 @@ export class GraphBuilder implements ChainHost {
             fromTrack: track !== undefined,
             gain: options.gain,
             label: name,
-            mute: declaration.state === 'mute',
+            mute: declaration.state.mute,
             ordinal: this.outGroupOrdinal++,
             outputs,
             scopes: track?.scopes ?? [],
-            solo: declaration.state === 'solo',
+            solo: declaration.state.solo,
             sourceLocation,
         };
         const group: OutGroup = mono
