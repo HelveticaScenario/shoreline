@@ -9,7 +9,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import type { Page } from '@playwright/test';
+import type { ElectronApplication, Page } from '@playwright/test';
 import { test, expect, openUntitledBuffer } from '../fixtures';
 
 async function setEditor(window: Page, code: string) {
@@ -22,6 +22,47 @@ async function setEditor(window: Page, code: string) {
 async function save(window: Page) {
     await window.locator('.monaco-editor').first().click();
     await window.keyboard.press('ControlOrMeta+s');
+}
+
+/** 200 lines: more than the editor shows at once. */
+const LONG_PATCH = `${Array.from({ length: 200 }, (_, i) => `// line ${i}`).join('\n')}\n`;
+
+async function answerSaveDialog(
+    electronApp: ElectronApplication,
+    name: string,
+) {
+    await electronApp.evaluate(({ ipcMain }, fileName) => {
+        ipcMain.removeHandler('modular:fs:show-save-dialog');
+        ipcMain.handle('modular:fs:show-save-dialog', () => fileName);
+    }, name);
+}
+
+/** Puts the patch editor's caret on `lineNumber`, scrolled into view. */
+async function placeCaret(window: Page, lineNumber: number) {
+    await window.evaluate((line) => {
+        const ed = window.monaco.editor
+            .getEditors()
+            .find((e) => e.getModel()?.getLanguageId() === 'javascript')!;
+        ed.setPosition({ column: 1, lineNumber: line });
+        ed.revealLineInCenter(line);
+        ed.focus();
+    }, lineNumber);
+}
+
+/** The patch editor's caret line, and whether that line is scrolled into view. */
+async function caretView(window: Page) {
+    return window.evaluate(() => {
+        const ed = window.monaco.editor
+            .getEditors()
+            .find((e) => e.getModel()?.getLanguageId() === 'javascript')!;
+        const caret = ed.getPosition()!.lineNumber;
+        const visible = ed
+            .getVisibleRanges()
+            .some(
+                (r) => r.startLineNumber <= caret && caret <= r.endLineNumber,
+            );
+        return { caret, visible };
+    });
 }
 
 test.describe('editor buffers', () => {
@@ -117,6 +158,82 @@ test.describe('editor buffers', () => {
         await expect
             .poll(() => fs.readFileSync(filePath, 'utf-8'))
             .toContain('// mine v3');
+    });
+
+    test('saving an untitled buffer keeps the cursor and scroll position', async ({
+        electronApp,
+        window,
+    }) => {
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await answerSaveDialog(electronApp, 'cursor.mjs');
+        await openUntitledBuffer(window);
+        await setEditor(window, LONG_PATCH);
+        await expect(window.locator('.dirty-dot')).toHaveCount(1);
+        await placeCaret(window, 150);
+        await window.keyboard.press('ControlOrMeta+s');
+        await expect(window.locator('.dirty-dot')).toHaveCount(0);
+
+        expect(await caretView(window)).toEqual({ caret: 150, visible: true });
+    });
+
+    test('saving an untitled buffer over an open file keeps the cursor', async ({
+        electronApp,
+        window,
+    }) => {
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await answerSaveDialog(electronApp, 'shared.mjs');
+        await openUntitledBuffer(window);
+        await setEditor(window, '// first\n');
+        await save(window);
+        await expect(window.locator('.dirty-dot')).toHaveCount(0);
+
+        await openUntitledBuffer(window);
+        await setEditor(window, LONG_PATCH);
+        await expect(window.locator('.dirty-dot')).toHaveCount(1);
+        await placeCaret(window, 150);
+        await window.keyboard.press('ControlOrMeta+s');
+        await expect(window.locator('.dirty-dot')).toHaveCount(0);
+
+        expect(
+            await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
+        ).toBe(LONG_PATCH);
+        expect(await caretView(window)).toEqual({ caret: 150, visible: true });
+    });
+
+    test('a new untitled buffer opens at the top, whatever its number held', async ({
+        electronApp,
+        window,
+    }) => {
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        // Answer the unsaved-changes prompt with "Don't Save".
+        await electronApp.evaluate(({ ipcMain }) => {
+            ipcMain.removeHandler('ui:show-unsaved-changes-dialog');
+            ipcMain.handle('ui:show-unsaved-changes-dialog', () => 1);
+        });
+
+        await openUntitledBuffer(window);
+        await setEditor(window, LONG_PATCH);
+        await placeCaret(window, 150);
+        await openUntitledBuffer(window);
+        const row = window.locator('li', { hasText: 'untitled-1' });
+        await row.hover();
+        await row.locator('.close-button').click();
+        await expect(row).toHaveCount(0);
+
+        await openUntitledBuffer(window);
+        await expect(row).toHaveCount(1);
+        await expect
+            .poll(() => caretView(window))
+            .toEqual({
+                caret: 1,
+                visible: true,
+            });
     });
 
     test('a buffer without unsaved edits reloads when its file changes on disk', async ({

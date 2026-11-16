@@ -174,6 +174,7 @@ function App() {
         dismissSaveConflict,
         overwriteOnConflict,
         revertToDiskContent,
+        viewStates,
     } = useEditorBuffers({
         refreshFileTree,
         workspaceRoot,
@@ -2683,6 +2684,7 @@ function App() {
                                 value={patchCode}
                                 runningBufferId={runningBufferId}
                                 currentFile={activeBufferId}
+                                viewStates={viewStates}
                                 openFiles={openBufferIds}
                                 onChange={handlePatchChange}
                                 editorRef={editorRef}
