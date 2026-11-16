@@ -814,7 +814,6 @@ export function collectSignalSites(
         return false;
     };
 
-    /** Whether `call` is chained into the expression of a mono track's label. */
     /**
      * Whether a mono track's label plays `node`: through the chain calls,
      * parentheses and `? :` branches around it, and through a top-level

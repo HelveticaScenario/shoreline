@@ -180,8 +180,8 @@ function topLevelNames(ts: typeof TS, file: TS.SourceFile): Set<string> {
         }
         if (
             ts.isVariableDeclarationList(node) &&
-            (node.parent === undefined ||
-                node.parent.parent === file ||
+            ((ts.isVariableStatement(node.parent) &&
+                node.parent.parent === file) ||
                 (node.flags & ts.NodeFlags.BlockScoped) === 0)
         ) {
             for (const declaration of node.declarations) {

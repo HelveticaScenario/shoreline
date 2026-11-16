@@ -43,6 +43,7 @@ import {
 } from './dollarQuotes';
 import {
     bindingPosition,
+    globalNameDiagnostics,
     mapSpan,
     onLabelOutsideName,
     trackLabelView,
@@ -101,17 +102,21 @@ class DslTypeScriptWorker extends TypeScriptWorker {
     override async getSemanticDiagnostics(
         fileName: string,
     ): Promise<Diagnostic[]> {
-        const sourceFile = this.getLanguageService()
-            .getProgram()
-            ?.getSourceFile(fileName);
+        const program = this.getLanguageService().getProgram();
+        const sourceFile = program?.getSourceFile(fileName);
         const diagnostics = await super.getSemanticDiagnostics(fileName);
         const view = this.view(fileName);
-        if (!sourceFile || !view) {
+        if (!program || !sourceFile || !view) {
             return diagnostics;
         }
-        return withinPatchDiagnostics(
-            view,
-            withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
+        return TypeScriptWorker.clearFiles(
+            [
+                ...withinPatchDiagnostics(
+                    view,
+                    withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
+                ),
+                ...globalNameDiagnostics(ts, program, sourceFile, view),
+            ].sort((a, b) => (a.start ?? 0) - (b.start ?? 0)),
         );
     }
 
