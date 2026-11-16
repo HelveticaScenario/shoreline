@@ -218,6 +218,26 @@ describe('a scoped root', () => {
         expect(scopedPorts('$`c e`.scope()')).toEqual(['cv']);
     });
 
+    test('read by name, draws that output', () => {
+        expect(scopedPorts('$perc($`0`.scope()._gate).out()')).toEqual([
+            'gate',
+        ]);
+    });
+
+    test('a slice of it plugged in takes it too', () => {
+        expect(
+            scopedPorts('const seq = $`[c,e]`.scope()\n$perc(seq[1]).out()'),
+        ).toEqual(['trig', 'trig']);
+    });
+
+    test('joined with another and plugged in takes both', () => {
+        expect(
+            scopedPorts(
+                'const a = $`c`.scope()\nconst b = $`e`.scope()\n$adsr(a.concat(b)).out()',
+            ),
+        ).toEqual(['gate', 'gate']);
+    });
+
     test('a named output draws that output', () => {
         expect(scopedPorts('$perc($`0`._gate.scope()).out()')).toEqual([
             'gate',

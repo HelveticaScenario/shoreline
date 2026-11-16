@@ -572,7 +572,12 @@ function sliceRoot(
                   ) => AnyCollection)(...indices.map((i) => value.items[i]))
                 : value;
     }
-    markRoot(sliced, { outputs: set.outputs, values });
+    markRoot(sliced, {
+        outputs: set.outputs,
+        parents: [set],
+        resolver: set.resolver,
+        values,
+    });
 }
 
 /**
@@ -585,7 +590,8 @@ function concatRoots(joined: object, a: object, b: object): void {
     if (!set) {
         return;
     }
-    const other = outputSetOf(b)?.values ?? {};
+    const otherSet = outputSetOf(b);
+    const other = otherSet?.values ?? {};
     const names = Object.keys(set.values);
     const otherNames = Object.keys(other);
     if (names.join() !== otherNames.join()) {
@@ -600,7 +606,12 @@ function concatRoots(joined: object, a: object, b: object): void {
         const value = set.values[name] as AnyCollection;
         values[name] = value.concat(other[name] as AnyCollection);
     }
-    markRoot(joined, { outputs: set.outputs, values });
+    markRoot(joined, {
+        outputs: set.outputs,
+        parents: otherSet ? [set, otherSet] : [set],
+        resolver: set.resolver,
+        values,
+    });
 }
 
 /**
@@ -752,6 +763,8 @@ export class GraphBuilder implements ChainHost {
     /** Chain methods backed by a DSL helper rather than a module (`delay`). */
     private chainHelpers = new Map<string, ChainFunction>();
     private scopes: ScopeWithLocation[] = [];
+    /** The roots among the scoped values, which draw the output they are taken as. */
+    private scopeRoots = new Map<ScopeWithLocation, OutputSet>();
     /** `ui: true` EQ panels, collected by `toPatch`. */
     private eqPanels: EqPanelDef[] = [];
     /** Output groups keyed by baseChannel */
@@ -1647,7 +1660,7 @@ export class GraphBuilder implements ChainHost {
                             ...scope,
                             // A deferred lane resolves to its output only
                             // now, so a mono one's second trace drops here.
-                            lanes: scope.lanes
+                            lanes: this.scopedLanes(scope)
                                 .map((lane) => this.resolveScopeLane(lane))
                                 .filter(
                                     (lane) =>
@@ -1757,6 +1770,7 @@ export class GraphBuilder implements ChainHost {
         this.modules.clear();
         this.rangedPorts.clear();
         this.scopes = [];
+        this.scopeRoots.clear();
         this.eqPanels = [];
         this.counters.clear();
         this.outGroups.clear();
@@ -1960,9 +1974,10 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Scope a multi-output root as the output it is first resolved to, before
-     * or after the scope, so `$perc($('0').scope())` draws the trigger `$perc`
-     * takes. A root never plugged in keeps the output it reads as itself.
+     * Scope a multi-output root as the output it is first taken as, by an
+     * input or by name, before or after the scope: `$perc($('0').scope())`
+     * draws the trigger `$perc` takes. A root never taken draws the output it
+     * reads as itself.
      */
     scopeRoot(
         set: OutputSet,
@@ -1970,13 +1985,16 @@ export class GraphBuilder implements ChainHost {
         config: ScopeConfig | undefined,
         sourceLocation?: { line: number; column: number },
     ) {
-        const scope = this.addScope(value, config, sourceLocation);
-        this.outputResolver.onFirstChoice(set, (name) => {
-            const chosen = set.values[name];
-            if (chosen instanceof BaseCollection) {
-                scope.lanes = this.scopeLanes(chosen.items);
-            }
-        });
+        this.scopeRoots.set(this.addScope(value, config, sourceLocation), set);
+    }
+
+    /** The lanes `scope` draws, a scoped root's those of the output it was taken as. */
+    private scopedLanes(scope: ScopeWithLocation): ScopeWithLocation['lanes'] {
+        const set = this.scopeRoots.get(scope);
+        const name = set && this.outputResolver.firstChoice(set);
+        return name
+            ? this.scopeLanes((set.values[name] as AnyCollection).items)
+            : scope.lanes;
     }
 
     /**

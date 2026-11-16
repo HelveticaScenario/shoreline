@@ -24,6 +24,10 @@ const OUTPUT_SET = Symbol('outputSet');
 export interface OutputSet {
     outputs: readonly ResolvableOutput[];
     values: Readonly<Record<string, unknown>>;
+    /** The resolver that tracks which output the root is first taken as. */
+    resolver: OutputResolver;
+    /** The roots this one was sliced or joined from; taking it takes them. */
+    parents?: readonly OutputSet[];
 }
 
 /** The outputs of `schema` under their names on a root. */
@@ -40,12 +44,18 @@ export type CallSite = { line: number; column: number };
 
 /**
  * Tag `root` as standing for every output in `set`, and give it each output
- * by name behind an underscore (`seq._trig`).
+ * by name behind an underscore (`seq._trig`). Reading one by name takes the
+ * root as that output.
  */
 export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
     for (const [name, value] of Object.entries(set.values)) {
-        Object.defineProperty(root, `_${name}`, { value });
+        Object.defineProperty(root, `_${name}`, {
+            get() {
+                set.resolver.take(set, name);
+                return value;
+            },
+        });
     }
 }
 
@@ -75,26 +85,19 @@ export class OutputResolver {
     readonly records: OutputResolutionRecord[] = [];
     private inCall = false;
     private firstChoices = new Map<OutputSet, string>();
-    private firstChoiceListeners = new Map<
-        OutputSet,
-        ((name: string) => void)[]
-    >();
 
-    /**
-     * Call `listener` with the output `set`'s root is first resolved to,
-     * once it is.
-     */
-    onFirstChoice(set: OutputSet, listener: (name: string) => void): void {
-        const chosen = this.firstChoices.get(set);
-        if (chosen !== undefined) {
-            listener(chosen);
-            return;
+    /** The output `set`'s root was first taken as, if it was. */
+    firstChoice(set: OutputSet): string | undefined {
+        return this.firstChoices.get(set);
+    }
+
+    /** Note that `set`'s root, and the roots it came from, were taken as `name`. */
+    take(set: OutputSet, name: string): void {
+        if (!this.firstChoices.has(set)) {
+            this.firstChoices.set(set, name);
         }
-        const listeners = this.firstChoiceListeners.get(set);
-        if (listeners) {
-            listeners.push(listener);
-        } else {
-            this.firstChoiceListeners.set(set, [listener]);
+        for (const parent of set.parents ?? []) {
+            this.take(parent, name);
         }
     }
 
@@ -175,16 +178,7 @@ export class OutputResolver {
 
     private choose(set: OutputSet, inputClass: OutputClass): string {
         const name = chooseOutput(set.outputs, inputClass);
-        if (!this.firstChoices.has(set)) {
-            this.firstChoices.set(set, name);
-        }
-        const listeners = this.firstChoiceListeners.get(set);
-        if (listeners) {
-            this.firstChoiceListeners.delete(set);
-            for (const listener of listeners) {
-                listener(name);
-            }
-        }
+        this.take(set, name);
         return name;
     }
 
