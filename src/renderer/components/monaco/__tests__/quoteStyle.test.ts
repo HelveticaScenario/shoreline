@@ -10,11 +10,11 @@ function format(code: string, quotes?: QuoteStyle): Promise<string> {
 
 describe('backtickStrings', () => {
     test('quotes strings in single quotes by default', async () => {
-        expect(await format(`$cycle("c4 e4").out()`)).toBe(
-            `$cycle('c4 e4').out()`,
+        expect(await format(`out: $cycle("c4 e4")`)).toBe(
+            `out: $cycle('c4 e4')`,
         );
-        expect(await format(`$cycle('c4 e4').out()`, 'double')).toBe(
-            `$cycle("c4 e4").out()`,
+        expect(await format(`out: $cycle('c4 e4')`, 'double')).toBe(
+            `out: $cycle("c4 e4")`,
         );
     });
 
@@ -31,10 +31,10 @@ describe('backtickStrings', () => {
     test('prints string arguments and values as template literals', async () => {
         expect(
             await format(
-                `$saw($slider('root', "c3", 'c2', 'c5')).out()`,
+                `out: $saw($slider('root', "c3", 'c2', 'c5'))`,
                 'backtick',
             ),
-        ).toBe('$saw($slider(`root`, `c3`, `c2`, `c5`)).out()');
+        ).toBe('out: $saw($slider(`root`, `c3`, `c2`, `c5`))');
     });
 
     test('keeps strings the grammar requires quoted', async () => {
@@ -69,11 +69,11 @@ describe('backtickStrings', () => {
 
 describe('template literals in single or double mode', () => {
     test('become quoted strings when they hold plain text', async () => {
-        expect(await format('$cycle(`c4 e4`).out()')).toBe(
-            `$cycle('c4 e4').out()`,
+        expect(await format('out: $cycle(`c4 e4`)')).toBe(
+            `out: $cycle('c4 e4')`,
         );
-        expect(await format('$cycle(`c4 e4`).out()', 'double')).toBe(
-            `$cycle("c4 e4").out()`,
+        expect(await format('out: $cycle(`c4 e4`)', 'double')).toBe(
+            `out: $cycle("c4 e4")`,
         );
     });
 

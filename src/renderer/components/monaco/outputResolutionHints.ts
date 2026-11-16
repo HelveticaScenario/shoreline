@@ -1,7 +1,7 @@
 /**
  * Inlay hints naming the output a module root stands for where it is used,
  * and folding what may be stereo where an input reads it folded:
- * `$saw(seq‹._cv›)`, `$enosc(pair‹.mono()›)`, `$coinFlip(pair)‹._heads.mono()›.outMono()`.
+ * `$saw(seq‹._cv›)`, `$enosc(pair‹.mono()›)`, `$coinFlip(pair)‹._heads.mono()›.scope()`.
  *
  * All show as the code is typed. An output the type checker cannot name (an
  * untyped helper parameter, say) comes from the runtime's last run, while the

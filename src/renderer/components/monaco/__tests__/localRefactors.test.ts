@@ -103,7 +103,7 @@ describe('localRefactors', () => {
     });
 
     test('with the cursor on a called name, extract takes the whole call', () => {
-        const source = `$saw($slider('f', 'a3', 'a1', 'a5').gain(2)).out();\n`;
+        const source = `out: $saw($slider('f', 'a3', 'a1', 'a5').gain(2));\n`;
         const call = `$slider('f', 'a3', 'a1', 'a5')`;
         const service = serviceFor({ [FILE]: source });
         for (const at of [

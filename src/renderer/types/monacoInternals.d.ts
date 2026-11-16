@@ -178,6 +178,40 @@ declare module 'monaco-editor/esm/vs/language/typescript/tsWorker.js' {
         getSemanticDiagnostics(
             fileName: string,
         ): Promise<import('typescript').Diagnostic[]>;
+        getSuggestionDiagnostics(
+            fileName: string,
+        ): Promise<import('typescript').Diagnostic[]>;
+        getDefinitionAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<readonly import('typescript').DefinitionInfo[] | undefined>;
+        getReferencesAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<import('typescript').ReferenceEntry[] | undefined>;
+        getDocumentHighlights(
+            fileName: string,
+            position: number,
+            filesToSearch: string[],
+        ): Promise<import('typescript').DocumentHighlights[] | undefined>;
+        findRenameLocations(
+            fileName: string,
+            position: number,
+            findInStrings: boolean,
+            findInComments: boolean,
+            providePrefixAndSuffixTextForRename: boolean,
+        ): Promise<readonly import('typescript').RenameLocation[] | undefined>;
+        provideInlayHints(
+            fileName: string,
+            start: number,
+            end: number,
+        ): Promise<readonly import('typescript').InlayHint[]>;
+        /** The mirror model named `fileName`, or null for a lib. */
+        protected _getModel(
+            fileName: string,
+        ): { getValue(): string; version: number } | null;
+        /** The text the language service reads for `fileName`. */
+        protected _getScriptText(fileName: string): string | undefined;
         /** `diagnostics` without their source files, to cross to the main thread. */
         static clearFiles(
             diagnostics: readonly import('typescript').Diagnostic[],

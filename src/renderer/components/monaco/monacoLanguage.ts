@@ -65,6 +65,8 @@ export function setupMonacoJavascript(
     jsDefaults.setCompilerOptions({
         allowJs: true,
         allowNonTsExtensions: true,
+        // Top-level labels are track labels, which no statement jumps to.
+        allowUnusedLabels: true,
         checkJs: true,
         lib: ['esnext'],
         module: ts.ModuleKind.ESNext,

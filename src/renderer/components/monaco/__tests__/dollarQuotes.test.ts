@@ -10,7 +10,7 @@ import {
 } from '../dollarQuotes';
 
 const LIB = `
-interface Pattern { out(): void }
+interface Pattern { track(): void }
 declare function $(source: string): Pattern;
 declare function $(strings: TemplateStringsArray, ...values: unknown[]): Pattern;
 `;
@@ -59,7 +59,7 @@ function diagnosticsOf(source: string) {
 
 describe("$'…' diagnostics", () => {
     test('a single-quoted pattern says to use backticks', () => {
-        expect(diagnosticsOf("const p = $'c e g'.out();")).toEqual({
+        expect(diagnosticsOf("const p = $'c e g'.track();")).toEqual({
             syntactic: [
                 {
                     code: DOLLAR_QUOTE_CODE,
@@ -92,7 +92,7 @@ describe("$'…' diagnostics", () => {
 
     test('backticks, calls and spaced strings are left alone', () => {
         expect(
-            diagnosticsOf("$`c e`.out(); $('c').out(); const $a = 'x';"),
+            diagnosticsOf("$`c e`.track(); $('c').track(); const $a = 'x';"),
         ).toEqual({ syntactic: [], semantic: [] });
     });
 
