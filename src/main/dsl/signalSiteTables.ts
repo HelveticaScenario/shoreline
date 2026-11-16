@@ -23,6 +23,52 @@ export const DELAY_SITE: ModuleSiteInfo = {
     stereo: 'lift',
 };
 
+/** `$ott(input, { sidechain, depth, … })`: every band lifts with each signal it reads. */
+const OTT_SITE: ModuleSiteInfo = {
+    buffers: [],
+    chainable: false,
+    folds: [],
+    inputs: Object.fromEntries(
+        [
+            'input',
+            'sidechain',
+            'depth',
+            'lowMidFreq',
+            'midHighFreq',
+            'threshold',
+            'ratio',
+            'upwardThreshold',
+            'upwardRatio',
+            'attack',
+            'release',
+            'makeup',
+            'lowGain',
+            'midGain',
+            'highGain',
+        ].map((name) => [name, 'cv'] as const),
+    ),
+    monoOutputs: [],
+    positional: ['input'],
+    stereo: 'lift',
+};
+
+/** `$cross(count, playhead, range)`: keyframes of constants, played by `playhead`. */
+const CROSS_SITE: ModuleSiteInfo = {
+    buffers: [],
+    chainable: false,
+    folds: [],
+    inputs: { playhead: 'cv' },
+    monoOutputs: [],
+    positional: ['count', 'playhead', 'range', 'interpolationType'],
+    stereo: 'lift',
+};
+
+/** Members of a type that are mono whatever the value they hang off carries. */
+const MONO_MEMBERS: SignalSiteTables['monoMembers'] = {
+    // A tap's controls follow the out's fader, pan and mute, not its audio.
+    TrackTap: ['active', 'level', 'panning'],
+};
+
 /**
  * The globals that are signals or make them without being a module call.
  * Patterns and panel controls are mono; `$input` pairs device channels.
@@ -62,7 +108,8 @@ export function buildSignalSiteTables(
     const tables: SignalSiteTables = {
         chainMethods: CHAIN_METHODS,
         globals: GLOBAL_CHANNELS,
-        modules: { $delay: DELAY_SITE },
+        modules: { $cross: CROSS_SITE, $delay: DELAY_SITE, $ott: OTT_SITE },
+        monoMembers: MONO_MEMBERS,
         // A pattern is the `$cycle` that plays it, which is mono.
         monoTypes: [...PATTERN_TYPES],
         roots: {},
