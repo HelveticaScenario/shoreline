@@ -3,6 +3,8 @@ mod alloc_detector;
 
 mod audio;
 mod commands;
+#[cfg(target_os = "macos")]
+mod coreaudio_devices;
 mod denormals;
 mod graph_analysis;
 mod link;
@@ -13,6 +15,8 @@ mod params_cache;
 mod recording;
 mod tap;
 mod validation;
+#[cfg(target_os = "windows")]
+mod wasapi_devices;
 mod wav_bpm;
 mod wav_metadata;
 
@@ -1570,10 +1574,21 @@ impl Synthesizer {
     // Audio Device Management
     // =========================================================================
 
-    /// Refresh the device cache (re-enumerates all hosts and devices)
+    /// Re-enumerate audio devices. The devices this synthesizer has open stay
+    /// listed even where ALSA cannot report them while open. JACK is
+    /// re-read only with `rescan_jack`, and never while a JACK stream runs,
+    /// whose clients a rescan would collide with.
     #[napi]
-    pub fn refresh_device_cache(&mut self) {
-        self.device_cache.refresh();
+    pub fn refresh_device_cache(&mut self, rescan_jack: Option<bool>) {
+        let keep: Vec<&str> = [
+            self.output_device_id.as_deref(),
+            self.input_device_id.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+        let rescan_jack = rescan_jack.unwrap_or(false) && self.host_id != audio::JACK_HOST_ID;
+        self.device_cache.refresh(&keep, rescan_jack);
     }
 
     /// Get the full device cache snapshot
@@ -1769,7 +1784,7 @@ impl Synthesizer {
     /// Force refresh the device cache (legacy - same as refresh_device_cache)
     #[napi]
     pub fn refresh_device_list(&mut self) {
-        self.refresh_device_cache();
+        self.refresh_device_cache(Some(true));
     }
 
     /// List all available audio hosts (from cache)
