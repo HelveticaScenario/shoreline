@@ -768,10 +768,11 @@ class Track<S = Collection> {
 
 /**
  * What a track label's name reads as in the rest of the patch: the track's
- * final signal, which \`sends\` also takes when the track is a bus.
+ * final signal, which \`sends\` also takes when the track is a bus, and
+ * label suffixes name when it is a group.
  * @internal
  */
-declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [BusRooted | Track<BusRooted>] ? BusTap : TrackTap;
+declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [BusRooted | Track<BusRooted>] ? BusTap : [T] extends [GroupRooted | Track<GroupRooted>] ? GroupTap : TrackTap;
 
 /**
  * Every signal in a patch: an ordered set of lanes, one voice each, with
@@ -840,7 +841,8 @@ class BaseCollection<Plain = Collection, Ranged = CollectionWithRange> {
    * How this signal mixes into its track. A track is heard once its
    * statement is labelled: the label names it and sets its mute, solo and
    * channels (\`_name\` mutes, \`S_name\` solos, \`name$2\` plays on channels
-   * 2 and 3, \`name$2m\` in mono on channel 2). The name then reads as the
+   * 2 and 3, \`name$2m\` in mono on channel 2, \`name$drums\` into the group
+   * track \`drums\`). The name then reads as the
    * track's final signal in the rest of the patch.
    *
    * Options:
@@ -1396,6 +1398,69 @@ class BusTap extends TrackTap {
   /** Sets a bus track's name apart from any other track's. */
   #busTrack: true;
 }
+
+/** @internal */
+declare const __groupRoot: unique symbol;
+
+/**
+ * The signal of a group, from {@link $group}: one stereo lane, the sum of
+ * the tracks that play into it. Chain methods that give one signal keep it a
+ * group signal. The track labelling it is the group's track, whose name
+ * other tracks' labels end in.
+ */
+class GroupSignal extends BaseCollection<GroupSignal, RangedGroupSignal> {
+  private constructor();
+  /** Sets a group signal apart from any other. */
+  readonly [__groupRoot]: true;
+
+  /**
+   * This group signal's lane followed by those of \`other\`, still rooted
+   * at the group.
+   * @param other Any signal
+   */
+  override concat(other: Collection | CollectionWithRange | GroupRooted): this;
+}
+
+/**
+ * A {@link GroupSignal} whose range the engine knows, as chain methods such
+ * as \`.reverb()\` give on a group signal.
+ */
+class RangedGroupSignal extends RangedCollection<GroupSignal, RangedGroupSignal> {
+  private constructor();
+  /** Sets a group signal apart from any other. */
+  readonly [__groupRoot]: true;
+}
+
+/** A signal rooted at a group: \`$group()\` or methods chained on it. */
+type GroupRooted = GroupSignal | RangedGroupSignal;
+
+/**
+ * A group track's final signal, as its label's name reads: a
+ * {@link TrackTap} whose name other tracks' labels end in to play into it.
+ */
+class GroupTap extends TrackTap {
+  private constructor();
+  /** Sets a group track's name apart from any other track's. */
+  #groupTrack: true;
+}
+
+/**
+ * A group: the sum, as one stereo lane, of every track whose label ends in
+ * \`$\` and the name of this group's track. Those tracks play into the group
+ * after their own pan, gain, mute and solo, and reach the output only
+ * through it. Chain effects on it and label the result: that track is the
+ * group, and plays to the main output, to the channels of its own
+ * \`$N\` / \`$Nm\` suffix, or into another group. A group has one track, a
+ * group track can send to buses, and a bus track cannot play into a group.
+ *
+ * @returns The group's signal
+ *
+ * @example
+ * kick$drums: $tr808.kick($\`c ~ c ~\`)
+ * hats$drums: $tr808.hiHat($\`c*8\`)
+ * drums: $group().comp().track({ gain: 4 })
+ */
+function $group(): GroupSignal;
 
 /**
  * A send-return bus: the mix of every signal sent to it through a track's

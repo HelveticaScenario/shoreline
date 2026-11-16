@@ -8,15 +8,18 @@ import { describe, expect, test } from 'vitest';
 import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
-import { trackLabelView } from '../../../renderer/components/monaco/trackLabelBindings';
+import {
+    groupSuffixDiagnostics,
+    trackLabelView,
+} from '../../../renderer/components/monaco/trackLabelBindings';
 
 const LIB_FILE = '/modular/dsl-lib.d.ts';
 const PATCH_FILE = '/modular/patch.js';
 
 const libSource = buildLibSource(schemas);
 
-/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
-function diagnostics(patch: string): string[] {
+/** `patch` compiled against the DSL lib, as the editor compiles it. */
+function programFor(patch: string): ts.Program {
     const options: ts.CompilerOptions = {
         allowJs: true,
         allowNonTsExtensions: true,
@@ -43,8 +46,12 @@ function diagnostics(patch: string): string[] {
         },
         readFile: (name) => files.get(name) ?? base.readFile(name),
     };
-    const program = ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
-    return ts.getPreEmitDiagnostics(program).map((d) => {
+    return ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
+}
+
+/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
+function diagnostics(patch: string): string[] {
+    return ts.getPreEmitDiagnostics(programFor(patch)).map((d) => {
         const line = d.file
             ? `${d.file.fileName}:${d.file.getLineAndCharacterOfPosition(d.start ?? 0).line + 1}`
             : '?';
@@ -248,5 +255,65 @@ verb: $bus().plate()
 
     test('labels are not reported as unused', () => {
         expect(labelErrors(`lead: $saw('c3')`)).toEqual([]);
+    });
+
+    test('a group chain is a group, and sends and nesting type-check', () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick$drums: $sine('c1').track({ sends: verb })
+drums$rhythm: $group().reverb().lpf('c5').track({ gain: 3, sends: [verb, 2] })
+rhythm$2: $group()
+pad: $sine('c4').amp($motionFollower(drums)).amp(drums.active)
+`),
+        ).toEqual([]);
+    });
+
+    /** The group suffix diagnostics for `patch`, as the flagged text. */
+    const suffixErrors = (patch: string): string[] => {
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        return groupSuffixDiagnostics(
+            ts,
+            program.getTypeChecker(),
+            program.getSourceFile(PATCH_FILE)!,
+            view,
+        ).map(
+            (d) =>
+                `${patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0))}: ${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`,
+        );
+    };
+
+    test('a suffix naming a group is clean', () => {
+        expect(
+            suffixErrors(`
+kick$drums: $sine('c1')
+drums$rhythm: $group().reverb()
+rhythm: $group()
+`),
+        ).toEqual([]);
+    });
+
+    test('a suffix naming a track that is not a group is flagged', () => {
+        expect(
+            suffixErrors(`
+kick$bass: $sine('c1')
+bass: $saw('c2')
+hat$fx: $noise()
+fx: $lpf($group(), 'c5')
+`),
+        ).toEqual([
+            expect.stringMatching(/^bass: bass is not a group/),
+            expect.stringMatching(/^fx: fx is not a group/),
+        ]);
+    });
+
+    test('a bus track with a group suffix is flagged', () => {
+        expect(
+            suffixErrors(`
+verb$fx: $bus().plate()
+fx: $group()
+`),
+        ).toEqual([expect.stringMatching(/^fx: verb is a bus/)]);
     });
 });

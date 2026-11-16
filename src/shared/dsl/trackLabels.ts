@@ -21,6 +21,10 @@ export interface TrackLabel {
     /** Stereo base channel, or the mono channel. */
     channel: number;
     mono: boolean;
+    /** The group track this track plays into instead of output channels. */
+    group: string | null;
+    /** Offset in the label where the suffix's group name starts. */
+    groupStart: number;
 }
 
 /** Highest stereo base channel: the right side plays on `channel + 1`. */
@@ -28,7 +32,7 @@ const MAX_STEREO_CHANNEL = 62;
 const MAX_MONO_CHANNEL = 63;
 
 const FORMAT_HINT =
-    'Track labels are name, _name (muted) or S_name (soloed), optionally followed by $channel or $channelm for a mono track, e.g. bass$2';
+    "Track labels are name, _name (muted) or S_name (soloed), optionally followed by $channel, $channelm for a mono track, or $group for a group track's name, e.g. bass$2 or kick$drums";
 
 /** Prefix length and state of `text`'s mute/solo prefix. */
 function splitPrefix(text: string): [length: number, state: TrackState] {
@@ -41,7 +45,8 @@ function splitPrefix(text: string): [length: number, state: TrackState] {
     return [0, null];
 }
 
-const IDENTIFIER = /^[\p{ID_Start}$][\p{ID_Continue}$‌‍]*$/u;
+/** A track name: an identifier without `$`, which starts the suffix. */
+const IDENTIFIER = /^\p{ID_Start}[\p{ID_Continue}‌‍]*$/u;
 
 /**
  * Names a label may parse to but the patch can never read as its binding: the
@@ -67,9 +72,17 @@ const UNBINDABLE = new Set([
 export function parseTrackLabel(text: string): TrackLabel | { error: string } {
     const [prefixLength, state] = splitPrefix(text);
     const rest = text.slice(prefixLength);
-    const suffix = /\$(\d+)(m?)$/.exec(rest);
-    const name = suffix ? rest.slice(0, suffix.index) : rest;
-    if (name.length === 0 || name.startsWith('_') || !IDENTIFIER.test(name)) {
+    const dollar = rest.indexOf('$');
+    const name = dollar === -1 ? rest : rest.slice(0, dollar);
+    const suffixText = dollar === -1 ? null : rest.slice(dollar + 1);
+    const suffix = suffixText === null ? null : /^(\d+)(m?)$/.exec(suffixText);
+    const group = suffixText !== null && !suffix ? suffixText : null;
+    if (
+        name.length === 0 ||
+        name.startsWith('_') ||
+        !IDENTIFIER.test(name) ||
+        (group !== null && !IDENTIFIER.test(group))
+    ) {
         return { error: `\`${text}\` is not a track label. ${FORMAT_HINT}` };
     }
     // A name that reads as a solo prefix would become another track once the
@@ -95,6 +108,8 @@ export function parseTrackLabel(text: string): TrackLabel | { error: string } {
     return {
         channel,
         displayName: name.replace(/_/g, ' '),
+        group,
+        groupStart: prefixLength + dollar + 1,
         mono,
         name,
         prefixLength,
@@ -244,5 +259,38 @@ export function analyzeTrackLabels(
         ts.forEachChild(node, visit);
     };
     visit(file);
-    return { errors, tracks };
+    const byName = new Map(tracks.map((t) => [t.track.name, t]));
+    for (const statement of tracks) {
+        const { group, groupStart } = statement.track;
+        if (group === null) {
+            continue;
+        }
+        const label = statement.statement.label.text;
+        const start = statement.labelStart + groupStart;
+        const fail = (message: string) =>
+            errors.push({ end: statement.labelEnd, message, start });
+        if (!byName.has(group)) {
+            fail(`\`${label}\`: there is no track named ${group} to play into`);
+            continue;
+        }
+        // A group that plays, through its own groups, back into itself.
+        const visited = new Set([statement.track.name]);
+        for (
+            let next: string | null = group;
+            next !== null;
+            next = byName.get(next)?.track.group ?? null
+        ) {
+            if (visited.has(next)) {
+                fail(
+                    `\`${label}\`: ${statement.track.name} plays into ${group}, which plays back into ${next}`,
+                );
+                break;
+            }
+            visited.add(next);
+        }
+    }
+    return {
+        errors: errors.sort((a, b) => a.start - b.start),
+        tracks,
+    };
 }

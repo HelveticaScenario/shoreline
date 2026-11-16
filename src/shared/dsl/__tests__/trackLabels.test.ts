@@ -23,7 +23,15 @@ describe('parseTrackLabel', () => {
         ],
         ['snare', { channel: 0, mono: false, name: 'snare', state: null }],
         ['s', { channel: 0, mono: false, name: 's', state: null }],
-        ['a$b', { channel: 0, mono: false, name: 'a$b', state: null }],
+        [
+            'a$b',
+            { channel: 0, group: 'b', mono: false, name: 'a', state: null },
+        ],
+        [
+            '_kick$drums',
+            { group: 'drums', groupStart: 6, name: 'kick', state: 'mute' },
+        ],
+        ['lead$2', { group: null }],
     ])('%s', (label, expected) => {
         expect(parseTrackLabel(label)).toMatchObject(expected);
     });
@@ -53,6 +61,13 @@ test('withTrackState rewrites only the prefix', () => {
     expect(withTrackState('s_lead$2m', null)).toBe('lead$2m');
     expect(withTrackState('snare', 'solo')).toBe('S_snare');
 });
+
+test.each(['a$b$c', 'a$_b', 'a$', 'a$2x'])(
+    '%s has no valid suffix',
+    (label) => {
+        expect(parseTrackLabel(label)).toHaveProperty('error');
+    },
+);
 
 test('trackNameKey matches spaces and underscores alike', () => {
     expect(trackNameKey('bass line')).toBe(trackNameKey('bass_line'));

@@ -42,8 +42,9 @@ import {
     outputSetOf,
 } from './outputResolution';
 import { isPatternPayload, patternSignal } from './patterns';
-import { busRootOf, carryBusRoot, setBusRoot } from './busRoots';
+import { signalRootOf, carrySignalRoot, setSignalRoot } from './signalRoots';
 import { isPlainObject } from './plainObject';
+import { trackGates } from '../../shared/dsl/trackGates';
 import { trackNameKey } from '../../shared/dsl/trackLabels';
 import {
     assertSignalGroupsTopLevelOnly,
@@ -175,6 +176,8 @@ export interface TrackDeclaration {
     state: 'mute' | 'solo' | null;
     channel: number;
     mono: boolean;
+    /** The group track this track plays into instead of output channels. */
+    group: string | null;
 }
 
 /** A `.scope()` on a track, drawn from the track's mixdown. */
@@ -197,6 +200,10 @@ interface OutGroupVuState {
     scopes: TrackScope[];
     /** Whether the label's value was a `.track(...)` result. */
     fromTrack: boolean;
+    /** The group track this track plays into instead of output channels. */
+    group: string | null;
+    /** Whether this track is a group's: rooted at a `$group()`. */
+    isGroup: boolean;
 }
 
 /** Internal storage for a stereo output group */
@@ -281,7 +288,7 @@ export class Bus {
         this.builder = builder;
         this.mix = new DeferredModuleOutput(builder);
         this.signal = new Collection(this.mix);
-        setBusRoot(this.signal, this);
+        setSignalRoot(this.signal, this);
         builder.addBus(this);
     }
 
@@ -303,6 +310,42 @@ export class Bus {
                     : this.builder.getFactory('$gain')(coll, e.gain);
             }),
         );
+        this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
+    }
+}
+
+/**
+ * A group: `$group()`. Its signal is one stereo lane, the sum of the final
+ * output of every track whose label names the group's track, known only once
+ * every track is built, so it is deferred until `toPatch`.
+ */
+export class Group {
+    private builder: GraphBuilder;
+    private members: ModuleOutput[][] = [];
+    private readonly mix: DeferredModuleOutput;
+    readonly signal: Collection;
+    /** The track rooted at this group's signal. */
+    trackName: string | undefined;
+
+    constructor(builder: GraphBuilder) {
+        this.builder = builder;
+        this.mix = new DeferredModuleOutput(builder);
+        this.signal = new Collection(this.mix);
+        setSignalRoot(this.signal, this);
+        builder.addGroup(this);
+    }
+
+    addMember(outputs: ModuleOutput[]): void {
+        this.members.push(outputs);
+    }
+
+    /** Build the sum of the members and point the group's signal at it. */
+    finalize() {
+        if (this.members.length === 0) {
+            this.mix.set(0);
+            return;
+        }
+        const mixed = this.builder.getFactory('$mix')(this.members);
         this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
     }
 }
@@ -408,7 +451,7 @@ export class BaseCollection<T extends ModuleOutput> {
     slice(start?: number, end?: number): this {
         const ctor = this.constructor as new (...args: T[]) => this;
         const sliced = new ctor(...this.items.slice(start, end));
-        carryBusRoot(sliced, this);
+        carrySignalRoot(sliced, this);
         const set = outputSetOf(this);
         if (set) {
             sliceRoot(sliced, set, this.items.length, start, end);
@@ -453,7 +496,7 @@ export class BaseCollection<T extends ModuleOutput> {
         }
         const joined = new ctor(...this.items, ...(that.items as T[]));
         concatRoots(joined, this, that);
-        carryBusRoot(joined, this);
+        carrySignalRoot(joined, this);
         return joined;
     }
 
@@ -499,7 +542,7 @@ export class BaseCollection<T extends ModuleOutput> {
     ): Collection {
         const result = pipelineFunc(this);
         const mixed = crossfadeMix(this.items[0].builder, this, result, mix);
-        carryBusRoot(mixed, this);
+        carrySignalRoot(mixed, this);
         return mixed;
     }
 
@@ -513,7 +556,7 @@ export class BaseCollection<T extends ModuleOutput> {
             return new Collection();
         }
         const mixed = wetMix(builder, this, mix);
-        carryBusRoot(mixed, this);
+        carrySignalRoot(mixed, this);
         return mixed;
     }
 
@@ -763,6 +806,9 @@ export class GraphBuilder implements ChainHost {
     private busses: Bus[] = [];
     /** Each labelled bus, by its track's name. */
     private bussesByName = new Map<string, Bus>();
+    private groups: Group[] = [];
+    /** Each labelled group, by its track's name. */
+    private groupsByName = new Map<string, Group>();
     /**
      * Each track's `sends` option, settled in toPatch: which names are buses
      * is known only once every label has run.
@@ -1217,8 +1263,14 @@ export class GraphBuilder implements ChainHost {
                 .flat()
                 .sort((a, b) => a.ordinal - b.ordinal);
 
-            // Solo state is global: any solo silences every non-soloed group.
-            const anySolo = allGroups.some((g) => g.solo);
+            const gates = trackGates(
+                allGroups.map((g) => ({
+                    group: g.group,
+                    key: g.label,
+                    mute: g.mute,
+                    solo: g.solo,
+                })),
+            );
 
             // Module-id suffix per group, assigned in source order. Keys are
             // track names, unique and never '__main__' (a name is an
@@ -1327,7 +1379,7 @@ export class GraphBuilder implements ChainHost {
                     // for `$amp`) or 0 (silence); the VU panel
                     // flips it live via the single-module update path, and the
                     // $slew declicks the 5 V swing over ~10 ms.
-                    const gate = (anySolo ? group.solo : !group.mute) ? 5 : 0;
+                    const gate = gates.get(group.label) ? 5 : 0;
                     const muteSig = signalFactory(gate, {
                         ...GATE_RANGE,
                         id: `__vuMute_${sk}`,
@@ -1368,6 +1420,8 @@ export class GraphBuilder implements ChainHost {
                         baseChannel,
                         channels: group.type === 'stereo' ? 2 : 1,
                         fromTrack: group.fromTrack,
+                        group: group.group,
+                        isGroup: group.isGroup,
                         gain: gainValue,
                         gainLocked: !gainControllable,
                         gainModuleId: gainControllable
@@ -1393,6 +1447,18 @@ export class GraphBuilder implements ChainHost {
                         sourceLocation: group.sourceLocation,
                     });
 
+                    // A track with a group plays into it and nowhere else.
+                    if (group.group !== null) {
+                        const target = this.groupsByName.get(group.group);
+                        if (!target) {
+                            throw new Error(
+                                `track ${group.label} cannot play into ${group.group}, which is not a group. A group is a track whose signal is $group() or methods chained on it`,
+                            );
+                        }
+                        target.addMember(outputSignals);
+                        continue;
+                    }
+
                     // Build channel collection with baseChannel silent channels prepended
                     const channelCollection: (ModuleOutput | number)[] = [];
 
@@ -1414,6 +1480,9 @@ export class GraphBuilder implements ChainHost {
 
                     allChannelCollections.push(channelCollection);
                 }
+            }
+            for (const group of this.groups) {
+                group.finalize();
             }
             // Mix all channel collections together using poly mix
             // Each collection contributes to corresponding output channels
@@ -1472,6 +1541,9 @@ export class GraphBuilder implements ChainHost {
                 sourceLocation: undefined,
             });
         } else {
+            for (const group of this.groups) {
+                group.finalize();
+            }
             // No outputs registered - create silent root signal (0V)
             signalFactory(0, { id: 'ROOT_OUTPUT' });
         }
@@ -1707,6 +1779,8 @@ export class GraphBuilder implements ChainHost {
         this.counters.clear();
         this.outGroups.clear();
         this.bussesByName.clear();
+        this.groups = [];
+        this.groupsByName.clear();
         this.pendingSends = [];
         this.outGroupOrdinal = 0;
         this.sourceLocationMap.clear();
@@ -1767,7 +1841,23 @@ export class GraphBuilder implements ChainHost {
         if (outputs.length === 0) {
             throw new Error(`track ${name} has no signal`);
         }
-        const bus = busRootOf(source) as Bus | undefined;
+        const root = signalRootOf(source);
+        const bus = root instanceof Bus ? root : undefined;
+        const ownGroup = root instanceof Group ? root : undefined;
+        if (ownGroup) {
+            if (ownGroup.trackName !== undefined) {
+                throw new Error(
+                    `track ${name} plays the $group that track ${ownGroup.trackName} plays: a group has one track, the one label suffixes name`,
+                );
+            }
+            ownGroup.trackName = name;
+            this.groupsByName.set(name, ownGroup);
+        }
+        if (bus && declaration.group !== null) {
+            throw new Error(
+                `track ${name} is a bus, and a bus cannot play into a group`,
+            );
+        }
         if (bus) {
             if (options.sends !== undefined) {
                 throw new Error(
@@ -1791,6 +1881,8 @@ export class GraphBuilder implements ChainHost {
         const state = {
             displayName: declaration.displayName,
             fromTrack: track !== undefined,
+            group: declaration.group,
+            isGroup: ownGroup !== undefined,
             gain: options.gain,
             label: name,
             mute: declaration.state === 'mute',
@@ -1811,6 +1903,15 @@ export class GraphBuilder implements ChainHost {
         const existing = this.outGroups.get(channel) ?? [];
         existing.push(group);
         this.outGroups.set(channel, existing);
+    }
+
+    addGroup(group: Group) {
+        if (this.processingEndOfChain) {
+            throw new Error(
+                '`$group` is not allowed in the end of chain processor callback.',
+            );
+        }
+        this.groups.push(group);
     }
 
     addBus(bus: Bus) {

@@ -99,6 +99,7 @@ function buildFixture() {
     const track = (name: string) => ({
         channel: 0,
         displayName: name,
+        group: null,
         mono: false,
         name,
         state: null,

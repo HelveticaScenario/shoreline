@@ -166,7 +166,8 @@ describe('track label errors', () => {
         ['let: 1', /cannot name a track/],
         ['if (1) { var a = 1 }\na: 2', /already declared/],
         ['for (var a of [1]) {}\na: 2', /already declared/],
-        ['$sine: 1', /DSL global/],
+        ['$sine: 1', /not a track label/],
+        ['console: 1', /DSL global/],
     ])('%s', (source, message) => {
         expect(() => exec(source)).toThrow(message);
     });

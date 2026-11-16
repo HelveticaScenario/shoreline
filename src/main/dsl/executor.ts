@@ -26,6 +26,7 @@ import {
     DeferredModuleOutput,
     DeferredCollection,
     Bus,
+    Group,
     cycleToLanes,
     replaceSignals,
     PORT_MAX_LANES,
@@ -375,6 +376,15 @@ export function executePatchScript(
             );
         }
         return new Bus(builder).signal;
+    };
+
+    const $group = (...args: unknown[]): Collection => {
+        if (args.length > 0) {
+            throw new Error(
+                '$group takes no arguments: it is the sum of the tracks whose labels name its track, as in kick$drums: … and drums: $group().comp()',
+            );
+        }
+        return new Group(builder).signal;
     };
 
     const $setEndOfChainCb = (
@@ -849,6 +859,7 @@ export function executePatchScript(
         $cGroup: controls.$cGroup,
         // Bus
         $bus,
+        $group,
         $trackTap,
         // Global settings
         $setTempo,
