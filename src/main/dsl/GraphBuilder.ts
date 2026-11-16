@@ -273,10 +273,16 @@ interface SendGroup {
     gain?: PolySignal;
 }
 
+/**
+ * A send-return bus. Its callback runs in `toPatch`, once every send is
+ * known, so `.out`/`.outMono` reserve their out group (ordinal, label,
+ * channel) at the call and fill its outputs from the callback's result.
+ */
 export class Bus {
     private builder: GraphBuilder;
     private cb: (mixed: Collection) => unknown;
     private sendGroups: SendGroup[] = [];
+    private outGroups: OutGroup[] = [];
     private locked: boolean = false;
 
     constructor(builder: GraphBuilder, cb: (mixed: Collection) => unknown) {
@@ -298,6 +304,39 @@ export class Bus {
         this.sendGroups.push(group);
     }
 
+    /**
+     * Send the bus's return (its callback's result) to speakers as stereo,
+     * with the same options as a collection's `.out()`.
+     */
+    out(options: StereoOutOptions = {}): this {
+        this.outGroups.push(
+            this.builder.addOut(
+                [],
+                { baseChannel: 0, ...options },
+                captureSourceLocation(),
+            ),
+        );
+        return this;
+    }
+
+    /**
+     * Send the bus's return (its callback's result) to speakers as mono,
+     * with the same arguments as a collection's `.outMono()`.
+     */
+    outMono(
+        channelOrOptions: number | MonoOutOptions = 0,
+        gainOrOptions?: PolySignal | MonoOutOptions,
+    ): this {
+        this.outGroups.push(
+            this.builder.addOutMono(
+                [],
+                resolveMonoOutArgs(channelOrOptions, gainOrOptions),
+                captureSourceLocation(),
+            ),
+        );
+        return this;
+    }
+
     lock() {
         this.locked = true;
     }
@@ -313,7 +352,23 @@ export class Bus {
                 return coll;
             }),
         ) as Collection;
-        this.cb(mixed);
+        const result = this.cb(mixed);
+        if (this.outGroups.length === 0) {
+            return;
+        }
+        if (result === undefined || result === null) {
+            throw new Error(
+                '$bus callback must return a signal to route with `.out()`/`.outMono()`',
+            );
+        }
+        const outputs = this.builder.$c(result as PolySignal).items;
+        for (const group of this.outGroups) {
+            if (outputs.length === 0) {
+                this.builder.removeOutGroup(group);
+            } else {
+                group.outputs.push(...outputs);
+            }
+        }
     }
 }
 
@@ -1144,7 +1199,6 @@ export class GraphBuilder implements ChainHost {
             bus.lock();
         }
         for (const bus of this.busses) {
-            // Its up to the bus callback functions to register themselves
             bus.finalize();
         }
 
@@ -1781,7 +1835,7 @@ export class GraphBuilder implements ChainHost {
         value: ModuleOutput | ModuleOutput[],
         options: StereoOutOptions = {},
         sourceLocation?: { line: number; column: number },
-    ): void {
+    ): StereoOutGroup {
         if (this.processingEndOfChain) {
             throw new Error(
                 '`.out` is not allowed in the end of chain processor callback.',
@@ -1816,6 +1870,7 @@ export class GraphBuilder implements ChainHost {
         const existing = this.outGroups.get(baseChannel) ?? [];
         existing.push(group);
         this.outGroups.set(baseChannel, existing);
+        return group;
     }
 
     /**
@@ -1825,7 +1880,7 @@ export class GraphBuilder implements ChainHost {
         value: ModuleOutput | ModuleOutput[],
         options: MonoOutOptions = {},
         sourceLocation?: { line: number; column: number },
-    ): void {
+    ): MonoOutGroup {
         if (this.processingEndOfChain) {
             throw new Error(
                 '`.outMono` is not allowed in the end of chain processor callback.',
@@ -1856,6 +1911,22 @@ export class GraphBuilder implements ChainHost {
         const existing = this.outGroups.get(channel) ?? [];
         existing.push(group);
         this.outGroups.set(channel, existing);
+        return group;
+    }
+
+    /** Drop an out group that ended up with no outputs; its label stays claimed. */
+    removeOutGroup(group: OutGroup): void {
+        for (const [channel, groups] of this.outGroups) {
+            const i = groups.indexOf(group);
+            if (i === -1) {
+                continue;
+            }
+            groups.splice(i, 1);
+            if (groups.length === 0) {
+                this.outGroups.delete(channel);
+            }
+            return;
+        }
     }
 
     /** Validate an out label and record it for duplicate detection. */
