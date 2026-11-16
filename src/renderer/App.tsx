@@ -67,10 +67,11 @@ import {
 } from './app/videoPreviewAnchors';
 import { transformErrorsWithSourceLocations } from './app/validationErrorLocations';
 import {
-    computeOutNumericOptionEdit,
-    computeOutOptionEdit,
-    computeSetOutputGainEdit,
-} from './dsl/outSourceEdit';
+    computeSetMasterGainEdit,
+    computeTrackOptionEdit,
+    computeTrackStateEdit,
+} from './dsl/trackSourceEdit';
+import type { TrackState } from '../shared/dsl/trackLabels';
 import { VuMeterPanel } from './components/VuMeterPanel';
 import { BottomBar } from './components/BottomBar';
 import { BottomPanel } from './components/BottomPanel';
@@ -88,10 +89,7 @@ import {
 import type { ScopeView } from './types/editor';
 import { EqPanelController } from './eq/eqPanelController';
 import { type EqPanelSetup, disposeEqPanelSetup } from './eq/eqPanelSetup';
-import {
-    FIRST_LINE_COLUMN_OFFSET,
-    setActiveInterpolationResolutions,
-} from '../shared/dsl/spanTypes';
+import { setActiveInterpolationResolutions } from '../shared/dsl/spanTypes';
 import {
     drawOscilloscope,
     readScopeColors,
@@ -298,12 +296,6 @@ function App() {
     const scopeDecorationsRef =
         useRef<editor.IEditorDecorationsCollection | null>(null);
 
-    /** Tracked decorations spanning each out()/outMono() call, index-aligned
-     *  with vuOutputs; the VU meter M/S buttons edit the source through them. */
-    const vuDecorationsRef = useRef<editor.IEditorDecorationsCollection | null>(
-        null,
-    );
-
     /** Pending UI state waiting for the audio thread to apply a queued update */
     const pendingUIStateRef = useRef<{
         updateId: number;
@@ -315,8 +307,6 @@ function App() {
         /** Tracked decorations created at submit time, swapped into
          *  scopeDecorationsRef when the pending state is committed. */
         scopeDecorations: editor.IEditorDecorationsCollection | null;
-        /** Same contract as scopeDecorations, for vuDecorationsRef. */
-        vuDecorations: editor.IEditorDecorationsCollection | null;
         /** EQ panels of the pending patch, committed with it. */
         eqPanels: EqPanelSetup;
         /** Anchors on the pending patch's control calls, committed with it. */
@@ -645,6 +635,14 @@ function App() {
     useEffect(() => {
         vuOutputsRef.current = vuOutputs;
     }, [vuOutputs]);
+    /** Whether the editor shows the buffer whose patch is playing, so mixer
+     *  edits land in the source the mixer's tracks came from. */
+    const vuSourceEditableRef = useRef(false);
+    useEffect(() => {
+        vuSourceEditableRef.current =
+            visibleCode.bufferId !== undefined &&
+            visibleCode.bufferId === runningControlsSource;
+    }, [visibleCode.bufferId, runningControlsSource]);
     const isMixerVisibleRef = useRef(false);
     useEffect(() => {
         isMixerVisibleRef.current = bottomPanel.tab === 'mixer';
@@ -718,30 +716,24 @@ function App() {
     );
 
     /**
-     * Mirror a VU control change into the DSL source at the out call's
-     * tracked decoration. Returns whether an edit was written; skipped
-     * silently when the call site can't be edited (dynamic call,
-     * non-literal value, stale anchor).
+     * Mirror a mixer control change into the DSL source of the track named
+     * `key`. Returns whether an edit was written; skipped silently when the
+     * editor shows another buffer than the one playing, or when the track
+     * has no editable form for it (a non-literal value, a renamed label).
      */
     const applyVuSourceEdit = useCallback(
         (
-            idx: number,
-            outputs: VuMeterDef[],
+            key: string,
             makeEdit: (
                 source: string,
-                anchorOffset: number,
+                name: string,
             ) => { start: number; end: number; text: string } | null,
         ): boolean => {
             const model = editorRef.current?.getModel();
-            const range = vuDecorationsRef.current?.getRange(idx);
-            if (!model || !range || !outputs[idx].sourceLocation) {
+            if (!model || !vuSourceEditableRef.current) {
                 return false;
             }
-            const anchorOffset = model.getOffsetAt({
-                column: range.startColumn,
-                lineNumber: range.startLineNumber,
-            });
-            const edit = makeEdit(model.getValue(), anchorOffset);
+            const edit = makeEdit(model.getValue(), key);
             if (!edit) {
                 return false;
             }
@@ -752,13 +744,14 @@ function App() {
     );
 
     /**
-     * VU meter M/S click. A plain click flips the property, live-updates
-     * every mute gate whose effective value changed (solo is global), and
-     * mirrors the change into the DSL source at the call's tracked
-     * decoration — the same edit-code + edit-live-graph contract as sliders,
-     * with no patch re-eval. A code-only click edits the source alone: the
-     * audio keeps running unchanged and the button's outer (code) section
-     * ghosts until a patch update applies the new value.
+     * Mixer M/S click. A track is muted, soloed or neither: a click turns its
+     * own state on, or back off, so soloing a muted track unmutes it. A plain
+     * click live-updates every mute gate whose effective value changed (solo
+     * is global) and rewrites the track's label prefix — the same
+     * edit-code + edit-live-graph contract as sliders, with no patch re-eval.
+     * A code-only click edits the source alone: the audio keeps running
+     * unchanged and the buttons' outer (code) sections ghost until a patch
+     * update applies the new state.
      */
     const handleVuToggle = useCallback(
         (key: string, prop: 'mute' | 'solo', codeOnly: boolean) => {
@@ -767,35 +760,51 @@ function App() {
             if (idx === -1) {
                 return;
             }
+            const toggled = (from: TrackState): TrackState =>
+                from === prop ? null : prop;
+            const stateOf = (mute: boolean, solo: boolean): TrackState =>
+                solo ? 'solo' : mute ? 'mute' : null;
 
             if (codeOnly) {
-                const audioValue = outputs[idx][prop];
-                const nextCode = !(
-                    vuGhostsRef.current.get(key)?.[prop] ?? audioValue
+                const audio = outputs[idx];
+                const ghost = vuGhostsRef.current.get(key);
+                const nextCode = toggled(
+                    stateOf(
+                        ghost?.mute ?? audio.mute,
+                        ghost?.solo ?? audio.solo,
+                    ),
                 );
-                const edited = applyVuSourceEdit(
-                    idx,
-                    outputs,
-                    (source, anchorOffset) =>
-                        computeOutOptionEdit(
-                            source,
-                            anchorOffset,
-                            prop,
-                            nextCode,
-                        ),
+                const edited = applyVuSourceEdit(key, (source, name) =>
+                    computeTrackStateEdit(source, name, nextCode),
                 );
                 if (edited) {
+                    const mute = nextCode === 'mute';
+                    const solo = nextCode === 'solo';
                     setVuGhostProp(
                         key,
-                        prop,
-                        nextCode === audioValue ? undefined : nextCode,
+                        'mute',
+                        mute === audio.mute ? undefined : mute,
+                    );
+                    setVuGhostProp(
+                        key,
+                        'solo',
+                        solo === audio.solo ? undefined : solo,
                     );
                 }
                 return;
             }
 
+            const nextState = toggled(
+                stateOf(outputs[idx].mute, outputs[idx].solo),
+            );
             const next = outputs.map((o, i) =>
-                i === idx ? { ...o, [prop]: !o[prop] } : o,
+                i === idx
+                    ? {
+                          ...o,
+                          mute: nextState === 'mute',
+                          solo: nextState === 'solo',
+                      }
+                    : o,
             );
 
             const anySoloBefore = outputs.some((o) => o.solo);
@@ -823,17 +832,13 @@ function App() {
                 }
             }
 
-            applyVuSourceEdit(idx, outputs, (source, anchorOffset) =>
-                computeOutOptionEdit(
-                    source,
-                    anchorOffset,
-                    prop,
-                    next[idx][prop],
-                ),
+            applyVuSourceEdit(key, (source, name) =>
+                computeTrackStateEdit(source, name, nextState),
             );
 
-            // Code and audio agree again for this control.
-            setVuGhostProp(key, prop, undefined);
+            // Code and audio agree again for this track.
+            setVuGhostProp(key, 'mute', undefined);
+            setVuGhostProp(key, 'solo', undefined);
 
             // Optimistic UI; the source of truth reasserts on the next eval.
             // Mirror into the ref synchronously so a rapid second toggle reads
@@ -885,7 +890,7 @@ function App() {
         }
     }, []);
 
-    /** Write the current pan into the out call's `pan` option (removed at
+    /** Write the current pan into the track's `pan` option (removed at
      *  center, the default). */
     const writeVuPanEdit = useCallback(
         (key: string, pan: number) => {
@@ -894,10 +899,10 @@ function App() {
             if (idx === -1 || !outputs[idx].panModuleId) {
                 return;
             }
-            applyVuSourceEdit(idx, outputs, (source, anchorOffset) =>
-                computeOutNumericOptionEdit(
+            applyVuSourceEdit(key, (source, name) =>
+                computeTrackOptionEdit(
                     source,
-                    anchorOffset,
+                    name,
                     'pan',
                     pan === 0 ? null : pan,
                 ),
@@ -1294,8 +1299,8 @@ function App() {
         [redrawVuMeter],
     );
 
-    /** Write `gain` into the source — the out call's `gain` option, or
-     *  $setOutputGain for the master. */
+    /** Write `gain` into the source — the track's `gain` option, or
+     *  $setMasterGain for the master. */
     const writeVuGainEdit = useCallback(
         (key: string, gain: number) => {
             const outputs = vuOutputsRef.current;
@@ -1304,29 +1309,17 @@ function App() {
                 return;
             }
             if (outputs[idx].main) {
-                // The master fader's source of truth is $setOutputGain.
-                const model = editorRef.current?.getModel();
-                if (model) {
-                    const edit = computeSetOutputGainEdit(
-                        model.getValue(),
-                        gain,
-                    );
-                    if (edit) {
-                        pushVuModelEdit(edit);
-                    }
-                }
+                // The master fader's source of truth is $setMasterGain.
+                applyVuSourceEdit(key, (source) =>
+                    computeSetMasterGainEdit(source, gain),
+                );
             } else {
-                applyVuSourceEdit(idx, outputs, (source, anchorOffset) =>
-                    computeOutNumericOptionEdit(
-                        source,
-                        anchorOffset,
-                        'gain',
-                        gain,
-                    ),
+                applyVuSourceEdit(key, (source, name) =>
+                    computeTrackOptionEdit(source, name, 'gain', gain),
                 );
             }
         },
-        [applyVuSourceEdit, pushVuModelEdit],
+        [applyVuSourceEdit],
     );
 
     /**
@@ -1428,13 +1421,8 @@ function App() {
             }
             cancelVuEdit(`${key}:gain`);
             if (!outputs[idx].main && audioGain === UNITY_OUT_GAIN) {
-                applyVuSourceEdit(idx, outputs, (source, anchorOffset) =>
-                    computeOutNumericOptionEdit(
-                        source,
-                        anchorOffset,
-                        'gain',
-                        null,
-                    ),
+                applyVuSourceEdit(key, (source, name) =>
+                    computeTrackOptionEdit(source, name, 'gain', null),
                 );
             } else {
                 writeVuGainEdit(key, audioGain);
@@ -1466,24 +1454,12 @@ function App() {
             const resetGain = isMain ? DEFAULT_OUTPUT_GAIN : UNITY_OUT_GAIN;
 
             if (isMain) {
-                const model = editorRef.current?.getModel();
-                if (model) {
-                    const edit = computeSetOutputGainEdit(
-                        model.getValue(),
-                        resetGain,
-                    );
-                    if (edit) {
-                        pushVuModelEdit(edit);
-                    }
-                }
+                applyVuSourceEdit(key, (source) =>
+                    computeSetMasterGainEdit(source, resetGain),
+                );
             } else {
-                applyVuSourceEdit(idx, outputs, (source, anchorOffset) =>
-                    computeOutNumericOptionEdit(
-                        source,
-                        anchorOffset,
-                        'gain',
-                        null,
-                    ),
+                applyVuSourceEdit(key, (source, name) =>
+                    computeTrackOptionEdit(source, name, 'gain', null),
                 );
             }
 
@@ -1501,13 +1477,7 @@ function App() {
             setVuGhostProp(key, 'gain', undefined);
             redrawVuMeter(key, outGainToDb(resetGain));
         },
-        [
-            applyVuSourceEdit,
-            cancelVuEdit,
-            pushVuModelEdit,
-            redrawVuMeter,
-            setVuGhostProp,
-        ],
+        [applyVuSourceEdit, cancelVuEdit, redrawVuMeter, setVuGhostProp],
     );
 
     const registerVuReadout = useCallback((key: string, el: HTMLElement) => {
@@ -1760,8 +1730,6 @@ function App() {
                         // Swap decoration collections: dispose old, activate pending
                         scopeDecorationsRef.current?.clear();
                         scopeDecorationsRef.current = pending.scopeDecorations;
-                        vuDecorationsRef.current?.clear();
-                        vuDecorationsRef.current = pending.vuDecorations;
                         eqController.commit(pending.eqPanels);
                         commitControlAnchors(pending.controlAnchors);
                         commitVideoPreviews(pending.videoPreviews);
@@ -1786,7 +1754,6 @@ function App() {
                         // and point back at the buffer that is still playing.
                         pendingUIStateRef.current = null;
                         pending.scopeDecorations?.clear();
-                        pending.vuDecorations?.clear();
                         disposeEqPanelSetup(pending.eqPanels);
                         pending.controlAnchors?.dispose();
                         pending.videoPreviews.decorations?.clear();
@@ -2065,59 +2032,8 @@ function App() {
                         );
                 }
 
-                // Track each out call's expression span so the VU meter M/S
-                // buttons can edit the source later even after typing has
-                // shifted it. Decoration index i belongs to newVuOutputs[i];
-                // location-less entries get a degenerate never-edited range
-                // to keep the indices aligned.
                 const newVuOutputs = (result.appliedPatch?.vuMeters ??
                     []) as VuMeterDef[];
-                const vuDecorationDescs: editor.IModelDeltaDecoration[] = [];
-                for (const vu of newVuOutputs) {
-                    const loc = vu.sourceLocation;
-                    // Captured columns are V8 columns: shifted by the executor
-                    // wrapper's indent on line 1 only, so the edit anchor sits
-                    // exactly on the method name. A call site edited past the
-                    // live document's end during the async round-trip resolves
-                    // to null and takes the degenerate range below — the same
-                    // clamp/guard the scope loop applies via resolveScopeCallRange.
-                    const range =
-                        model && loc
-                            ? resolveScopeCallRange(
-                                  model,
-                                  {
-                                      column:
-                                          loc.line === 1
-                                              ? loc.column -
-                                                FIRST_LINE_COLUMN_OFFSET
-                                              : loc.column,
-                                      line: loc.line,
-                                  },
-                                  callSiteSpans?.[`${loc.line}:${loc.column}`],
-                              )
-                            : null;
-                    vuDecorationDescs.push({
-                        options: {
-                            stickiness:
-                                editor.TrackedRangeStickiness
-                                    .NeverGrowsWhenTypingAtEdges,
-                        },
-                        range: range ?? {
-                            endColumn: 1,
-                            endLineNumber: 1,
-                            startColumn: 1,
-                            startLineNumber: 1,
-                        },
-                    });
-                }
-                let newVuDecorations: editor.IEditorDecorationsCollection | null =
-                    null;
-                if (editorInstance && vuDecorationDescs.length > 0) {
-                    newVuDecorations =
-                        editorInstance.createDecorationsCollection(
-                            vuDecorationDescs,
-                        );
-                }
 
                 const newEqPanels = eqController.stage(result, editorInstance);
 
@@ -2149,7 +2065,6 @@ function App() {
                     // Any previously pending (but never committed) decorations
                     // Are cleaned up before storing the new pending state.
                     pendingUIStateRef.current?.scopeDecorations?.clear();
-                    pendingUIStateRef.current?.vuDecorations?.clear();
                     disposeEqPanelSetup(
                         pendingUIStateRef.current?.eqPanels ?? null,
                     );
@@ -2167,14 +2082,12 @@ function App() {
                         sliderDefs: newSliderDefs,
                         updateId: result.updateId,
                         videoPreviews: previewAnchors,
-                        vuDecorations: newVuDecorations,
                         vuOutputs: newVuOutputs,
                     };
                 } else {
                     // Immediate trigger (or button click): swap decorations
                     // And apply UI state right away.
                     pendingUIStateRef.current?.scopeDecorations?.clear();
-                    pendingUIStateRef.current?.vuDecorations?.clear();
                     disposeEqPanelSetup(
                         pendingUIStateRef.current?.eqPanels ?? null,
                     );
@@ -2187,8 +2100,6 @@ function App() {
                     setRunningControlsSource(submittedSourceId);
                     scopeDecorationsRef.current?.clear();
                     scopeDecorationsRef.current = newScopeDecorations;
-                    vuDecorationsRef.current?.clear();
-                    vuDecorationsRef.current = newVuDecorations;
                     setScopeViews(views);
                     setSliderDefs(newSliderDefs);
                     setButtonDefs(newButtonDefs);

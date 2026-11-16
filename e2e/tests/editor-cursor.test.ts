@@ -10,7 +10,7 @@ import { test, expect, openUntitledBuffer } from '../fixtures';
 
 const SOURCE = [
     'const freq = 440',
-    '$sine($hz(freq)).out()',
+    'out: $sine($hz(freq))',
     '',
     '// trailing line',
     '// another trailing line',

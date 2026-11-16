@@ -586,7 +586,7 @@ export function VuMeterPanel({
             <div className="vu-meter-scroll">
                 {channelOutputs.length === 0 ? (
                     <div className="vu-meter-empty">
-                        no outputs — add .out() to the patch
+                        no tracks — label a line to hear it: lead: $saw('c3')
                     </div>
                 ) : (
                     channelOutputs.map((output, i) => (

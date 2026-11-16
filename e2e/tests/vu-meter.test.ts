@@ -1,15 +1,14 @@
 /**
- * E2E tests for the VU meter panel: per-output meters, mute/solo buttons
- * (source edit + live gate update), code-only Ctrl/Cmd edits with ghost
+ * E2E tests for the mixer panel: per-track meters, mute/solo buttons
+ * (label prefix edit + live gate update), code-only Ctrl/Cmd edits with ghost
  * state, and panel toggling.
  */
 
 import { test, expect, openUntitledBuffer } from '../fixtures';
 
-const TWO_OUT_PATCH = [
-    `$sine($hz(440)).out({ label: 'lead' })`,
-    `$saw($hz(110)).outMono(0, { label: 'bass' })`,
-].join('\n');
+const TWO_OUT_PATCH = [`lead: $sine($hz(440))`, `bass$0m: $saw($hz(110))`].join(
+    '\n',
+);
 
 /** Sum of a frame's per-channel rms for the given tap module id. */
 async function rmsFor(
@@ -81,7 +80,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`out({ label: 'lead', mute: true })`);
+        expect(source).toContain(`_lead: $sine`);
 
         await expect(
             window.locator('.vu-meter[data-vu-key="lead"]'),
@@ -100,7 +99,8 @@ test.describe('vu meter panel', () => {
         const restored = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(restored).not.toContain('mute');
+        expect(restored).toContain(`lead: $sine`);
+        expect(restored).not.toContain('_lead');
         await expect(
             window.locator('.vu-meter[data-vu-key="lead"]'),
         ).not.toHaveClass(/vu-meter--suppressed/);
@@ -119,7 +119,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`outMono(0, { label: 'bass', solo: true })`);
+        expect(source).toContain(`S_bass$0m: $saw`);
 
         await expect(
             window.locator('.vu-meter[data-vu-key="lead"]'),
@@ -127,6 +127,29 @@ test.describe('vu meter panel', () => {
         await expect(
             window.locator('.vu-meter[data-vu-key="bass"]'),
         ).not.toHaveClass(/vu-meter--suppressed/);
+    });
+
+    test('solo on a muted track unmutes it', async ({ window }) => {
+        await setupTwoOutPatch(window);
+        const strip = window.locator('.vu-meter[data-vu-key="lead"]');
+        await strip.locator('.vu-btn-mute').click();
+        await window.waitForTimeout(300);
+        await strip.locator('.vu-btn-solo').click();
+        await window.waitForTimeout(300);
+
+        const source = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        expect(source).toContain(`S_lead: $sine`);
+        expect(source).not.toMatch(/^_lead:/m);
+        await expect(strip.locator('.vu-btn-mute')).toHaveAttribute(
+            'aria-pressed',
+            'false',
+        );
+        await expect(strip.locator('.vu-btn-solo')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
     });
 
     test('mute state derives from the source across re-evals', async ({
@@ -168,7 +191,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`out({ label: 'lead', mute: true })`);
+        expect(source).toContain(`_lead: $sine`);
 
         // ...but the audio is untouched: the meter stays live and the
         // button's inner (audio) section stays unmuted while the outer
@@ -209,7 +232,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).not.toContain('mute');
+        expect(source).not.toContain('_lead');
         await expect(muteButton).toHaveAttribute('aria-pressed', 'false');
         await expect(muteButton).toHaveAttribute('data-code-pressed', 'false');
     });
@@ -251,7 +274,7 @@ test.describe('vu meter panel', () => {
             window.__TEST_API__!.getEditorValue(),
         );
         expect(reverted).not.toContain('gain:');
-        expect(reverted).toContain(`out({ label: 'lead' })`);
+        expect(reverted).toContain(`lead: $sine($hz(440))\n`);
     });
 
     test('right-click resets the gain to unity in audio and code', async ({
