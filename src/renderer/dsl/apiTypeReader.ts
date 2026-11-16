@@ -16,14 +16,37 @@ export interface ApiMember {
     hints: DocHints;
 }
 
+/** One step from a value into a part of it: an array or tuple element, or
+ *  an object member. */
+export type SlotStep = { element: number } | { member: string };
+
+/** A slot inside an argument that takes a signal, with the hints of the
+ *  deepest member on its path that states any (`undefined` when its path
+ *  steps through no member that does). */
+export interface ApiSlot {
+    hints?: DocHints;
+}
+
 export interface ApiParam {
     name: string;
     /** Takes a signal as the argument itself. */
     signal: boolean;
     rest: boolean;
+    /** May be left out: marked optional, given a default, or a rest. */
+    optional: boolean;
     hints: DocHints;
     /** Members of an option object this parameter accepts, by key. */
     options: ReadonlyMap<string, ApiMember> | null;
+    /** The slot at `path` inside the argument, or null when it takes no
+     *  signal. */
+    slot(path: readonly SlotStep[]): ApiSlot | null;
+}
+
+/** A part of a type a step reaches: its type, or `signal` for an element of
+ *  a `Poly`/`LaneSum`, with a member's own doc hints. */
+interface SlotChild {
+    type: ts.TypeNode | 'signal';
+    hints?: DocHints;
 }
 
 export type ApiSignature = readonly ApiParam[];
@@ -89,8 +112,13 @@ export class TypeReader {
                           paramDocs.get(`${name}.${key}`),
                       )
                     : null,
+                optional:
+                    rest ||
+                    p.questionToken !== undefined ||
+                    p.initializer !== undefined,
                 rest,
                 signal: type ? this.isSignal(type) : false,
+                slot: (path) => (type ? this.slot(type, path) : null),
             };
         });
         // The summary describes an undocumented first parameter unless it
@@ -138,6 +166,10 @@ export class TypeReader {
             if (SIGNAL_ALIASES.has(name)) {
                 return true;
             }
+            const arg = type.typeArguments?.[0];
+            if (name === 'OrArray' && arg) {
+                return this.isSignal(arg, depth + 1);
+            }
             const memo = this.signalMemo.get(name);
             if (memo !== undefined) {
                 return memo;
@@ -149,6 +181,116 @@ export class TypeReader {
             return result;
         }
         return false;
+    }
+
+    /** The slot at `path` inside a value of `type`, or null when it takes
+     *  no signal. */
+    slot(
+        type: ts.TypeNode | 'signal',
+        path: readonly SlotStep[],
+        depth = 0,
+    ): ApiSlot | null {
+        if (path.length === 0) {
+            return type === 'signal' || this.isSignal(type) ? {} : null;
+        }
+        if (type === 'signal' || depth > MAX_DEPTH) {
+            return null;
+        }
+        const [step, ...rest] = path;
+        for (const child of this.children(type, step, depth)) {
+            const found = this.slot(child.type, rest, depth + 1);
+            if (found) {
+                return found.hints || !child.hints || !hasHints(child.hints)
+                    ? found
+                    : { hints: child.hints };
+            }
+        }
+        return null;
+    }
+
+    /** The parts of a `type` value that `step` reaches. */
+    private children(
+        type: ts.TypeNode,
+        step: SlotStep,
+        depth: number,
+    ): SlotChild[] {
+        if (depth > MAX_DEPTH) {
+            return [];
+        }
+        if (ts.isParenthesizedTypeNode(type)) {
+            return this.children(type.type, step, depth + 1);
+        }
+        if (ts.isUnionTypeNode(type) || ts.isIntersectionTypeNode(type)) {
+            return type.types.flatMap((t) => this.children(t, step, depth + 1));
+        }
+        if ('element' in step) {
+            if (ts.isArrayTypeNode(type)) {
+                return [{ type: type.elementType }];
+            }
+            if (ts.isTupleTypeNode(type)) {
+                const el = type.elements[step.element];
+                if (!el) {
+                    return [];
+                }
+                const inner = ts.isNamedTupleMember(el) ? el.type : el;
+                return [
+                    {
+                        type: ts.isOptionalTypeNode(inner) ? inner.type : inner,
+                    },
+                ];
+            }
+        } else if (ts.isTypeLiteralNode(type)) {
+            return this.memberChildren(type.members, step.member);
+        }
+        if (!ts.isTypeReferenceNode(type)) {
+            return [];
+        }
+        const name = type.typeName.getText(this.file);
+        // Every element of a `Poly` or `LaneSum` also accepts a collection.
+        if (name === 'Poly' || name === 'LaneSum') {
+            return 'element' in step ? [{ type: 'signal' }] : [];
+        }
+        const arg = type.typeArguments?.[0];
+        if (name === 'OrArray' && arg) {
+            return 'element' in step ? [{ type: arg }] : [];
+        }
+        const alias = this.aliases.get(name);
+        if (alias) {
+            return this.children(alias, step, depth + 1);
+        }
+        if ('element' in step || OUTPUT_TYPES.has(name)) {
+            return [];
+        }
+        const out: SlotChild[] = [];
+        const visit = (iface: string, d: number) => {
+            if (d > MAX_DEPTH) {
+                return;
+            }
+            for (const decl of this.interfaces.get(iface) ?? []) {
+                out.push(...this.memberChildren(decl.members, step.member));
+                for (const clause of decl.heritageClauses ?? []) {
+                    for (const base of clause.types) {
+                        visit(base.expression.getText(this.file), d + 1);
+                    }
+                }
+            }
+        };
+        visit(name, depth + 1);
+        return out;
+    }
+
+    private memberChildren(
+        list: ts.NodeArray<ts.TypeElement>,
+        key: string,
+    ): SlotChild[] {
+        return list.flatMap((m) =>
+            m.name &&
+            memberName(m.name) === key &&
+            ts.isPropertySignature(m) &&
+            m.type
+                ? [{ hints: docHints(jsDocText(m)), type: m.type }]
+                : [],
+        );
     }
 
     isVideoInterface(name: string): boolean {

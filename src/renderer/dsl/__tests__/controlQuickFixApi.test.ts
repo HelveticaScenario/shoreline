@@ -103,8 +103,10 @@ describe('computeControlQuickFixes — API methods and functions', () => {
     });
 
     test('a summary naming another param documents none of the first', () => {
-        const { fixes } = fixesAt(`$sine('c4').delay(|)`);
-        expect(addTitles(fixes)).toEqual([]);
+        const { source, fixes } = fixesAt(`$sine('c4').delay(|)`);
+        expect(apply(source, addFix(fixes, 'time'))).toBe(
+            `$sine('c4').delay($slider('time', 0, 0, 5))`,
+        );
     });
 
     test('a param with no stated default is wrapped but never added', () => {

@@ -159,16 +159,27 @@ export function controlRef(
     };
 }
 
-/** A param spec from doc-stated hints, over the generic 0–5 knob. */
-export function hintedRef(name: string, hints: DocHints): ParamRef {
+/** A param spec from doc-stated hints, over the generic 0–5 knob. Without
+ *  a stated default it starts at 0, or the range's nearest end to 0. Its
+ *  default is known when stated, or when the param is `required`, which
+ *  has no unset value to keep. */
+export function hintedRef(
+    name: string,
+    hints: DocHints,
+    required = false,
+): ParamRef {
     const spec: ParamSpec = hints.range
-        ? closedControl(hints.range.min, hints.range.max, hints.range.min)
+        ? closedControl(
+              hints.range.min,
+              hints.range.max,
+              Math.min(Math.max(0, hints.range.min), hints.range.max),
+          )
         : { ...GENERIC_SPEC };
     if (hints.defaultValue !== undefined) {
         spec.defaultValue = hints.defaultValue;
     }
     return {
-        knownDefault: hints.defaultValue !== undefined,
+        knownDefault: hints.defaultValue !== undefined || required,
         label: name,
         spec,
     };

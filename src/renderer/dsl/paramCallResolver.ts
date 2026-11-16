@@ -23,14 +23,25 @@ import {
     schemaParamRef,
 } from './apiParamControls';
 import type { ParamRef, SchemaEntry } from './apiParamControls';
-import type { ApiParam, ApiSignature, DocHints } from './apiTypeReader';
+import { docHints } from './apiTypeReader';
+import type {
+    ApiParam,
+    ApiSignature,
+    DocHints,
+    SlotStep,
+} from './apiTypeReader';
 import type { ParamLiteral } from './paramControls';
 import { createFamilyReader, splitChain } from './receiverFamily';
+import { schemaSlot } from './schemaSlots';
 
 export interface ResolvedCall {
     /** The param the argument at `index` sets, or null when a control
      *  cannot drive it. */
     argParam(index: number): ParamRef | null;
+    /** The param a value at `path` inside the argument at `index` sets — an
+     *  element of a poly array, a tuple position, an option member — or
+     *  null when a control cannot drive it. */
+    slot(index: number, path: readonly SlotStep[]): ParamRef | null;
     /** The option object argument `index` accepts, by member key (null for
      *  a member a control cannot drive), or null when it takes none. */
     options(index: number): ReadonlyMap<string, ParamRef | null> | null;
@@ -88,10 +99,49 @@ export function createCallResolver(
         chained: boolean,
     ): ResolvedCall => {
         const positionals = schema.positionalArgs ?? [];
+        const props: Record<string, unknown> =
+            schema.paramsSchema?.properties ?? {};
+        const defs: Record<string, unknown> =
+            (schema.paramsSchema as { $defs?: Record<string, unknown> })
+                .$defs ?? {};
         const config = new Map<string, ParamRef | null>();
-        for (const key of Object.keys(schema.paramsSchema?.properties ?? {})) {
+        for (const key of Object.keys(props)) {
             config.set(key, schemaRef(schema, key));
         }
+        const isSignalParam = (name: string) =>
+            schema.signalParams.some((p) => p.name === name);
+        /** A slot inside param `name`. One reached through array elements
+         *  alone takes the param's own control; one inside a nested member
+         *  takes a control named after that member. */
+        const paramSlot = (
+            name: string,
+            path: readonly SlotStep[],
+        ): ParamRef | null => {
+            if (path.length === 0 && isSignalParam(name)) {
+                return schemaRef(schema, name);
+            }
+            const found = schemaSlot(props[name], path, defs);
+            if (!found) {
+                return null;
+            }
+            const members = path.flatMap((s) =>
+                'member' in s ? [s.member] : [],
+            );
+            if (members.length === 0 && isSignalParam(name)) {
+                return schemaRef(schema, name);
+            }
+            const prop = props[name] as { description?: unknown } | undefined;
+            const description =
+                members.length > 0
+                    ? found.description
+                    : typeof prop?.description === 'string'
+                      ? prop.description
+                      : null;
+            return hintedRef(
+                members.at(-1) ?? name,
+                docHints(description ?? ''),
+            );
+        };
         return {
             argParam: (i) => {
                 const pi = argToPositional(i);
@@ -100,6 +150,18 @@ export function createCallResolver(
                     : schemaRef(schema, positionals[pi].name);
             },
             options: (i) => (i === configSlot ? config : null),
+            slot: (i, path) => {
+                const pi = argToPositional(i);
+                if (pi !== null) {
+                    return positionals[pi]
+                        ? paramSlot(positionals[pi].name, path)
+                        : null;
+                }
+                const [first, ...rest] = path;
+                return i === configSlot && first && 'member' in first
+                    ? paramSlot(first.member, rest)
+                    : null;
+            },
             positionalNames: (count) => {
                 const names = new Set<string>();
                 // A chain injects the first positional, so it is always set.
@@ -126,6 +188,7 @@ export function createCallResolver(
             name: string,
             signal: boolean,
             hints: DocHints,
+            required = false,
         ): ParamRef | null => {
             if (!signal) {
                 return null;
@@ -133,7 +196,7 @@ export function createCallResolver(
             const source = controls[name];
             return source
                 ? controlRef(name, source, byName)
-                : hintedRef(name, hints);
+                : hintedRef(name, hints, required);
         };
         const paramAt = (i: number): ApiParam | undefined => {
             const last = sig[sig.length - 1];
@@ -142,7 +205,32 @@ export function createCallResolver(
         return {
             argParam: (i) => {
                 const p = paramAt(i);
-                return p ? ref(p.name, p.signal, p.hints) : null;
+                return p ? ref(p.name, p.signal, p.hints, !p.optional) : null;
+            },
+            slot: (i, path) => {
+                const p = paramAt(i);
+                const found = p?.slot(path);
+                if (!p || !found) {
+                    return null;
+                }
+                const members = path.flatMap((s) =>
+                    'member' in s ? [s.member] : [],
+                );
+                const [first] = members;
+                if (first === undefined) {
+                    return ref(p.name, true, p.hints, !p.optional);
+                }
+                // A direct option member keeps the hints the option object
+                // resolves for it, `@param` docs and forwarded ones included.
+                const member =
+                    members.length === 1 && 'member' in path[0]
+                        ? p.options?.get(first)
+                        : undefined;
+                return ref(
+                    members[members.length - 1],
+                    true,
+                    found.hints ?? member?.hints ?? {},
+                );
             },
             options: (i) => {
                 const p = paramAt(i);
