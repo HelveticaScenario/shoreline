@@ -346,6 +346,11 @@ describe('fold sites', () => {
         expect(folds(`${wide}$saw('c3').add($g1(wide)).outMono()`)).toEqual([
             "$saw('c3').add($g1(wide))‹.mono()›",
         ]);
+        expect(
+            folds(
+                'const $g1 = () => $stereo(0, 1)\n$`0`.add($g1(0)).outMono()',
+            ),
+        ).toEqual(['$`0`.add($g1(0))‹.mono()›']);
     });
 
     test('plain values, patterns and controls are mono', () => {

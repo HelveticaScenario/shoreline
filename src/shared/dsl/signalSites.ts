@@ -253,6 +253,28 @@ export function collectSignalSites(
         ts.isParenthesizedExpression(value);
 
     /**
+     * The signals `$g1(signals)` wraps, when `value` is a call to the DSL's
+     * own group helper rather than one the patch declares.
+     */
+    const groupedSignals = (
+        value: TS.Expression,
+    ): TS.Expression | undefined => {
+        if (
+            !ts.isCallExpression(value) ||
+            !ts.isIdentifier(value.expression) ||
+            !SIGNAL_GROUP_HELPERS.has(value.expression.text) ||
+            value.arguments.length !== 1 ||
+            ts.isSpreadElement(value.arguments[0]) ||
+            checker
+                .getSymbolAtLocation(value.expression)
+                ?.valueDeclaration?.getSourceFile() === sourceFile
+        ) {
+            return undefined;
+        }
+        return value.arguments[0];
+    };
+
+    /**
      * A value written at `slot` of the call at `call`, read by an input that
      * folds a stereo signal when `folding`.
      */
@@ -281,13 +303,9 @@ export function collectSignalSites(
             });
             return;
         }
-        if (
-            ts.isCallExpression(value) &&
-            ts.isIdentifier(value.expression) &&
-            SIGNAL_GROUP_HELPERS.has(value.expression.text) &&
-            value.arguments.length === 1
-        ) {
-            emitValue(call, slot, value.arguments[0], inputClass, folding);
+        const grouped = groupedSignals(value);
+        if (grouped) {
+            emitValue(call, slot, grouped, inputClass, folding);
             return;
         }
         const type = checker.getTypeAtLocation(value);
@@ -650,13 +668,9 @@ export function collectSignalSites(
             return moduleChannels(module, node.arguments, 0);
         }
         // A group only arranges its signals' lanes; their channels stand.
-        if (
-            ts.isIdentifier(callee) &&
-            SIGNAL_GROUP_HELPERS.has(callee.text) &&
-            node.arguments.length === 1 &&
-            !ts.isSpreadElement(node.arguments[0])
-        ) {
-            return channelsOf(node.arguments[0]);
+        const grouped = groupedSignals(node);
+        if (grouped) {
+            return channelsOf(grouped);
         }
         const global =
             ts.isIdentifier(callee) && own(tables.globals, callee.text);
