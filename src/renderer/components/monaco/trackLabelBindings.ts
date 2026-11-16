@@ -242,3 +242,65 @@ export function withinPatch<T extends { start?: number }>(
 ): T[] {
     return items.filter((d) => d.start === undefined || d.start < view.length);
 }
+
+/** Each program's global value names, declared by the libs. */
+const GLOBAL_NAMES = new WeakMap<TS.Program, Set<string>>();
+
+function globalNames(ts: typeof TS, program: TS.Program): Set<string> {
+    let names = GLOBAL_NAMES.get(program);
+    if (!names) {
+        names = new Set();
+        const lib = program
+            .getSourceFiles()
+            .find((f) => f.isDeclarationFile && !ts.isExternalModule(f));
+        const symbols = lib
+            ? program
+                  .getTypeChecker()
+                  .getSymbolsInScope(lib, ts.SymbolFlags.Value)
+            : [];
+        for (const symbol of symbols) {
+            if (
+                symbol.declarations?.every(
+                    (d) => d.getSourceFile().isDeclarationFile,
+                )
+            ) {
+                names.add(symbol.name);
+            }
+        }
+        GLOBAL_NAMES.set(program, names);
+    }
+    return names;
+}
+
+/**
+ * One diagnostic per label whose name a global already has, on the name. The
+ * appended declaration sits in a module, where it would shadow the global
+ * without complaint, while the run cannot bind such a name.
+ */
+export function globalNameDiagnostics(
+    ts: typeof TS,
+    program: TS.Program,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): TS.Diagnostic[] {
+    if (view.bindings.length === 0) {
+        return [];
+    }
+    const globals = globalNames(ts, program);
+    return view.analysis.tracks.flatMap(({ track }, i): TS.Diagnostic[] => {
+        if (!globals.has(track.name)) {
+            return [];
+        }
+        const { nameStart, nameEnd } = view.bindings[i];
+        return [
+            {
+                category: ts.DiagnosticCategory.Error,
+                code: TRACK_LABEL_CODE,
+                file: sourceFile,
+                length: nameEnd - nameStart,
+                messageText: `${track.name} is already taken, so this track label cannot bind it`,
+                start: nameStart,
+            },
+        ];
+    });
+}

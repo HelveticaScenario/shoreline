@@ -3,9 +3,9 @@
  * rewrite its label's prefix, its gain fader and pan knob the options of its
  * `.track(...)`, and the master fader the `$setMainGain(...)` level.
  *
- * A track is found at its label's anchor, the offset the label had when the
- * playing patch ran, moved along with the user's edits since, and must still
- * carry the track's name there. Each function returns one text edit, or null
+ * A track is found at its label's anchor, an offset within the label that
+ * the playing patch's label had when it ran, moved along with the user's
+ * edits since, and must still carry the track's name there. Each function returns one text edit, or null
  * when the source has no editable form for it; the caller then applies only
  * the live graph update.
  */
@@ -120,9 +120,13 @@ function trackAt(
     anchor: number,
     name: string,
 ): ts.LabeledStatement | undefined {
+    // Anywhere in the label: text typed at the label's start, such as a
+    // prefix, moves the anchor inside it.
     const statement = file.statements.find(
         (st): st is ts.LabeledStatement =>
-            ts.isLabeledStatement(st) && st.label.getStart(file) === anchor,
+            ts.isLabeledStatement(st) &&
+            st.label.getStart(file) <= anchor &&
+            anchor <= st.label.end,
     );
     if (!statement || !ts.isExpressionStatement(statement.statement)) {
         return undefined;
@@ -138,7 +142,8 @@ export function computeTrackStateEdit(
     name: string,
     state: TrackState,
 ): TrackSourceEdit | null {
-    const statement = trackAt(parseDsl(source), anchor, name);
+    const file = parseDsl(source);
+    const statement = trackAt(file, anchor, name);
     if (!statement) {
         return null;
     }
@@ -146,7 +151,11 @@ export function computeTrackStateEdit(
     const text = withTrackState(label, state);
     return text === label
         ? null
-        : { end: statement.label.end, start: anchor, text };
+        : {
+              end: statement.label.end,
+              start: statement.label.getStart(file),
+              text,
+          };
 }
 
 /** `expression` without the `.scope(...)` calls chained at its end. */

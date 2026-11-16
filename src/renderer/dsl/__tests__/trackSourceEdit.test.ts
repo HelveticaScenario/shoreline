@@ -207,9 +207,23 @@ describe('computeTrackOptionEdit — .track options', () => {
         ).toBe(`lead: $sine('c2')\n_lead: $saw('c3')`);
     });
 
+    test('an anchor moved inside the label by a typed prefix still finds it', () => {
+        expect(
+            applied(
+                `_lead: $saw('c3')`,
+                computeTrackStateEdit(
+                    `_lead: $saw('c3')`,
+                    1,
+                    'lead',
+                    STATES.both,
+                ),
+            ),
+        ).toBe(`S__lead: $saw('c3')`);
+    });
+
     test('an anchor no longer on the track is no edit', () => {
         expect(
-            computeTrackStateEdit(`lead: $saw('c3')`, 3, 'lead', STATES.mute),
+            computeTrackStateEdit(`lead: $saw('c3')`, 9, 'lead', STATES.mute),
         ).toBeNull();
         expect(
             computeTrackStateEdit(`bass: $saw('c3')`, 0, 'lead', STATES.mute),

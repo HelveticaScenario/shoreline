@@ -8,15 +8,18 @@ import { describe, expect, test } from 'vitest';
 import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
-import { trackLabelView } from '../../../renderer/components/monaco/trackLabelBindings';
+import {
+    globalNameDiagnostics,
+    trackLabelView,
+} from '../../../renderer/components/monaco/trackLabelBindings';
 
 const LIB_FILE = '/modular/dsl-lib.d.ts';
 const PATCH_FILE = '/modular/patch.js';
 
 const libSource = buildLibSource(schemas);
 
-/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
-function diagnostics(patch: string): string[] {
+/** `patch` compiled against the DSL lib, as the editor compiles it. */
+function programFor(patch: string): ts.Program {
     const options: ts.CompilerOptions = {
         allowJs: true,
         allowNonTsExtensions: true,
@@ -43,8 +46,12 @@ function diagnostics(patch: string): string[] {
         },
         readFile: (name) => files.get(name) ?? base.readFile(name),
     };
-    const program = ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
-    return ts.getPreEmitDiagnostics(program).map((d) => {
+    return ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
+}
+
+/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
+function diagnostics(patch: string): string[] {
+    return ts.getPreEmitDiagnostics(programFor(patch)).map((d) => {
         const line = d.file
             ? `${d.file.fileName}:${d.file.getLineAndCharacterOfPosition(d.start ?? 0).line + 1}`
             : '?';
@@ -191,5 +198,21 @@ verb: $bus((m) => m)
 
     test('labels are not reported as unused', () => {
         expect(labelErrors(`lead: $saw('c3')`)).toEqual([]);
+    });
+
+    test('a label named after a global is flagged on its name', () => {
+        const patch = `Math: $saw('c2')\n_console$2: $sine('c3')\nlead: $saw('c3')`;
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        expect(
+            globalNameDiagnostics(
+                ts,
+                program,
+                program.getSourceFile(PATCH_FILE)!,
+                view,
+            ).map((d) =>
+                patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0)),
+            ),
+        ).toEqual(['Math', 'console']);
     });
 });
