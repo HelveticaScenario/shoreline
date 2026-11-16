@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    Tracks replace `.out()` and `.outMono()`. Put a label in front of a line to hear it in the mixer: the label names the track, `_name` mutes it and `S_name` solos it, `name$2` plays it on channels 2 and 3 and `name$2m` in mono on channel 2. `.track({ gain, pan, spread, sends })` sets how it mixes, and `.track().scope()` scopes the mixdown. The name then reads as the track's final signal anywhere in the patch (handy for sidechains), and a labelled `$bus` reads as the bus, so tracks can send to it. The mixer's mute and solo buttons rewrite the prefix, so a track is muted, soloed or neither, and soloing a muted track unmutes it; its fader and pan knob rewrite `.track()`. `$setOutputGain` is now `$setMainGain`, and `$trackTap` takes a track's name.
+    Tracks replace `.out()` and `.outMono()`. Put a label in front of a line to hear it in the mixer: the label names the track, `_name` mutes it and `S_name` solos it, `name$2` plays it on channels 2 and 3 and `name$2m` in mono on channel 2. `.track({ gain, pan, spread, sends })` sets how it mixes, and `.track().scope()` scopes the mixdown. The name then reads as the track's final signal anywhere in the patch (handy for sidechains). `$bus()` takes no callback: it is the mix of what tracks send to it, so chain effects on it and label the result, and other tracks send to that track's name. The mixer's mute and solo buttons rewrite the prefix, so a track is muted, soloed or neither, and soloing a muted track unmutes it; its fader and pan knob rewrite `.track()`. `$setOutputGain` is now `$setMainGain`, and `$trackTap` takes a track's name.
 
     ```js
     // before
@@ -9,7 +9,7 @@ body: |-
     $sine("c4").send(verb, 2).out({ label: "lead", pan: -2 })
     $setOutputGain(3)
     // after
-    verb: $bus((m) => m.plate())
+    verb: $bus().plate()
     _bass$2m: $saw("c2")
     lead: $sine("c4").track({ pan: -2, sends: [verb, 2] })
     $setMainGain(3)

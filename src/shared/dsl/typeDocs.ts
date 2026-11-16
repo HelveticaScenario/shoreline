@@ -324,7 +324,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         description:
             'A label in front of a top-level statement sends its signal to the mixer as a track. ' +
             "The name is the track's name in the mixer, with underscores shown as spaces, and reads as the track's final signal in the rest of the patch " +
-            "(the bus itself for a labelled `$bus`). `_name` mutes the track and `S_name` (or `s_name`) solos it; the mixer's mute and solo buttons rewrite this prefix. " +
+            "(and, for a track that starts from `$bus()`, as the bus other tracks send to). `_name` mutes the track and `S_name` (or `s_name`) solos it; the mixer's mute and solo buttons rewrite this prefix. " +
             '`name$2` plays the track in stereo on channels 2 and 3, and `name$2m` in mono on channel 2; without a suffix a track plays in stereo on channels 0 and 1. ' +
             'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
@@ -724,24 +724,18 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
 
     {
         description:
-            'Create a send-return bus. Signals are routed to the bus through the `sends` option of `.track()`. ' +
-            "The callback receives a Collection that is the mix of all sends and returns the processed signal; label the bus to hear it, and its label's name reads as the bus.",
+            'A send-return bus: one stereo lane, the mix of every signal sent to it through the `sends` option of `.track()`. ' +
+            "Chain effects on it and label the result to hear it. That track is the bus: its name is what `sends` takes, and reads as the track's signal like any other name. " +
+            'A bus has one track, and a bus track cannot send to another bus.',
         examples: [
-            "fx: $bus((mixed) => $plate(mixed));\ntone: $saw('a').track({ sends: [fx, 3] });\nbass: $sine('a2').track({ sends: fx });",
-            "// One track feeding two buses at different levels\nverb: $bus((mixed) => mixed.plate());\necho: $bus((mixed) => mixed.delay(0.25));\nkeys: $saw('c3').track({ sends: [[verb, 2], [echo, 4]] });",
+            "fx: $bus().plate()\ntone: $saw('a').track({ sends: [fx, 3] })\nbass: $sine('a2').track({ sends: fx })",
+            "// One track feeding two buses at different levels\nverb: $bus().plate().track({ gain: 3 })\necho: $bus().delay(0.25)\nkeys: $saw('c3').track({ sends: [[verb, 2], [echo, 4]] })",
         ],
         group: 'Advanced',
         name: '$bus',
-        params: [
-            {
-                name: 'cb',
-                type: '(mixed: Collection) => Poly<Signal> | void',
-                description:
-                    "Called at patch finalization with the mixed sends. Returns the signal the bus's track plays.",
-            },
-        ],
-        returns: "Bus handle named in a track's `sends`, with .track()",
-        signature: '$bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus',
+        params: [],
+        returns: "The bus's signal, to chain on and label",
+        signature: '$bus(): BusSignal',
     },
     {
         description:

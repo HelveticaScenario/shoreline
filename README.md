@@ -77,7 +77,7 @@ fm: carrier;
 **Tracks:** a label in front of a statement sends it to the mixer. `_name` mutes it, `S_name` solos it, and `name$2` plays it on channels 2 and 3 (`name$2m` in mono on channel 2). `.track()` sets its gain, pan, spread and sends.
 
 ```javascript
-verb: $bus((wet) => wet.plate()).track({ gain: 3 });
+verb: $bus().plate().track({ gain: 3 });
 bass$0m: $saw('c2').lpf('400hz');
 lead: $sine('c5').track({ pan: -2, sends: [verb, 2] });
 ```
