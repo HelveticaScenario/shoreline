@@ -467,6 +467,17 @@ describe('fold sites', () => {
         ).toEqual(['wide‹.mono()›']);
     });
 
+    test('a .track() a mono label plays through a const folds', () => {
+        expect(
+            folds(
+                `${wide}const t = $saw('c3').track({ gain: wide })\nout$0m: t`,
+            ),
+        ).toEqual(['wide‹.mono()›']);
+        expect(
+            folds(`${wide}out$0m: ($saw('c3').track({ gain: wide }))`),
+        ).toEqual(['wide‹.mono()›']);
+    });
+
     test("a stereo module's mono outputs are mono", () => {
         expect(folds(`out$0m: $enosc('c3')`)).toEqual([
             "$enosc('c3')‹._all.mono()›",

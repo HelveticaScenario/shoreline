@@ -815,26 +815,66 @@ export function collectSignalSites(
     };
 
     /** Whether `call` is chained into the expression of a mono track's label. */
-    const isMonoTrackCall = (call: TS.CallExpression): boolean => {
-        let node: TS.Node = call;
-        while (
-            ts.isPropertyAccessExpression(node.parent) ||
-            (ts.isCallExpression(node.parent) &&
-                node.parent.expression === node)
-        ) {
-            node = node.parent;
+    /**
+     * Whether a mono track's label plays `node`: through the chain calls,
+     * parentheses and `? :` branches around it, and through a top-level
+     * `const` a label names.
+     */
+    const playsMono = (node: TS.Node, depth = 0): boolean => {
+        let value: TS.Node = node;
+        for (;;) {
+            const parent: TS.Node = value.parent;
+            if (
+                ts.isPropertyAccessExpression(parent) ||
+                ts.isParenthesizedExpression(parent) ||
+                (ts.isCallExpression(parent) && parent.expression === value) ||
+                (ts.isConditionalExpression(parent) &&
+                    parent.condition !== value)
+            ) {
+                value = parent;
+                continue;
+            }
+            break;
         }
-        const labelled = node.parent?.parent;
+        const parent = value.parent;
         if (
-            !ts.isExpressionStatement(node.parent) ||
-            !labelled ||
-            !ts.isLabeledStatement(labelled)
+            ts.isExpressionStatement(parent) &&
+            ts.isLabeledStatement(parent.parent)
         ) {
-            return false;
+            const track = parseTrackLabel(parent.parent.label.text);
+            return !('error' in track) && track.mono;
         }
-        const track = parseTrackLabel(labelled.label.text);
-        return !('error' in track) && track.mono;
+        if (
+            depth < 4 &&
+            ts.isVariableDeclaration(parent) &&
+            parent.initializer === value &&
+            ts.isIdentifier(parent.name)
+        ) {
+            const name = parent.name.text;
+            let found = false;
+            const visit = (n: TS.Node): void => {
+                if (
+                    !found &&
+                    ts.isIdentifier(n) &&
+                    n.text === name &&
+                    n !== parent.name &&
+                    playsMono(n, depth + 1)
+                ) {
+                    found = true;
+                }
+                if (!found) {
+                    ts.forEachChild(n, visit);
+                }
+            };
+            visit(sourceFile);
+            return found;
+        }
+        return false;
     };
+
+    /** Whether `call` is a `.track(...)` a mono track's label plays. */
+    const isMonoTrackCall = (call: TS.CallExpression): boolean =>
+        playsMono(call);
 
     const visitCall = (node: TS.CallExpression): void => {
         const callee = node.expression;
@@ -922,8 +962,19 @@ export function collectSignalSites(
             continue;
         }
         const track = parseTrackLabel(statement.label.text);
-        // A `.track(...)` reads its receiver itself, as a chain method.
-        if ('error' in track || isTrackChain(statement.statement.expression)) {
+        // A `.track(...)` reads its receiver itself, as a chain method, and a
+        // bus plays what its callback returns.
+        const labelled = statement.statement.expression;
+        const typeName = checker
+            .getTypeAtLocation(labelled)
+            .getSymbol()
+            ?.getName();
+        if (
+            'error' in track ||
+            isTrackChain(labelled) ||
+            typeName === 'Track' ||
+            typeName === 'Bus'
+        ) {
             continue;
         }
         const { line, character } = sourceFile.getLineAndCharacterOfPosition(

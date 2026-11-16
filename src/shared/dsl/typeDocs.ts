@@ -331,7 +331,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             "lead: $saw('c3')                 // Stereo on channels 0 and 1",
             "_pad$2: $sine($chord('C4[maj7]'))  // Muted, on channels 2 and 3",
             'S_click$4m: $noise()             // Soloed, mono on channel 4',
-            "kick: $tr808.kick($`x ~ x ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
+            "kick: $tr808.kick($`c ~ c ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
         ],
         name: 'Track labels',
         seeAlso: ['TrackOptions', 'Collection'],

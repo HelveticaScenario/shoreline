@@ -9,7 +9,7 @@ body: |-
     $unstable.reverb($saw($chord('C3[m7]'))).out()
     // after
     const wet = $plate($stereo($saw('c3'), $saw('g3')))
-    wet$1m: $right(wet)
+    right$1m: $right(wet)
     pad: $pan($saw($chord('C3[m7]')).amp(2.5), 0, { spread: 5 })
         .unstable.reverb()
     ```
