@@ -23,35 +23,6 @@ export const DELAY_SITE: ModuleSiteInfo = {
     stereo: 'lift',
 };
 
-/** `$ott(input, { sidechain, depth, … })`: every band lifts with each signal it reads. */
-const OTT_SITE: ModuleSiteInfo = {
-    buffers: [],
-    chainable: false,
-    folds: [],
-    inputs: Object.fromEntries(
-        [
-            'input',
-            'sidechain',
-            'depth',
-            'lowMidFreq',
-            'midHighFreq',
-            'threshold',
-            'ratio',
-            'upwardThreshold',
-            'upwardRatio',
-            'attack',
-            'release',
-            'makeup',
-            'lowGain',
-            'midGain',
-            'highGain',
-        ].map((name) => [name, 'cv'] as const),
-    ),
-    monoOutputs: [],
-    positional: ['input'],
-    stereo: 'lift',
-};
-
 /** `$cross(count, playhead, range)`: keyframes of constants, played by `playhead`. */
 const CROSS_SITE: ModuleSiteInfo = {
     buffers: [],
@@ -108,7 +79,7 @@ export function buildSignalSiteTables(
     const tables: SignalSiteTables = {
         chainMethods: CHAIN_METHODS,
         globals: GLOBAL_CHANNELS,
-        modules: { $cross: CROSS_SITE, $delay: DELAY_SITE, $ott: OTT_SITE },
+        modules: { $cross: CROSS_SITE, $delay: DELAY_SITE },
         monoMembers: MONO_MEMBERS,
         // A pattern is the `$cycle` that plays it, which is mono.
         monoTypes: [...PATTERN_TYPES],

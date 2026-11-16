@@ -366,17 +366,10 @@ describe('fold sites', () => {
         expect(folds('$saw($`c3 e3`.cycle()).outMono()')).toEqual([]);
     });
 
-    test('a helper lifts with the signals it reads', () => {
+    test('a crossfade lifts with its playhead', () => {
         expect(folds(`${wide}$cross(3, wide.range(0, 1)).outMono()`)).toEqual([
             '$cross(3, wide.range(0, 1))‹.mono()›',
         ]);
-        expect(folds(`$ott($saw('c3')).outMono()`)).toEqual([]);
-        expect(folds(`${wide}$ott(wide).outMono()`)).toEqual([
-            '$ott(wide)‹.mono()›',
-        ]);
-        expect(
-            folds(`${wide}$ott($saw('c3'), { lowGain: wide }).outMono()`),
-        ).toEqual(["$ott($saw('c3'), { lowGain: wide })‹.mono()›"]);
         expect(
             folds(`$cross(3, $sine('1hz').range(0, 1), [0, 5]).outMono()`),
         ).toEqual([]);
@@ -517,36 +510,5 @@ describe('fold sites', () => {
             "$c($saw('c3'), wide)‹.mono()›",
         ]);
         expect(folds(`$c($saw('c3'), $saw('e3')).outMono()`)).toEqual([]);
-    });
-});
-
-describe('helper tables', () => {
-    test('$ott reads every signal field of its config', () => {
-        const host = ts.createCompilerHost(OPTIONS);
-        const readDefault = host.getSourceFile.bind(host);
-        host.getSourceFile = (name, version) =>
-            name === 'dsl.d.ts'
-                ? ts.createSourceFile(name, lib, version, true)
-                : readDefault(name, version);
-        host.fileExists = (name) =>
-            name === 'dsl.d.ts' || ts.sys.fileExists(name);
-        const program = ts.createProgram(['dsl.d.ts'], OPTIONS, host);
-        const checker = program.getTypeChecker();
-        let config: ts.Type | undefined;
-        const visit = (node: ts.Node): void => {
-            if (ts.isFunctionDeclaration(node) && node.name?.text === '$ott') {
-                config = checker.getTypeAtLocation(node.parameters[1]);
-            }
-            ts.forEachChild(node, visit);
-        };
-        visit(program.getSourceFile('dsl.d.ts')!);
-        const fields = checker
-            .getNonNullableType(config!)
-            .getProperties()
-            .map((p) => p.name)
-            .filter((name) => name !== 'id');
-        expect(Object.keys(tables.modules.$ott.inputs).sort()).toEqual(
-            ['input', ...fields].sort(),
-        );
     });
 });
