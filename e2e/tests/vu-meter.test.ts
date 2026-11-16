@@ -279,6 +279,20 @@ test.describe('vu meter panel', () => {
         expect(reverted).toContain(`lead: $sine($hz(440))\n`);
     });
 
+    test('the main fader writes $setMainGain into the code', async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+        await window
+            .locator('.vu-meter--main .vu-meter-canvas')
+            .click({ position: { x: 20, y: 15 } });
+        await window.waitForTimeout(300);
+        const edited = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        expect(edited).toMatch(/\$setMainGain\([\d.]+\)/);
+    });
+
     test('right-click resets the gain to unity in audio and code', async ({
         window,
     }) => {

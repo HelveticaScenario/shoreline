@@ -744,9 +744,14 @@ function App() {
         ): boolean => {
             const model = editorRef.current?.getModel();
             const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
-            const anchor =
-                idx === -1 ? null : vuDecorationsRef.current?.offsetOf(idx);
-            if (!model || anchor == null || !vuSourceEditableRef.current) {
+            if (!model || idx === -1 || !vuSourceEditableRef.current) {
+                return false;
+            }
+            // The main strip has no label: its edit finds its own place.
+            const anchor = vuOutputsRef.current[idx].main
+                ? 0
+                : vuDecorationsRef.current?.offsetOf(idx);
+            if (anchor == null) {
                 return false;
             }
             const edit = makeEdit(model.getValue(), anchor, key);
