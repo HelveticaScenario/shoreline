@@ -134,16 +134,50 @@ describe('track labels in the editor', () => {
         });
     };
 
-    test("a bus's name takes sends and a signal's name is its tap", () => {
+    test("a bus track's name takes sends and is its signal", () => {
         expect(
             labelErrors(`
-verb: $bus((m) => m.plate()).track({ gain: 3 })
+verb: $bus().plate().wet(2).track({ gain: 3 })
+echo: $bus().mi.chorus().delay(0.25)
+const b = $bus()
+room: b.pipe((s) => s.lpf('c5'))
 kick: $sine('c1')
 bass: $saw('c2').amp(kick.active).track({ sends: [verb, 2] })
-lead: $saw('c3').track({ pan: kick.panning, sends: verb }).scope()
-kick.level.range(0, 1)
+lead: $saw('c3').track({ pan: kick.panning, sends: [verb, [echo, 2], room] }).scope()
+pad: $sine('c4').amp($motionFollower(verb)).amp(verb.active)
 `),
         ).toEqual([]);
+    });
+
+    test('a signal that only reads a bus is not a send target', () => {
+        expect(
+            labelErrors(`
+fx: $lpf($bus(), 'c5')
+lead: $saw('c3').track({ sends: fx })
+`),
+        ).toHaveLength(1);
+        expect(
+            labelErrors(`
+fx: $bus().lpf('c5').range(0, 1, -5, 5)
+lead: $saw('c3').track({ sends: fx })
+`),
+        ).toHaveLength(1);
+    });
+
+    test('a bus signal itself, and a bus track sending, are errors', () => {
+        expect(
+            labelErrors(`
+const b = $bus()
+verb: b.plate()
+lead: $saw('c3').track({ sends: b })
+`),
+        ).toHaveLength(1);
+        expect(
+            labelErrors(`
+a: $bus()
+b: $bus().track({ sends: a })
+`),
+        ).toHaveLength(1);
     });
 
     test('a name reads before its label', () => {
@@ -184,7 +218,7 @@ lead.lpf(2)
         expect(
             labelErrors(`
 lead: $saw('c3').track({ sends: verb })
-verb: $bus((m) => m)
+verb: $bus().plate()
 `),
         ).toEqual([]);
     });

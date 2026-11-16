@@ -42,6 +42,7 @@ import {
     outputSetOf,
 } from './outputResolution';
 import { isPatternPayload, patternSignal } from './patterns';
+import { busRootOf, carryBusRoot, setBusRoot } from './busRoots';
 import { isPlainObject } from './plainObject';
 import { trackNameKey } from '../../shared/dsl/trackLabels';
 import {
@@ -49,7 +50,7 @@ import {
     expandSignalGroups,
     isSignalGroupLike,
 } from './signalGroups';
-import type { TrackTapSources, PendingTrackTap } from './trackTap';
+import type { TrackTapSources, PendingTrackTap, TrackTap } from './trackTap';
 import {
     type Channels,
     collectionChannels,
@@ -148,10 +149,10 @@ export function $cartesian<A extends unknown[][]>(
 }
 
 /**
- * A send to a bus: the bus (or its `.track()`) alone sends at full level,
- * `[bus, gain]` at `gain`.
+ * A send to a bus, named by its track's name: the name alone sends at full
+ * level, `[name, gain]` at `gain`.
  */
-export type Send = Bus | Track | [bus: Bus | Track, gain: PolySignal];
+export type Send = TrackTap | [bus: TrackTap, gain: PolySignal];
 
 /** Options of `.track()`: how a track mixes into its output channels. */
 export interface TrackOptions {
@@ -214,72 +215,19 @@ export interface MonoOutGroup extends OutGroupVuState {
     gain?: PolySignal;
 }
 
-/** The bus a send names: a bus, or a bus's `.track()`. */
-function sendBus(value: unknown): Bus | string | undefined {
-    if (value instanceof Bus) {
-        return value;
-    }
-    if (value instanceof Track && value.source instanceof Bus) {
-        return value.source;
-    }
-    // A track's name read before its label runs: a bus if its label turns
-    // out to label one, which `toPatch` settles.
-    if (typeof value === 'object' && value !== null) {
-        return TRACK_BINDINGS.get(value);
-    }
-    return undefined;
-}
-
-/** Each track name's binding read before its label ran, by the value read. */
+/** Each track name's binding, by the value the name reads as. */
 const TRACK_BINDINGS = new WeakMap<object, string>();
 
-/** Mark `value` as track `name`'s binding, read before its label ran. */
+/** Mark `value` as what track `name`'s name reads as. */
 export function markTrackBinding(value: object, name: string): void {
     TRACK_BINDINGS.set(value, name);
 }
 
-/**
- * Whether `value` is one `[bus, gain]` pair rather than a list of sends: a
- * bus followed by something that is neither a bus nor a pair.
- */
-function isSendPair(value: unknown): value is [unknown, PolySignal] {
-    if (!Array.isArray(value) || value.length !== 2) {
-        return false;
-    }
-    const [bus, gain] = value as unknown[];
-    return (
-        sendBus(bus) !== undefined &&
-        sendBus(gain) === undefined &&
-        !(Array.isArray(gain) && sendBus(gain[0]) !== undefined)
-    );
-}
-
-/** The `[bus, gain]` pairs of a track's `sends` option. */
-function resolveSends(
-    sends: Send | Send[] | undefined,
-): [Bus | string, PolySignal | undefined][] {
-    if (sends === undefined) {
-        return [];
-    }
-    const entries =
-        sendBus(sends) !== undefined || isSendPair(sends) ? [sends] : sends;
-    if (!Array.isArray(entries)) {
-        throw new Error(
-            '.track sends must be a $bus, a [bus, gain] pair, or an array of them',
-        );
-    }
-    return entries.map((entry: unknown) => {
-        const bus = sendBus(entry);
-        if (bus) {
-            return [bus, undefined];
-        }
-        if (isSendPair(entry)) {
-            return [sendBus(entry[0])!, entry[1]];
-        }
-        throw new Error(
-            '.track sends: each send must be a $bus or a [bus, gain] pair',
-        );
-    });
+/** The track name `value` is the binding of. */
+function trackBindingName(value: unknown): string | undefined {
+    return typeof value === 'object' && value !== null
+        ? TRACK_BINDINGS.get(value)
+        : undefined;
 }
 
 /**
@@ -317,99 +265,45 @@ interface SendGroup {
 }
 
 /**
- * A send-return bus. Its callback runs in `toPatch`, once every send is
- * known, so a labelled bus reserves its out group (ordinal, name, channels)
- * when its label runs and fills the group's outputs from the callback's
- * result.
+ * A send-return bus: `$bus()`. Its signal is one lane, the mix of every send
+ * to it, known only once every track has run, so it is deferred until
+ * `toPatch`. Sends name the bus by the track rooted at its signal.
  */
 export class Bus {
     private builder: GraphBuilder;
-    private cb: (mixed: Collection) => PolySignal | void;
     private sendGroups: SendGroup[] = [];
-    private outGroups: OutGroup[] = [];
-    private locked: boolean = false;
+    private readonly mix: DeferredModuleOutput;
+    readonly signal: Collection;
+    /** The track rooted at this bus's signal. */
+    trackName: string | undefined;
 
-    constructor(
-        builder: GraphBuilder,
-        cb: (mixed: Collection) => PolySignal | void,
-    ) {
+    constructor(builder: GraphBuilder) {
         this.builder = builder;
-        this.cb = cb;
-
+        this.mix = new DeferredModuleOutput(builder);
+        this.signal = new Collection(this.mix);
+        setBusRoot(this.signal, this);
         builder.addBus(this);
     }
 
-    addSend(value: ModuleOutput | ModuleOutput[], gain?: PolySignal): void {
-        if (this.locked) {
-            throw new Error('`sends` is not allowed in $bus callbacks');
-        }
-        const outputs = Array.isArray(value) ? [...value] : [value];
-        const group: SendGroup = {
-            gain,
-            outputs,
-        };
-        this.sendGroups.push(group);
+    addSend(outputs: ModuleOutput[], gain?: PolySignal): void {
+        this.sendGroups.push({ gain, outputs });
     }
 
-    /**
-     * How the bus's return (its callback's result) mixes into its track,
-     * with the same options as a signal's `.track()` except `sends`: a bus
-     * cannot send to another bus.
-     */
-    track(options: TrackOptions = {}): Track {
-        if (
-            options !== null &&
-            typeof options === 'object' &&
-            'sends' in options
-        ) {
-            throw new Error(
-                '`.track` on a bus cannot take `sends`: a bus cannot send to another bus',
-            );
-        }
-        return new Track(this, options);
-    }
-
-    /** Reserve `group` to be filled with the bus's return. */
-    addOutGroup(group: OutGroup): void {
-        if (this.locked) {
-            throw new Error('a $bus track is not allowed in $bus callbacks');
-        }
-        this.outGroups.push(group);
-    }
-
-    lock() {
-        this.locked = true;
-    }
-
+    /** Build the mix of the sends and point the bus's signal at it. */
     finalize() {
-        const mixFactory = this.builder.getFactory('$mix');
-        const mixed = mixFactory(
-            this.sendGroups.map((e) => {
-                const coll = this.builder.$c(e.outputs);
-                if (e.gain !== undefined) {
-                    return this.builder.getFactory('$gain')(coll, e.gain);
-                }
-                return coll;
-            }),
-        ) as Collection;
-        const result = this.cb(mixed);
-        if (this.outGroups.length === 0) {
+        if (this.sendGroups.length === 0) {
+            this.mix.set(0);
             return;
         }
-        if (result === undefined || result === null) {
-            throw new Error(
-                'a labelled $bus callback must return the signal its track plays',
-            );
-        }
-        const outputs = this.builder.$c(result).items;
-        if (outputs.length === 0) {
-            throw new Error(
-                'a labelled $bus callback returned no signal for its track to play',
-            );
-        }
-        for (const group of this.outGroups) {
-            group.outputs.push(...outputs);
-        }
+        const mixed = this.builder.getFactory('$mix')(
+            this.sendGroups.map((e) => {
+                const coll = this.builder.$c(e.outputs);
+                return e.gain === undefined
+                    ? coll
+                    : this.builder.getFactory('$gain')(coll, e.gain);
+            }),
+        );
+        this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
     }
 }
 
@@ -514,6 +408,7 @@ export class BaseCollection<T extends ModuleOutput> {
     slice(start?: number, end?: number): this {
         const ctor = this.constructor as new (...args: T[]) => this;
         const sliced = new ctor(...this.items.slice(start, end));
+        carryBusRoot(sliced, this);
         const set = outputSetOf(this);
         if (set) {
             sliceRoot(sliced, set, this.items.length, start, end);
@@ -558,6 +453,7 @@ export class BaseCollection<T extends ModuleOutput> {
         }
         const joined = new ctor(...this.items, ...(that.items as T[]));
         concatRoots(joined, this, that);
+        carryBusRoot(joined, this);
         return joined;
     }
 
@@ -602,7 +498,9 @@ export class BaseCollection<T extends ModuleOutput> {
         mix: PolySignal = 2.5,
     ): Collection {
         const result = pipelineFunc(this);
-        return crossfadeMix(this.items[0].builder, this, result, mix);
+        const mixed = crossfadeMix(this.items[0].builder, this, result, mix);
+        carryBusRoot(mixed, this);
+        return mixed;
     }
 
     /**
@@ -611,7 +509,12 @@ export class BaseCollection<T extends ModuleOutput> {
      */
     wet(mix: PolySignal = 2.5): Collection {
         const builder = this.items[0]?.builder;
-        return builder ? wetMix(builder, this, mix) : new Collection();
+        if (!builder) {
+            return new Collection();
+        }
+        const mixed = wetMix(builder, this, mix);
+        carryBusRoot(mixed, this);
+        return mixed;
     }
 
     /** A one-lane collection reads as its lane, so it interpolates into patterns. */
@@ -860,16 +763,18 @@ export class GraphBuilder implements ChainHost {
     private busses: Bus[] = [];
     /** Each labelled bus, by its track's name. */
     private bussesByName = new Map<string, Bus>();
-    /** Sends to a track name read before its label ran; settled in toPatch. */
+    /**
+     * Each track's `sends` option, settled in toPatch: which names are buses
+     * is known only once every label has run.
+     */
     private pendingSends: {
-        name: string;
+        track: string;
         outputs: ModuleOutput[];
-        gain: PolySignal | undefined;
+        sends: unknown;
     }[] = [];
     private endOfChainCb: (
         mixed: Collection,
     ) => Collection | CollectionWithRange = (e) => e;
-    private processingBusses: boolean = false;
     private processingEndOfChain: boolean = false;
 
     constructor(schemas: ModuleSchema[]) {
@@ -1261,19 +1166,10 @@ export class GraphBuilder implements ChainHost {
      * which adds overhead from lane count derivation on every patch build.
      */
     toPatch(): PatchGraph {
-        for (const { name, outputs, gain } of this.pendingSends) {
-            const bus = this.bussesByName.get(name);
-            if (!bus) {
-                throw new Error(
-                    `.track sends: ${name} is a track, not a $bus, so nothing can be sent to it`,
-                );
+        for (const { track, outputs, sends } of this.pendingSends) {
+            for (const [bus, gain] of this.resolveSends(track, sends)) {
+                bus.addSend(outputs, gain);
             }
-            bus.addSend(outputs, gain);
-        }
-        this.processingBusses = true;
-        for (const bus of this.busses) {
-            // Lock the bus from having more sends applied to it
-            bus.lock();
         }
         for (const bus of this.busses) {
             bus.finalize();
@@ -1857,30 +1753,40 @@ export class GraphBuilder implements ChainHost {
                 `track ${name} is mono, so its .track() takes no pan or spread`,
             );
         }
-        const bus = source instanceof Bus ? source : undefined;
-        let outputs: ModuleOutput[] = [];
-        if (!bus) {
-            if (
-                source === undefined ||
-                source === null ||
-                typeof source === 'boolean' ||
-                (typeof source === 'object' && !(Symbol.iterator in source))
-            ) {
+        if (
+            source === undefined ||
+            source === null ||
+            typeof source === 'boolean' ||
+            (typeof source === 'object' && !(Symbol.iterator in source))
+        ) {
+            throw new Error(
+                `track ${name} must be a signal, got ${source === null ? 'null' : typeof source}`,
+            );
+        }
+        const outputs = this.$c(source as PolySignal).items;
+        if (outputs.length === 0) {
+            throw new Error(`track ${name} has no signal`);
+        }
+        const bus = busRootOf(source) as Bus | undefined;
+        if (bus) {
+            if (options.sends !== undefined) {
                 throw new Error(
-                    `track ${name} must be a signal or a $bus, got ${source === null ? 'null' : typeof source}`,
+                    `track ${name} is a bus, and a bus cannot send to another bus`,
                 );
             }
-            outputs = this.$c(source as PolySignal).items;
-            if (outputs.length === 0) {
-                throw new Error(`track ${name} has no signal`);
+            if (bus.trackName !== undefined) {
+                throw new Error(
+                    `track ${name} plays the $bus that track ${bus.trackName} plays: a bus has one track, the one sends name`,
+                );
             }
-            for (const [sendTo, gain] of resolveSends(options.sends)) {
-                if (typeof sendTo === 'string') {
-                    this.pendingSends.push({ gain, name: sendTo, outputs });
-                } else {
-                    sendTo.addSend(outputs, gain);
-                }
-            }
+            bus.trackName = name;
+            this.bussesByName.set(name, bus);
+        } else if (options.sends !== undefined) {
+            this.pendingSends.push({
+                outputs,
+                sends: options.sends,
+                track: name,
+            });
         }
         const state = {
             displayName: declaration.displayName,
@@ -1902,10 +1808,6 @@ export class GraphBuilder implements ChainHost {
                   spread: options.spread,
                   type: 'stereo',
               };
-        if (bus) {
-            bus.addOutGroup(group);
-            this.bussesByName.set(name, bus);
-        }
         const existing = this.outGroups.get(channel) ?? [];
         existing.push(group);
         this.outGroups.set(channel, existing);
@@ -1916,10 +1818,64 @@ export class GraphBuilder implements ChainHost {
             throw new Error(
                 '`$bus` is not allowed in the end of chain processor callback.',
             );
-        } else if (this.processingBusses) {
-            throw new Error('`$bus` is not allowed in other $bus callbacks');
         }
         this.busses.push(bus);
+    }
+
+    /** The bus `value` names: a bus track's name. */
+    private sendTarget(value: unknown): Bus | undefined {
+        const name = trackBindingName(value);
+        return name === undefined ? undefined : this.bussesByName.get(name);
+    }
+
+    /**
+     * Whether `value` is one `[bus, gain]` pair rather than a list of sends:
+     * a bus followed by something that is neither a bus nor a pair.
+     */
+    private isSendPair(value: unknown): value is [unknown, PolySignal] {
+        if (!Array.isArray(value) || value.length !== 2) {
+            return false;
+        }
+        const [bus, gain] = value as unknown[];
+        return (
+            this.sendTarget(bus) !== undefined &&
+            this.sendTarget(gain) === undefined &&
+            !(Array.isArray(gain) && this.sendTarget(gain[0]) !== undefined)
+        );
+    }
+
+    /** The `[bus, gain]` pairs of `track`'s `sends` option. */
+    private resolveSends(
+        track: string,
+        sends: unknown,
+    ): [Bus, PolySignal | undefined][] {
+        const entries =
+            this.sendTarget(sends) !== undefined || this.isSendPair(sends)
+                ? [sends]
+                : sends;
+        const invalid = (entry: unknown): Error => {
+            const target = trackBindingName(
+                Array.isArray(entry) ? entry[0] : entry,
+            );
+            return new Error(
+                target === undefined
+                    ? `track ${track}: sends takes a bus track's name, a [name, gain] pair, or an array of them`
+                    : `track ${track}: sends cannot reach ${target}, which is not a bus. A bus is a track that starts from $bus()`,
+            );
+        };
+        if (!Array.isArray(entries)) {
+            throw invalid(entries);
+        }
+        return entries.map((entry: unknown) => {
+            const bus = this.sendTarget(entry);
+            if (bus) {
+                return [bus, undefined];
+            }
+            if (this.isSendPair(entry)) {
+                return [this.sendTarget(entry[0])!, entry[1]];
+            }
+            throw invalid(entry);
+        });
     }
 
     /**

@@ -6,7 +6,8 @@
  *     var bass = __trackBinding(<the labelled expression>)
  *
  * The declaration sits in the patch's own module, so the name gets the type
- * of what it is bound to (a bus, or the track's final signal) and the patch's
+ * of what it is bound to (the track's final signal, a send target when the
+ * track is a bus) and the patch's
  * hover, completion and checking see it. A closing `export {}` keeps the
  * names in this patch even when it is read as a script. Every position in the
  * patch's text is untouched; whatever the language service reports past it

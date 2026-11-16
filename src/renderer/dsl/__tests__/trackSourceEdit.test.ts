@@ -232,8 +232,8 @@ describe('computeTrackOptionEdit — .track options', () => {
     });
 
     test('a bus gains .track() like a signal', () => {
-        expect(option(`verb: $bus((m) => m.plate())`, 'verb', 'gain', 3)).toBe(
-            `verb: $bus((m) => m.plate()).track({ gain: 3 })`,
+        expect(option(`verb: $bus().plate()`, 'verb', 'gain', 3)).toBe(
+            `verb: $bus().plate().track({ gain: 3 })`,
         );
     });
 

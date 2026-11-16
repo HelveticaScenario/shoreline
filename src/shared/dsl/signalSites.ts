@@ -962,8 +962,7 @@ export function collectSignalSites(
             continue;
         }
         const track = parseTrackLabel(statement.label.text);
-        // A `.track(...)` reads its receiver itself, as a chain method, and a
-        // bus plays what its callback returns.
+        // A `.track(...)` reads its receiver itself, as a chain method.
         const labelled = statement.statement.expression;
         const typeName = checker
             .getTypeAtLocation(labelled)
@@ -972,8 +971,7 @@ export function collectSignalSites(
         if (
             'error' in track ||
             isTrackChain(labelled) ||
-            typeName === 'Track' ||
-            typeName === 'Bus'
+            typeName === 'Track'
         ) {
             continue;
         }

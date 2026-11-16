@@ -1,6 +1,6 @@
 /**
- * A bus's callback returns its signal, and labelling the bus plays that
- * signal as a track; the label's name reads as the bus.
+ * `$bus()` is the mix of what tracks send to it: a signal to chain on. The
+ * track rooted at it is the bus's track, which sends reach by its name.
  */
 
 import { describe, expect, test } from 'vitest';
@@ -20,18 +20,30 @@ function vuLabels(patch: ReturnType<typeof run>['patch']): string[] {
 }
 
 describe('$bus tracks', () => {
-    test('a labelled bus plays the callback result as a track', () => {
+    test('a track chained from $bus() plays what is sent to it', () => {
         const { patch } = run(
-            `fx: $bus((e) => e.lpf('1000hz'))
+            `fx: $bus().lpf('1000hz')
              dry: $saw('c3').track({ sends: fx })`,
         );
-        expect(patch.modules.map((m) => m.moduleType)).toContain('$lpf');
+        const lpf = patch.modules.find((m) => m.moduleType === '$lpf')!;
+        const [input] = lpf.params.input as { module: string }[];
+        const lanes = patch.modules.find((m) => m.id === input.module)!;
+        expect(lanes.moduleType).toBe('$setLanes');
+        expect(lanes.params.lanes).toBe(1);
         expect(vuLabels(patch)).toEqual(['fx', 'dry']);
     });
 
-    test('a bus track takes a mono channel and .track() options', () => {
+    test('a bare $bus() is a bus track', () => {
         const { patch } = run(
-            `fx$2m: $bus((e) => e).track({ gain: 3 })
+            `fx$2m: $bus()
+             dry: $saw('c3').track({ sends: [fx, 2] })`,
+        );
+        expect(vuLabels(patch)).toEqual(['fx', 'dry']);
+    });
+
+    test('a bus track takes .track() options and a mono channel', () => {
+        const { patch } = run(
+            `fx$2m: $bus().lpf('c5').track({ gain: 3 })
              dry: $saw('c3').track({ sends: fx })`,
         );
         const fx = (
@@ -45,41 +57,58 @@ describe('$bus tracks', () => {
         expect(fx).toMatchObject({ baseChannel: 2, channels: 1, gain: 3 });
     });
 
-    test('an unlabelled bus stays silent', () => {
-        const { patch } = run(`const a = $bus((e) => e.lpf('1000hz'))
-                               dry: $saw('c3').track({ sends: a })`);
-        expect(vuLabels(patch)).toEqual(['dry']);
-    });
-
-    test('a bus held in a const plays once labelled', () => {
-        const { patch } = run(`const a = $bus((e) => e.lpf('1000hz'))
-                               verb: a
-                               dry: $saw('c3').track({ sends: a })`);
+    test('a bus held in a const is a bus once labelled', () => {
+        const { patch } = run(`const b = $bus()
+                               verb: b.lpf('1000hz').wet(2)
+                               dry: $saw('c3').track({ sends: verb })`);
         expect(vuLabels(patch)).toEqual(['verb', 'dry']);
     });
 
-    test('a bus track needs the callback to return at least one lane', () => {
-        expect(() => run(`fx: $bus(() => [])`)).toThrow(/returned no signal/);
+    test('pipe and pipeMix keep a chain rooted at its bus', () => {
+        expect(() =>
+            run(`a: $bus().pipe((s) => s.lpf('c5'))
+                 b: $bus().pipeMix((s) => s.lpf('c5'), 2)
+                 dry: $saw('c3').track({ sends: [a, b] })`),
+        ).not.toThrow();
     });
 
-    test('a bus track needs the callback to return a signal', () => {
+    test('a bus name is also its track signal', () => {
         expect(() =>
-            run(`fx: $bus((e) => { e.lpf('1000hz') })
+            run(`verb: $bus().lpf('c5')
+                 dry: $saw('c3').amp(verb.active).track({ sends: verb })
+                 follow: $sine('c4').amp($motionFollower(verb))`),
+        ).not.toThrow();
+    });
+
+    test('a bus nothing sends to is silent', () => {
+        const { patch } = run(`fx: $bus().lpf('c5')`);
+        expect(vuLabels(patch)).toEqual(['fx']);
+    });
+
+    test('a signal that only reads a bus is not a bus', () => {
+        expect(() =>
+            run(`const b = $bus()
+                 fx: $lpf(b, 'c5')
                  dry: $saw('c3').track({ sends: fx })`),
-        ).toThrow(/must return the signal/);
+        ).toThrow(/sends cannot reach fx, which is not a bus/);
+    });
+
+    test('a bus has one track', () => {
+        expect(() =>
+            run(`const b = $bus()
+                 one: b.lpf('c5')
+                 two: b.hpf('c3')`),
+        ).toThrow(/a bus has one track/);
     });
 
     test('a bus cannot send to another bus', () => {
         expect(() =>
-            run(`a: $bus((e) => e)
-                 b: $bus((e) => e).track({ sends: a })`),
+            run(`a: $bus()
+                 b: $bus().track({ sends: a })`),
         ).toThrow(/a bus cannot send to another bus/);
     });
 
-    test('bus names are track names, so they are unique', () => {
-        expect(() =>
-            run(`x: $bus((e) => e)
-                 _x$2: $saw('c3')`),
-        ).toThrow(/already a track named x/);
+    test('$bus takes no callback', () => {
+        expect(() => run(`fx: $bus((m) => m)`)).toThrow(/takes no arguments/);
     });
 });

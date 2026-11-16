@@ -368,8 +368,14 @@ export function executePatchScript(
     const $trackTap = (label: string): TrackTap =>
         createTrackTap(builder, label);
 
-    const $bus = (cb: (mixed: Collection) => PolySignal | void): Bus =>
-        new Bus(builder, cb);
+    const $bus = (...args: unknown[]): Collection => {
+        if (args.length > 0) {
+            throw new Error(
+                '$bus takes no arguments: it is the mix of what tracks send to it, so chain on it, as in verb: $bus().plate()',
+            );
+        }
+        return new Bus(builder).signal;
+    };
 
     const $setEndOfChainCb = (
         cb: (mixed: Collection) => Collection | CollectionWithRange,

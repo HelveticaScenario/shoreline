@@ -27,7 +27,7 @@ export const TRACK_OPTIONS: readonly TrackOptionField[] = [
         type: 'LaneSum<Signal>',
     },
     {
-        doc: 'Buses this track also feeds, before its gain, pan, mute and solo: a bus, a `[bus, gain]` pair, or an array of them',
+        doc: "Buses this track also feeds, before its gain, pan, mute and solo: a bus track's name, a `[name, gain]` pair, or an array of them",
         name: 'sends',
         type: 'Send | Send[]',
     },

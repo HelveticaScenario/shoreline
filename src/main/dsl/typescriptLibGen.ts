@@ -712,10 +712,10 @@ type WavMeta = {
 };
 
 /**
- * A send to a {@link Bus}: the bus (or its \`.track()\`) alone sends at full
- * level, a \`[bus, gain]\` pair at \`gain\`.
+ * A send to a bus, named by its track's name: the name alone sends at full
+ * level, a \`[name, gain]\` pair at \`gain\`.
  */
-type Send = Bus | Track<Bus> | [bus: Bus | Track<Bus>, gain: Poly<Signal>];
+type Send = BusTap | [bus: BusTap, gain: Poly<Signal>];
 
 /**
  * Options of {@link BaseCollection.track}: how a track mixes into the
@@ -726,7 +726,7 @@ ${renderTrackOptionsMembers(TRACK_OPTIONS)}
 }
 
 /**
- * Options of {@link Bus.track}: those of {@link TrackOptions} but
+ * Options of {@link BusSignal.track}: those of {@link TrackOptions} but
  * \`sends\`, since a bus cannot send to another bus.
  */
 interface BusTrackOptions {
@@ -767,19 +767,19 @@ class Track<S = Collection> {
 }
 
 /**
- * What a track label's name reads as in the rest of the patch: the bus for
- * a labelled bus, the track's final signal otherwise.
+ * What a track label's name reads as in the rest of the patch: the track's
+ * final signal, which \`sends\` also takes when the track is a bus.
  * @internal
  */
-declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [Bus | Track<Bus>] ? Bus : TrackTap;
+declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [BusSignal | Track<BusSignal>] ? BusTap : TrackTap;
 
 /**
  * Every signal in a patch: an ordered set of lanes, one voice each, with
  * chainable DSP methods. Indexing and iteration give one-lane collections
  * of the same type, so \`osc[0]\` is still a signal with every method.
  */
-interface BaseCollection extends ModuleChain {}
-class BaseCollection {
+interface BaseCollection<Plain = Collection> extends ModuleChain<Plain> {}
+class BaseCollection<Plain = Collection> {
   /** Number of lanes in the collection */
   readonly length: number;
   /** Lane \`index\` as a one-lane collection */
@@ -848,7 +848,7 @@ ${renderTrackOptionsJsDocList(TRACK_OPTIONS)}
    * @param options Track options ({@link TrackOptions})
    * @example lead: $sine('c4').track({ gain: 2.5, pan: -2 })
    * @example
-   * verb: $bus((wet) => wet.plate())
+   * verb: $bus().plate()
    * keys: $saw('c3').track({ sends: [verb, 2] })
    */
   track(options?: TrackOptions): Track<this>;
@@ -921,7 +921,7 @@ ${renderTrackOptionsJsDocList(TRACK_OPTIONS)}
    * // Mix with custom balance
    * lead: $saw('c4').pipeMix(s => $lpf(s, '1000hz'), 1.0)
    */
-  pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal> ): Collection;
+  pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal> ): Plain;
 
   /**
    * Crossfade the signal this one was chained from against it. Follows a
@@ -934,7 +934,7 @@ ${renderTrackOptionsJsDocList(TRACK_OPTIONS)}
    *
    * @example keys: $saw('c3').plate().wet(1.5)
    */
-  wet(mix?: Poly<Signal>): Collection;
+  wet(mix?: Poly<Signal>): Plain;
 }
 
 /**
@@ -1015,7 +1015,7 @@ class DeferredCollection extends BaseCollection {
  * gain and mute/solo gate: one lane, stereo for a stereo track.
  */
 class TrackTap extends Collection {
-  private constructor();
+  protected constructor();
   /** 5V while the track is audible, 0V while it is muted or silenced by another track's solo. */
   readonly active: CollectionWithRange;
   /**
@@ -1326,46 +1326,54 @@ interface ControlGroupParams {
 function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /**
- * A send-return bus. Create one with {@link $bus}, name it in the \`sends\`
- * option of any \`.track()\` to route signals through it, and label it to
- * hear its return.
+ * The signal of a send-return bus, from {@link $bus}: one stereo lane, the
+ * mix of everything sent to it. Chain methods keep it a bus signal, so
+ * \`$bus().plate().wet(2)\` is one too. The track labelling it is the bus's
+ * track, whose name tracks send to.
  */
-class Bus {
-  /** @internal */
+class BusSignal extends BaseCollection<BusSignal> {
   private constructor();
-  /** Sets a bus apart from a signal. */
+  /** Sets a bus signal apart from any other. */
   #bus: true;
 
   /**
-   * How the bus's return mixes into its track.
+   * How the bus mixes into its track.
    *
    * Options:
 ${renderTrackOptionsJsDocList(BUS_TRACK_OPTIONS)}
    * @param options Track options ({@link BusTrackOptions})
    * @example
-   * verb: $bus((mixed) => mixed.plate()).track({ gain: 3 })
+   * verb: $bus().plate().track({ gain: 3 })
    * keys: $saw('c3').track({ sends: [verb, 2] })
    */
-  track(options?: BusTrackOptions): Track<Bus>;
+  override track(options?: BusTrackOptions): Track<this>;
 }
 
 /**
- * Create a send-return bus.
+ * A bus track's final signal, as its label's name reads: a {@link TrackTap}
+ * that the \`sends\` option of other tracks also takes.
+ */
+class BusTap extends TrackTap {
+  private constructor();
+  /** Sets a bus track's name apart from any other track's. */
+  #busTrack: true;
+}
+
+/**
+ * A send-return bus: the mix of every signal sent to it through a track's
+ * \`sends\` option, as one stereo lane. Chain effects on it and label the
+ * result to hear it. That track is the bus: its name is what \`sends\`
+ * takes, and reads as the track's signal like any other track's name. A bus
+ * has one track, and a bus track cannot send to another bus.
  *
- * The callback receives a {@link Collection} that is the mix of all signals
- * sent to this bus through a track's \`sends\` option, and returns the bus's
- * return signal. Label the bus to hear it; its label's name reads as the
- * bus, so tracks can send to it.
- *
- * @param cb Called during patch finalization with the mixed sends; returns the processed signal
- * @returns A {@link Bus} handle named in \`sends\`
+ * @returns The bus's signal
  *
  * @example
- * verb: $bus((mixed) => $plate(mixed))
+ * verb: $bus().plate()
  * lead: $saw('a').track({ sends: [verb, 3] })
  * bass$0m: $sine('a2').track({ sends: [verb, 2] })
  */
-function $bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus;
+function $bus(): BusSignal;
 
 /**
  * Tap the track named \`name\`: its audio after pan, gain and mute/solo,
@@ -2139,6 +2147,9 @@ function renderChainMethod(
     moduleSchema: Schema,
     indent: string,
     withDeclared = true,
+    // What a plain signal result is typed as; a chain from `$bus()` keeps
+    // its own type, through the chain interfaces' `Plain` parameter.
+    plain = 'Collection',
 ): string[] {
     const methodName = chainMethodName(moduleSchema.name);
     const { args, doc } = chainSignature(moduleSchema, indent);
@@ -2147,7 +2158,9 @@ function renderChainMethod(
     const returnType =
         (moduleSchema.outputs ?? []).length > 1
             ? qualifiedMultiOutputInterfaceName(moduleSchema)
-            : getFactoryReturnType(moduleSchema);
+            : getFactoryReturnType(moduleSchema) === 'Collection'
+              ? plain
+              : getFactoryReturnType(moduleSchema);
     const lines: string[] = [];
     const declared = declaredRangeArgs(moduleSchema, args);
     if (declared && withDeclared) {
@@ -2450,13 +2463,15 @@ export function generateDSL(schemas: Schemas): string {
         const dotted = path.join('.');
         lines.push('');
         lines.push(`/** The \`$${dotted}\` modules as chain methods. */`);
-        lines.push(`interface ModuleChain${pascal(dotted)} {`);
+        lines.push(
+            `interface ModuleChain${pascal(dotted)}<Plain = Collection> {`,
+        );
         for (const s of node.leaves) {
-            lines.push(...renderChainMethod(s, '  '));
+            lines.push(...renderChainMethod(s, '  ', true, 'Plain'));
         }
         for (const seg of sortedChildren(node)) {
             lines.push(
-                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))};`,
+                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))}<Plain>;`,
             );
         }
         lines.push('}');
@@ -2473,16 +2488,16 @@ export function generateDSL(schemas: Schemas): string {
         " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
         ' */',
     );
-    lines.push('interface ModuleChain {');
+    lines.push('interface ModuleChain<Plain = Collection> {');
     for (const s of chainRoot.leaves) {
-        lines.push(...renderChainMethod(s, '  '));
+        lines.push(...renderChainMethod(s, '  ', true, 'Plain'));
     }
     for (const seg of sortedChildren(chainRoot)) {
-        lines.push(`  readonly ${seg}: ModuleChain${pascal(seg)};`);
+        lines.push(`  readonly ${seg}: ModuleChain${pascal(seg)}<Plain>;`);
     }
     lines.push(
         ...renderDelayDoc('  ', chainDelayHeader),
-        `  delay(time: Poly<Signal>, ${delayOpts}): Collection;`,
+        `  delay(time: Poly<Signal>, ${delayOpts}): Plain;`,
     );
     lines.push('}');
 

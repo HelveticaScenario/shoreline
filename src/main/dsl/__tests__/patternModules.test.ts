@@ -57,7 +57,7 @@ describe('a pattern builds the graph of its $cycle', () => {
         [`out: SEQ.slice(0, 1).saw(); out2: SEQ.chunk(1)[0].saw()`],
         [`out: SEQ.pipe((s) => $saw(s))`],
         [`out: $saw('c3').lpf(SEQ).wet(SEQ)`],
-        [`bus: $bus((m) => m); out: SEQ.saw().track({ sends: [bus, SEQ] })`],
+        [`bus: $bus(); out: SEQ.saw().track({ sends: [bus, SEQ] })`],
         [`out: $delay($saw(SEQ), 0.25, { feedback: SEQ })`],
         [`out: $saw('c3').amp($g1(SEQ))`],
         [`$setMainGain(SEQ); out: $saw('c3')`],

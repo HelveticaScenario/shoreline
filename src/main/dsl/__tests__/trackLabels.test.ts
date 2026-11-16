@@ -212,29 +212,19 @@ kick: $sine('c1')
         ).not.toThrow();
     });
 
-    test("a bus's name reads as the bus, so it takes sends", () => {
+    test("a bus track's name takes sends", () => {
         const { patch } = exec(`
-verb: $bus((m) => m.lpf('c5')).track({ gain: 3 })
+verb: $bus().lpf('c5').track({ gain: 3 })
 lead: $saw('c3').track({ sends: [verb, 2] })
 `);
         expect(meters(patch).map((m) => m.key)).toEqual(['verb', 'lead']);
         expect(patch.modules.some((m) => m.moduleType === '$lpf')).toBe(true);
     });
 
-    test("a bus's .track() is a send target", () => {
-        expect(() =>
-            exec(`
-const verb = $bus((m) => m.lpf('c5')).track()
-reverb: verb
-lead: $saw('c3').track({ sends: verb })
-`),
-        ).not.toThrow();
-    });
-
     test('a send reaches a bus whose label comes later', () => {
         const { patch } = exec(`
 lead: $saw('c3').track({ sends: [verb, 2] })
-verb: $bus((m) => m.lpf('c5'))
+verb: $bus().lpf('c5')
 `);
         expect(meters(patch).map((m) => m.key)).toEqual(['lead', 'verb']);
         expect(patch.modules.some((m) => m.moduleType === '$lpf')).toBe(true);
@@ -246,7 +236,7 @@ verb: $bus((m) => m.lpf('c5'))
 lead: $saw('c3').track({ sends: kick })
 kick: $sine('c1')
 `),
-        ).toThrow(/not a \$bus/);
+        ).toThrow(/is not a bus/);
     });
 
     test('a send to anything but a bus is an error', () => {

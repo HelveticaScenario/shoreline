@@ -316,6 +316,26 @@ test.describe('vu meter panel', () => {
         expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
     });
 
+    test('a bus track meters what is sent to it', async ({ window }) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await openUntitledBuffer(window);
+        await window.evaluate(() => {
+            window.__TEST_API__!.setEditorValue(
+                [
+                    `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
+                    `fx$2: $bus().lpf('c8')`,
+                ].join('\n'),
+            );
+        });
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 15_000 })
+            .toBeGreaterThan(0.01);
+    });
+
     test('panel visibility toggles', async ({ window }) => {
         await setupTwoOutPatch(window);
         await expect(window.locator('.vu-meter-panel')).toBeVisible();

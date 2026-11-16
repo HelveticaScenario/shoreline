@@ -17,13 +17,21 @@ function patchOf(source: string): PatchGraph {
 }
 
 /**
- * What the `index`th bus mixes, as `source` or `source@level` per send. A
- * bus builds its mix before the tracks build theirs, so the buses' mixes are
- * the first `$mix` modules, in the order the buses were made.
+ * What bus `a` (index 0) or `b` (index 1) mixes, as `source` or
+ * `source@level` per send. Each bus is found from the filter chained on it.
  */
 function busSends(patch: PatchGraph, index: number): string[] {
     const byId = new Map(patch.modules.map((m) => [m.id, m]));
-    const mix = byId.get(`$mix-${index + 1}`)!;
+    const filter = patch.modules.find(
+        (m) => m.moduleType === (index === 0 ? '$lpf' : '$hpf'),
+    )!;
+    const source = (cables: unknown) =>
+        byId.get((cables as Cable[])[0].module)!;
+    const lanes = source(filter.params.input);
+    if (lanes.moduleType !== '$setLanes') {
+        return [];
+    }
+    const mix = source(lanes.params.input);
     const inputs = (mix.params as { inputs: (Cable | Cable[])[] }).inputs;
     return inputs.map((input) => {
         const cable = Array.isArray(input) ? input[0] : input;
@@ -39,7 +47,7 @@ function busSends(patch: PatchGraph, index: number): string[] {
     });
 }
 
-const BUSES = `a$2m: $bus((m) => m)\nb$3m: $bus((m) => m)\n`;
+const BUSES = `a$2m: $bus().lpf('c8')\nb$3m: $bus().hpf('c0')\n`;
 
 describe('track sends', () => {
     test.each([
@@ -73,11 +81,13 @@ describe('track sends', () => {
         expect(busSends(built, 1)).toEqual(toB);
     });
 
-    test("a bus's .track() is a send target", () => {
+    test('a track name as a gain is a gain, not a second send', () => {
         const built = patchOf(
-            `const t = $bus((m) => m).track({ gain: 2 })\nverb: t\nlead: $saw('c3').track({ sends: [t, 3] })`,
+            `${BUSES}kick: $sine('c1')\nlead: $saw('c3').track({ sends: [a, kick] })`,
         );
-        expect(busSends(built, 0)).toEqual(['$saw-1@3']);
+        expect(busSends(built, 0)).toHaveLength(1);
+        expect(busSends(built, 0)[0]).toMatch(/^\$saw-1@/);
+        expect(busSends(built, 1)).toEqual([]);
     });
 
     test('every track sending to a bus is mixed into it', () => {

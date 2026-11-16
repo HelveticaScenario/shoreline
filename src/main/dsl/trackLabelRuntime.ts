@@ -20,12 +20,7 @@ import {
     type TrackStatement,
 } from '../../shared/dsl/trackLabels';
 import { captureSourceLocation } from './captureSourceLocation';
-import {
-    Bus,
-    type GraphBuilder,
-    markTrackBinding,
-    Track,
-} from './GraphBuilder';
+import { type GraphBuilder, markTrackBinding } from './GraphBuilder';
 import { createTrackTap, type TrackTap } from './trackTap';
 
 /**
@@ -105,7 +100,6 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
                 sandbox,
             ) as string[],
         );
-        const buses = new Map<string, Bus>();
         for (const { track, labelStart } of tracks) {
             const { name } = track;
             if (name in sandbox || builtins.has(name)) {
@@ -117,15 +111,10 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
             Object.defineProperty(sandbox, name, {
                 configurable: false,
                 enumerable: false,
-                // A bus's name reads as the bus once its label has run.
-                // Until then, and for every other track, the name reads as
-                // the track's final signal; a send to it reaches the bus its
-                // label turns out to label.
+                // The name reads as the track's final signal, whether or
+                // not its label has run. Marked with the name, it is also
+                // what `sends` takes to reach a bus track.
                 get: () => {
-                    const bus = buses.get(name);
-                    if (bus) {
-                        return bus;
-                    }
                     if (!tap) {
                         tap = createTrackTap(builder, name);
                         markTrackBinding(tap, name);
@@ -163,10 +152,6 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
                             capturedLocation(file, labelStart),
                         ),
                 );
-                const labelled = value instanceof Track ? value.source : value;
-                if (labelled instanceof Bus) {
-                    buses.set(track.name, labelled);
-                }
             },
         });
     };
