@@ -149,7 +149,7 @@ pub struct AudioDeviceInfo {
 }
 
 /// Common sample rates to check for support
-const COMMON_SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000];
+pub(crate) const COMMON_SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000];
 
 /// Maximum sample rate to use as a default for new users / missing config.
 /// If the OS/device reports a default above this, we pick the highest
@@ -196,15 +196,20 @@ pub struct AudioDeviceCache {
 impl AudioDeviceCache {
     pub fn new() -> Self {
         let mut cache = Self::default();
-        cache.refresh();
+        cache.refresh(&[], true);
         cache
     }
 
-    /// Refresh the cache by enumerating all hosts and their devices
-    pub fn refresh(&mut self) {
+    /// Re-enumerate every host's devices.
+    ///
+    /// `keep` names the devices a stream has open: ALSA cannot list an open
+    /// `hw:` device (it answers busy), so a kept ALSA device keeps its previous
+    /// entry. JACK is re-read only with `rescan_jack`, since listing it
+    /// registers two JACK clients that patchbays show appearing and vanishing.
+    pub fn refresh(&mut self, keep: &[&str], rescan_jack: bool) {
+        let previous_outputs = std::mem::take(&mut self.output_devices);
+        let previous_inputs = std::mem::take(&mut self.input_devices);
         self.hosts.clear();
-        self.output_devices.clear();
-        self.input_devices.clear();
 
         for host_id in cpal::available_hosts() {
             let host_id_str = format!("{:?}", host_id);
@@ -213,6 +218,43 @@ impl AudioDeviceCache {
                 id: host_id_str.clone(),
                 name: host_id_str.clone(),
             });
+
+            if host_id_str == JACK_HOST_ID
+                && !rescan_jack
+                && let (Some(outputs), Some(inputs)) = (
+                    previous_outputs.get(&host_id_str),
+                    previous_inputs.get(&host_id_str),
+                )
+            {
+                self.output_devices
+                    .insert(host_id_str.clone(), outputs.clone());
+                self.input_devices.insert(host_id_str, inputs.clone());
+                continue;
+            }
+
+            #[cfg(target_os = "macos")]
+            if host_id == HostId::CoreAudio {
+                let (output_devices, input_devices) =
+                    crate::coreaudio_devices::enumerate_devices(&host_id_str);
+                self.output_devices
+                    .insert(host_id_str.clone(), output_devices);
+                self.input_devices.insert(host_id_str, input_devices);
+                continue;
+            }
+
+            // An empty listing falls through to cpal, which lists the same
+            // endpoints more slowly.
+            #[cfg(target_os = "windows")]
+            if host_id == HostId::Wasapi {
+                let (output_devices, input_devices) =
+                    crate::wasapi_devices::enumerate_devices(&host_id_str);
+                if !output_devices.is_empty() || !input_devices.is_empty() {
+                    self.output_devices
+                        .insert(host_id_str.clone(), output_devices);
+                    self.input_devices.insert(host_id_str, input_devices);
+                    continue;
+                }
+            }
 
             if let Ok(host) = cpal::host_from_id(host_id) {
                 // Get output devices for this host
@@ -224,6 +266,11 @@ impl AudioDeviceCache {
                 let input_devices = enumerate_input_devices(&host, &host_id_str);
                 self.input_devices.insert(host_id_str, input_devices);
             }
+        }
+
+        for &id in keep {
+            restore_missing(&mut self.output_devices, &previous_outputs, id);
+            restore_missing(&mut self.input_devices, &previous_inputs, id);
         }
     }
 
@@ -264,6 +311,35 @@ impl AudioDeviceCache {
     /// Get input devices for a specific host
     pub fn input_devices_for_host(&self, host_id: &str) -> Vec<AudioDeviceInfo> {
         self.input_devices.get(host_id).cloned().unwrap_or_default()
+    }
+}
+
+/// `HostId` debug names of cpal's hosts, as used for host ids in the cache.
+pub(crate) const JACK_HOST_ID: &str = "Jack";
+const ALSA_HOST_ID: &str = "Alsa";
+
+/// Put `id`'s previous ALSA entry back into `devices` if the new listing lacks
+/// it. The restored entry is never the default; the new listing decides that.
+fn restore_missing(
+    devices: &mut HashMap<String, Vec<AudioDeviceInfo>>,
+    previous: &HashMap<String, Vec<AudioDeviceInfo>>,
+    id: &str,
+) {
+    if devices.values().flatten().any(|d| d.id == id) {
+        return;
+    }
+    if let Some(entry) = previous
+        .values()
+        .flatten()
+        .find(|d| d.id == id && d.host_id == ALSA_HOST_ID)
+    {
+        devices
+            .entry(entry.host_id.clone())
+            .or_default()
+            .push(AudioDeviceInfo {
+                is_default: false,
+                ..entry.clone()
+            });
     }
 }
 
@@ -412,18 +488,27 @@ fn enumerate_input_devices(host: &Host, host_id: &str) -> Vec<AudioDeviceInfo> {
         .unwrap_or_default()
 }
 
-/// Find an output device by id in a specific host
-pub fn find_output_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
-    host.output_devices()
+/// Find a device by id in a specific host, ignoring direction.
+fn find_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
+    let target = cpal::DeviceId::from_str(id).ok()?;
+    host.devices()
         .ok()?
-        .find(|d| d.id().ok() == cpal::DeviceId::from_str(id).ok())
+        .find(|d| d.id().ok().as_ref() == Some(&target))
 }
 
-/// Find an input device by id in a specific host
+/// Find an output device by id in a specific host. Only the matching device is
+/// asked whether it can output: `host.output_devices()` probes every device's
+/// configs, which costs tens of milliseconds per device on CoreAudio.
+pub fn find_output_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
+    let device = find_device_in_host(host, id)?;
+    device.default_output_config().is_ok().then_some(device)
+}
+
+/// Find an input device by id in a specific host. See
+/// `find_output_device_in_host`.
 pub fn find_input_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
-    host.input_devices()
-        .ok()?
-        .find(|d| d.id().ok() == cpal::DeviceId::from_str(id).ok())
+    let device = find_device_in_host(host, id)?;
+    device.default_input_config().is_ok().then_some(device)
 }
 
 // ============================================================================
@@ -950,6 +1035,76 @@ impl VuMeterState {
         };
         self.levels.window_peak = [0.0; 2];
         frame
+    }
+}
+
+#[cfg(test)]
+mod device_cache_tests {
+    use super::{AudioDeviceInfo, restore_missing};
+    use std::collections::HashMap;
+
+    fn device(id: &str, host_id: &str) -> AudioDeviceInfo {
+        AudioDeviceInfo {
+            id: id.to_string(),
+            host_id: host_id.to_string(),
+            name: id.to_string(),
+            input_channels: 0,
+            output_channels: 2,
+            is_default: false,
+            sample_rate: 48_000,
+            supported_sample_rates: vec![48_000],
+            buffer_size_range: None,
+        }
+    }
+
+    #[test]
+    fn an_open_device_missing_from_a_rescan_keeps_its_entry() {
+        let previous = HashMap::from([(
+            "Alsa".to_string(),
+            vec![device("alsa:hw:1", "Alsa"), device("alsa:hw:2", "Alsa")],
+        )]);
+        let mut devices = HashMap::from([("Alsa".to_string(), vec![device("alsa:hw:2", "Alsa")])]);
+
+        restore_missing(&mut devices, &previous, "alsa:hw:1");
+
+        let ids: Vec<&str> = devices["Alsa"].iter().map(|d| d.id.as_str()).collect();
+        assert_eq!(ids, ["alsa:hw:2", "alsa:hw:1"]);
+    }
+
+    #[test]
+    fn a_restored_device_does_not_claim_the_default() {
+        let mut open = device("alsa:hw:1", "Alsa");
+        open.is_default = true;
+        let previous = HashMap::from([("Alsa".to_string(), vec![open])]);
+        let mut devices = HashMap::from([("Alsa".to_string(), vec![])]);
+
+        restore_missing(&mut devices, &previous, "alsa:hw:1");
+
+        assert!(!devices["Alsa"][0].is_default);
+    }
+
+    #[test]
+    fn an_open_device_missing_on_another_host_is_gone() {
+        let previous = HashMap::from([(
+            "CoreAudio".to_string(),
+            vec![device("coreaudio:Interface", "CoreAudio")],
+        )]);
+        let mut devices = HashMap::from([("CoreAudio".to_string(), vec![])]);
+
+        restore_missing(&mut devices, &previous, "coreaudio:Interface");
+
+        assert!(devices["CoreAudio"].is_empty());
+    }
+
+    #[test]
+    fn a_listed_or_unknown_device_is_left_alone() {
+        let previous = HashMap::from([("Alsa".to_string(), vec![device("alsa:hw:1", "Alsa")])]);
+        let mut devices = HashMap::from([("Alsa".to_string(), vec![device("alsa:hw:1", "Alsa")])]);
+
+        restore_missing(&mut devices, &previous, "alsa:hw:1");
+        restore_missing(&mut devices, &previous, "alsa:hw:9");
+
+        assert_eq!(devices["Alsa"].len(), 1);
     }
 }
 
