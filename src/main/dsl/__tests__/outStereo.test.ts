@@ -45,7 +45,11 @@ describe('the out stage', () => {
                 module: string;
             }[]
         )[0].module;
-        expect(sourceType(patch, tap.id, 'input')).toBe('$setLanes');
+        const mix = patch.find((m) => m.id === mixId)!;
+        expect(mix.moduleType).toBe('$setLanes');
+        // One summed lane with no other params: nothing scales the mix.
+        expect(Object.keys(mix.params).sort()).toEqual(['input', 'lanes']);
+        expect((mix.params as Record<string, unknown>).lanes).toBe(1);
         expect(sourceType(patch, mixId, 'input')).toBe('$pan');
     });
 

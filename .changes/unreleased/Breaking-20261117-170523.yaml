@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    A stereo `.out()` plays a centred signal at its full level on both speakers, as a centred track does in a DAW, where it was 3 dB lower. Patches written for the lower level play 3 dB louder; scale the signal down to keep the old level.
+    A stereo `.out()` plays a centred signal at its full level on both speakers, as a centred track does in a DAW, where it was 3 dB lower. Patches written for the lower level play 3 dB louder, and their stereo outs' meters read 3 dB higher; scale the signal down to keep the old level.
 
     ```js
     // before
