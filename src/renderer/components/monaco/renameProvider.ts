@@ -4,10 +4,15 @@
  * edit: on a track label that word carries the label's mute/solo prefix and
  * channel, which are not part of the track's name.
  */
-import type { editor, IDisposable, languages } from 'monaco-editor';
+import type { editor, IDisposable, IPosition, languages } from 'monaco-editor';
 
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { DslTypeScriptWorkerApi } from './dslTsWorker';
+
+/** The editor contribution that shows a short message at a position. */
+interface MessageController extends editor.IEditorContribution {
+    showMessage(message: string, position: IPosition): void;
+}
 
 export function registerRenameProvider(monaco: Monaco): IDisposable {
     const ts = monaco.typescript;
@@ -30,6 +35,24 @@ export function registerRenameProvider(monaco: Monaco): IDisposable {
             model.getPositionAt(span.start + span.length),
         );
 
+    // Monaco's standalone build shows nothing for a rename its provider
+    // rejects once the new name is typed, so the reason is shown here, at
+    // the cursor.
+    const reject = (
+        model: editor.ITextModel,
+        position: IPosition,
+        rejectReason: string,
+    ): languages.WorkspaceEdit & languages.Rejection => {
+        monaco.editor
+            .getEditors()
+            .find((e) => e.getModel() === model)
+            ?.getContribution<MessageController>(
+                'editor.contrib.messageController',
+            )
+            ?.showMessage(rejectReason, position);
+        return { edits: [], rejectReason };
+    };
+
     const provider: languages.RenameProvider = {
         async provideRenameEdits(model, position, newName) {
             const fileName = model.uri.toString();
@@ -41,7 +64,7 @@ export function registerRenameProvider(monaco: Monaco): IDisposable {
                 newName,
             );
             if (error !== null) {
-                return { edits: [], rejectReason: error };
+                return reject(model, position, error);
             }
             const locations = await worker.findRenameLocations(
                 fileName,
@@ -55,11 +78,11 @@ export function registerRenameProvider(monaco: Monaco): IDisposable {
             }
             // A name declared outside the patch is the DSL's own.
             if (locations.some((l) => l.fileName !== fileName)) {
-                return {
-                    edits: [],
-                    rejectReason:
-                        'Only a name the patch declares can be renamed',
-                };
+                return reject(
+                    model,
+                    position,
+                    'Only a name the patch declares can be renamed',
+                );
             }
             return {
                 edits: locations.map((l) => ({
