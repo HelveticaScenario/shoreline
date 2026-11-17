@@ -276,6 +276,17 @@ verb: $bus().plate()
         ).toEqual([]);
     });
 
+    test('tracks that read each other both keep their type', () => {
+        expect(
+            labelErrors(`
+kick: $sine('c1').amp(bass.active)
+bass: $saw('c2').amp(kick.active)
+kick.nothing
+bass.nothing
+`),
+        ).toHaveLength(2);
+    });
+
     test('labels are not reported as unused', () => {
         expect(labelErrors(`lead: $saw('c3')`)).toEqual([]);
     });
