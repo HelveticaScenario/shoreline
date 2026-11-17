@@ -82,7 +82,9 @@ test.describe('renaming a track', () => {
         const input = await startRename(window, 1);
         await input.fill('_thump');
         await input.press('Enter');
-        await expect(window.getByText(/is not a track name/)).toBeVisible();
+        await expect(
+            window.locator('.monaco-editor-overlaymessage'),
+        ).toContainText('is not a track name');
         expect(await source(window)).toBe(patch);
     });
 });
