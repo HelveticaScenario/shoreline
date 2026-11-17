@@ -380,6 +380,9 @@ test.describe('vu meter panel', () => {
         );
         await expect(bus).toHaveCount(1);
         await expect(bus.locator('.vu-btn-mute')).toHaveText('A');
+        // A bus has no solo button, only the gap where one would be.
+        await expect(bus.locator('.vu-btn-solo')).toHaveCount(0);
+        await expect(bus.locator('.vu-btn-gap')).toHaveCount(1);
         await expect(
             window.locator('.vu-meter-scroll .vu-meter[data-vu-key="dry"]'),
         ).toHaveCount(1);

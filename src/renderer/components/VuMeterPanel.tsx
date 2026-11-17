@@ -465,24 +465,37 @@ function VuMeter({
                             >
                                 <span className="vu-btn-inner">{index}</span>
                             </button>
-                            <button
-                                className="vu-btn vu-btn-solo"
-                                aria-pressed={output.solo}
-                                data-code-pressed={ghost?.solo ?? output.solo}
-                                title={`Solo (${MS_BUTTON_HINT})`}
-                                onClick={(e) =>
-                                    onToggleSolo(output.key, isCodeOnly(e))
-                                }
-                                onContextMenu={(e) => {
-                                    if (e.ctrlKey) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        onToggleSolo(output.key, true);
+                            {output.isBus ? (
+                                // A bus has no solo; the gap keeps its
+                                // activator level with the tracks'.
+                                <div
+                                    className="vu-btn vu-btn-gap"
+                                    aria-hidden="true"
+                                >
+                                    <span className="vu-btn-inner">S</span>
+                                </div>
+                            ) : (
+                                <button
+                                    className="vu-btn vu-btn-solo"
+                                    aria-pressed={output.solo}
+                                    data-code-pressed={
+                                        ghost?.solo ?? output.solo
                                     }
-                                }}
-                            >
-                                <span className="vu-btn-inner">S</span>
-                            </button>
+                                    title={`Solo (${MS_BUTTON_HINT})`}
+                                    onClick={(e) =>
+                                        onToggleSolo(output.key, isCodeOnly(e))
+                                    }
+                                    onContextMenu={(e) => {
+                                        if (e.ctrlKey) {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            onToggleSolo(output.key, true);
+                                        }
+                                    }}
+                                >
+                                    <span className="vu-btn-inner">S</span>
+                                </button>
+                            )}
                         </>
                     )}
                 </div>
@@ -617,7 +630,7 @@ export function VuMeterPanel({
                             output={output}
                             ghost={ghosts.get(output.key)}
                             index={busLetter(i)}
-                            suppressed={anySolo ? !output.solo : output.mute}
+                            suppressed={output.mute}
                             {...meterProps}
                         />
                     ))}

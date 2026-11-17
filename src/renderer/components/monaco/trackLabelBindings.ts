@@ -305,3 +305,83 @@ export function globalNameDiagnostics(
         ];
     });
 }
+
+/** Stands for a binding whose type the editor cannot tell. */
+const UNKNOWN = '?';
+
+/**
+ * The lib type each track's name is bound as, by track name, or
+ * {@link UNKNOWN}.
+ */
+function bindingTypes(
+    ts: typeof TS,
+    checker: TS.TypeChecker,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): Map<string, string> {
+    const starts = new Map(
+        view.bindings.map((b, i) => [
+            b.declStart,
+            view.analysis.tracks[i].track.name,
+        ]),
+    );
+    // Read off the labelled value, not the declared name: two tracks that
+    // read each other leave both names untyped, while their values still
+    // say what they are. An untyped value could be anything.
+    const bound = (value: TS.Expression): string => {
+        let type = checker.getTypeAtLocation(value);
+        if ((type.flags & ts.TypeFlags.Any) !== 0) {
+            return UNKNOWN;
+        }
+        if (type.getSymbol()?.name === 'Track') {
+            [type] = checker.getTypeArguments(type as TS.TypeReference);
+        }
+        const name = type?.getSymbol()?.name;
+        return name === 'BusSignal' || name === 'RangedBusSignal'
+            ? 'BusTap'
+            : 'TrackTap';
+    };
+    const types = new Map<string, string>();
+    for (const statement of sourceFile.statements) {
+        if (!ts.isVariableStatement(statement)) {
+            continue;
+        }
+        const [declaration] = statement.declarationList.declarations;
+        const name = starts.get(declaration.name.getStart(sourceFile));
+        if (name !== undefined) {
+            const [value] = ts.isCallExpression(declaration.initializer!)
+                ? declaration.initializer.arguments
+                : [];
+            types.set(name, value ? bound(value) : UNKNOWN);
+        }
+    }
+    return types;
+}
+
+/** One diagnostic per bus track whose label solos it, on the label's prefix. */
+export function busSoloDiagnostics(
+    ts: typeof TS,
+    checker: TS.TypeChecker,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): TS.Diagnostic[] {
+    if (view.bindings.length === 0) {
+        return [];
+    }
+    const types = bindingTypes(ts, checker, sourceFile, view);
+    return view.analysis.tracks.flatMap(
+        ({ track, labelStart }): TS.Diagnostic[] =>
+            track.state.solo && types.get(track.name) === 'BusTap'
+                ? [
+                      {
+                          category: ts.DiagnosticCategory.Error,
+                          code: TRACK_LABEL_CODE,
+                          file: sourceFile,
+                          length: track.prefixLength,
+                          messageText: `${track.name} is a bus, and a bus cannot be soloed`,
+                          start: labelStart,
+                      },
+                  ]
+                : [],
+    );
+}

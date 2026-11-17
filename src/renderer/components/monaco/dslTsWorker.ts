@@ -43,6 +43,7 @@ import {
 } from './dollarQuotes';
 import {
     bindingPosition,
+    busSoloDiagnostics,
     globalNameDiagnostics,
     mapSpan,
     onLabelOutsideName,
@@ -116,6 +117,12 @@ class DslTypeScriptWorker extends TypeScriptWorker {
                     withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
                 ),
                 ...globalNameDiagnostics(ts, program, sourceFile, view),
+                ...busSoloDiagnostics(
+                    ts,
+                    program.getTypeChecker(),
+                    sourceFile,
+                    view,
+                ),
             ].sort((a, b) => (a.start ?? 0) - (b.start ?? 0)),
         );
     }

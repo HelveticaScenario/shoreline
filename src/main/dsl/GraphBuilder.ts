@@ -1348,7 +1348,13 @@ export class GraphBuilder implements ChainHost {
                     // for `$amp`) or 0 (silence); the VU panel
                     // flips it live via the single-module update path, and the
                     // $slew declicks the 5 V swing over ~10 ms.
-                    const gate = (anySolo ? group.solo : !group.mute) ? 5 : 0;
+                    // A bus plays through other tracks' solos, so a soloed
+                    // track is heard with what it sends.
+                    const gate = (
+                        anySolo && !group.isBus ? group.solo : !group.mute
+                    )
+                        ? 5
+                        : 0;
                     const muteSig = signalFactory(gate, {
                         ...GATE_RANGE,
                         id: `__vuMute_${sk}`,
@@ -1792,6 +1798,11 @@ export class GraphBuilder implements ChainHost {
         }
         const bus = busRootOf(source) as Bus | undefined;
         if (bus) {
+            if (declaration.state.solo) {
+                throw new Error(
+                    `track ${name} is a bus, and a bus cannot be soloed`,
+                );
+            }
             if (options.sends !== undefined) {
                 throw new Error(
                     `track ${name} is a bus, and a bus cannot send to another bus`,

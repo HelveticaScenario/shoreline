@@ -787,6 +787,10 @@ function App() {
                 return;
             }
             const audio = outputs[idx];
+            // A bus has no solo.
+            if (prop === 'solo' && audio.isBus) {
+                return;
+            }
 
             if (codeOnly) {
                 const ghost = vuGhostsRef.current.get(key);
@@ -830,14 +834,11 @@ function App() {
                 if (muteModuleId == null) {
                     continue;
                 }
-                const gateBefore = (
-                    anySoloBefore ? outputs[i].solo : !outputs[i].mute
-                )
-                    ? 5
-                    : 0;
-                const gateAfter = (anySoloAfter ? next[i].solo : !next[i].mute)
-                    ? 5
-                    : 0;
+                // A bus plays through other tracks' solos.
+                const gateOf = (o: VuMeterDef, anySolo: boolean) =>
+                    (anySolo && !o.isBus ? o.solo : !o.mute) ? 5 : 0;
+                const gateBefore = gateOf(outputs[i], anySoloBefore);
+                const gateAfter = gateOf(next[i], anySoloAfter);
                 if (gateBefore !== gateAfter) {
                     void electronAPI.synthesizer.setModuleParam(
                         muteModuleId,

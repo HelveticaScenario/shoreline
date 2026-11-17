@@ -1416,7 +1416,8 @@ class BusTap extends TrackTap {
  * \`sends\` option, as one stereo lane. Chain effects on it and label the
  * result to hear it. That track is the bus: its name is what \`sends\`
  * takes, and reads as the track's signal like any other track's name. A bus
- * has one track, and a bus track cannot send to another bus.
+ * has one track, and a bus track cannot send to another bus or be soloed:
+ * it keeps playing while other tracks are soloed.
  *
  * @returns The bus's signal
  *
