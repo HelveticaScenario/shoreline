@@ -7,10 +7,10 @@
 import type { Page } from '@playwright/test';
 import { test, expect, openUntitledBuffer } from '../fixtures';
 
-async function setSource(window: Page, source: string): Promise<void> {
+async function setSource(window: Page, text: string): Promise<void> {
     await window.evaluate(
         (value) => window.__TEST_API__!.setEditorValue(value),
-        source,
+        text,
     );
 }
 
@@ -26,8 +26,8 @@ function source(window: Page): Promise<string> {
     });
 }
 
-/** Starts a rename at `offset` and returns the rename box's input. */
-async function startRename(window: Page, offset: number) {
+/** Asks for a rename at `offset`. */
+async function requestRename(window: Page, offset: number): Promise<void> {
     await window.evaluate((at) => {
         const editor = window.monaco.editor
             .getEditors()
@@ -36,6 +36,11 @@ async function startRename(window: Page, offset: number) {
         editor.focus();
         editor.trigger('test', 'editor.action.rename', null);
     }, offset);
+}
+
+/** Starts a rename at `offset` and returns the rename box's input. */
+async function startRename(window: Page, offset: number) {
+    await requestRename(window, offset);
     const input = window.locator('.rename-box .rename-input');
     await expect(input).toBeVisible({ timeout: 20_000 });
     return input;
@@ -103,6 +108,19 @@ test.describe('renaming a track', () => {
         await expect
             .poll(() => source(window))
             .toBe(`kit: $group()\nkick$kit: $sine('c1')\nhat$kit: $noise()`);
+    });
+
+    test('a suffix naming no track has no group to rename', async ({
+        window,
+    }) => {
+        const patch = `kick$drums: $sine('c1')`;
+        await setSource(window, patch);
+        await requestRename(window, patch.indexOf('drums') + 2);
+        await expect(
+            window.locator('.monaco-editor-overlaymessage'),
+        ).toContainText(
+            'No track is named drums, so there is no group to rename',
+        );
     });
 
     test('a name with a prefix is refused', async ({ window }) => {
