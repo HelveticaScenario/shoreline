@@ -1199,7 +1199,6 @@ export class GraphBuilder implements ChainHost {
         const mixFactory = this.getFactory('$mix');
         const panFactory = this.getFactory('$pan');
         const setLanesFactory = this.getFactory('$setLanes');
-        const mulFactory = this.getFactory('$mul');
         const monoFactory = this.getFactory('$mono');
         const leftFactory = this.getFactory('$left');
         const rightFactory = this.getFactory('$right');
@@ -1320,19 +1319,16 @@ export class GraphBuilder implements ChainHost {
                     // Group mix, then the gain stage — the tap: the meter
                     // reads post-gain, pre-mute like a post-fader DAW meter.
                     // A stereo out pans its lanes and sums them into one
-                    // stereo lane. `$pan` keeps a centred lane at unity, so
-                    // the sum is taken down 3 dB to match a mono out's level
-                    // on each speaker. A mono out sums its lanes folded.
+                    // stereo lane; a centred lane plays at unity on both
+                    // sides, as on a DAW track. A mono out sums its lanes
+                    // folded.
                     const mixSignals: ModuleOutput[] =
                         group.type === 'stereo'
-                            ? mulFactory(
-                                  setLanesFactory(
-                                      panFactory(group.outputs, panSource, {
-                                          spread: group.spread ?? 0,
-                                      }),
-                                      1,
-                                  ),
-                                  Math.SQRT1_2,
+                            ? setLanesFactory(
+                                  panFactory(group.outputs, panSource, {
+                                      spread: group.spread ?? 0,
+                                  }),
+                                  1,
                               ).items
                             : setLanesFactory(monoFactory(group.outputs), 1)
                                   .items;
