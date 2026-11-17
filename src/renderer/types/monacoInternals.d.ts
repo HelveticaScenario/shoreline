@@ -210,6 +210,10 @@ declare module 'monaco-editor/esm/vs/language/typescript/tsWorker.js' {
             fileName: string,
             position: number,
         ): Promise<import('typescript').QuickInfo | undefined>;
+        getCompletionsAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<import('typescript').CompletionInfo | undefined>;
         getRenameInfo(
             fileName: string,
             position: number,

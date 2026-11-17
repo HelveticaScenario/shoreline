@@ -28,6 +28,24 @@ import {
 /** The track label diagnostic's code; outside TypeScript's own range. */
 export const TRACK_LABEL_CODE = 90002;
 
+/** The appended function whose result holds every track's value. */
+const TRACKS = '__tracks';
+
+/**
+ * Whether a completion entry is one of the editor's own names, which a patch
+ * never writes: the appended function, or a `__` name the DSL's types declare.
+ */
+export function isEditorInternal(entry: {
+    name: string;
+    kindModifiers?: string;
+}): boolean {
+    return (
+        entry.name === TRACKS ||
+        (entry.name.startsWith('__') &&
+            (entry.kindModifiers ?? '').split(',').includes('declare'))
+    );
+}
+
 /** One appended declaration and the label name it stands for. */
 interface Binding {
     /** Span of the declared name in the appended text. */
@@ -84,12 +102,12 @@ export function trackLabelView(ts: typeof TS, source: string): TrackLabelView {
                 return `${track.name}: (${value})`;
             })
             .join(',\n');
-        text += `\n;function __tracks(${parameters}) { return {\n${values}\n}; }`;
+        text += `\n;function ${TRACKS}(${parameters}) { return {\n${values}\n}; }`;
     }
     for (const { track, labelStart } of tracks) {
         const head = `\n;var `;
         const declStart = text.length + head.length;
-        text += `${head}${track.name} = __trackBinding(__tracks().${track.name});`;
+        text += `${head}${track.name} = __trackBinding(${TRACKS}().${track.name});`;
         const nameStart = labelStart + track.prefixLength;
         bindings.push({
             declEnd: declStart + track.name.length,
