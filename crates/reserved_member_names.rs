@@ -42,6 +42,8 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "glide",
     "scale",
     "trans",
+    "playhead",
+    "ribbon",
     // JavaScript built-in property names
     "constructor",
     "prototype",
