@@ -47,6 +47,8 @@ import {
     busSoloDiagnostics,
     groupSuffixDiagnostics,
     globalNameDiagnostics,
+    groupSuffixAt,
+    groupSuffixesOf,
     isBindingStart,
     mapSpan,
     onLabelOutsideName,
@@ -180,6 +182,30 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         });
     }
 
+    /**
+     * `entries` with one more per group suffix naming a track among them, so
+     * what finds a group track's name finds the labels that play into it.
+     */
+    private withGroupSuffixes<T extends { textSpan: TextSpan }>(
+        fileName: string,
+        entries: readonly T[],
+        entryFile: (entry: T) => string,
+    ): T[] {
+        const view = this.view(fileName);
+        return entries.flatMap((entry) => [
+            entry,
+            ...(view && entryFile(entry) === fileName
+                ? groupSuffixesOf(view, entry.textSpan.start).map(
+                      (textSpan) => ({
+                          ...entry,
+                          contextSpan: undefined,
+                          textSpan,
+                      }),
+                  )
+                : []),
+        ]);
+    }
+
     override async getDefinitionAtPosition(
         fileName: string,
         position: number,
@@ -196,11 +222,15 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         fileName: string,
         position: number,
     ): Promise<ReferenceEntry[] | undefined> {
-        return this.mapEntries(
+        const references = this.mapEntries(
             await super.getReferencesAtPosition(
                 fileName,
                 this.at(fileName, position),
             ),
+        );
+        return (
+            references &&
+            this.withGroupSuffixes(fileName, references, (r) => r.fileName)
         );
     }
 
@@ -219,7 +249,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         findInComments: boolean,
         providePrefixAndSuffixTextForRename: boolean,
     ): Promise<readonly RenameLocation[] | undefined> {
-        return this.mapEntries(
+        const locations = this.mapEntries(
             await super.findRenameLocations(
                 fileName,
                 this.renameAt(fileName, position),
@@ -227,6 +257,10 @@ class DslTypeScriptWorker extends TypeScriptWorker {
                 findInComments,
                 providePrefixAndSuffixTextForRename,
             ),
+        );
+        return (
+            locations &&
+            this.withGroupSuffixes(fileName, locations, (l) => l.fileName)
         );
     }
 
@@ -270,12 +304,16 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         );
         return highlights?.map((h) => ({
             ...h,
-            highlightSpans: h.highlightSpans.flatMap((span) => {
-                const textSpan = this.patchSpan(h.fileName, span.textSpan);
-                return textSpan
-                    ? [{ ...span, contextSpan: undefined, textSpan }]
-                    : [];
-            }),
+            highlightSpans: this.withGroupSuffixes(
+                fileName,
+                h.highlightSpans.flatMap((span) => {
+                    const textSpan = this.patchSpan(h.fileName, span.textSpan);
+                    return textSpan
+                        ? [{ ...span, contextSpan: undefined, textSpan }]
+                        : [];
+                }),
+                () => h.fileName,
+            ),
         }));
     }
 
@@ -312,7 +350,10 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         if (!info.canRename) {
             return info;
         }
-        const triggerSpan = this.patchSpan(fileName, info.triggerSpan);
+        // A rename asked on a group suffix edits the name there.
+        const triggerSpan =
+            (view && groupSuffixAt(view, position)) ??
+            this.patchSpan(fileName, info.triggerSpan);
         return triggerSpan
             ? { ...info, triggerSpan }
             : { canRename: false, localizedErrorMessage: 'Nothing to rename' };

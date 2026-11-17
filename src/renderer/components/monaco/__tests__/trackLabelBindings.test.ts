@@ -3,6 +3,8 @@ import { describe, expect, test } from 'vitest';
 
 import {
     bindingPosition,
+    groupSuffixAt,
+    groupSuffixesOf,
     onLabelOutsideName,
     renamePosition,
     trackLabelView,
@@ -63,6 +65,28 @@ describe('trackLabelView', () => {
         expect(onLabelOutsideName(view, renamePosition(view, 8))).toBe(true);
         const use = source.indexOf('bass.scope');
         expect(renamePosition(view, use)).toBe(use);
+    });
+
+    test('a request on a group suffix is asked of the group', () => {
+        const source = `drums: $group()\n_kick$drums: $sine('c1')\nhat$drums: $noise()\nlead$synths: $saw('c3')`;
+        const view = trackLabelView(ts, source);
+        const [drums] = view.bindings;
+        const suffix = source.indexOf('$drums') + 1;
+        expect(groupSuffixAt(view, suffix + 2)).toEqual({
+            length: 5,
+            start: suffix,
+        });
+        expect(bindingPosition(view, suffix + 2)).toBe(drums.declStart + 2);
+        expect(onLabelOutsideName(view, suffix + 2)).toBe(false);
+        expect(groupSuffixesOf(view, drums.nameStart)).toEqual([
+            { length: 5, start: suffix },
+            { length: 5, start: source.lastIndexOf('$drums') + 1 },
+        ]);
+        expect(groupSuffixesOf(view, view.bindings[1].nameStart)).toEqual([]);
+        // No track is named synths, so its suffix reads no name.
+        const unbound = source.indexOf('synths');
+        expect(bindingPosition(view, unbound)).toBe(unbound);
+        expect(onLabelOutsideName(view, unbound)).toBe(true);
     });
 
     test('a diagnostic on a declared name moves onto the label', () => {

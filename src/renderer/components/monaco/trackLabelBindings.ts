@@ -120,17 +120,61 @@ export function trackLabelView(ts: typeof TS, source: string): TrackLabelView {
     return { analysis, bindings, endDiagnostics, length: source.length, text };
 }
 
-/** `position` moved from a label's name onto its declaration. */
+/** The span of the group name in the label suffix `position` is on. */
+export function groupSuffixAt(
+    view: TrackLabelView,
+    position: number,
+): TS.TextSpan | null {
+    for (const { track, labelStart } of view.analysis.tracks) {
+        const start = labelStart + track.groupStart;
+        if (
+            track.group !== null &&
+            position >= start &&
+            position <= start + track.group.length
+        ) {
+            return { length: track.group.length, start };
+        }
+    }
+    return null;
+}
+
+/** The binding of the track named `name`. */
+function bindingNamed(view: TrackLabelView, name: string): Binding | undefined {
+    return view.bindings[
+        view.analysis.tracks.findIndex((t) => t.track.name === name)
+    ];
+}
+
+/**
+ * `position` moved onto the name it reads in a label: from a group suffix to
+ * the group's own label, where that group is a track.
+ */
+function namePosition(view: TrackLabelView, position: number): number {
+    const suffix = groupSuffixAt(view, position);
+    const group =
+        suffix &&
+        bindingNamed(
+            view,
+            view.text.slice(suffix.start, suffix.start + suffix.length),
+        );
+    return suffix && group
+        ? group.nameStart + position - suffix.start
+        : position;
+}
+
+/**
+ * `position` moved from a label's name, or from a suffix naming its group,
+ * onto the declaration of that name.
+ */
 export function bindingPosition(
     view: TrackLabelView,
     position: number,
 ): number {
+    const at = namePosition(view, position);
     const binding = view.bindings.find(
-        (b) => position >= b.nameStart && position <= b.nameEnd,
+        (b) => at >= b.nameStart && at <= b.nameEnd,
     );
-    return binding
-        ? binding.declStart + position - binding.nameStart
-        : position;
+    return binding ? binding.declStart + at - binding.nameStart : position;
 }
 
 /**
@@ -150,19 +194,49 @@ export function isBindingStart(view: TrackLabelView, start: number): boolean {
     return view.bindings.some((b) => b.declStart === start);
 }
 
-/** Whether `position` is on a track label but not on its name. */
+/**
+ * The group suffixes naming the track whose label name starts at `nameStart`:
+ * every place a label reads that name besides its own.
+ */
+export function groupSuffixesOf(
+    view: TrackLabelView,
+    nameStart: number,
+): TS.TextSpan[] {
+    const index = view.bindings.findIndex((b) => b.nameStart === nameStart);
+    const name = view.analysis.tracks[index]?.track.name;
+    return name === undefined
+        ? []
+        : view.analysis.tracks.flatMap(({ track, labelStart }) =>
+              track.group === name
+                  ? [
+                        {
+                            length: name.length,
+                            start: labelStart + track.groupStart,
+                        },
+                    ]
+                  : [],
+          );
+}
+
+/**
+ * Whether `position` is on a track label but on neither its name nor a group
+ * name the patch binds.
+ */
 export function onLabelOutsideName(
     view: TrackLabelView,
     position: number,
 ): boolean {
-    return view.analysis.tracks.some(
-        (t, i) =>
-            position >= t.labelStart &&
-            position <= t.labelEnd &&
-            !(
-                position >= (view.bindings[i]?.nameStart ?? -1) &&
-                position <= (view.bindings[i]?.nameEnd ?? -1)
-            ),
+    return (
+        namePosition(view, position) === position &&
+        view.analysis.tracks.some(
+            (t, i) =>
+                position >= t.labelStart &&
+                position <= t.labelEnd &&
+                !(
+                    position >= (view.bindings[i]?.nameStart ?? -1) &&
+                    position <= (view.bindings[i]?.nameEnd ?? -1)
+                ),
+        )
     );
 }
 

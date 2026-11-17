@@ -1,6 +1,7 @@
 /**
  * E2E tests for Rename Symbol on track labels: the rename is of the track's
- * name alone, wherever the label's prefix leaves the cursor.
+ * name alone, wherever the label's prefix leaves the cursor, and reaches the
+ * labels that name the track as their group.
  */
 
 import type { Page } from '@playwright/test';
@@ -74,6 +75,34 @@ test.describe('renaming a track', () => {
         await expect
             .poll(() => source(window))
             .toBe(`S__thump: $sine('c1')\nbass: $saw('c2').amp(thump)`);
+    });
+
+    test('renaming a group renames the labels that play into it', async ({
+        window,
+    }) => {
+        const patch = `drums: $group()\n_kick$drums: $sine('c1')\nhat$drums: $noise().amp(drums)`;
+        await setSource(window, patch);
+        const input = await startRename(window, 2);
+        await expect(input).toHaveValue('drums');
+        await input.fill('kit');
+        await input.press('Enter');
+        await expect
+            .poll(() => source(window))
+            .toBe(
+                `kit: $group()\n_kick$kit: $sine('c1')\nhat$kit: $noise().amp(kit)`,
+            );
+    });
+
+    test('a rename on a group suffix renames the group', async ({ window }) => {
+        const patch = `drums: $group()\nkick$drums: $sine('c1')\nhat$drums: $noise()`;
+        await setSource(window, patch);
+        const input = await startRename(window, patch.indexOf('$drums') + 3);
+        await expect(input).toHaveValue('drums');
+        await input.fill('kit');
+        await input.press('Enter');
+        await expect
+            .poll(() => source(window))
+            .toBe(`kit: $group()\nkick$kit: $sine('c1')\nhat$kit: $noise()`);
     });
 
     test('a name with a prefix is refused', async ({ window }) => {
