@@ -162,7 +162,7 @@ export interface TrackOptions {
     pan?: PolySignal;
     /** How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge). Default 0 */
     spread?: Signal;
-    /** Buses this track also feeds, before its gain, pan, mute and solo */
+    /** Buses this track also feeds with its final signal */
     sends?: Send | Send[];
 }
 
@@ -790,7 +790,6 @@ export class GraphBuilder implements ChainHost {
      */
     private pendingSends: {
         track: string;
-        outputs: ModuleOutput[];
         sends: unknown;
     }[] = [];
     private endOfChainCb: (
@@ -1187,14 +1186,14 @@ export class GraphBuilder implements ChainHost {
      * which adds overhead from lane count derivation on every patch build.
      */
     toPatch(): PatchGraph {
-        for (const { track, outputs, sends } of this.pendingSends) {
-            for (const [bus, gain] of this.resolveSends(track, sends)) {
-                bus.addSend(outputs, gain);
-            }
-        }
-        for (const bus of this.busses) {
-            bus.finalize();
-        }
+        // A send carries its track's final signal, so each is added as the
+        // output stage builds it, and the buses are finalized after.
+        const sendsByTrack = new Map(
+            this.pendingSends.map(({ track, sends }) => [
+                track,
+                this.resolveSends(track, sends),
+            ]),
+        );
 
         const signalFactory = this.getFactory('$signal');
         const mixFactory = this.getFactory('$mix');
@@ -1378,6 +1377,11 @@ export class GraphBuilder implements ChainHost {
                         ampFactory(tapOutputs, smoothed) as Collection
                     ).items;
 
+                    for (const [bus, gain] of sendsByTrack.get(group.label) ??
+                        []) {
+                        bus.addSend(outputSignals, gain);
+                    }
+
                     outsByLabel.set(group.label, {
                         active: muteSig.items[0],
                         audio: outputSignals,
@@ -1443,6 +1447,9 @@ export class GraphBuilder implements ChainHost {
                     allChannelCollections.push(channelCollection);
                 }
             }
+            for (const bus of this.busses) {
+                bus.finalize();
+            }
             // Mix all channel collections together using poly mix
             // Each collection contributes to corresponding output channels
             const finalMix = mixFactory(allChannelCollections) as Collection;
@@ -1502,6 +1509,9 @@ export class GraphBuilder implements ChainHost {
         } else {
             // No outputs registered - create silent root signal (0V)
             signalFactory(0, { id: 'ROOT_OUTPUT' });
+            for (const bus of this.busses) {
+                bus.finalize();
+            }
         }
 
         // A tap control is the first lane of its source: tapped directly
@@ -1816,11 +1826,7 @@ export class GraphBuilder implements ChainHost {
             bus.trackName = name;
             this.bussesByName.set(name, bus);
         } else if (options.sends !== undefined) {
-            this.pendingSends.push({
-                outputs,
-                sends: options.sends,
-                track: name,
-            });
+            this.pendingSends.push({ sends: options.sends, track: name });
         }
         const state = {
             displayName: declaration.displayName,

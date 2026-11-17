@@ -1,6 +1,6 @@
 /**
- * A track's `sends` feeds the track's signal to each bus named, at full
- * level or at a pair's gain, before the track's own gain and pan.
+ * A track's `sends` feeds the track's final signal, after its gain, pan,
+ * mute and solo, to each bus named, at full level or at a pair's gain.
  */
 
 import { describe, expect, test } from 'vitest';
@@ -17,8 +17,10 @@ function patchOf(source: string): PatchGraph {
 }
 
 /**
- * What bus `a` (index 0) or `b` (index 1) mixes, as `source` or
- * `source@level` per send. Each bus is found from the filter chained on it.
+ * What bus `a` (index 0) or `b` (index 1) mixes, as `track` or
+ * `track@level` per send, where `track` names the track whose final output
+ * (its gain stage gated by mute and solo) is sent. Each bus is found from the
+ * filter chained on it.
  */
 function busSends(patch: PatchGraph, index: number): string[] {
     const byId = new Map(patch.modules.map((m) => [m.id, m]));
@@ -27,6 +29,13 @@ function busSends(patch: PatchGraph, index: number): string[] {
     )!;
     const source = (cables: unknown) =>
         byId.get((cables as Cable[])[0].module)!;
+    const track = (id: string) => {
+        const gated = byId.get(id)!;
+        const tap = source(gated.params.input).id;
+        return gated.moduleType === '$amp' && tap.startsWith('__vuTap_')
+            ? tap.slice('__vuTap_'.length)
+            : id;
+    };
     const lanes = source(filter.params.input);
     if (lanes.moduleType !== '$setLanes') {
         return [];
@@ -37,13 +46,13 @@ function busSends(patch: PatchGraph, index: number): string[] {
         const cable = Array.isArray(input) ? input[0] : input;
         const from = byId.get(cable.module)!;
         if (from.moduleType !== '$gain') {
-            return from.id;
+            return track(from.id);
         }
         const { input: gained, level } = from.params as {
             input: Cable[];
             level: unknown;
         };
-        return `${gained[0].module}@${JSON.stringify(level)}`;
+        return `${track(gained[0].module)}@${JSON.stringify(level)}`;
     });
 }
 
@@ -51,29 +60,25 @@ const BUSES = `a$2m: $bus().lpf('c8')\nb$3m: $bus().hpf('c0')\n`;
 
 describe('track sends', () => {
     test.each([
-        [`lead: $saw('c3').track({ sends: a })`, ['$saw-1'], []],
-        [`lead: $saw('c3').track({ sends: [a, 3] })`, ['$saw-1@3'], []],
-        [`lead: $saw('c3').track({ sends: [a, b] })`, ['$saw-1'], ['$saw-1']],
+        [`lead: $saw('c3').track({ sends: a })`, ['lead'], []],
+        [`lead: $saw('c3').track({ sends: [a, 3] })`, ['lead@3'], []],
+        [`lead: $saw('c3').track({ sends: [a, b] })`, ['lead'], ['lead']],
         [
             `lead: $saw('c3').track({ sends: [[a, 2], [b, 3]] })`,
-            ['$saw-1@2'],
-            ['$saw-1@3'],
+            ['lead@2'],
+            ['lead@3'],
         ],
         [
             `lead: $saw('c3').track({ sends: [a, [b, 4]] })`,
-            ['$saw-1'],
-            ['$saw-1@4'],
+            ['lead'],
+            ['lead@4'],
         ],
-        [`lead: $saw('c3').track({ sends: [[a, 2]] })`, ['$saw-1@2'], []],
-        [
-            `lead: $saw('c3').track({ sends: [a, [1, 2]] })`,
-            ['$saw-1@[1,2]'],
-            [],
-        ],
+        [`lead: $saw('c3').track({ sends: [[a, 2]] })`, ['lead@2'], []],
+        [`lead: $saw('c3').track({ sends: [a, [1, 2]] })`, ['lead@[1,2]'], []],
         [
             `lead$0m: $saw('c3').track({ sends: [a, [b, 4]] })`,
-            ['$saw-1'],
-            ['$saw-1@4'],
+            ['lead'],
+            ['lead@4'],
         ],
     ])('%s', (patch, toA, toB) => {
         const built = patchOf(`${BUSES}${patch}`);
@@ -85,7 +90,14 @@ describe('track sends', () => {
         const built = patchOf(
             `${BUSES}lead: $saw('c3').track({ sends: a })\nbass$1m: $sine('c4').track({ sends: [a, 2] })`,
         );
-        expect(busSends(built, 0)).toEqual(['$saw-1', '$sine-1@2']);
+        expect(busSends(built, 0)).toEqual(['lead', 'bass@2']);
+    });
+
+    test('a muted track sends nothing, its send passing through its mute', () => {
+        const built = patchOf(`${BUSES}_lead: $saw('c3').track({ sends: a })`);
+        expect(busSends(built, 0)).toEqual(['lead']);
+        const gate = built.modules.find((m) => m.id === '__vuMute_lead')!;
+        expect(gate.params.value).toBe(0);
     });
 
     test.each([
