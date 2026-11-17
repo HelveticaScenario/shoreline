@@ -110,17 +110,13 @@ test.describe('renaming a track', () => {
             .toBe(`kit: $group()\nkick$kit: $sine('c1')\nhat$kit: $noise()`);
     });
 
-    test('a suffix naming no track has no group to rename', async ({
-        window,
-    }) => {
+    test('a suffix naming no track cannot be renamed', async ({ window }) => {
         const patch = `kick$drums: $sine('c1')`;
         await setSource(window, patch);
         await requestRename(window, patch.indexOf('drums') + 2);
         await expect(
             window.locator('.monaco-editor-overlaymessage'),
-        ).toContainText(
-            'No track is named drums, so there is no group to rename',
-        );
+        ).toContainText('You cannot rename this element.');
     });
 
     test('a name with a prefix is refused', async ({ window }) => {

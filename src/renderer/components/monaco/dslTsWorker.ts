@@ -351,14 +351,11 @@ class DslTypeScriptWorker extends TypeScriptWorker {
     ): Promise<RenameInfo> {
         const view = this.view(fileName);
         if (view && onLabelOutsideName(view, renamePosition(view, position))) {
-            const suffix = groupSuffixAt(view, position);
-            const group =
-                suffix &&
-                view.text.slice(suffix.start, suffix.start + suffix.length);
+            // A suffix naming no track reads as any undeclared name does.
             return {
                 canRename: false,
-                localizedErrorMessage: group
-                    ? `No track is named ${group}, so there is no group to rename`
+                localizedErrorMessage: groupSuffixAt(view, position)
+                    ? 'You cannot rename this element.'
                     : "Rename a track from its name, not its label's channel",
             };
         }
