@@ -1246,7 +1246,6 @@ export class GraphBuilder implements ChainHost {
         const mixFactory = this.getFactory('$mix');
         const panFactory = this.getFactory('$pan');
         const setLanesFactory = this.getFactory('$setLanes');
-        const mulFactory = this.getFactory('$mul');
         const monoFactory = this.getFactory('$mono');
         const leftFactory = this.getFactory('$left');
         const rightFactory = this.getFactory('$right');
@@ -1270,11 +1269,11 @@ export class GraphBuilder implements ChainHost {
             gain: PolySignal;
             gate: Collection;
         }
-        // A stereo stage pans its lanes and sums them into one stereo lane.
-        // `$pan` keeps a centred lane at unity, so the sum is taken down
-        // 3 dB to match a mono stage's level on each speaker. A mono stage
-        // sums its lanes folded. The result is post-gain, pre-gate, which is
-        // where a track's meter reads, like a post-fader DAW meter.
+        // A stereo stage pans its lanes and sums them into one stereo lane;
+        // a centred lane plays at unity on both sides, as on a DAW track. A
+        // mono stage sums its lanes folded. The result is post-gain,
+        // pre-gate, which is where a track's meter reads, like a post-fader
+        // DAW meter.
         const gainStage = (
             outputs: ModuleOutput[],
             stage: Omit<MixStage, 'gate'>,
@@ -1282,14 +1281,11 @@ export class GraphBuilder implements ChainHost {
         ): ModuleOutput[] => {
             const mixed =
                 stage.type === 'stereo'
-                    ? mulFactory(
-                          setLanesFactory(
-                              panFactory(outputs, stage.pan, {
-                                  spread: stage.spread,
-                              }),
-                              1,
-                          ),
-                          Math.SQRT1_2,
+                    ? setLanesFactory(
+                          panFactory(outputs, stage.pan, {
+                              spread: stage.spread,
+                          }),
+                          1,
                       ).items
                     : setLanesFactory(monoFactory(outputs), 1).items;
             return gainFactory(
