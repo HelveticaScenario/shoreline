@@ -73,6 +73,31 @@ const UNBINDABLE = new Set([
     'yield',
 ]);
 
+/** Why a well-formed `name` still cannot name a track, or null. */
+function reservedNameError(name: string): string | null {
+    // A name that reads as a solo prefix would become another track once the
+    // mixer clears its own prefix.
+    if (/^[sS]_/.test(name)) {
+        return 'a track name cannot start with s_ or S_, which marks a soloed track';
+    }
+    if (UNBINDABLE.has(name)) {
+        return `${name} cannot name a track, since a patch cannot read it as one`;
+    }
+    return null;
+}
+
+/** Why `name` cannot name a track, or null when it can. */
+export function trackNameError(name: string): string | null {
+    const reserved = reservedNameError(name);
+    if (reserved !== null) {
+        return reserved;
+    }
+    const track = parseTrackLabel(name);
+    return !('error' in track) && track.name === name
+        ? null
+        : `\`${name}\` is not a track name. A track name is one word that does not start with a digit or _, e.g. bass_line`;
+}
+
 /** The track a label declares, or why the label declares none. */
 export function parseTrackLabel(text: string): TrackLabel | { error: string } {
     const [prefixLength, state] = splitPrefix(text);
@@ -82,17 +107,9 @@ export function parseTrackLabel(text: string): TrackLabel | { error: string } {
     if (name.length === 0 || name.startsWith('_') || !IDENTIFIER.test(name)) {
         return { error: `\`${text}\` is not a track label. ${FORMAT_HINT}` };
     }
-    // A name that reads as a solo prefix would become another track once the
-    // mixer clears its own prefix.
-    if (/^[sS]_/.test(name)) {
-        return {
-            error: `\`${text}\`: a track name cannot start with s_ or S_, which marks a soloed track`,
-        };
-    }
-    if (UNBINDABLE.has(name)) {
-        return {
-            error: `\`${text}\`: ${name} cannot name a track, since a patch cannot read it as one`,
-        };
+    const reserved = reservedNameError(name);
+    if (reserved !== null) {
+        return { error: `\`${text}\`: ${reserved}` };
     }
     const mono = suffix?.[2] === 'm';
     const channel = suffix ? Number(suffix[1]) : 0;
