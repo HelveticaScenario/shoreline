@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    `.send()` is gone. Send to a `$bus` with the `sends` option of `.track()`, which takes a bus track's name, a `[name, gain]` pair, or an array of them, so one track can feed several buses:
+    `.send()` is gone. Send to a `$bus` with the `sends` option of `.track()`, which takes a bus track's name, a `[name, gain]` pair, or an array of them, so one track can feed several buses. A send carries the track's final signal, after its gain, pan, mute and solo:
 
     ```js
     // before
