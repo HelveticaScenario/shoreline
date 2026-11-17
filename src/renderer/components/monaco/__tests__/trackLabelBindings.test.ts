@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 
 import {
     bindingPosition,
+    isEditorInternal,
     onLabelOutsideName,
     renamePosition,
     trackLabelView,
@@ -95,4 +96,15 @@ describe('trackLabelView', () => {
         expect(moved).toMatchObject({ length: 4, start: 0 });
         expect(moved.messageText).toMatch(/Math is already taken/);
     });
+});
+
+test("completion leaves out the editor's own names and keeps a patch's", () => {
+    expect(isEditorInternal({ name: '__tracks' })).toBe(true);
+    expect(
+        isEditorInternal({ kindModifiers: 'declare', name: '__trackBinding' }),
+    ).toBe(true);
+    expect(isEditorInternal({ kindModifiers: '', name: '__mine' })).toBe(false);
+    expect(isEditorInternal({ kindModifiers: 'declare', name: '$sine' })).toBe(
+        false,
+    );
 });
