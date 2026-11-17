@@ -37,6 +37,22 @@ describe('the out stage', () => {
         expect(sourceType(patch, 'ROOT_OUTPUT', 'value')).toBe('$mono');
     });
 
+    test('a stereo track plays its panned mix at unity', () => {
+        const patch = modules(`lead: $saw('c3')`);
+        const tap = patch.find((m) => m.id.startsWith('__vuTap_'))!;
+        const mixId = (
+            (tap.params as Record<string, unknown>).input as {
+                module: string;
+            }[]
+        )[0].module;
+        const mix = patch.find((m) => m.id === mixId)!;
+        expect(mix.moduleType).toBe('$setLanes');
+        // One summed lane with no other params: nothing scales the mix.
+        expect(Object.keys(mix.params).sort()).toEqual(['input', 'lanes']);
+        expect((mix.params as Record<string, unknown>).lanes).toBe(1);
+        expect(sourceType(patch, mixId, 'input')).toBe('$pan');
+    });
+
     test('a signal gain is one lane, folded for a mono out', () => {
         const patch = modules(
             `out$2m: $saw('c3').track({ gain: $stereo($sine('1hz'), 5) })
