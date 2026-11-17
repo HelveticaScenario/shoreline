@@ -27,7 +27,7 @@ export const DEFAULT_PERFORMANCE_VIEW: PerformanceViewSettings = {
     codeVisible: true,
     font: 'Fira Code',
     fontSize: 28,
-    ligatures: true,
+    ligatures: false,
     lineHeight: 1.4,
     lineNumbers: false,
     scrollSpeed: 0.5,

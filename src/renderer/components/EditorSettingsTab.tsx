@@ -112,7 +112,7 @@ export function EditorSettingsTab({
                     <input
                         type="checkbox"
                         className="settings-toggle"
-                        checked={config.fontLigatures ?? true}
+                        checked={config.fontLigatures ?? false}
                         onChange={(e) =>
                             onConfigChange({ fontLigatures: e.target.checked })
                         }
