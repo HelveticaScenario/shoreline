@@ -15,8 +15,13 @@ describe('trackLabelView', () => {
         const source = `bass: $saw('c2')\nlead$2: $sine('c4')`;
         const view = trackLabelView(ts, source);
         expect(view.text.startsWith(source)).toBe(true);
-        expect(view.text.slice(source.length)).toContain(
-            "var bass = __trackBinding($saw('c2'))",
+        const appended = view.text.slice(source.length);
+        expect(appended).toContain("bass: ($saw('c2'))");
+        expect(appended).toContain(
+            'var bass = __trackBinding(__tracks().bass)',
+        );
+        expect(appended).toContain(
+            'var lead = __trackBinding(__tracks().lead)',
         );
         expect(view.text.trimEnd().endsWith('export {};')).toBe(true);
     });

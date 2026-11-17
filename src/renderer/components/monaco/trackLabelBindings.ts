@@ -3,15 +3,20 @@
  * name, which JavaScript knows nothing of, so the worker reads each patch
  * with one declaration per track appended after the patch's own text:
  *
- *     var bass = __trackBinding(<the labelled expression>)
+ *     function __tracks(bass, lead) {
+ *         return { bass: (<bass's expression>), lead: (<lead's expression>) };
+ *     }
+ *     var bass = __trackBinding(__tracks().bass)
  *
- * The declaration sits in the patch's own module, so the name gets the type
- * of what it is bound to (a bus, or the track's final signal) and the patch's
- * hover, completion and checking see it. A closing `export {}` keeps the
- * names in this patch even when it is read as a script. Every position in the
- * patch's text is untouched; whatever the language service reports past it
- * is dropped or moved onto the label's name, and a request made on a label's
- * name is asked of its declaration.
+ * The declarations sit in the patch's own module, so each name gets the type
+ * of what it is bound to (the track's final signal, a send target when the
+ * track is a bus) and the patch's hover, completion and checking see it.
+ * Inside `__tracks` every track name is a parameter typed as a plain track,
+ * so no name's type waits on another's and tracks may read each other. A
+ * closing `export {}` keeps the names in this patch even when it is read as a
+ * script. Every position in the patch's text is untouched; whatever the
+ * language service reports past it is dropped or moved onto the label's
+ * name, and a request made on a label's name is asked of its declaration.
  */
 import type * as TS from 'typescript';
 
@@ -65,14 +70,26 @@ export function trackLabelView(ts: typeof TS, source: string): TrackLabelView {
     );
     let text = source;
     const bindings: Binding[] = [];
-    for (const { track, expression, labelStart } of analysis.tracks) {
+    const { tracks } = analysis;
+    if (tracks.length > 0) {
+        const parameters = tracks
+            .map(({ track }) => `/** @type {TrackTap} */ ${track.name}`)
+            .join(', ');
+        const values = tracks
+            .map(({ track, expression }) => {
+                const value = source.slice(
+                    expression.getStart(file),
+                    expression.end,
+                );
+                return `${track.name}: (${value})`;
+            })
+            .join(',\n');
+        text += `\n;function __tracks(${parameters}) { return {\n${values}\n}; }`;
+    }
+    for (const { track, labelStart } of tracks) {
         const head = `\n;var `;
         const declStart = text.length + head.length;
-        const expressionText = source.slice(
-            expression.getStart(file),
-            expression.end,
-        );
-        text += `${head}${track.name} = __trackBinding(${expressionText});`;
+        text += `${head}${track.name} = __trackBinding(__tracks().${track.name});`;
         const nameStart = labelStart + track.prefixLength;
         bindings.push({
             declEnd: declStart + track.name.length,
