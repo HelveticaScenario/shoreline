@@ -8,6 +8,7 @@
 
 import type {
     CodeFixAction,
+    CompletionInfo,
     DefinitionInfo,
     Diagnostic,
     DocumentHighlights,
@@ -49,6 +50,7 @@ import {
     globalNameDiagnostics,
     groupSuffixAt,
     groupSuffixesOf,
+    isEditorInternal,
     isBindingStart,
     mapSpan,
     onLabelOutsideName,
@@ -136,6 +138,19 @@ class DslTypeScriptWorker extends TypeScriptWorker {
                     view,
                 ),
             ].sort((a, b) => (a.start ?? 0) - (b.start ?? 0)),
+        );
+    }
+
+    override async getCompletionsAtPosition(
+        fileName: string,
+        position: number,
+    ): Promise<CompletionInfo | undefined> {
+        const info = await super.getCompletionsAtPosition(fileName, position);
+        return (
+            info && {
+                ...info,
+                entries: info.entries.filter((e) => !isEditorInternal(e)),
+            }
         );
     }
 
