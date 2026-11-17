@@ -43,6 +43,7 @@ import {
 } from './dollarQuotes';
 import {
     bindingPosition,
+    busSoloDiagnostics,
     groupSuffixDiagnostics,
     globalNameDiagnostics,
     mapSpan,
@@ -117,6 +118,12 @@ class DslTypeScriptWorker extends TypeScriptWorker {
                     withoutDollarQuoteTypeErrors(ts, sourceFile, diagnostics),
                 ),
                 ...globalNameDiagnostics(ts, program, sourceFile, view),
+                ...busSoloDiagnostics(
+                    ts,
+                    program.getTypeChecker(),
+                    sourceFile,
+                    view,
+                ),
                 ...groupSuffixDiagnostics(
                     ts,
                     program.getTypeChecker(),

@@ -150,6 +150,26 @@ describe('$bus tracks', () => {
         ).toThrow(/a bus cannot send to another bus/);
     });
 
+    test('a bus cannot be soloed', () => {
+        expect(() => run(`S_fx: $bus()`)).toThrow(/a bus cannot be soloed/);
+        expect(() => run(`_S_fx: $bus().lpf('c5')`)).toThrow(
+            /a bus cannot be soloed/,
+        );
+    });
+
+    test("a bus plays through other tracks' solos, unless muted", () => {
+        const gate = (source: string, key: string) =>
+            run(source).patch.modules.find((m) => m.id === `__vuMute_${key}`)!
+                .params.value;
+        const patch = (fx: string) =>
+            `${fx}fx: $bus().lpf('c5')
+             S_lead: $saw('c3').track({ sends: fx })
+             bass: $saw('c2')`;
+        expect(gate(patch(''), 'fx')).toBe(5);
+        expect(gate(patch(''), 'bass')).toBe(0);
+        expect(gate(patch('_'), 'fx')).toBe(0);
+    });
+
     test('$bus takes no callback', () => {
         expect(() => run(`fx: $bus((m) => m)`)).toThrow(/takes no arguments/);
     });

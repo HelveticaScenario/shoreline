@@ -789,6 +789,10 @@ function App() {
                 return;
             }
             const audio = outputs[idx];
+            // A bus has no solo.
+            if (prop === 'solo' && audio.isBus) {
+                return;
+            }
 
             if (codeOnly) {
                 const ghost = vuGhostsRef.current.get(key);

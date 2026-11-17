@@ -400,3 +400,31 @@ export function globalNameDiagnostics(
         ];
     });
 }
+
+/** One diagnostic per bus track whose label solos it, on the label's prefix. */
+export function busSoloDiagnostics(
+    ts: typeof TS,
+    checker: TS.TypeChecker,
+    sourceFile: TS.SourceFile,
+    view: TrackLabelView,
+): TS.Diagnostic[] {
+    if (view.bindings.length === 0) {
+        return [];
+    }
+    const types = bindingTypes(ts, checker, sourceFile, view);
+    return view.analysis.tracks.flatMap(
+        ({ track, labelStart }): TS.Diagnostic[] =>
+            track.state.solo && types.get(track.name) === 'BusTap'
+                ? [
+                      {
+                          category: ts.DiagnosticCategory.Error,
+                          code: TRACK_LABEL_CODE,
+                          file: sourceFile,
+                          length: track.prefixLength,
+                          messageText: `${track.name} is a bus, and a bus cannot be soloed`,
+                          start: labelStart,
+                      },
+                  ]
+                : [],
+    );
+}

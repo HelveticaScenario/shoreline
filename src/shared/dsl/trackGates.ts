@@ -4,6 +4,8 @@
  * is soloed, a track plays if it is soloed itself, or is unmuted and either
  * plays into a soloed group or carries a soloed track, so a soloed member is
  * heard through its group and a soloed group is heard with all its members.
+ * A bus track plays through every solo, so a soloed track is heard with what
+ * it sends, and only its own mute silences it.
  * The main engine and the mixer's live toggles both gate by this.
  */
 export interface GatedTrack {
@@ -12,6 +14,8 @@ export interface GatedTrack {
     solo: boolean;
     /** The group track this track plays into, by key. */
     group?: string | null;
+    /** Whether this is a bus's track, which has no solo. */
+    isBus?: boolean;
 }
 
 /** Each track's key with whether its gate is open. */
@@ -59,7 +63,10 @@ export function trackGates(
     for (const t of tracks) {
         gates.set(
             t.key,
-            t.solo || (!t.mute && (carriesSolo.has(t.key) || inSoloedGroup(t))),
+            t.isBus
+                ? !t.mute
+                : t.solo ||
+                      (!t.mute && (carriesSolo.has(t.key) || inSoloedGroup(t))),
         );
     }
     return gates;

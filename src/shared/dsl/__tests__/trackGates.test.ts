@@ -45,3 +45,17 @@ test('a group that plays into itself does not hang', () => {
         'b',
     ]);
 });
+
+test("a bus plays through other tracks' solos, unless muted", () => {
+    const bus = (key: string, mute: boolean) => ({
+        group: null,
+        isBus: true,
+        key,
+        mute,
+        solo: false,
+    });
+    expect(
+        open([track('lead', 'solo'), track('bass'), bus('verb', false)]),
+    ).toEqual(['lead', 'verb']);
+    expect(open([track('lead', 'solo'), bus('verb', true)])).toEqual(['lead']);
+});

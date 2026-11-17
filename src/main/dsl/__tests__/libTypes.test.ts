@@ -9,6 +9,7 @@ import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
 import {
+    busSoloDiagnostics,
     groupSuffixDiagnostics,
     globalNameDiagnostics,
     trackLabelView,
@@ -367,5 +368,21 @@ fx: $group()
                 patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0)),
             ),
         ).toEqual(['Math', 'console']);
+    });
+
+    test('a soloed bus track is flagged on its prefix', () => {
+        const patch = `S_verb: $bus().reverb()\n_S_echo: $bus().delay(0.25).track({ gain: 2 })\n_fx: $bus()\nS_lead: $saw('c3')`;
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        expect(
+            busSoloDiagnostics(
+                ts,
+                program.getTypeChecker(),
+                program.getSourceFile(PATCH_FILE)!,
+                view,
+            ).map((d) =>
+                patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0)),
+            ),
+        ).toEqual(['S_', '_S_']);
     });
 });

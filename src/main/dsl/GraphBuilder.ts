@@ -1287,6 +1287,7 @@ export class GraphBuilder implements ChainHost {
             const gates = trackGates(
                 allGroups.map((g) => ({
                     group: g.group,
+                    isBus: g.isBus,
                     key: g.label,
                     mute: g.mute,
                     solo: g.solo,
@@ -1882,6 +1883,11 @@ export class GraphBuilder implements ChainHost {
             );
         }
         if (bus) {
+            if (declaration.state.solo) {
+                throw new Error(
+                    `track ${name} is a bus, and a bus cannot be soloed`,
+                );
+            }
             if (options.sends !== undefined) {
                 throw new Error(
                     `track ${name} is a bus, and a bus cannot send to another bus`,

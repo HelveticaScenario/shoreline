@@ -177,6 +177,10 @@
     font-weight: 400;
 }
 
+.vu-btn-gap {
+    visibility: hidden;
+}
+
 .vu-btn-solo[data-code-pressed='true'] {
     background: #4a7fd4;
     border-color: #27406e;
