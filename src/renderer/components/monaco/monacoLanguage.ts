@@ -2,6 +2,7 @@ import type { Monaco } from '../../hooks/useCustomMonaco';
 import { applyDslLibToMonaco } from './monacoHelpers';
 import { registerDollarQuoteQuickFix } from './dollarQuoteQuickFix';
 import { registerJsDocLinkProviders } from './jsDocLinkProviders';
+import { registerRenameProvider } from './renameProvider';
 import { registerOutputResolutionHints } from './outputResolutionHints';
 import type { ModuleSchema } from '@modular/core';
 
@@ -88,12 +89,14 @@ export function setupMonacoJavascript(
         monaco,
         options.schemas ?? [],
     );
+    const rename = registerRenameProvider(monaco);
     const outputHints = registerOutputResolutionHints(monaco);
     const dollarQuoteFix = registerDollarQuoteQuickFix(monaco);
 
     return () => {
         dollarQuoteFix.dispose();
         outputHints.dispose();
+        rename.dispose();
         jsDocLinks.dispose();
         languageConfiguration.dispose();
         extraLib?.dispose();

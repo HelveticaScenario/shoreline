@@ -5,6 +5,7 @@ import { parseDsl } from '../ast/parse';
 import {
     analyzeTrackLabels,
     parseTrackLabel,
+    trackNameError,
     trackNameKey,
     withTrackState,
 } from '../trackLabels';
@@ -228,5 +229,27 @@ describe('analyzeTrackLabels', () => {
 
     test('an unlabelled statement is no track', () => {
         expect(analyze(`$sine('c4')`)).toEqual({ errors: [], tracks: [] });
+    });
+});
+
+describe('trackNameError', () => {
+    test.each(['bass', 'bass_line', 'snare2', 'sub'])(
+        '%s names a track',
+        (name) => {
+            expect(trackNameError(name)).toBeNull();
+        },
+    );
+
+    test.each([
+        ['_bass', /not a track name/],
+        ['S__bass', /cannot start with s_/],
+        ['s_bass', /cannot start with s_/],
+        ['bass$2', /not a track name/],
+        ['2bass', /not a track name/],
+        ['bass line', /not a track name/],
+        ['', /not a track name/],
+        ['let', /cannot name a track/],
+    ])('%s does not', (name, message) => {
+        expect(trackNameError(name)).toMatch(message);
     });
 });
