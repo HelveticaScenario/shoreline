@@ -132,6 +132,23 @@ export function bindingPosition(
         : position;
 }
 
+/**
+ * `position` moved from a label's mute/solo prefix to the start of its name,
+ * so a rename asked anywhere before the name's end is the name's.
+ */
+export function renamePosition(view: TrackLabelView, position: number): number {
+    const index = view.analysis.tracks.findIndex(
+        (t) => position >= t.labelStart && position <= t.labelEnd,
+    );
+    const nameStart = view.bindings[index]?.nameStart ?? position;
+    return Math.max(position, nameStart);
+}
+
+/** Whether a rename location starting at `start` is a track's declared name. */
+export function isBindingStart(view: TrackLabelView, start: number): boolean {
+    return view.bindings.some((b) => b.declStart === start);
+}
+
 /** Whether `position` is on a track label but not on its name. */
 export function onLabelOutsideName(
     view: TrackLabelView,

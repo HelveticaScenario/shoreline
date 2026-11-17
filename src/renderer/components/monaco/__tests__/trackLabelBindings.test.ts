@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import {
     bindingPosition,
     onLabelOutsideName,
+    renamePosition,
     trackLabelView,
     withinPatchDiagnostics,
     withTrackLabelDiagnostics,
@@ -50,6 +51,18 @@ describe('trackLabelView', () => {
         expect(onLabelOutsideName(view, 0)).toBe(true);
         expect(onLabelOutsideName(view, 3)).toBe(false);
         expect(onLabelOutsideName(view, 7)).toBe(true);
+    });
+
+    test('a rename on a label prefix is its name, and none is its channel', () => {
+        const source = `S__bass$2: $saw('c2')\nbass.scope()`;
+        const view = trackLabelView(ts, source);
+        expect(renamePosition(view, 0)).toBe(3);
+        expect(renamePosition(view, 2)).toBe(3);
+        expect(renamePosition(view, 5)).toBe(5);
+        expect(onLabelOutsideName(view, renamePosition(view, 0))).toBe(false);
+        expect(onLabelOutsideName(view, renamePosition(view, 8))).toBe(true);
+        const use = source.indexOf('bass.scope');
+        expect(renamePosition(view, use)).toBe(use);
     });
 
     test('a diagnostic on a declared name moves onto the label', () => {

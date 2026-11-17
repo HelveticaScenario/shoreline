@@ -25,6 +25,7 @@ import type {
 import { initialize } from 'monaco-editor/esm/vs/common/initialize.js';
 import { typescript as ts } from 'monaco-editor/esm/vs/language/typescript/lib/typescriptServices.js';
 import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js';
+import { trackNameError } from '../../../shared/dsl/trackLabels';
 import {
     collectSignalSites,
     type SignalSite,
@@ -44,8 +45,10 @@ import {
 import {
     bindingPosition,
     globalNameDiagnostics,
+    isBindingStart,
     mapSpan,
     onLabelOutsideName,
+    renamePosition,
     trackLabelView,
     withinPatch,
     withinPatchDiagnostics,
@@ -187,6 +190,14 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         );
     }
 
+    /** `position` as a rename reads it, moved onto the declaration it names. */
+    private renameAt(fileName: string, position: number): number {
+        const view = this.view(fileName);
+        return view
+            ? bindingPosition(view, renamePosition(view, position))
+            : position;
+    }
+
     override async findRenameLocations(
         fileName: string,
         position: number,
@@ -197,12 +208,40 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return this.mapEntries(
             await super.findRenameLocations(
                 fileName,
-                this.at(fileName, position),
+                this.renameAt(fileName, position),
                 findInStrings,
                 findInComments,
                 providePrefixAndSuffixTextForRename,
             ),
         );
+    }
+
+    /**
+     * Why the name at `position` cannot be renamed to `newName`, or null. Only
+     * a track's name has rules beyond JavaScript's own.
+     */
+    async getTrackRenameError(
+        fileName: string,
+        position: number,
+        newName: string,
+    ): Promise<string | null> {
+        const view = this.view(fileName);
+        if (!view) {
+            return null;
+        }
+        const locations = await super.findRenameLocations(
+            fileName,
+            this.renameAt(fileName, position),
+            false,
+            false,
+            false,
+        );
+        const track = locations?.some(
+            (l) =>
+                l.fileName === fileName &&
+                isBindingStart(view, l.textSpan.start),
+        );
+        return track ? trackNameError(newName) : null;
     }
 
     override async getDocumentHighlights(
@@ -244,16 +283,16 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         options: RenameInfoOptions,
     ): Promise<RenameInfo> {
         const view = this.view(fileName);
-        if (view && onLabelOutsideName(view, position)) {
+        if (view && onLabelOutsideName(view, renamePosition(view, position))) {
             return {
                 canRename: false,
                 localizedErrorMessage:
-                    "Rename a track from its name, not its label's prefix or channel",
+                    "Rename a track from its name, not its label's channel",
             };
         }
         const info = await super.getRenameInfo(
             fileName,
-            this.at(fileName, position),
+            this.renameAt(fileName, position),
             options,
         );
         if (!info.canRename) {
@@ -455,7 +494,10 @@ class DslTypeScriptWorker extends TypeScriptWorker {
 /** The methods the renderer calls on the worker beyond Monaco's own. */
 export type DslTypeScriptWorkerApi = Pick<
     DslTypeScriptWorker,
-    'getSignalSites' | 'getLocalRefactors' | 'getLocalRefactorEdits'
+    | 'getSignalSites'
+    | 'getLocalRefactors'
+    | 'getLocalRefactorEdits'
+    | 'getTrackRenameError'
 >;
 
 self.onmessage = () => {
