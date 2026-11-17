@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import type { PatchGraph } from '@modular/core';
+import type { ModuleSpec, PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { executePatchScript } from '../executor';
 
@@ -17,10 +17,11 @@ function patchOf(source: string): PatchGraph {
 }
 
 /**
- * What bus `a` (index 0) or `b` (index 1) mixes, as `track` or
- * `track@level` per send, where `track` names the track whose final output
- * (its gain stage gated by mute and solo) is sent. Each bus is found from the
- * filter chained on it.
+ * What bus `a` (index 0) or `b` (index 1) mixes, as `stages` or
+ * `stages@level` per send. `stages` names each mixer stage the send passed
+ * through, its own track first and then each group it plays into, as
+ * `kick>drums>kit`; each stage is a gain gated by that track's mute and solo.
+ * Each bus is found from the filter chained on it.
  */
 function busSends(patch: PatchGraph, index: number): string[] {
     const byId = new Map(patch.modules.map((m) => [m.id, m]));
@@ -29,12 +30,27 @@ function busSends(patch: PatchGraph, index: number): string[] {
     )!;
     const source = (cables: unknown) =>
         byId.get((cables as Cable[])[0].module)!;
-    const track = (id: string) => {
-        const gated = byId.get(id)!;
-        const tap = source(gated.params.input).id;
-        return gated.moduleType === '$amp' && tap.startsWith('__vuTap_')
-            ? tap.slice('__vuTap_'.length)
-            : id;
+    /** The track whose mute gate `module` is, if it is one. */
+    const gateOf = (module: ModuleSpec) => {
+        if (module.moduleType !== '$amp') {
+            return null;
+        }
+        const factor = source(module.params.factor).id;
+        return factor.startsWith('__vuSlew_')
+            ? factor.slice('__vuSlew_'.length)
+            : null;
+    };
+    const stages = (id: string) => {
+        const names: string[] = [];
+        let module = byId.get(id)!;
+        for (let name = gateOf(module); name !== null; name = gateOf(module)) {
+            names.push(name);
+            module = source(module.params.input);
+            while (!module.id.startsWith('__vuTap_') && !gateOf(module)) {
+                module = source(module.params.input);
+            }
+        }
+        return names.length > 0 ? names.reverse().join('>') : id;
     };
     const lanes = source(filter.params.input);
     if (lanes.moduleType !== '$setLanes') {
@@ -46,13 +62,13 @@ function busSends(patch: PatchGraph, index: number): string[] {
         const cable = Array.isArray(input) ? input[0] : input;
         const from = byId.get(cable.module)!;
         if (from.moduleType !== '$gain') {
-            return track(from.id);
+            return stages(from.id);
         }
         const { input: gained, level } = from.params as {
             input: Cable[];
             level: unknown;
         };
-        return `${track(gained[0].module)}@${JSON.stringify(level)}`;
+        return `${stages(gained[0].module)}@${JSON.stringify(level)}`;
     });
 }
 
@@ -111,10 +127,37 @@ describe('track sends', () => {
 });
 
 describe('sends from groups', () => {
-    test('a group member and a group send their final signals', () => {
+    test('a group sends its final signal', () => {
         const built = patchOf(
-            `${BUSES}drums: $group().track({ sends: [a, 2] })\nkick$drums: $sine('c1').track({ sends: a })`,
+            `${BUSES}drums: $group().track({ sends: [a, 2] })\nkick$drums: $sine('c1')`,
         );
-        expect(busSends(built, 0)).toEqual(['drums@2', 'kick']);
+        expect(busSends(built, 0)).toEqual(['drums@2']);
+    });
+
+    test("a member's send passes through its group's stage", () => {
+        const built = patchOf(
+            `${BUSES}drums: $group().lpf('c4').track({ gain: 2, pan: 1 })\nkick$drums: $sine('c1').track({ sends: a })`,
+        );
+        expect(busSends(built, 0)).toEqual(['kick>drums']);
+        // The group's own filter plays only on the group track.
+        expect(
+            built.modules.filter((m) => m.moduleType === '$lpf'),
+        ).toHaveLength(2);
+    });
+
+    test('a send passes through every group up the chain', () => {
+        const built = patchOf(
+            `${BUSES}kit: $group()\ndrums$kit: $group()\nkick$drums: $sine('c1').track({ sends: [a, 3] })`,
+        );
+        expect(busSends(built, 0)).toEqual(['kick>drums>kit@3']);
+    });
+
+    test("a muted group's members send through its closed gate", () => {
+        const built = patchOf(
+            `${BUSES}_drums: $group()\nkick$drums: $sine('c1').track({ sends: a })`,
+        );
+        expect(busSends(built, 0)).toEqual(['kick>drums']);
+        const gate = built.modules.find((m) => m.id === '__vuMute_drums')!;
+        expect(gate.params.value).toBe(0);
     });
 });

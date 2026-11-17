@@ -1232,8 +1232,9 @@ export class GraphBuilder implements ChainHost {
      * which adds overhead from lane count derivation on every patch build.
      */
     toPatch(): PatchGraph {
-        // A send carries its track's final signal, so each is added as the
-        // output stage builds it, and the buses are finalized after.
+        // A send carries its track's final signal through the mixer stage of
+        // every group it plays into, so sends are added once every track's
+        // stage is built, and the buses are finalized after.
         const sendsByTrack = new Map(
             this.pendingSends.map(({ track, sends }) => [
                 track,
@@ -1257,6 +1258,55 @@ export class GraphBuilder implements ChainHost {
         // VU meter entries, one per out group, collected in compile order and
         // sorted into source order before emission.
         const vuMeters: (VuMeterDef & { ordinal: number })[] = [];
+
+        /**
+         * A track's mixer stage: its mixdown, pan and gain, then its mute/solo
+         * gate.
+         */
+        interface MixStage {
+            type: OutGroup['type'];
+            pan: PolySignal;
+            spread: PolySignal;
+            gain: PolySignal;
+            gate: Collection;
+        }
+        // A stereo stage pans its lanes and sums them into one stereo lane.
+        // `$pan` keeps a centred lane at unity, so the sum is taken down
+        // 3 dB to match a mono stage's level on each speaker. A mono stage
+        // sums its lanes folded. The result is post-gain, pre-gate, which is
+        // where a track's meter reads, like a post-fader DAW meter.
+        const gainStage = (
+            outputs: ModuleOutput[],
+            stage: Omit<MixStage, 'gate'>,
+            tapId?: string,
+        ): ModuleOutput[] => {
+            const mixed =
+                stage.type === 'stereo'
+                    ? mulFactory(
+                          setLanesFactory(
+                              panFactory(outputs, stage.pan, {
+                                  spread: stage.spread,
+                              }),
+                              1,
+                          ),
+                          Math.SQRT1_2,
+                      ).items
+                    : setLanesFactory(monoFactory(outputs), 1).items;
+            return gainFactory(
+                mixed,
+                stage.gain,
+                tapId === undefined ? undefined : { id: tapId },
+            ).items;
+        };
+        const gated = (signal: ModuleOutput[], gate: Collection) =>
+            (ampFactory(signal, gate) as Collection).items;
+        // Each track's stage and the group it plays into, by name, and each
+        // sending track's final signal.
+        const stagesByLabel = new Map<
+            string,
+            { stage: MixStage; group: string | null }
+        >();
+        const sending: { label: string; outputs: ModuleOutput[] }[] = [];
 
         // Each track's signals, by name, for `$trackTap` taps.
         const outsByLabel = new Map<
@@ -1370,31 +1420,14 @@ export class GraphBuilder implements ChainHost {
                                 })
                               : group.pan!;
 
-                    // Group mix, then the gain stage — the tap: the meter
-                    // reads post-gain, pre-mute like a post-fader DAW meter.
-                    // A stereo out pans its lanes and sums them into one
-                    // stereo lane. `$pan` keeps a centred lane at unity, so
-                    // the sum is taken down 3 dB to match a mono out's level
-                    // on each speaker. A mono out sums its lanes folded.
-                    const mixSignals: ModuleOutput[] =
-                        group.type === 'stereo'
-                            ? mulFactory(
-                                  setLanesFactory(
-                                      panFactory(group.outputs, panSource, {
-                                          spread: group.spread ?? 0,
-                                      }),
-                                      1,
-                                  ),
-                                  Math.SQRT1_2,
-                              ).items
-                            : setLanesFactory(monoFactory(group.outputs), 1)
-                                  .items;
-
-                    const tapOutputs: ModuleOutput[] = gainFactory(
-                        mixSignals,
-                        gainSource,
-                        { id: tapId },
-                    ).items;
+                    const levels = {
+                        gain: gainSource,
+                        pan: panSource,
+                        spread:
+                            group.type === 'stereo' ? (group.spread ?? 0) : 0,
+                        type: group.type,
+                    };
+                    const tapOutputs = gainStage(group.outputs, levels, tapId);
 
                     // Mute/solo gate stage. The gate $signal holds 5 (unity
                     // for `$amp`) or 0 (silence); the VU panel
@@ -1409,7 +1442,7 @@ export class GraphBuilder implements ChainHost {
                         fall: 0.002,
                         id: `__vuSlew_${sk}`,
                         rise: 0.002,
-                    });
+                    }) as Collection;
                     // The gate must sit at this patch's mute state from a
                     // swap's first sample — a carried-over open gate would
                     // leak an on-bar attack while still closing. Live M/S
@@ -1420,13 +1453,18 @@ export class GraphBuilder implements ChainHost {
                     if (slewSpec) {
                         slewSpec.skipStateTransfer = true;
                     }
-                    const outputSignals = (
-                        ampFactory(tapOutputs, smoothed) as Collection
-                    ).items;
+                    const outputSignals = gated(tapOutputs, smoothed);
+                    const stage: MixStage = { ...levels, gate: smoothed };
+                    stagesByLabel.set(group.label, {
+                        group: group.group,
+                        stage,
+                    });
 
-                    for (const [bus, gain] of sendsByTrack.get(group.label) ??
-                        []) {
-                        bus.addSend(outputSignals, gain);
+                    if (sendsByTrack.has(group.label)) {
+                        sending.push({
+                            label: group.label,
+                            outputs: outputSignals,
+                        });
                     }
 
                     outsByLabel.set(group.label, {
@@ -1510,6 +1548,20 @@ export class GraphBuilder implements ChainHost {
             }
             for (const group of this.groups) {
                 group.finalize();
+            }
+            for (const { label, outputs } of sending) {
+                let sent = outputs;
+                for (
+                    let parent = stagesByLabel.get(label)!.group;
+                    parent !== null;
+                    parent = stagesByLabel.get(parent)!.group
+                ) {
+                    const { stage } = stagesByLabel.get(parent)!;
+                    sent = gated(gainStage(sent, stage), stage.gate);
+                }
+                for (const [bus, gain] of sendsByTrack.get(label)!) {
+                    bus.addSend(sent, gain);
+                }
             }
             for (const bus of this.busses) {
                 bus.finalize();
