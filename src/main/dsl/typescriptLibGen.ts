@@ -504,7 +504,7 @@ interface Pattern extends PatternModule {
    * methods; a later \`.playhead\` replaces it.
    *
    * \`\`\`js
-   * $\`c4 e4 g4 b4\`.playhead($clock._playhead.mul(0.5)).saw().out() // half speed
+   * melody: $\`c4 e4 g4 b4\`.playhead($clock._playhead.mul(0.5)).saw() // half speed
    * \`\`\`
    */
   playhead(playhead: LaneSum<Signal>): this;
@@ -515,7 +515,7 @@ interface Pattern extends PatternModule {
    * \`.ribbon\` replaces it.
    *
    * \`\`\`js
-   * $\`<c4 e4 g4 b4>\`.ribbon(1, 2).saw().out() // loops e4 g4
+   * melody: $\`<c4 e4 g4 b4>\`.ribbon(1, 2).saw() // loops e4 g4
    * \`\`\`
    */
   ribbon(offset: number, length: number): this;

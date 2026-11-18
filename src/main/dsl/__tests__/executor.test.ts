@@ -499,10 +499,10 @@ describe('sequencing', () => {
                 ),
             );
         const viaMethods = execPatch(
-            '$("c4 e4").playhead($clock._playhead.mul(0.5)).ribbon(1, 2).out()',
+            'out: $("c4 e4").playhead($clock._playhead.mul(0.5)).ribbon(1, 2)',
         );
         const viaConfig = execPatch(
-            '$("c4 e4").cycle({ playhead: $clock._playhead.mul(0.5), ribbon: [1, 2] }).out()',
+            'out: $("c4 e4").cycle({ playhead: $clock._playhead.mul(0.5), ribbon: [1, 2] })',
         );
         const [a] = findModules(viaMethods, '$cycle');
         const [b] = findModules(viaConfig, '$cycle');
@@ -513,8 +513,8 @@ describe('sequencing', () => {
 
     test('cycle settings carry through pattern methods, latest first', () => {
         const patch = execPatch(`
-            $("0 2").ribbon(0, 2).fast(2).scale("c(major)").trans("1")
-                .ribbon(1, 3).slow(2).out();
+            out: $("0 2").ribbon(0, 2).fast(2).scale("c(major)").trans("1")
+                .ribbon(1, 3).slow(2);
         `);
         const [cycle] = findModules(patch, '$cycle');
         expect(cycle.params.ribbon).toEqual([1, 3]);
@@ -523,8 +523,8 @@ describe('sequencing', () => {
     test('cycle settings reach $cycle(pattern) and yield to its config', () => {
         const patch = execPatch(`
             const seq = $("c4 e4").ribbon(1, 2);
-            $cycle(seq).out();
-            seq.cycle({ ribbon: [3, 4] }).out();
+            out: $cycle(seq);
+            out2: seq.cycle({ ribbon: [3, 4] });
         `);
         expect(
             findModules(patch, '$cycle').map((m) => m.params.ribbon),
@@ -537,8 +537,8 @@ describe('sequencing', () => {
     test('a pattern with cycle settings plays apart from the one it came from', () => {
         const patch = execPatch(`
             const seq = $("c4 e4");
-            seq.out();
-            seq.ribbon(0, 2).out();
+            out: seq;
+            out2: seq.ribbon(0, 2);
         `);
         expect(
             findModules(patch, '$cycle').map((m) => m.params.ribbon),
@@ -547,7 +547,7 @@ describe('sequencing', () => {
 
     test('an $arrange section with cycle settings is rejected', () => {
         expect(() =>
-            execPatch('$arrange([1, $("c4").ribbon(0, 2)]).out()'),
+            execPatch('out: $arrange([1, $("c4").ribbon(0, 2)])'),
         ).toThrow(/call them on the \$arrange\(\.\.\.\) result/);
     });
 
