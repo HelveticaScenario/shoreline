@@ -67,14 +67,14 @@ const AP_DOCS: ModuleDocs = ModuleDocs {
         title: "One-notch phaser",
         code: r#"
             const saw = $saw('c2')
-            $mix([
+            bass: $mix([
               saw,
               $unstable.filter.ap(
                 saw,
                 $sine('0.2hz').range('c3', 'c6'),
                 2,
               ),
-            ]).out()
+            ])
         "#,
     }],
 };

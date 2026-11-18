@@ -19,12 +19,11 @@ import {
     generateVideoNamespace,
 } from './videoLibGen';
 import {
-    MONO_OUT_OPTIONS,
-    STEREO_OUT_OPTIONS,
-    renderOutOptionsJsDocList,
-    renderOutOptionsMembers,
-    withoutSends,
-} from '../../shared/dsl/outOptions';
+    BUS_TRACK_OPTIONS,
+    TRACK_OPTIONS,
+    renderTrackOptionsJsDocList,
+    renderTrackOptionsMembers,
+} from '../../shared/dsl/trackOptions';
 import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import { ALIGNMENT_MODES } from './alignmentModes';
 import { GLIDE_CURVES, GLIDE_MODES, literalUnion } from './glideCurves';
@@ -176,7 +175,7 @@ interface Array<T> {
    *
    * @example
    * // Pipe an array of outputs
-   * [$sine('c3'), $sine('e3'), $sine('g3')].pipe(all => $mix(all)).out()
+   * keys: [$sine('c3'), $sine('e3'), $sine('g3')].pipe(all => $mix(all))
    */
   pipe<U>(this: this, pipeFn: (self: this) => U): U;
 }
@@ -278,8 +277,8 @@ type RangedSignal = ConstantSignal | CollectionWithRange;
  * - An array of {@link Signal}s (creates multiple voices)
  * - A {@link SignalGroup} from \`$g1\`/\`$g2\`/\`$g3\` (cartesian voice expansion)
  *
- * @example $saw(["C3", "E3", "G3"]).out()                    // 3-voice chord
- * @example $saw([...$sine("1hz"), ...$sine("2hz")]).out()   // Spread lanes into voices
+ * @example chord: $saw(["C3", "E3", "G3"])                    // 3-voice chord
+ * @example chord: $saw([...$sine("1hz"), ...$sine("2hz")])   // Spread lanes into voices
  * @see {@link Signal} - for a single signal
  * @see {@link Collection} - for grouping outputs
  */
@@ -372,7 +371,7 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 
 /**
  * The \`$cycle\` sequencer a pattern plays through, as the pattern has it.
- * What a member gives back (a lane, a slice, the receiver of \`.out()\`)
+ * What a member gives back (a lane, a slice, the receiver of \`.scope()\`)
  * is that sequencer's signal, not a pattern.
  */
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
@@ -417,7 +416,7 @@ interface Pattern extends PatternModule {
    * euclidean structure, and so on.
    *
    * \`\`\`js
-   * $\`c4 e4\`.struct("x ~ x x").saw().out()
+   * melody: $\`c4 e4\`.struct("x ~ x x").saw()
    * \`\`\`
    */
   struct(boolPattern: string): this;
@@ -433,7 +432,7 @@ interface Pattern extends PatternModule {
    * the grid per cycle).
    *
    * \`\`\`js
-   * $\`c2\`.beat("0,7,10", 16).saw().out()
+   * melody: $\`c2\`.beat("0,7,10", 16).saw()
    * \`\`\`
    */
   beat(t: number | string, div: number | string): this;
@@ -450,8 +449,8 @@ interface Pattern extends PatternModule {
    * Every curve stays between the two pitches.
    *
    * \`\`\`js
-   * $sine($\`c4 e4 g4\`.glide("0 0.1 0.25")).out()
-   * $sine($\`c3 g3\`.glide(0.25, 'expo', 'out')).out()
+   * melody: $sine($\`c4 e4 g4\`.glide("0 0.1 0.25"))
+   * melody2: $sine($\`c3 g3\`.glide(0.25, 'expo', 'out'))
    * \`\`\`
    */
   glide(g: number | string, curve?: GlideCurve, mode?: GlideMode): this;
@@ -466,10 +465,10 @@ interface Pattern extends PatternModule {
    * arrangement it scales every section, plain or scaled.
    *
    * \`\`\`js
-   * $\`0 2 4 7\`.scale("c(major)").saw().out()       // C-major arpeggio
-   * $\`-1 0 2 4\`.scale("a3(min)").saw().out()       // negative degrees wrap below the root
-   * $\`0 1 2 3 4\`.scale("c(0 2 4 7 9)").saw().out() // custom intervals (pentatonic)
-   * $\`0 4 7\`.scale("c(just)").saw().out()          // just intonation
+   * melody: $\`0 2 4 7\`.scale("c(major)").saw()       // C-major arpeggio
+   * melody2: $\`-1 0 2 4\`.scale("a3(min)").saw()       // negative degrees wrap below the root
+   * melody3: $\`0 1 2 3 4\`.scale("c(0 2 4 7 9)").saw() // custom intervals (pentatonic)
+   * melody4: $\`0 4 7\`.scale("c(just)").saw()          // just intonation
    * \`\`\`
    *
    * ### Atoms
@@ -526,7 +525,7 @@ interface Pattern extends PatternModule {
    * \`pattern\`.
    *
    * \`\`\`js
-   * $\`c4 e4 g4\`.cycle({ ribbon: [0, 2] }).saw().out()
+   * melody: $\`c4 e4 g4\`.cycle({ ribbon: [0, 2] }).saw()
    * \`\`\`
    */
   cycle(...rest: DropFirst<Parameters<typeof $cycle>>): ReturnType<typeof $cycle>;
@@ -536,7 +535,7 @@ interface Pattern extends PatternModule {
    *
    * \`\`\`js
    * const seq = $\`c4 e4\`.concat($\`g3 b3\`)
-   * $saw(seq).amp($perc(seq)).out()
+   * melody: $saw(seq).amp($perc(seq))
    * \`\`\`
    */
   concat(other: Pattern | CycleOutputs): CycleOutputs;
@@ -548,9 +547,9 @@ interface Pattern extends PatternModule {
  * or as a template tag — \`$cycle\` accepts a pattern, not a raw string.
  *
  * \`\`\`js
- * $\`c4 e4 g4\`.saw().out()                 // basic sequence
+ * melody: $\`c4 e4 g4\`.saw()                 // basic sequence
  * const bass = $("c2 [c2 g2] c2 e2")      // the same, called with a string
- * $saw(bass).amp($perc(bass)).out()
+ * melody2: $saw(bass).amp($perc(bass))
  * \`\`\`
  *
  * Binding the pattern to a \`const\` keeps its editor highlighting.
@@ -620,10 +619,10 @@ declare function $(
  *
  * \`\`\`js
  * // 4 cycles of a C-major arp, then 2 of an A-minor arp, looping every 6
- * $arrange(
+ * melody: $arrange(
  *   [4, $\`0 2 4 7\`.scale("c(major)")],
  *   [2, $\`0 2 4\`.scale("a(min)")],
- * ).trans("<0 1>").saw().out()
+ * ).trans("<0 1>").saw()
  * \`\`\`
  *
  * Cycle counts must be **positive integers**, except a single **trailing**
@@ -631,10 +630,10 @@ declare function $(
  * an \`Infinity\` section could never play and is rejected):
  *
  * \`\`\`js
- * $arrange(
+ * melody: $arrange(
  *   [2, $\`c4 e4 g4\`],            // intro, played once
  *   [Infinity, $\`0 2 4\`.scale("f(lydian)")],  // then loops forever
- * ).saw().out()
+ * ).saw()
  * \`\`\`
  *
  * The result is a pattern like any other, so arrangements nest as sections
@@ -688,9 +687,9 @@ interface ScalePattern extends Pattern {
    * | \`.restart\` | Right pattern retriggers the left, aligned to cycle 0. |
    *
    * \`\`\`js
-   * $\`0 1 2\`.scale("c(maj)").trans("0 2").saw().out()   // .trans defaults to .trans.in
-   * $\`0 1 2\`.scale("d#(min)").trans.in("10 20").saw().out()
-   * $\`0 1 2\`.scale("c(maj)").trans("<0 3>").fast(2).trans.squeeze("0 -1").saw().out()
+   * melody: $\`0 1 2\`.scale("c(maj)").trans("0 2").saw()   // .trans defaults to .trans.in
+   * melody2: $\`0 1 2\`.scale("d#(min)").trans.in("10 20").saw()
+   * melody3: $\`0 1 2\`.scale("c(maj)").trans("<0 3>").fast(2).trans.squeeze("0 -1").saw()
    * \`\`\`
    */
   trans: Transpose;
@@ -735,52 +734,82 @@ type WavMeta = {
 };
 
 /**
- * A send to a {@link Bus}: the bus alone sends at full level, a
- * \`[bus, gain]\` pair at \`gain\`.
+ * A send to a bus, named by its track's name: the name alone sends at full
+ * level, a \`[name, gain]\` pair at \`gain\`.
  */
-type Send = Bus | [bus: Bus, gain: Poly<Signal>];
+type Send = BusTap | [bus: BusTap, gain: SendLevel];
 
 /**
- * Options for stereo output routing via the out() method.
- * @see {@link Collection.out}
+ * A send's level: any signal but a track's name, which in a send is always
+ * another bus to send to. Wrap a track's name to use it as a level:
+ * \`[bus, $c(name)]\`.
  */
-interface StereoOutOptions {
-${renderOutOptionsMembers(STEREO_OUT_OPTIONS)}
+type SendLevel = Poly<Signal> & { readonly active?: never };
+
+/**
+ * Options of {@link BaseCollection.track}: how a track mixes into the
+ * mixer. Its name, mute, solo and channels come from its label.
+ */
+interface TrackOptions {
+${renderTrackOptionsMembers(TRACK_OPTIONS)}
 }
 
 /**
- * Options for mono output routing via the outMono() method.
- * @see {@link Collection.outMono}
+ * Options of {@link BusSignal.track}: those of {@link TrackOptions} but
+ * \`sends\`, since a bus cannot send to another bus.
  */
-interface MonoOutOptions {
-${renderOutOptionsMembers(MONO_OUT_OPTIONS)}
+interface BusTrackOptions {
+${renderTrackOptionsMembers(BUS_TRACK_OPTIONS)}
+}
+
+/** Options of a scope, from \`.scope()\`. */
+interface ScopeConfig {
+  /** Time window in milliseconds (default 500) */
+  msPerFrame?: number;
+  /** Trigger threshold in volts */
+  triggerThreshold?: number;
+  /** Whether the scope waits to render until the buffer fills (default true). Only applies with a triggerThreshold */
+  triggerWaitToRender?: boolean;
+  /** Voltage range for display as [min, max] (default [-5, 5]) */
+  range?: [number, number];
+  /** Draw each lane in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side */
+  split?: 'vertical' | 'horizontal';
 }
 
 /**
- * Options for a bus's own stereo out: those of {@link StereoOutOptions}
- * but \`sends\`, since a bus cannot send to another bus.
- * @see {@link Bus.out}
+ * A signal or bus with how it mixes into the mixer, from \`.track()\`. A
+ * track is heard once it is labelled: \`lead: $saw('c3').track({ pan: -2 })\`.
+ * Only \`.scope()\` chains on it.
  */
-interface BusStereoOutOptions {
-${renderOutOptionsMembers(withoutSends(STEREO_OUT_OPTIONS))}
+class Track<S = Collection> {
+  private constructor();
+  /** Sets a track apart from what it was made from. */
+  #source: S;
+
+  /**
+   * Scope the track's mixdown: one lane, mono or stereo, after its pan,
+   * spread and gain.
+   * @param config Scope configuration options
+   * @example lead: $saw(['c3', 'e3']).track({ pan: -2 }).scope()
+   */
+  scope(config?: ScopeConfig): this;
 }
 
 /**
- * Options for a bus's own mono out: those of {@link MonoOutOptions}
- * but \`sends\`, since a bus cannot send to another bus.
- * @see {@link Bus.outMono}
+ * What a track label's name reads as in the rest of the patch: the track's
+ * final signal, which \`sends\` also takes when the track is a bus, and
+ * label suffixes name when it is a group.
+ * @internal
  */
-interface BusMonoOutOptions {
-${renderOutOptionsMembers(withoutSends(MONO_OUT_OPTIONS))}
-}
+declare function __trackBinding<T>(value: T): 0 extends 1 & T ? TrackTap : [T] extends [BusRooted | Track<BusRooted>] ? BusTap : [T] extends [GroupRooted | Track<GroupRooted>] ? GroupTap : TrackTap;
 
 /**
  * Every signal in a patch: an ordered set of lanes, one voice each, with
  * chainable DSP methods. Indexing and iteration give one-lane collections
  * of the same type, so \`osc[0]\` is still a signal with every method.
  */
-interface BaseCollection extends ModuleChain {}
-class BaseCollection {
+interface BaseCollection<Plain = Collection, Ranged = CollectionWithRange> extends ModuleChain<Plain, Ranged> {}
+class BaseCollection<Plain = Collection, Ranged = CollectionWithRange> {
   /** Number of lanes in the collection */
   readonly length: number;
   /** Lane \`index\` as a one-lane collection */
@@ -793,7 +822,7 @@ class BaseCollection {
    * \`Array.prototype.slice\`.
    * @param start First index to include (default 0)
    * @param end Index to stop before (default: the collection's length)
-   * @example $saw(['c3', 'e3', 'g3', 'b3']).slice(1, 3).out()
+   * @example chord: $saw(['c3', 'e3', 'g3', 'b3']).slice(1, 3)
    */
   slice(start?: number, end?: number): this;
 
@@ -803,8 +832,8 @@ class BaseCollection {
    *
    * \`\`\`js
    * const [low, high] = $saw(['c3', 'e3', 'g3', 'b3']).chunk(2)
-   * low.out({ pan: -5 })
-   * high.out({ pan: 5 })
+   * sound: low.track({ pan: -5 })
+   * sound2: high.track({ pan: 5 })
    * \`\`\`
    * @param size Lanes per chunk (a positive integer)
    */
@@ -818,8 +847,8 @@ class BaseCollection {
    *
    * \`\`\`js
    * const oscs = $enosc('c3').concat($enosc('g3'))
-   * oscs.out()
-   * oscs._root.lpf('400hz').outMono(2)
+   * keys: oscs
+   * keys2$2m: oscs._root.lpf('400hz')
    * \`\`\`
    * @param other A collection of the same type
    */
@@ -835,33 +864,25 @@ class BaseCollection {
    * @param config.range Voltage range for display as [min, max] tuple (default [-5, 5])
    * @param config.split Draw each lane in its own scope instead of overlaying them: 'vertical' stacks them top to bottom, 'horizontal' fits them side by side
    */
-  scope(config?: { msPerFrame?: number; triggerThreshold?: number; triggerWaitToRender?: boolean; range?: [number, number]; split?: 'vertical' | 'horizontal' }): this;
+  scope(config?: ScopeConfig): this;
 
   /**
-   * Send all lanes to speakers as stereo, summed together.
+   * How this signal mixes into its track. A track is heard once its
+   * statement is labelled: the label names it and sets its mute, solo and
+   * channels (\`_name\` mutes, \`S_name\` solos, \`S__name\` does both, \`name$2\` plays on channels
+   * 2 and 3, \`name$2m\` in mono on channel 2, \`name$drums\` into the group
+   * track \`drums\`). The name then reads as the
+   * track's final signal in the rest of the patch.
    *
    * Options:
-${renderOutOptionsJsDocList(STEREO_OUT_OPTIONS)}
-   * @param options Stereo output options ({@link StereoOutOptions})
-   * @example $sine("c4").out({ gain: 2.5, pan: -2 })
-   * @example $saw(['c3', 'e3', 'g3']).out({ label: 'chord' })
+${renderTrackOptionsJsDocList(TRACK_OPTIONS)}
+   * @param options Track options ({@link TrackOptions})
+   * @example lead: $sine('c4').track({ gain: 2.5, pan: -2 })
    * @example
-   * const verb = $bus((wet) => wet.plate().out());
-   * $saw('c3').out({ sends: [verb, 2] });
+   * verb: $bus().plate()
+   * keys: $saw('c3').track({ sends: [verb, 2] })
    */
-  out(options?: StereoOutOptions): this;
-
-  /**
-   * Send all lanes to speakers as mono, summed together.
-   *
-   * Options:
-${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
-   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link MonoOutOptions})
-   * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
-   * @example $sine("1hz").outMono(2, 0.3)
-   * @example $saw(['c2', 'c3']).outMono(0, { label: 'bass' })
-   */
-  outMono(channelOrOptions?: number | MonoOutOptions, gainOrOptions?: Poly<Signal> | MonoOutOptions): this;
+  track(options?: TrackOptions): Track<this>;
 
   /**
    * Remap this signal from an explicit input range to a new output range.
@@ -892,7 +913,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @example
    * // Reusable helper
    * const tremolo = (c) => c.amp($sine('10hz').range(4, 5))
-   * $saw('c').pipe(tremolo).out()
+   * tone: $saw('c').pipe(tremolo)
    */
   pipe<T>(pipeFn: (self: this) => T): T;
   /**
@@ -905,10 +926,10 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    *
    * @example
    * // 6 lanes
-   * $sine(['C4', 'E4', 'G4']).pipe(
+   * chord: $sine(['C4', 'E4', 'G4']).pipe(
    *   (s, cut) => $lpf(s, cut),
    *   ['440hz', '880hz'],
-   * ).out()
+   * )
    */
   pipe<T extends Poly<Signal>, E>(
     pipeFn: (self: this, item: E) => T,
@@ -925,13 +946,13 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    *
    * @example
    * // Mix original with a filtered version
-   * $saw('c4').pipeMix(s => $lpf(s, '1000hz')).out()
+   * lead: $saw('c4').pipeMix(s => $lpf(s, '1000hz'))
    *
    * @example
    * // Mix with custom balance
-   * $saw('c4').pipeMix(s => $lpf(s, '1000hz'), 1.0).out()
+   * lead: $saw('c4').pipeMix(s => $lpf(s, '1000hz'), 1.0)
    */
-  pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal> ): Collection;
+  pipeMix(pipeFn: (self: this) => Collection | CollectionWithRange, mix?: Poly<Signal> ): Plain;
 
   /**
    * Crossfade the signal this one was chained from against it. Follows a
@@ -942,9 +963,9 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
    * @param mix Dry/wet crossfade as {@link Poly<Signal>}. 0 = dry only, 5 = wet only. Default is 2.5 for an equal mix.
    * @returns A Collection from the \\$mix output
    *
-   * @example $saw('c3').plate().wet(1.5).out()
+   * @example keys: $saw('c3').plate().wet(1.5)
    */
-  wet(mix?: Poly<Signal>): Collection;
+  wet(mix?: Poly<Signal>): Plain;
 }
 
 /**
@@ -956,7 +977,7 @@ ${renderOutOptionsJsDocList(MONO_OUT_OPTIONS)}
  * 
  * @example
  * const voices = $c($sine('c3'), $sine('e3'), $sine('g3'))
- * voices.amp(0.5).out()          // Apply amplitude to all
+ * keys: voices.amp(0.5)          // Apply amplitude to all
  * for (const v of voices) v.scope()    // Iterate
  * const arr = [...voices]              // Spread to array
  * voices[0]                            // Index access
@@ -969,20 +990,10 @@ class Collection extends BaseCollection {
 }
 
 /**
- * A {@link Collection} whose range the engine knows, as LFOs, envelopes,
- * controls and other modulation sources return, and as chains that keep a
- * range (add, mul, round, erratic…) pass on. The range() method maps from it.
- * 
- * @example
- * const lfo = $sine('2hz')             // Outputs -5 to +5
- * lfo.range(200, 2000)                 // Remap to 200-2000
- * $adsr($clock._beatTrigger, { attack: 0.1 }).range(0, 1)
- * $r($sine('1hz'), $sine('2hz')).range(0, 5).out()  // Each maps from its own range
- *
- * @see {@link Collection} - for signals without a known range
- * @see {@link $r} - helper to create CollectionWithRange
+ * A signal whose range the engine knows: a {@link CollectionWithRange}, or
+ * a {@link RangedBusSignal} when rooted at a bus.
  */
-class CollectionWithRange extends BaseCollection {
+class RangedCollection<Plain, Ranged extends Plain> extends BaseCollection<Plain, Ranged> {
   /** Sets a ranged collection apart from one whose range is unknown. */
   #ranged: true;
   protected constructor();
@@ -999,6 +1010,24 @@ class CollectionWithRange extends BaseCollection {
    * @example $sine("1hz").range(0, 5).range(5, 0)  // flipped
    */
   override range(outMin: Poly<Signal>, outMax: Poly<Signal>, inMin?: Poly<Signal>, inMax?: Poly<Signal>): CollectionWithRange;
+}
+
+/**
+ * A {@link Collection} whose range the engine knows, as LFOs, envelopes,
+ * controls and other modulation sources return, and as chains that keep a
+ * range (add, mul, round, erratic…) pass on. The range() method maps from it.
+ * 
+ * @example
+ * const lfo = $sine('2hz')             // Outputs -5 to +5
+ * lfo.range(200, 2000)                 // Remap to 200-2000
+ * $adsr($clock._beatTrigger, { attack: 0.1 }).range(0, 1)
+ * tone: $r($sine('1hz'), $sine('2hz')).range(0, 5)  // Each maps from its own range
+ *
+ * @see {@link Collection} - for signals without a known range
+ * @see {@link $r} - helper to create CollectionWithRange
+ */
+class CollectionWithRange extends RangedCollection<Collection, CollectionWithRange> {
+  protected constructor();
 }
 
 /**
@@ -1020,21 +1049,21 @@ class DeferredCollection extends BaseCollection {
 }
 
 /**
- * A tap on a labeled out, returned by {@link $trackTap}. As a
- * {@link Collection} it is the out's audio after its gain and mute/solo gate:
- * one lane, stereo for a stereo out.
+ * A track's final signal, as its label's name reads and as {@link $trackTap}
+ * returns it. As a {@link Collection} it is the track's audio after its pan,
+ * gain and mute/solo gate: one lane, stereo for a stereo track.
  */
 class TrackTap extends Collection {
-  private constructor();
-  /** 5V while the lane is audible, 0V while it is muted or silenced by another out's solo. */
+  protected constructor();
+  /** 5V while the track is audible, 0V while it is muted or silenced by another track's solo. */
   readonly active: CollectionWithRange;
   /**
-   * The lane's gain in out-gain units (5 = unity), as the VU fader shows it.
+   * The track's gain (5 = unity), as the mixer's fader shows it.
    * Ranged 0 to 10, or the gain signal's own range when it declares one.
    */
   readonly level: CollectionWithRange;
   /**
-   * The lane's pan (-5 left to +5 right); 0 for mono outs. Ranged -5 to 5, or
+   * The track's pan (-5 left to +5 right); 0 for mono tracks. Ranged -5 to 5, or
    * the pan signal's own range when it declares one.
    */
   readonly panning: CollectionWithRange;
@@ -1055,7 +1084,7 @@ function $hz(frequency: number): number;
  * Convert frequencies in Hertz to voltage values (1V/octave).
  * @param frequency Frequencies in Hz
  * @returns One voltage value per frequency
- * @example $saw($hz([220, 330])).out()  // two voices
+ * @example chord: $saw($hz([220, 330]))  // two voices
  */
 function $hz(frequency: number[]): number[];
 /**
@@ -1063,7 +1092,7 @@ function $hz(frequency: number[]): number[];
  * sample. Frequencies at or below 0 Hz read as 0.0001 Hz.
  * @param frequency Frequency in Hz
  * @returns The pitch as a {@link Collection}
- * @example const f = $slider('pitch', 220, 100, 500); $saw($hz(f)).out()
+ * @example const f = $slider('pitch', 220, 100, 500); tone: $saw($hz(f))
  */
 function $hz(frequency: Poly<number>): Collection;
 /**
@@ -1093,7 +1122,7 @@ function $note(noteName: string): number;
  * $signal modules, so they can be mixed in alongside module outputs.
  * @param args Signals, or arrays of them, to group
  * @returns A {@link Collection} of their lanes
- * @example $c($sine('c3'), $sine('e3')).amp(0.5).out()
+ * @example keys: $c($sine('c3'), $sine('e3')).amp(0.5)
  * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
  * @example $c($\`c4 e4\`, 'g4')      // A pattern contributes its voices
  * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-lane Collection
@@ -1122,7 +1151,7 @@ function $r(...args: (CollectionWithRange | CollectionWithRange[])[]): Collectio
  * // Play a loop at the tempo it was recorded at
  * const loop = '/wavs/loop.wav'
  * $setTempo($wavMeta(loop).bpm ?? 120)
- * $sampler(loop, $clock._barTrigger).out()
+ * sample: $sampler(loop, $clock._barTrigger)
  */
 function $wavMeta(path: string): WavMeta;
 
@@ -1135,13 +1164,13 @@ function $wavMeta(path: string): WavMeta;
 function $setTempo(tempo: number): void;
 
 /**
- * Set the global output gain applied to the final mix.
+ * Set the main gain applied to the final mix.
  * @param gain Gain as a {@link LaneSum<Signal>} (2.5 is default, 5.0 is unity)
- * @example $setOutputGain(2.5) // 50% gain (default)
- * @example $setOutputGain(5.0) // unity
- * @example $setOutputGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
+ * @example $setMainGain(2.5) // 50% gain (default)
+ * @example $setMainGain(5.0) // unity
+ * @example $setMainGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
  */
-function $setOutputGain(gain: LaneSum<Signal>): void;
+function $setMainGain(gain: LaneSum<Signal>): void;
 
 /**
  * An XY oscilloscope as the patch's picture: shorthand for
@@ -1227,7 +1256,7 @@ function $swing(
  * // the delay's buffer breaks the cycle, so the deferred can feed back in
  * const echoed = $delay($noise('white').amp(fb[0]), 0.25);
  * fb.set(echoed);
- * echoed.out();
+ * noise: echoed;
  */
 function $deferred(lanes?: number): DeferredCollection;
 
@@ -1250,11 +1279,11 @@ function $deferred(lanes?: number): DeferredCollection;
  *
  * @example
  * const vol = $slider("Volume", 0.5, 0, 1);
- * $sine(440).amp(vol).out();
+ * tone: $sine(440).amp(vol);
  * @example
- * $sine($slider("Pitch", "440hz", "55hz", "1760hz")).out();
+ * tone: $sine($slider("Pitch", "440hz", "55hz", "1760hz"));
  * @example
- * $saw($slider("Root", "c3", "c2", "c5")).out();
+ * tone: $saw($slider("Root", "c3", "c2", "c5"));
  */
 function $slider(label: string, value: number, min: number, max: number, group?: ControlGroup): CollectionWithRange;
 function $slider(label: string, value: HZ, min: HZ, max: HZ, group?: ControlGroup): CollectionWithRange;
@@ -1269,10 +1298,10 @@ function $slider(label: string, value: Note, min: Note, max: Note, group?: Contr
  * @returns A CollectionWithRange carrying the button output (range [0, 5])
  *
  * @example
- * $sine('c4').amp($adsr($btn("play"))).out();
+ * lead: $sine('c4').amp($adsr($btn("play")));
  * @example
  * // fixed 100 ms trigger per press, however long the button is held
- * $sine('c4').amp($adsr($btn("hit").hold(0.1))).out();
+ * lead: $sine('c4').amp($adsr($btn("hit").hold(0.1)));
  */
 function $btn(label: string, group?: ControlGroup): CollectionWithRange;
 
@@ -1287,7 +1316,7 @@ function $btn(label: string, group?: ControlGroup): CollectionWithRange;
  * @returns A CollectionWithRange carrying the button output (range [0, 5])
  *
  * @example
- * $saw('c2').amp($toggleBtn("drone", false)).out();
+ * bass: $saw('c2').amp($toggleBtn("drone", false));
  */
 function $toggleBtn(label: string, initial: boolean, group?: ControlGroup): CollectionWithRange;
 
@@ -1324,87 +1353,192 @@ interface ControlGroupParams {
  *
  * @example
  * const voice = $cGroup("Voice");
- * $sine($slider("Pitch", "c4", "c2", "c6", voice))
- *     .amp($adsr($btn("Play", voice)))
- *     .out();
+ * tone: $sine($slider("Pitch", "c4", "c2", "c6", voice))
+ *     .amp($adsr($btn("Play", voice)));
  * @example
  * // nested, with the inner group collapsed
  * const synth = $cGroup("Synth");
  * const amp = $cGroup("Amp", { collapsed: true, group: synth });
- * $saw($slider("Root", "c3", "c2", "c5", synth))
- *     .amp($slider("Level", 0.5, 0, 1, amp))
- *     .out();
+ * tone: $saw($slider("Root", "c3", "c2", "c5", synth))
+ *     .amp($slider("Level", 0.5, 0, 1, amp));
  */
 function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
+/** @internal */
+declare const __busRoot: unique symbol;
+
 /**
- * A send-return bus. Create one with {@link $bus}, then name it in the
- * \`sends\` option of any \`.out()\` or \`.outMono()\` to route signals through it,
- * and call \`.out()\` or \`.outMono()\` on the bus to hear its return.
+ * The signal of a send-return bus, from {@link $bus}: one stereo lane, the
+ * mix of everything sent to it. Chain methods that give one signal keep it a
+ * bus signal, so \`$bus().plate().wet(2)\` is one too; one output picked from
+ * a module with several is an ordinary signal. The track labelling it is the bus's
+ * track, whose name tracks send to.
  */
-class Bus {
-  /** @internal */
+class BusSignal extends BaseCollection<BusSignal, RangedBusSignal> {
   private constructor();
+  /** Sets a bus signal apart from any other. */
+  readonly [__busRoot]: true;
 
   /**
-   * Send the bus's return to speakers as stereo.
+   * How the bus mixes into its track.
    *
    * Options:
-${renderOutOptionsJsDocList(withoutSends(STEREO_OUT_OPTIONS))}
-   * @param options Stereo output options ({@link BusStereoOutOptions})
+${renderTrackOptionsJsDocList(BUS_TRACK_OPTIONS)}
+   * @param options Track options ({@link BusTrackOptions})
    * @example
-   * const verb = $bus((mixed) => mixed.reverb()).out({ label: 'verb' });
-   * $saw('c3').out({ sends: [verb, 2] });
+   * verb: $bus().plate().track({ gain: 3 })
+   * keys: $saw('c3').track({ sends: [verb, 2] })
    */
-  out(options?: BusStereoOutOptions): this;
+  override track(options?: BusTrackOptions): Track<this>;
 
   /**
-   * Send the bus's return to speakers as mono.
-   *
-   * Options:
-${renderOutOptionsJsDocList(withoutSends(MONO_OUT_OPTIONS))}
-   * @param channelOrOptions Output channel (0-63, default 0), or mono output options ({@link BusMonoOutOptions})
-   * @param gainOrOptions Output gain as {@link Poly<Signal>}, or the same options (an explicit channel there wins)
-   * @example
-   * const echo = $bus((mixed) => $delay(mixed, 0.25)).outMono(1);
-   * $sine('c4').outMono(0, { sends: echo });
+   * This bus signal's lane followed by those of \`other\`, still rooted at
+   * the bus.
+   * @param other Any signal
    */
-  outMono(channelOrOptions?: number | BusMonoOutOptions, gainOrOptions?: Poly<Signal> | BusMonoOutOptions): this;
+  override concat(other: Collection | CollectionWithRange | BusRooted): this;
 }
 
 /**
- * Create a send-return bus.
- *
- * The callback receives a {@link Collection} that is the mix of all signals
- * sent to this bus through an out's \`sends\` option, and returns the bus's
- * return signal. Call \`.out()\` or \`.outMono()\` on the bus to hear it.
- *
- * @param cb Called during patch finalization with the mixed sends; returns the processed signal
- * @returns A {@link Bus} handle named in \`sends\`
- *
- * @example
- * const verb = $bus((mixed) => $plate(mixed)).out();
- * $saw('a').out({ sends: [verb, 3] });
- * $sine('a2').outMono(0, { sends: [verb, 2] });
+ * A {@link BusSignal} whose range the engine knows, as chain methods such as
+ * \`.reverb()\` give on a bus signal.
  */
-function $bus(cb: (mixed: Collection) => Poly<Signal> | void): Bus;
+class RangedBusSignal extends RangedCollection<BusSignal, RangedBusSignal> {
+  private constructor();
+  /** Sets a bus signal apart from any other. */
+  readonly [__busRoot]: true;
+
+  /**
+   * How the bus mixes into its track.
+   * @param options Track options ({@link BusTrackOptions})
+   */
+  override track(options?: BusTrackOptions): Track<this>;
+
+  /**
+   * This bus signal's lane followed by those of \`other\`, still rooted at
+   * the bus.
+   * @param other Any signal
+   */
+  override concat(other: Collection | CollectionWithRange | BusRooted): this;
+}
+
+/** A signal rooted at a bus: \`$bus()\` or methods chained on it. */
+type BusRooted = BusSignal | RangedBusSignal;
 
 /**
- * Tap the out labeled \`label\`: its audio after gain and mute/solo, plus its
- * \`.active\` gate, \`.level\` gain, and \`.panning\` as ranged signals. Follows
- * live VU-panel changes. The out may be declared before or after the tap; a
- * label no out declares is an error.
+ * A bus track's final signal, as its label's name reads: a {@link TrackTap}
+ * that the \`sends\` option of other tracks also takes.
+ */
+class BusTap extends TrackTap {
+  private constructor();
+  /** Sets a bus track's name apart from any other track's. */
+  #busTrack: true;
+}
+
+/** @internal */
+declare const __groupRoot: unique symbol;
+
+/**
+ * The signal of a group, from {@link $group}: one stereo lane, the sum of
+ * the tracks that play into it. Chain methods that give one signal keep it a
+ * group signal. The track labelling it is the group's track, whose name
+ * other tracks' labels end in.
+ */
+class GroupSignal extends BaseCollection<GroupSignal, RangedGroupSignal> {
+  private constructor();
+  /** Sets a group signal apart from any other. */
+  readonly [__groupRoot]: true;
+
+  /**
+   * This group signal's lane followed by those of \`other\`, still rooted
+   * at the group.
+   * @param other Any signal
+   */
+  override concat(other: Collection | CollectionWithRange | GroupRooted): this;
+}
+
+/**
+ * A {@link GroupSignal} whose range the engine knows, as chain methods such
+ * as \`.reverb()\` give on a group signal.
+ */
+class RangedGroupSignal extends RangedCollection<GroupSignal, RangedGroupSignal> {
+  private constructor();
+  /** Sets a group signal apart from any other. */
+  readonly [__groupRoot]: true;
+
+  /**
+   * This group signal's lane followed by those of \`other\`, still rooted
+   * at the group.
+   * @param other Any signal
+   */
+  override concat(other: Collection | CollectionWithRange | GroupRooted): this;
+}
+
+/** A signal rooted at a group: \`$group()\` or methods chained on it. */
+type GroupRooted = GroupSignal | RangedGroupSignal;
+
+/**
+ * A group track's final signal, as its label's name reads: a
+ * {@link TrackTap} whose name other tracks' labels end in to play into it.
+ */
+class GroupTap extends TrackTap {
+  private constructor();
+  /** Sets a group track's name apart from any other track's. */
+  #groupTrack: true;
+}
+
+/**
+ * A group: the sum, as one stereo lane, of every track whose label ends in
+ * \`$\` and the name of this group's track. Those tracks play into the group
+ * after their own pan, gain, mute and solo, and reach the output only
+ * through it. Chain effects on it and label the result: that track is the
+ * group, and plays to the main output, to the channels of its own
+ * \`$N\` / \`$Nm\` suffix, or into another group. A group has one track, a
+ * group track can send to buses, and a bus track cannot play into a group.
  *
- * @param label Label of the out to follow
- * @returns An {@link TrackTap}
+ * @returns The group's signal
  *
  * @example
- * $saw('c2').out({ label: 'bass' });
- * const bass = $trackTap('bass');
+ * kick$drums: $tr808.kick($\`c ~ c ~\`)
+ * hats$drums: $tr808.hiHat($\`c*8\`)
+ * drums: $group().comp().track({ gain: 4 })
+ */
+function $group(): GroupSignal;
+
+/**
+ * A send-return bus: the mix of every signal sent to it through a track's
+ * \`sends\` option, as one stereo lane. Chain effects on it and label the
+ * result to hear it. That track is the bus: its name is what \`sends\`
+ * takes, and reads as the track's signal like any other track's name. A bus
+ * has one track, and a bus track cannot send to another bus or be soloed:
+ * it keeps playing while other tracks are soloed.
+ *
+ * @returns The bus's signal
+ *
+ * @example
+ * verb: $bus().plate()
+ * lead: $saw('a').track({ sends: [verb, 3] })
+ * bass$0m: $sine('a2').track({ sends: [verb, 2] })
+ */
+function $bus(): BusSignal;
+
+/**
+ * Tap the track named \`name\`: its audio after pan, gain and mute/solo,
+ * plus its \`.active\` gate, \`.level\` gain, and \`.panning\` as ranged
+ * signals. Follows live mixer changes. A track's label already binds its
+ * name to the same tap, so this is for a name held in a string. Spaces and
+ * underscores match alike; a name no track has is an error.
+ *
+ * @param name Name of the track to follow
+ * @returns A {@link TrackTap}
+ *
+ * @example
+ * bass: $saw('c2')
+ * const tap = $trackTap('bass')
  * // Follows the bass fader and pan
- * $sine('c5').gain(bass.level).out({ pan: bass.panning });
+ * lead: $sine('c5').gain(tap.level).track({ pan: tap.panning })
  * // Silent while bass is muted or soloed out
- * $sine('g5').gain(bass.active).out();
+ * bell: $sine('g5').gain(tap.active)
  */
 function $trackTap(label: string): TrackTap;
 
@@ -1433,11 +1567,11 @@ function $setEndOfChainCb(cb: (mixed: Collection) => Collection | CollectionWith
  *
  * @example
  * // Fan oscillators across every combination of frequency and waveform
- * $mix(
+ * cartesian: $mix(
  *   $cartesian([220, 440], ['sine', 'saw']).map(([freq, shape]) =>
  *     shape === 'sine' ? $sine($hz(freq)) : $saw($hz(freq)),
  *   ),
- * ).out();
+ * );
  *
  * @example $cartesian([1, 2], ['a', 'b'])
  * // → [[1,'a'], [1,'b'], [2,'a'], [2,'b']]
@@ -1456,9 +1590,9 @@ function $cartesian<A extends unknown[][]>(...arrays: A): ElementsOf<A>[];
  *
  * @example
  * // 3 pitches x 2 phase offsets = 6 voices
- * $sine($g1(["c3", "e3", "g3"]), {
+ * tone: $sine($g1(["c3", "e3", "g3"]), {
  *   phaseOffset: $g2([0, 0.25]),
- * }).out()
+ * })
  */
 function $g1(signals: Poly<Signal>): SignalGroup;
 
@@ -1467,9 +1601,9 @@ function $g1(signals: Poly<Signal>): SignalGroup;
  *
  * @example
  * // 3 pitches x 2 phase offsets = 6 voices
- * $sine($g1(["c3", "e3", "g3"]), {
+ * tone: $sine($g1(["c3", "e3", "g3"]), {
  *   phaseOffset: $g2([0, 0.25]),
- * }).out()
+ * })
  */
 function $g2(signals: Poly<Signal>): SignalGroup;
 
@@ -1478,10 +1612,10 @@ function $g2(signals: Poly<Signal>): SignalGroup;
  *
  * @example
  * // 2 pitches x 2 shapes x 2 phases = 8 voices
- * $saw($g1(["c2", "c3"]), {
+ * tone: $saw($g1(["c2", "c3"]), {
  *   shape: $g2([0, 2.5]),
  *   phaseOffset: $g3([0, 0.5]),
- * }).out()
+ * })
  */
 function $g3(signals: Poly<Signal>): SignalGroup;
 
@@ -1495,7 +1629,7 @@ function $g3(signals: Poly<Signal>): SignalGroup;
  * // Crossfade the amplitude of the different voices
  * const osc = $sine(['c', 'e', 'g'])
  * const weights = $cross(osc.length, $sine('0.25hz').range(0, 1));
- * osc.amp(weights).out();
+ * chord: osc.amp(weights);
  */
 function $cross(
     count: number,
@@ -1781,12 +1915,20 @@ function renderRangedChainMethod(
     const ranged = rangedArgs(moduleSchema, args, tagged, null);
     const lines = [
         ...doc,
-        `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): CollectionWithRange;`,
+        `${indent}${chainMethodName(moduleSchema.name)}(${ranged.join(', ')}): Ranged;`,
     ];
     // The ranged overload already covers a declared range while the receiver
     // is the declaring module's only tagged param, as for `$clamp`.
     if (ranged.some((arg, i) => arg !== args[i])) {
-        lines.push(...renderChainMethod(moduleSchema, indent, false));
+        lines.push(
+            ...renderChainMethod(
+                moduleSchema,
+                indent,
+                false,
+                'Plain',
+                'Ranged',
+            ),
+        );
     }
     return lines;
 }
@@ -2160,6 +2302,11 @@ function renderChainMethod(
     moduleSchema: Schema,
     indent: string,
     withDeclared = true,
+    // What a plain and a ranged signal result are typed as; a chain from
+    // `$bus()` keeps its own type, through the chain interfaces' `Plain` and
+    // `Ranged` parameters.
+    plain = 'Collection',
+    ranged = 'CollectionWithRange',
 ): string[] {
     const methodName = chainMethodName(moduleSchema.name);
     const { args, doc } = chainSignature(moduleSchema, indent);
@@ -2168,13 +2315,15 @@ function renderChainMethod(
     const returnType =
         (moduleSchema.outputs ?? []).length > 1
             ? qualifiedMultiOutputInterfaceName(moduleSchema)
-            : getFactoryReturnType(moduleSchema);
+            : ({ Collection: plain, CollectionWithRange: ranged }[
+                  getFactoryReturnType(moduleSchema)
+              ] ?? getFactoryReturnType(moduleSchema));
     const lines: string[] = [];
     const declared = declaredRangeArgs(moduleSchema, args);
     if (declared && withDeclared) {
         lines.push(
             ...doc,
-            `${indent}${methodName}(${declared.join(', ')}): CollectionWithRange;`,
+            `${indent}${methodName}(${declared.join(', ')}): ${ranged};`,
         );
     }
     lines.push(
@@ -2297,7 +2446,7 @@ function renderEnoscNamespace(schemas: Schemas): string[] {
         '   * at its last note, which is the octave unless noted.',
         '   *',
         '   * @example',
-        "   * $enosc('c3', $enosc.scale.harm4to7).out()",
+        "   * keys: $enosc('c3', $enosc.scale.harm4to7)",
         '   */',
         '  export const scale: {',
         ...presets,
@@ -2314,7 +2463,7 @@ function renderEnoscNamespace(schemas: Schemas): string[] {
         '     * every fifth.',
         '     *',
         '     * @example',
-        "     * $enosc('c3', $enosc.scale.custom('0 2 3 7 9', true)).out()",
+        "     * keys: $enosc('c3', $enosc.scale.custom('0 2 3 7 9', true))",
         '     */',
         '    custom(notes: string, repeatsOctave: boolean): EnoscScale;',
         '  };',
@@ -2396,10 +2545,10 @@ export function generateDSL(schemas: Schemas): string {
         '```js',
         '// mix the dry signal back in for a classic echo',
         "let src = $saw('c3')",
-        '$mix([src, $delay(src, 0.25, { feedback: 3 })]).out()',
+        'echo: $mix([src, $delay(src, 0.25, { feedback: 3 })])',
         '',
         '// lowpass in the loop — echoes darken on every repeat',
-        "src.delay(0.5, { feedbackCb: (m) => m.lpf('800hz') }).out()",
+        "dark: src.delay(0.5, { feedbackCb: (m) => m.lpf('800hz') })",
         '```',
     ];
     // Render the `$delay` doc at `indent`, prepending optional `header` lines
@@ -2471,13 +2620,15 @@ export function generateDSL(schemas: Schemas): string {
         const dotted = path.join('.');
         lines.push('');
         lines.push(`/** The \`$${dotted}\` modules as chain methods. */`);
-        lines.push(`interface ModuleChain${pascal(dotted)} {`);
+        lines.push(
+            `interface ModuleChain${pascal(dotted)}<Plain = Collection, Ranged = CollectionWithRange> {`,
+        );
         for (const s of node.leaves) {
-            lines.push(...renderChainMethod(s, '  '));
+            lines.push(...renderChainMethod(s, '  ', true, 'Plain', 'Ranged'));
         }
         for (const seg of sortedChildren(node)) {
             lines.push(
-                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))};`,
+                `  readonly ${seg}: ModuleChain${pascal([...path, seg].join('.'))}<Plain, Ranged>;`,
             );
         }
         lines.push('}');
@@ -2494,23 +2645,27 @@ export function generateDSL(schemas: Schemas): string {
         " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
         ' */',
     );
-    lines.push('interface ModuleChain {');
+    lines.push(
+        'interface ModuleChain<Plain = Collection, Ranged = CollectionWithRange> {',
+    );
     for (const s of chainRoot.leaves) {
-        lines.push(...renderChainMethod(s, '  '));
+        lines.push(...renderChainMethod(s, '  ', true, 'Plain', 'Ranged'));
     }
     for (const seg of sortedChildren(chainRoot)) {
-        lines.push(`  readonly ${seg}: ModuleChain${pascal(seg)};`);
+        lines.push(
+            `  readonly ${seg}: ModuleChain${pascal(seg)}<Plain, Ranged>;`,
+        );
     }
     lines.push(
         ...renderDelayDoc('  ', chainDelayHeader),
-        `  delay(time: Poly<Signal>, ${delayOpts}): Collection;`,
+        `  delay(time: Poly<Signal>, ${delayOpts}): Plain;`,
     );
     lines.push('}');
 
     lines.push('');
     // Merged into the class, so each overload narrows BaseCollection's method.
     lines.push('/** Chain methods that keep a ranged signal ranged. */');
-    lines.push('interface CollectionWithRange {');
+    lines.push('interface RangedCollection<Plain, Ranged extends Plain> {');
     for (const s of chainRoot.leaves) {
         const overloads = renderRangedChainMethod(s, '  ');
         if (overloads) {

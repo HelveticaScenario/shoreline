@@ -235,11 +235,10 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Warm pad plate",
         code: r#"
-            $saw($chord('F3[maj9]'))
+            chord: $saw($chord('F3[maj9]'))
               .lpf('f5', 1)
               .plate({ decay: 2, damping: 1 })
               .wet(2)
-              .out()
         "#,
     }],
 };

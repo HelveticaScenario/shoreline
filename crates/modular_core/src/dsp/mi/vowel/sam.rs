@@ -239,10 +239,10 @@ const SAM_VOWEL_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Retro syllables",
         code: r#"
-                const seq = $`c3 eb3 g3 <bb2 f3>`
-                const vowel = $sine('0.2hz').range(0, 5)
-                $mi.samVowel(seq, { trigger: seq, vowel }).out()
-            "#,
+            const seq = $`c3 eb3 g3 <bb2 f3>`
+            const vowel = $sine('0.2hz').range(0, 5)
+            melody: $mi.samVowel(seq, { trigger: seq, vowel })
+        "#,
     }],
 };
 

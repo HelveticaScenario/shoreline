@@ -10,7 +10,7 @@ const AMP_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Tremolo",
-        code: "$saw('c3').amp($sine('5hz').range(0, 5)).out()",
+        code: "keys: $saw('c3').amp($sine('5hz').range(0, 5))",
     }],
 };
 

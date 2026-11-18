@@ -75,9 +75,9 @@ const RISING_DOCS: ModuleDocs = ModuleDocs {
         title: "Only the upward steps sound",
         code: r#"
             const notes = $`c3 e3 g3 e3 c4 g3`
-            $sine(notes)
-              .amp($perc($rising(notes), { decay: 0.3 }))
-              .out()
+            melody: $sine(notes).amp(
+              $perc($rising(notes), { decay: 0.3 }),
+            )
         "#,
     }],
 };
@@ -123,9 +123,9 @@ const FALLING_DOCS: ModuleDocs = ModuleDocs {
         title: "Only the downward steps sound",
         code: r#"
             const notes = $`c3 e3 g3 e3 c4 g3`
-            $sine(notes)
-              .amp($perc($falling(notes), { decay: 0.3 }))
-              .out()
+            melody: $sine(notes).amp(
+              $perc($falling(notes), { decay: 0.3 }),
+            )
         "#,
     }],
 };

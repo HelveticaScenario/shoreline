@@ -11,7 +11,7 @@
     font-family: var(--font-mono);
 }
 
-/* Channel strips scroll horizontally; the master strip stays pinned right. */
+/* Track strips scroll horizontally; the main and bus strips stay pinned right. */
 .vu-meter-scroll {
     display: flex;
     align-items: stretch;
@@ -25,6 +25,18 @@
 .vu-meter--main {
     border-left: 2px solid var(--border-subtle, #333);
     border-radius: 0 3px 3px 0;
+}
+
+/* Bus strips sit just left of the main strip, pinned with it. */
+.vu-meter-buses {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    /* Gives way before the main strip does, scrolling its own strips. */
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .vu-meter-empty {
@@ -165,6 +177,10 @@
     font-weight: 400;
 }
 
+.vu-btn-gap {
+    visibility: hidden;
+}
+
 .vu-btn-solo[data-code-pressed='true'] {
     background: #4a7fd4;
     border-color: #27406e;
@@ -220,4 +236,48 @@
 .vu-pan-knob--locked {
     color: var(--accent-primary, #4ec9b0);
     cursor: default;
+}
+
+/* A group's strip with its members beside it, under one band. Nested groups
+   nest their bands. */
+.vu-group {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    flex-shrink: 0;
+    padding: 3px 3px 3px;
+    background: color-mix(
+        in srgb,
+        var(--accent-primary, #4ec9b0) 7%,
+        transparent
+    );
+    border: 1px solid
+        color-mix(in srgb, var(--accent-primary, #4ec9b0) 35%, #222);
+    border-top-width: 3px;
+    border-radius: 4px;
+}
+
+.vu-group > .vu-meter:first-child {
+    border-color: color-mix(in srgb, var(--accent-primary, #4ec9b0) 45%, #222);
+}
+
+.vu-meter-header:has(.vu-group-fold) {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.vu-group-fold {
+    flex-shrink: 0;
+    padding: 0 2px 0 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary, #999);
+    font-size: 10px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.vu-group-fold:hover {
+    color: var(--text-primary);
 }

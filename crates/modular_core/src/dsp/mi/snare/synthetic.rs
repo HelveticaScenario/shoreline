@@ -101,7 +101,7 @@ const SYNTH_SNARE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Backbeat",
-            code: "$mi.synthSnare('d3', { trigger: $`~ c` }).out()",
+            code: "synthSnare: $mi.synthSnare('d3', { trigger: $`~ c` })",
         },
         DocExample {
             title: "Tight, punchy hits",
@@ -113,7 +113,7 @@ const SYNTH_SNARE_DOCS: ModuleDocs = ModuleDocs {
                   decay: 1,
                   snappy: 3.5,
                 })
-                snare.out()
+                synthSnare: snare
             "#,
         },
     ],

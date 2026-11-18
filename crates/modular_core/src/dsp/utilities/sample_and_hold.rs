@@ -43,7 +43,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Random notes in C major",
             code: r#"
-                $sine(
+                melody: $sine(
                   $quantizer(
                     $sah(
                       $noise('white').range('c3', 'c5'),
@@ -51,21 +51,19 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
                     ),
                     'C(major)',
                   ),
-                ).out()
+                )
             "#,
         },
         DocExample {
             title: "Stepped random filter",
             code: r#"
-                $saw('c2')
-                  .lpf(
-                    $sah(
-                      $noise('white').range('c4', 'c7'),
-                      $clock._beatTrigger,
-                    ),
-                    3,
-                  )
-                  .out()
+                bass: $saw('c2').lpf(
+                  $sah(
+                    $noise('white').range('c4', 'c7'),
+                    $clock._beatTrigger,
+                  ),
+                  3,
+                )
             "#,
         },
     ],
@@ -160,9 +158,9 @@ const TAH_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Glide that freezes in steps",
         code: r#"
-            $sine(
+            tone: $sine(
               $tah($sine('0.3hz').range('c3', 'c5'), $pulse('1hz')),
-            ).out()
+            )
         "#,
     }],
 };

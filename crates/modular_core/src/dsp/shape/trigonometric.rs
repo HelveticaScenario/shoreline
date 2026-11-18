@@ -85,12 +85,10 @@ const TRIGONOMETRIC_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Ringing sweep",
         code: r#"
-            $sine('c3')
-              .unstable.shape.trigonometric(
-                'cyc7',
-                $sine('0.2hz').range(-3, 2),
-              )
-              .out()
+            keys: $sine('c3').unstable.shape.trigonometric(
+              'cyc7',
+              $sine('0.2hz').range(-3, 2),
+            )
         "#,
     }],
 };

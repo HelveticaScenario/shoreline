@@ -149,11 +149,11 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
         title: "Tremolo on the mids only",
         code: r#"
             const bands = $xover($saw('c2'))
-            $mix([
+            bass: $mix([
               bands._low,
               bands._mid.amp($sine('4hz').range(0, 5)),
               bands._high,
-            ]).out()
+            ])
         "#,
     }],
 };

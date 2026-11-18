@@ -52,17 +52,15 @@ const CLAMP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Half-wave rectified buzz",
-            code: "$clamp($sine('c3'), { min: 0 }).out()",
+            code: "keys: $clamp($sine('c3'), { min: 0 })",
         },
         DocExample {
             title: "Sweep that lingers wide open",
             code: r#"
-                $saw('c2')
-                  .lpf(
-                    $clamp($sine('0.2hz').range('c3', 'c8'), { max: 'c6' }),
-                    2,
-                  )
-                  .out()
+                bass: $saw('c2').lpf(
+                  $clamp($sine('0.2hz').range('c3', 'c8'), { max: 'c6' }),
+                  2,
+                )
             "#,
         },
     ],

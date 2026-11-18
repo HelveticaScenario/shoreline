@@ -63,9 +63,11 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Crunchy downsampling sweep",
         code: r#"
-            $unstable.filter
-              .sah($saw('c3'), $sine('0.2hz').range('c5', 'c9'), 1)
-              .out()
+            keys: $unstable.filter.sah(
+              $saw('c3'),
+              $sine('0.2hz').range('c5', 'c9'),
+              1,
+            )
         "#,
     }],
 };

@@ -266,11 +266,10 @@ const REVERB_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Pad in a wide hall",
         code: r#"
-            $saw($chord('D3[m7]'))
+            chord: $saw($chord('D3[m7]'))
               .lpf('d5', 1)
               .unstable.reverb({ decay: 3, size: 2 })
               .wet(2.5)
-              .out()
         "#,
     }],
 };

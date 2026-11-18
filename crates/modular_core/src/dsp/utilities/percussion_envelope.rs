@@ -47,18 +47,16 @@ const PERC_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Noise hi-hat",
             code: r#"
-                $noise('white')
-                  .amp($perc($clock._beatTrigger, { decay: 0.05 }))
-                  .out()
+                noise: $noise('white').amp(
+                  $perc($clock._beatTrigger, { decay: 0.05 }),
+                )
             "#,
         },
         DocExample {
             title: "Plucked bass",
             code: r#"
                 const notes = $`c2 c2 eb2 g1`
-                $saw(notes)
-                  .amp($perc(notes, { decay: 0.2 }))
-                  .out()
+                melody: $saw(notes).amp($perc(notes, { decay: 0.2 }))
             "#,
         },
     ],

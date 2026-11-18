@@ -43,14 +43,14 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
     expect(
         errors(
             [
-                `$saw('c3').lpf('800hz', 2).wet(2.5).out()`,
-                `$c($sine('c3'), $sine('e3')).plate({ decay: 2 }).wet().out()`,
-                `$saw('c3').unstable.shape.fold('dual', 2).wet(1).out()`,
-                `$saw('c3').xover()._low.lpf('200hz').wet(2).out()`,
-                `$saw('c3').xover().wet(2).out()`,
-                `$saw('c3').delay(0.25, { feedback: 2 }).wet(2).out()`,
-                `$saw($spread(0, 5, 3)).setLanes(2, { mode: 'average' }).out()`,
-                `$saw('c3').addHz(2).mulHz(1.5).out()`,
+                `out: $saw('c3').lpf('800hz', 2).wet(2.5)`,
+                `out: $c($sine('c3'), $sine('e3')).plate({ decay: 2 }).wet()`,
+                `out: $saw('c3').unstable.shape.fold('dual', 2).wet(1)`,
+                `out: $saw('c3').xover()._low.lpf('200hz').wet(2)`,
+                `out: $saw('c3').xover().wet(2)`,
+                `out: $saw('c3').delay(0.25, { feedback: 2 }).wet(2)`,
+                `out: $saw($spread(0, 5, 3)).setLanes(2, { mode: 'average' })`,
+                `out: $saw('c3').addHz(2).mulHz(1.5)`,
                 `$v.osc(8).hsv().kaleid(5).wet(0.5).out()`,
             ].join('\n'),
         ),
@@ -58,7 +58,7 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
 });
 
 test('a chained multi-output module keeps its outputs', () => {
-    expect(errors(`$clock.tr808.hiHat()._open.out()`)).toEqual([]);
+    expect(errors(`out: $clock.tr808.hiHat()._open`)).toEqual([]);
     expect(errors(`$clock.tr808.hiHat()._notThere`)).toHaveLength(1);
 });
 
@@ -67,20 +67,19 @@ test('a pattern types as the module that plays it', () => {
         errors(
             [
                 `const seq = $('c3 e3 g3')`,
-                `$saw(seq).amp($perc(seq._trig)).lpf(seq.range(-1, 1, 'c4', 'c6')).out()`,
-                `seq.fast(2).glide(0.1).saw().out()`,
+                `out: $saw(seq).amp($perc(seq._trig)).lpf(seq.range(-1, 1, 'c4', 'c6'))`,
+                `out: seq.fast(2).glide(0.1).saw()`,
                 `seq[0].scope()`,
-                `$('0 2 4').scale('c(maj)').trans.squeeze('0 7').add(1).out()`,
-                `$arrange([2, seq], [1, seq.slow(2)]).mul(2).out()`,
-                `$cycle(seq.struct('x ~ x x')).out()`,
+                `out: $('0 2 4').scale('c(maj)').trans.squeeze('0 7').add(1)`,
+                `out: $arrange([2, seq], [1, seq.slow(2)]).mul(2)`,
+                `out: $cycle(seq.struct('x ~ x x'))`,
             ].join('\n'),
         ),
     ).toEqual([]);
-    // A lane, a slice or the receiver `.out()` returns is the sequencer's
+    // A lane, a slice or the receiver `.scope()` returns is the sequencer's
     // signal, which has no pattern methods.
     expect(errors(`$('c3').scope().fast(2)`)).toHaveLength(1);
     expect(errors(`$('c3')[0].glide(0.1)`)).toHaveLength(1);
-    expect(errors(`$cycle($('c3').out())`)).toHaveLength(1);
 });
 
 test('a scale pattern keeps .trans through every pattern method', () => {
@@ -88,11 +87,11 @@ test('a scale pattern keeps .trans through every pattern method', () => {
         errors(
             [
                 `const s = $('0 2 4').scale('c(maj)')`,
-                `s.trans('1').fast(2).trans('2').saw().out()`,
-                `s.slow(2).struct('x ~ x').beat('0,3', 8).glide(0.1).trans.squeeze('0 7').out()`,
-                `s.trans('1').scale('d(min)').trans('1').out()`,
-                `$arrange([2, s], [2, $('0 1').scale('a(min)')]).trans('<0 1>').out()`,
-                `$arrange([1, $('0')], [1, $('c4')]).scale('c(maj)').trans('1').fast(2).trans('1').out()`,
+                `out: s.trans('1').fast(2).trans('2').saw()`,
+                `out: s.slow(2).struct('x ~ x').beat('0,3', 8).glide(0.1).trans.squeeze('0 7')`,
+                `out: s.trans('1').scale('d(min)').trans('1')`,
+                `out: $arrange([2, s], [2, $('0 1').scale('a(min)')]).trans('<0 1>')`,
+                `out: $arrange([1, $('0')], [1, $('c4')]).scale('c(maj)').trans('1').fast(2).trans('1')`,
             ].join('\n'),
         ),
     ).toEqual([]);
@@ -115,7 +114,7 @@ test('the generated lib names only types it declares', () => {
 });
 
 test('a name that is no module or method is an error', () => {
-    expect(errors(`$saw('c3').notAModule().out()`)).toHaveLength(1);
+    expect(errors(`out: $saw('c3').notAModule()`)).toHaveLength(1);
 });
 
 test('a two-argument .range() needs a signal the engine gives a range', () => {

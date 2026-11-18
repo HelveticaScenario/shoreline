@@ -1,0 +1,10 @@
+kind: New
+body: |-
+    Group tracks with `$group()`. A label ending in `$` and a group track's name plays into that group instead of the output, after its own pan, gain, mute and solo; the group is the track that starts from `$group()`, so chain effects on it. Groups nest, a group track can send to buses, and soloing a group plays it with all its tracks. A track's sends also pass through the gain, pan, mute and solo of every group it plays into, but not the groups' effects, so muting a group silences its tracks' sends too. The mixer shows a group with its tracks beside it and can fold them away.
+
+    ```js
+    kick$drums: $tr808.kick($`c ~ c ~`)
+    hats$drums: $tr808.hiHat($`c*8`)
+    drums: $group().comp().track({ gain: 4 })
+    ```
+time: 2026-11-16T15:57:56.891278-05:00

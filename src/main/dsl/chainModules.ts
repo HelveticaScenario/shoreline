@@ -8,6 +8,7 @@
  * each call finds its function through the receiver's own builder.
  */
 
+import { carrySignalRoot } from './signalRoots';
 import { outputSetOf } from './outputResolution';
 import type { ProcessedModuleSchema } from './paramsSchema';
 import { qualifiesForChain } from './paramsSchema';
@@ -79,6 +80,9 @@ export function createChainInstaller(target: ChainTarget): ChainInstaller {
         }
         const result = host.chainFunction(path)(receiver, ...args);
         markWet(result, receiver);
+        if (!outputSetOf(result)) {
+            carrySignalRoot(result, receiver);
+        }
         return result;
     };
 

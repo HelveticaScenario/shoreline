@@ -4,8 +4,8 @@
 ///
 /// The first segment of a module's name after its `$` cannot be one of them:
 /// every chainable module is also a method of collections (`$lpf` as
-/// `.lpf(...)`, `$mi.chorus` as `.mi.chorus(...)`), so `$out` or `$out.soft`
-/// would shadow `.out(...)`. A pattern has every collection member beside its
+/// `.lpf(...)`, `$mi.chorus` as `.mi.chorus(...)`), so `$track` or
+/// `$track.soft` would shadow `.track(...)`. A pattern has every collection member beside its
 /// own methods, so those are taken too; `$cycle` alone keeps its name, being
 /// what a pattern's `.cycle(...)` calls. A module's outputs sit behind an
 /// underscore (`seq._gate`), so an output may take any of these names.
@@ -23,8 +23,7 @@ const RESERVED_MEMBER_NAMES: &[&str] = &[
     "chunk",
     "concat",
     "scope",
-    "out",
-    "outMono",
+    "track",
     "pipe",
     "pipeMix",
     "wet",

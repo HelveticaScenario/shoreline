@@ -110,13 +110,13 @@ const SWARM_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Cloud of grains",
-            code: "$mi.swarm('c3', { spread: 2, grainSize: 1 }).out()",
+            code: "keys: $mi.swarm('c3', { spread: 2, grainSize: 1 })",
         },
         DocExample {
             title: "Bursts",
             code: r#"
                 const seq = $`c3 [~ c3] eb3 <g3 bb2>`
-                $mi.swarm(seq, { trigger: seq })._sine.out()
+                melody: $mi.swarm(seq, { trigger: seq })._sine
             "#,
         },
     ],

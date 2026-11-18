@@ -5,7 +5,7 @@ import {
     stripPatchVersionStamp,
 } from './patchVersionStamp';
 
-const PATCH = `// Simple 440 Hz sine wave\n$sine('a3').out();\n`;
+const PATCH = `// Simple 440 Hz sine wave\nout: $sine('a3');\n`;
 
 describe('isStampablePath', () => {
     it('accepts JavaScript patch extensions, case-insensitively', () => {

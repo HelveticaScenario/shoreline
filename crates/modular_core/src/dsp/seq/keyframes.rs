@@ -64,7 +64,7 @@ const KEYFRAMES_DOCS: ModuleDocs = ModuleDocs {
               ],
               { interpolationType: 'cubicIn' },
             )
-            $saw('c2').lpf(cutoff, 3).out()
+            bass: $saw('c2').lpf(cutoff, 3)
         "#,
     }],
 };

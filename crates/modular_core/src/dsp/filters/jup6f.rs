@@ -72,20 +72,21 @@ const JUP6F_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Breathing analog pad",
             code: r#"
-                $saw($chord('C3[maj9]'))
-                  .jup6f($sine('0.1hz').range('c4', 'c7'), 2.5)
-                  .out()
+                chord: $saw($chord('C3[maj9]')).jup6f(
+                  $sine('0.1hz').range('c4', 'c7'),
+                  2.5,
+                )
             "#,
         },
         DocExample {
             title: "Squelchy bandpass bass",
             code: r#"
                 const seq = $`c2 [c2 c3] eb2 [g1 bb1]`
-                $jup6f(
+                melody: $jup6f(
                   $saw(seq),
                   $perc(seq, { decay: 0.15 }).range('c3', 'c6'),
                   4,
-                )._bp.out()
+                )._bp
             "#,
         },
     ],

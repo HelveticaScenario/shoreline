@@ -226,9 +226,9 @@ const LPC_VOWEL_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Robot syllables",
         code: r#"
-                const seq = $`c3 eb3 g3 <bb2 f3>`
-                $mi.lpcVowel(seq, { trigger: seq }).out()
-            "#,
+            const seq = $`c3 eb3 g3 <bb2 f3>`
+            melody: $mi.lpcVowel(seq, { trigger: seq })
+        "#,
     }],
 };
 

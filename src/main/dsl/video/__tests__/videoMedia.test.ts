@@ -192,7 +192,7 @@ describe('$v media sources', () => {
 
         it('plays the sound of a video as an audio signal', () => {
             const modules = audioModule(
-                `$v.video('/clips/loop.mp4').audio.out();`,
+                `out: $v.video('/clips/loop.mp4').audio;`,
             );
             expect(modules).toHaveLength(1);
             expect(modules[0].params.wav).toMatchObject({
@@ -204,7 +204,7 @@ describe('$v media sources', () => {
 
         it('keeps the audio on what out returns', () => {
             const modules = audioModule(
-                `$v.video('/clips/loop.mp4', { loop: [1], fit: 'contain' }).out().audio.out();`,
+                `out: $v.video('/clips/loop.mp4', { loop: [1], fit: 'contain' }).out().audio;`,
             );
             expect(modules).toHaveLength(1);
         });
@@ -212,8 +212,8 @@ describe('$v media sources', () => {
         it('makes one player however often the audio is read', () => {
             const modules = audioModule(`
                 const clip = $v.video('/clips/loop.mp4');
-                clip.audio.out();
-                clip.audio.out();
+                out: clip.audio;
+                out2: clip.audio;
             `);
             expect(modules).toHaveLength(1);
         });
@@ -226,7 +226,7 @@ describe('$v media sources', () => {
 
         it('plays at the speed and between the loop points of the video', () => {
             const [player] = audioModule(
-                `$v.video('/clips/loop.mp4', { speed: 0.5, loop: [1, 2.5] }).audio.out();`,
+                `out: $v.video('/clips/loop.mp4', { speed: 0.5, loop: [1, 2.5] }).audio;`,
             );
             expect(player.params).toMatchObject({
                 loopEnd: 2.5,
@@ -237,7 +237,7 @@ describe('$v media sources', () => {
 
         it('plays the whole track at normal speed by default', () => {
             const [player] = audioModule(
-                `$v.video('/clips/loop.mp4').audio.out();`,
+                `out: $v.video('/clips/loop.mp4').audio;`,
             );
             expect(player.params).toMatchObject({ loopStart: 0, speed: 1 });
             expect(player.params).not.toHaveProperty('loopEnd');
@@ -245,7 +245,7 @@ describe('$v media sources', () => {
 
         it('says so when a video has no sound', () => {
             expect(() =>
-                exec(`$v.video('/clips/silent.mp4').audio.out();`),
+                exec(`out: $v.video('/clips/silent.mp4').audio;`),
             ).toThrow(
                 /\$v\.video\(\.\.\.\)\.audio: "\/clips\/silent\.mp4" has no audio/,
             );

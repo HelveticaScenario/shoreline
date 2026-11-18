@@ -103,7 +103,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const trigger = $`c*8`.c
                 const hat = $mi.hiHat('a3', { trigger })
-                hat.out()
+                hats: hat
             "#,
         },
         DocExample {
@@ -116,7 +116,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
                   decay: 4,
                   noisiness: 3.5,
                 })
-                hat.out()
+                hats: hat
             "#,
         },
     ],

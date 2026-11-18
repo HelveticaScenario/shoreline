@@ -51,7 +51,7 @@ test.describe('error handling', () => {
         // Use a nonexistent module function
         await window.evaluate(() => {
             window.__TEST_API__!.setEditorValue(
-                '$nonexistentModule($hz(440)).out()',
+                'out: $nonexistentModule($hz(440))',
             );
         });
 

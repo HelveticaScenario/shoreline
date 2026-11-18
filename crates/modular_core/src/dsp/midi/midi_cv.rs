@@ -141,20 +141,18 @@ const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
             title: "Four-voice keyboard synth",
             code: r#"
                 const midi = $midiCV({ lanes: 4 })
-                $saw(midi)
+                melody: $saw(midi)
                   .lpf(midi._velocity.range('c4', 'c7'), 1)
                   .amp($adsr(midi, { release: 0.4 }))
-                  .out()
             "#,
         },
         DocExample {
             title: "Mono lead with a wide pitch bend",
             code: r#"
                 const lead = $midiCV({ pitchBendRange: 12 })
-                $pulse(lead)
+                melody: $pulse(lead)
                   .lpf(lead._modWheel.range('c4', 'c7'), 2)
                   .amp($adsr(lead))
-                  .out()
             "#,
         },
     ],

@@ -43,7 +43,7 @@ describe('$v chaining', () => {
 
         it('returns nothing for a name that is not a chain function', () => {
             const { patch } = exec(`
-                $sine($v.ramp().nope === undefined ? 100 : 200).out();
+                out: $sine($v.ramp().nope === undefined ? 100 : 200);
             `);
             const sine = patch.modules.find((m) => m.moduleType === '$sine');
             expect(JSON.stringify(sine?.params)).toContain('100');

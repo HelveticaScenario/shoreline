@@ -1,6 +1,6 @@
 /**
- * Tests for the VU meter output stage: `.out()` / `.outMono()` label, mute,
- * and solo options, the compiled gate chain (__vuTap → __vuSlew → gate
+ * Tests for the VU meter output stage: tracks' mute, solo, gain and pan, the
+ * compiled gate chain (__vuTap → __vuSlew → gate
  * $amp driven by a __vuMute $signal), and the `patch.vuMeters`
  * entries the renderer panel consumes.
  */
@@ -37,8 +37,8 @@ function moduleById(patch: PatchGraph, id: string): ModuleSpec {
 describe('vuMeters emission', () => {
     test('labeled stereo and mono outs emit specs in source order', () => {
         const patch = execPatch(`
-            $sine('c4').out({ label: 'lead', baseChannel: 2 })
-            $saw('c2').outMono(0, { label: 'bass' })
+            lead$2: $sine('c4')
+            bass$0m: $saw('c2')
         `);
         const meters = vuMeters(patch);
         expect(meters).toHaveLength(3);
@@ -69,7 +69,7 @@ describe('vuMeters emission', () => {
     });
 
     test('the end-of-chain master meter taps ROOT_OUTPUT', () => {
-        const patch = execPatch(`$sine('c4').out()`);
+        const patch = execPatch(`out: $sine('c4')`);
         const meters = vuMeters(patch);
         const main = meters[meters.length - 1];
         expect(main).toMatchObject({
@@ -86,14 +86,14 @@ describe('vuMeters emission', () => {
             portName: 'output',
         });
         expect(main.muteModuleId).toBeUndefined();
-        // The lifted master gain seeds the builder's output-gain default.
+        // The lifted main gain seeds the builder's output-gain default.
         expect(moduleById(patch, '__vuGain_main').params.value).toBe(2.5);
     });
 
-    test('$setOutputGain seeds the lifted master gain', () => {
+    test('$setMainGain seeds the lifted main gain', () => {
         const patch = execPatch(`
-            $setOutputGain(4)
-            $sine('c4').out()
+            $setMainGain(4)
+            out: $sine('c4')
         `);
         expect(moduleById(patch, '__vuGain_main').params.value).toBe(4);
         const meters = vuMeters(patch);
@@ -102,8 +102,8 @@ describe('vuMeters emission', () => {
 
     test('a signal-valued output gain locks the master fader', () => {
         const patch = execPatch(`
-            $setOutputGain($sine('0.1hz').range(0, 5))
-            $sine('c4').out()
+            $setMainGain($sine('0.1hz').range(0, 5))
+            out: $sine('c4')
         `);
         const meters = vuMeters(patch);
         const main = meters[meters.length - 1];
@@ -114,75 +114,31 @@ describe('vuMeters emission', () => {
         expect(patch.modules.some((m) => m.id === '__vuGain_main')).toBe(false);
     });
 
-    test('unlabeled outs get positional keys and matching ids', () => {
+    test("a track's hidden ids follow its name and stay explicit", () => {
         const patch = execPatch(`
-            $sine('c4').out()
-            $saw('c2').outMono()
+            lead: $sine('c4')
+            _bass$0m: $saw('c2')
         `);
         const meters = vuMeters(patch);
-        expect(meters.map((m) => m.key)).toEqual([
-            'out 1',
-            'out 2',
-            '__main__',
-        ]);
-        expect(meters[0].moduleId).toBe('__vuTap_out_1');
-        expect(meters[0].muteModuleId).toBe('__vuMute_out_1');
-        expect(meters[1].moduleId).toBe('__vuTap_out_2');
-        // Positional ids carry no identity across edits, so the hidden
-        // modules are flagged implicit for the similarity reconciler;
-        // label-derived ids stay explicit.
-        expect(moduleById(patch, '__vuTap_out_1').idIsExplicit).toBe(false);
-        expect(moduleById(patch, '__vuMute_out_2').idIsExplicit).toBe(false);
-    });
-
-    test('only unlabeled outs start their gain and pan fresh on a swap', () => {
-        const patch = execPatch(`
-            $sine('c4').out()
-            $saw('c2').out({ label: 'bass' })
-        `);
-        // A structural match could pair an unlabeled out's controls with
-        // another out's, so they skip state transfer; label-derived ids
-        // match their own predecessor and keep their ramp.
-        expect(moduleById(patch, '__vuGain_out_1').skipStateTransfer).toBe(
-            true,
-        );
-        expect(moduleById(patch, '__vuPan_out_1').skipStateTransfer).toBe(true);
+        expect(meters.map((m) => m.key)).toEqual(['lead', 'bass', '__main__']);
+        expect(meters[1].moduleId).toBe('__vuTap_bass');
+        expect(meters[1].muteModuleId).toBe('__vuMute_bass');
+        // A track's name is stable identity, so its controls keep their
+        // state across a swap.
+        expect(moduleById(patch, '__vuMute_bass').idIsExplicit).toBe(true);
         expect(
-            moduleById(patch, '__vuGain_bass').skipStateTransfer,
+            moduleById(patch, '__vuGain_lead').skipStateTransfer,
         ).toBeUndefined();
         expect(
-            moduleById(patch, '__vuGain_main').skipStateTransfer,
+            moduleById(patch, '__vuPan_lead').skipStateTransfer,
         ).toBeUndefined();
     });
 
-    test('a label claiming a positional name shifts auto keys past it', () => {
-        const patch = execPatch(`
-            $sine('c4').out({ label: 'out 1' })
-            $saw('c2').out()
-        `);
-        const meters = vuMeters(patch).filter((m) => !m.main);
-        expect(meters.map((m) => m.key)).toEqual(['out 1', 'out 2']);
-        expect(meters.map((m) => m.moduleId)).toEqual([
-            '__vuTap_out_1',
-            '__vuTap_out_2',
-        ]);
-        expect(moduleById(patch, '__vuTap_out_1').idIsExplicit).toBe(true);
-        expect(moduleById(patch, '__vuTap_out_2').idIsExplicit).toBe(false);
-    });
-
-    test('outs sharing one call site carry no sourceLocation', () => {
-        const patch = execPatch(`for (const n of ['c3', 'g3']) $sine(n).out()`);
-        const meters = vuMeters(patch).filter((m) => !m.main);
-        expect(meters).toHaveLength(2);
-        expect(meters[0].sourceLocation).toBeUndefined();
-        expect(meters[1].sourceLocation).toBeUndefined();
-    });
-
-    test('labels are sanitized into module ids', () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'my lead!' })`);
+    test('names are sanitized into module ids', () => {
+        const patch = execPatch(`café: $sine('c4')`);
         const meters = vuMeters(patch);
-        expect(meters[0].key).toBe('my lead!');
-        expect(meters[0].moduleId).toBe('__vuTap_my_lead_');
+        expect(meters[0].key).toBe('café');
+        expect(meters[0].moduleId).toBe('__vuTap_caf_');
     });
 
     test('no outs produce an empty vuMeters list', () => {
@@ -192,18 +148,16 @@ describe('vuMeters emission', () => {
         expect(root.moduleType).toBe('$signal');
     });
 
-    test('source locations and call site spans cover out calls', () => {
-        const result = exec(`$sine('c4').out({ label: 'lead' })`);
-        const meters = vuMeters(result.patch);
-        expect(meters[0].sourceLocation).toBeDefined();
-        const { line, column } = meters[0].sourceLocation!;
-        expect(result.callSiteSpans.get(`${line}:${column}`)).toBeDefined();
+    test("a meter's source location is its track's label", () => {
+        const patch = execPatch(`const f = 1\n  lead: $sine('c4')`);
+        expect(vuMeters(patch)[0].sourceLocation).toEqual({
+            column: 3,
+            line: 2,
+        });
     });
 
     test('collection out produces one group', () => {
-        const patch = execPatch(
-            `$saw(['c3', 'e3', 'g3']).out({ label: 'chord' })`,
-        );
+        const patch = execPatch(`chord: $saw(['c3', 'e3', 'g3'])`);
         const meters = vuMeters(patch).filter((m) => !m.main);
         expect(meters).toHaveLength(1);
         expect(meters[0].channels).toBe(2);
@@ -212,7 +166,7 @@ describe('vuMeters emission', () => {
 
 describe('pan lifting', () => {
     test('stereo out with no pan lifts a centered pan _smoothControl', () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
+        const patch = execPatch(`lead: $sine('c4')`);
         const pan = moduleById(patch, '__vuPan_lead');
         expect(pan.moduleType).toBe('_smoothControl');
         expect(pan.params.value).toBe(0);
@@ -229,16 +183,14 @@ describe('pan lifting', () => {
     });
 
     test('a numeric pan option seeds the lifted signal', () => {
-        const patch = execPatch(
-            `$sine('c4').out({ label: 'lead', pan: -2.5 })`,
-        );
+        const patch = execPatch(`lead: $sine('c4').track({ pan: -2.5 })`);
         expect(moduleById(patch, '__vuPan_lead').params.value).toBe(-2.5);
         expect(vuMeters(patch)[0].pan).toBe(-2.5);
     });
 
     test('a signal-valued pan renders locked, with a live tap', () => {
         const patch = execPatch(
-            `$sine('c4').out({ label: 'lead', pan: $sine('1hz') })`,
+            `lead: $sine('c4').track({ pan: $sine('1hz') })`,
         );
         expect(patch.modules.some((m) => m.id === '__vuPan_lead')).toBe(false);
         const meter = vuMeters(patch)[0];
@@ -250,14 +202,14 @@ describe('pan lifting', () => {
     });
 
     test('editable pans carry no lock or tap', () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
+        const patch = execPatch(`lead: $sine('c4')`);
         const meter = vuMeters(patch)[0];
         expect(meter.panLocked).toBe(false);
         expect(meter.panSource).toBeUndefined();
     });
 
     test('mono outs have no pan control', () => {
-        const patch = execPatch(`$saw('c2').outMono(0, { label: 'bass' })`);
+        const patch = execPatch(`bass$0m: $saw('c2')`);
         const meter = vuMeters(patch)[0];
         expect(meter.pan).toBeNull();
         expect(meter.panModuleId).toBeNull();
@@ -269,7 +221,7 @@ describe('pan lifting', () => {
 
 describe('gain lifting', () => {
     test('an absent gain lifts a unity gain _smoothControl', () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
+        const patch = execPatch(`lead: $sine('c4')`);
         const gain = moduleById(patch, '__vuGain_lead');
         expect(gain.moduleType).toBe('_smoothControl');
         expect(gain.params.value).toBe(5);
@@ -283,21 +235,14 @@ describe('gain lifting', () => {
     });
 
     test('a numeric gain option seeds the lifted signal', () => {
-        const patch = execPatch(
-            `$saw('c2').outMono(0, { gain: 2.5, label: 'bass' })`,
-        );
+        const patch = execPatch(`bass$0m: $saw('c2').track({ gain: 2.5 })`);
         expect(moduleById(patch, '__vuGain_bass').params.value).toBe(2.5);
         expect(vuMeters(patch)[0].gain).toBe(2.5);
     });
 
-    test('a positional numeric outMono gain seeds the lifted signal', () => {
-        const patch = execPatch(`$saw('c2').outMono(0, 2.5)`);
-        expect(moduleById(patch, '__vuGain_out_1').params.value).toBe(2.5);
-    });
-
     test('a signal-valued gain renders locked, with a live tap', () => {
         const patch = execPatch(
-            `$sine('c4').out({ label: 'lead', gain: $sine('1hz').range(0, 5) })`,
+            `lead: $sine('c4').track({ gain: $sine('1hz').range(0, 5) })`,
         );
         expect(patch.modules.some((m) => m.id === '__vuGain_lead')).toBe(false);
         const meter = vuMeters(patch)[0];
@@ -310,53 +255,31 @@ describe('gain lifting', () => {
     });
 });
 
-describe('label validation', () => {
-    test('duplicate labels throw', () => {
-        expect(() =>
-            execPatch(`
-                $sine('c4').out({ label: 'a' })
-                $saw('c2').outMono(0, { label: 'a' })
-            `),
-        ).toThrow(/must be unique/);
-    });
-
-    test('labels colliding after sanitization get distinct ids', () => {
+describe('track names', () => {
+    test('names colliding after sanitization get distinct ids', () => {
         const patch = execPatch(`
-            $sine('c4').out({ label: 'a b' })
-            $saw('c2').out({ label: 'a_b' })
+            aé: $sine('c4')
+            aè: $saw('c2')
         `);
         const meters = vuMeters(patch).filter((m) => !m.main);
-        expect(meters.map((m) => m.key)).toEqual(['a b', 'a_b']);
         expect(meters.map((m) => m.moduleId)).toEqual([
-            '__vuTap_a_b',
-            '__vuTap_a_b_2',
+            '__vuTap_a_',
+            '__vuTap_a__2',
         ]);
     });
 
-    test('the reserved __main__ label throws', () => {
-        expect(() =>
-            execPatch(`$sine('c4').out({ label: '__main__' })`),
-        ).toThrow(/reserved/);
-    });
-
-    test("a 'main' label never collides with the master gain id", () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'main' })`);
+    test("a 'main' track never collides with the main gain id", () => {
+        const patch = execPatch(`main: $sine('c4')`);
         expect(vuMeters(patch)[0].moduleId).toBe('__vuTap_main_2');
         expect(moduleById(patch, '__vuGain_main').moduleType).toBe(
             '_smoothControl',
-        );
-    });
-
-    test('empty label throws', () => {
-        expect(() => execPatch(`$sine('c4').out({ label: '' })`)).toThrow(
-            /non-empty/,
         );
     });
 });
 
 describe('output channel bounds', () => {
     test('a mono out reaches the engine’s last channel', () => {
-        const patch = execPatch(`$sine('c4').outMono(63)`);
+        const patch = execPatch(`out$63m: $sine('c4')`);
         const source = moduleById(patch, 'ROOT_OUTPUT').params
             .value as unknown[];
         expect(source).toHaveLength(64);
@@ -364,67 +287,31 @@ describe('output channel bounds', () => {
     });
 
     test('a stereo out reaches the last pair', () => {
-        const patch = execPatch(`$sine('c4').out({ baseChannel: 62 })`);
+        const patch = execPatch(`out$62: $sine('c4')`);
         const source = moduleById(patch, 'ROOT_OUTPUT').params
             .value as unknown[];
         expect(source).toHaveLength(64);
     });
 
     test('channels past the engine width throw', () => {
-        expect(() => execPatch(`$sine('c4').outMono(64)`)).toThrow(
+        expect(() => execPatch(`out$64m: $sine('c4')`)).toThrow(
             'channel must be 0-63',
         );
         // A stereo pair needs its right channel to fit too.
-        expect(() => execPatch(`$sine('c4').out({ baseChannel: 63 })`)).toThrow(
-            'baseChannel must be 0-62',
+        expect(() => execPatch(`out$63: $sine('c4')`)).toThrow(
+            'channel must be 0-62',
         );
-    });
-});
-
-describe('outMono second-argument overload', () => {
-    test('a numeric second argument is a gain', () => {
-        const patch = execPatch(`$saw('c2').outMono(0, 2.5)`);
-        // The tap id sits on the $gain stage.
-        expect(moduleById(patch, '__vuTap_out_1').moduleType).toBe('$gain');
-    });
-
-    test('an options-only argument can carry the channel', () => {
-        const patch = execPatch(
-            `$saw('c2').outMono({ channel: 2, label: 'bass' })`,
-        );
-        const meter = vuMeters(patch)[0];
-        expect(meter.baseChannel).toBe(2);
-        expect(meter.label).toBe('bass');
-    });
-
-    test('an options channel wins over the positional argument', () => {
-        const patch = execPatch(`$saw('c2').outMono(0, { channel: 3 })`);
-        expect(vuMeters(patch)[0].baseChannel).toBe(3);
-    });
-
-    test('an options object second argument carries gain and label', () => {
-        const patch = execPatch(
-            `$saw('c2').outMono(0, { gain: 2.5, label: 'bass' })`,
-        );
-        expect(patch.modules.some((m) => m.moduleType === '$gain')).toBe(true);
-        expect(vuMeters(patch)[0].label).toBe('bass');
-        expect(moduleById(patch, '__vuTap_bass').moduleType).toBe('$gain');
-    });
-
-    test('a signal second argument is a gain', () => {
-        const patch = execPatch(`$saw('c2').outMono(0, $sine('1hz'))`);
-        expect(patch.modules.some((m) => m.moduleType === '$gain')).toBe(true);
     });
 });
 
 describe('gate chain compilation', () => {
     test('the tap id always sits on the gain stage', () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
+        const patch = execPatch(`lead: $sine('c4')`);
         expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
     });
 
     test('gate chain: $signal → $slew → $amp fed by the tap', () => {
-        const patch = execPatch(`$sine('c4').out({ label: 'lead' })`);
+        const patch = execPatch(`lead: $sine('c4')`);
 
         const mute = moduleById(patch, '__vuMute_lead');
         expect(mute.moduleType).toBe('$signal');
@@ -454,33 +341,22 @@ describe('gate chain compilation', () => {
     });
 
     test('mute compiles the gate to 0', () => {
-        const patch = execPatch(
-            `$sine('c4').out({ label: 'lead', mute: true })`,
-        );
+        const patch = execPatch(`_lead: $sine('c4')`);
         expect(moduleById(patch, '__vuMute_lead').params.value).toBe(0);
         expect(vuMeters(patch)[0].mute).toBe(true);
     });
 
     test('a solo elsewhere gates non-soloed outputs to 0', () => {
         const patch = execPatch(`
-            $sine('c4').out({ label: 'a' })
-            $saw('c2').out({ label: 'b', solo: true })
+            a: $sine('c4')
+            S_b: $saw('c2')
         `);
         expect(moduleById(patch, '__vuMute_a').params.value).toBe(0);
         expect(moduleById(patch, '__vuMute_b').params.value).toBe(5);
     });
 
-    test('solo wins over mute on the same output', () => {
-        const patch = execPatch(
-            `$sine('c4').out({ label: 'a', mute: true, solo: true })`,
-        );
-        expect(moduleById(patch, '__vuMute_a').params.value).toBe(5);
-    });
-
     test('mute composes with a user gain (both stages present)', () => {
-        const patch = execPatch(
-            `$sine('c4').out({ label: 'lead', gain: 2, mute: true })`,
-        );
+        const patch = execPatch(`_lead: $sine('c4').track({ gain: 2 })`);
         // Tap = the gain stage; the gate stage reads from it.
         expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
         expect(moduleById(patch, '__vuMute_lead').params.value).toBe(0);
@@ -488,14 +364,14 @@ describe('gate chain compilation', () => {
     });
 
     test('a fresh execution resets ordinals and labels', () => {
-        const first = execPatch(`$sine('c4').out({ label: 'a' })`);
+        const first = execPatch(`a: $sine('c4')`);
         expect(vuMeters(first).filter((m) => !m.main)).toHaveLength(1);
         // The same label compiles again — builder state does not leak
         // between executions.
-        const second = execPatch(`$sine('c4').out({ label: 'a' })`);
+        const second = execPatch(`a: $sine('c4')`);
         expect(vuMeters(second)[0].moduleId).toBe('__vuTap_a');
-        const third = execPatch(`$sine('c4').out()`);
-        expect(vuMeters(third)[0].key).toBe('out 1');
+        const third = execPatch(`b: $sine('c4')`);
+        expect(vuMeters(third)[0].moduleId).toBe('__vuTap_b');
     });
 });
 
@@ -515,7 +391,7 @@ describe('$trackTap', () => {
     test('the tap is its post-gate audio, one lane', () => {
         const patch = execPatch(`
             $signal($trackTap('bass'), { id: 'probe' })
-            $saw('c2').out({ label: 'bass' })
+            bass: $saw('c2')
         `);
         expect(probe(patch)).toHaveLength(1);
         const [lane] = probe(patch);
@@ -527,7 +403,7 @@ describe('$trackTap', () => {
 
     test('a mono out taps one lane', () => {
         const patch = execPatch(`
-            $saw('c2').outMono(0, { label: 'bass' })
+            bass$0m: $saw('c2')
             $signal($trackTap('bass'), { id: 'probe' })
         `);
         expect(probe(patch)).toHaveLength(1);
@@ -536,8 +412,8 @@ describe('$trackTap', () => {
     test('.active taps the mute/solo gate', () => {
         const patch = execPatch(`
             $signal($trackTap('bass').active, { id: 'probe' })
-            $saw('c2').out({ label: 'bass' })
-            $sine('c4').out({ label: 'lead', solo: true })
+            bass: $saw('c2')
+            S_lead: $sine('c4')
         `);
         expect(probe(patch)[0]).toMatchObject({
             module: '__vuMute_bass',
@@ -548,10 +424,10 @@ describe('$trackTap', () => {
 
     test('.level and .panning tap the lifted controls', () => {
         const patch = execPatch(`
-            const bass = $trackTap('bass')
-            $saw('c2').out({ label: 'bass', gain: 3, pan: -2 })
-            $signal(bass.level, { id: 'probe' })
-            $signal(bass.panning, { id: 'panProbe' })
+            const tap = $trackTap('bass')
+            bass: $saw('c2').track({ gain: 3, pan: -2 })
+            $signal(tap.level, { id: 'probe' })
+            $signal(tap.panning, { id: 'panProbe' })
         `);
         expect(probe(patch)[0]).toMatchObject({ module: '__vuGain_bass' });
         expect(moduleById(patch, 'panProbe').params.value).toMatchObject([
@@ -577,7 +453,7 @@ describe('$trackTap', () => {
         const patch = execPatch(`
             const g = $signal(4, { id: 'g' })
             const p = $signal(1, { id: 'p' })
-            $saw('c2').out({ label: 'bass', gain: g, pan: p })
+            bass: $saw('c2').track({ gain: g, pan: p })
             $signal($trackTap('bass').level, { id: 'probe' })
             $signal($trackTap('bass').panning, { id: 'panProbe' })
         `);
@@ -593,7 +469,7 @@ describe('$trackTap', () => {
 
     test('a mono out pans center', () => {
         const patch = execPatch(`
-            $saw('c2').outMono(0, { label: 'bass' })
+            bass$0m: $saw('c2')
             $signal($trackTap('bass').panning, { id: 'probe' })
         `);
         expect(wrapped(patch, probe(patch)).value).toBe(0);
@@ -611,8 +487,7 @@ describe('$trackTap', () => {
 
     test('properties map from the ranges their controls declare', () => {
         const patch = execPatch(`
-            const bass = $trackTap('bass')
-            $saw('c2').out({ label: 'bass' })
+            bass: $saw('c2')
             $signal(bass.active.range(-1, 1), { id: 'active' })
             $signal(bass.level.range(-1, 1), { id: 'level' })
             $signal(bass.panning.range(-1, 1), { id: 'pan' })
@@ -644,7 +519,7 @@ describe('$trackTap', () => {
 
     test('a ranged gain signal is tapped, lending .level its range', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass', gain: $sine('1hz').range(1, 4) })
+            bass: $saw('c2').track({ gain: $sine('1hz').range(1, 4) })
             $signal($trackTap('bass').level.range(-1, 1), { id: 'level' })
         `);
         const level = remapParams(patch, 'level');
@@ -655,7 +530,7 @@ describe('$trackTap', () => {
 
     test('a sequenced gain reads its $cycle', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass', gain: $('1 4') })
+            bass: $saw('c2').track({ gain: $('1 4') })
             $signal($trackTap('bass').level, { id: 'probe' })
         `);
         const cycles = patch.modules.filter((m) => m.moduleType === '$cycle');
@@ -669,8 +544,8 @@ describe('$trackTap', () => {
         const patch = execPatch(`
             const a = $sine('1hz').range(1, 2)
             const b = $signal(4, { id: 'b' })
-            $saw('c2').out({ label: 'bass', gain: [a, b] })
-            $saw('c3').out({ label: 'mid', gain: $g1([b, a]) })
+            bass: $saw('c2').track({ gain: [a, b] })
+            mid: $saw('c3').track({ gain: $g1([b, a]) })
             $signal($trackTap('bass').level, { id: 'bassProbe' })
             $signal($trackTap('mid').level, { id: 'midProbe' })
         `);
@@ -685,7 +560,7 @@ describe('$trackTap', () => {
 
     test('a mono out taps its gain', () => {
         const patch = execPatch(`
-            $saw('c2').outMono(0, { label: 'bass', gain: 2 })
+            bass$0m: $saw('c2').track({ gain: 2 })
             $signal($trackTap('bass').level, { id: 'probe' })
         `);
         expect(probe(patch)[0]).toMatchObject({ module: '__vuGain_bass' });
@@ -695,7 +570,7 @@ describe('$trackTap', () => {
     test('a deferred gain is tapped once it is set', () => {
         const patch = execPatch(`
             const gain = $deferred()
-            $saw('c2').out({ label: 'bass', gain })
+            bass: $saw('c2').track({ gain })
             $signal($trackTap('bass').level, { id: 'probe' })
             gain.set($signal(3, { id: 'g' }))
         `);
@@ -707,7 +582,7 @@ describe('$trackTap', () => {
     test('a deferred ranged gain lends .level its range', () => {
         const patch = execPatch(`
             const gain = $deferred()
-            $saw('c2').out({ label: 'bass', gain })
+            bass: $saw('c2').track({ gain })
             $signal($trackTap('bass').level.range(-1, 1), { id: 'level' })
             gain.set($sine('1hz').range(1, 4))
         `);
@@ -719,8 +594,7 @@ describe('$trackTap', () => {
 
     test('a tap control can feed its own out', () => {
         const patch = execPatch(`
-            const bass = $trackTap('bass')
-            $saw('c2').amp(bass.level).out({ label: 'bass', gain: 3 })
+            bass: $saw('c2').amp(bass.level).track({ gain: 3 })
         `);
         const amp = patch.modules.find(
             (m) => m.moduleType === '$amp' && !m.id.startsWith('__'),
@@ -731,8 +605,8 @@ describe('$trackTap', () => {
     test('taps of one out share its sources', () => {
         const patch = execPatch(`
             const g = $signal(4, { id: 'g' })
-            $saw('c2').out({ label: 'bass', gain: g })
-            $saw('c3').out({ label: 'mid', gain: g })
+            bass: $saw('c2').track({ gain: g })
+            mid: $saw('c3').track({ gain: g })
             $signal($trackTap('bass').level, { id: 'one' })
             $signal($trackTap('bass').level, { id: 'two' })
             $signal($trackTap('mid').level, { id: 'three' })
@@ -746,7 +620,7 @@ describe('$trackTap', () => {
 
     test('a pattern gain plays through its $cycle', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass', gain: $('1 4') })
+            bass: $saw('c2').track({ gain: $('1 4') })
             $signal($trackTap('bass').level, { id: 'probe' })
         `);
         expect(
@@ -756,7 +630,7 @@ describe('$trackTap', () => {
 
     test('slices keep the tap properties', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass' })
+            bass: $saw('c2')
             const [left] = $trackTap('bass').chunk(1)
             $signal(left.active, { id: 'probe' })
             $signal(left, { id: 'audio' })
@@ -767,8 +641,8 @@ describe('$trackTap', () => {
 
     test('a control driven by a tap meters the resolved source', () => {
         const patch = execPatch(`
-            $saw('c2').out({ label: 'bass' })
-            $sine('c5').out({ label: 'lead', pan: $trackTap('bass').panning })
+            bass: $saw('c2')
+            lead: $sine('c5').track({ pan: $trackTap('bass').panning })
         `);
         const lead = vuMeters(patch).find((m) => m.key === 'lead')!;
         expect(lead.panSource).toEqual({
@@ -778,16 +652,16 @@ describe('$trackTap', () => {
         });
     });
 
-    test('an undeclared label throws', () => {
+    test('a name no track has throws', () => {
         expect(() =>
             exec(`
-                $sine('c4').out({ label: 'lead' })
+                lead: $sine('c4')
                 $signal($trackTap('laed'), { id: 'probe' })
             `),
-        ).toThrow(/no out is labeled "laed"/);
+        ).toThrow(/no track is named "laed"/);
     });
 
-    test('an empty label throws', () => {
+    test('an empty name throws', () => {
         expect(() => exec(`$trackTap('')`)).toThrow(/non-empty string/);
     });
 });

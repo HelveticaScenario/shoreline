@@ -31,8 +31,8 @@ function isChainedOn(ts: typeof TS, node: TS.Node, receiver: TS.Node): boolean {
 }
 
 /**
- * The whole chain hung off `node`: for the string in `'c e g'.out()`, the
- * call `'c e g'.out()`.
+ * The whole chain hung off `node`: for the string in `'c e g'.saw()`, the
+ * call `'c e g'.saw()`.
  */
 function chainOf(ts: typeof TS, node: TS.Node): TS.Node {
     let chain = node;
@@ -97,7 +97,7 @@ export function backtickedPattern(written: string): string | null {
 
 /**
  * Type errors with the `$'…'`s they follow from, those on the string and on
- * what is chained on it (`.out()` on a string), dropped.
+ * what is chained on it (`.saw()` on a string), dropped.
  */
 export function withoutDollarQuoteTypeErrors(
     ts: typeof TS,

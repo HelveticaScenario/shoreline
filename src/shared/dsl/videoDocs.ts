@@ -444,7 +444,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'video',
         group: 'Generators',
         description:
-            "A recording from the workspace folder (`.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`) as a color, played in a loop. The picture is muted; the video's sound is its `.audio` property, an audio signal you route like any other, such as `$v.video('/clips/loop.mp4').audio.out()`. The sound plays at the same `speed` between the same `loop` points, starting when the patch starts, and has no sound at speed 0. Reading `.audio` of a file without sound is an error. Sound is read from AAC, ALAC, FLAC, MP3, Vorbis and PCM tracks of up to ten minutes; the sound of a file with Opus audio, as most `.webm` files have, does not play. Like `$v.image`, it is read at the coordinate being drawn. It plays while the patch plays, holds its frame when the patch is stopped, and starts over from its loop start when the patch starts. Changing `speed` or `loop` and running the patch again keeps the video playing from where it is. Which formats play depends on the codecs the app's browser engine includes (H.264, HEVC, VP8/VP9 and AV1); `speed` and `loop` are fixed numbers, and video cannot play backwards.",
+            "A recording from the workspace folder (`.mp4`, `.webm`, `.mov`, `.m4v` or `.ogv`) as a color, played in a loop. The picture is muted; the video's sound is its `.audio` property, an audio signal you route like any other, such as `soundtrack: $v.video('/clips/loop.mp4').audio`. The sound plays at the same `speed` between the same `loop` points, starting when the patch starts, and has no sound at speed 0. Reading `.audio` of a file without sound is an error. Sound is read from AAC, ALAC, FLAC, MP3, Vorbis and PCM tracks of up to ten minutes; the sound of a file with Opus audio, as most `.webm` files have, does not play. Like `$v.image`, it is read at the coordinate being drawn. It plays while the patch plays, holds its frame when the patch is stopped, and starts over from its loop start when the patch starts. Changing `speed` or `loop` and running the patch again keeps the video playing from where it is. Which formats play depends on the codecs the app's browser engine includes (H.264, HEVC, VP8/VP9 and AV1); `speed` and `loop` are fixed numbers, and video cannot play backwards.",
         params: [
             {
                 name: 'path',
@@ -471,7 +471,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             "$v.out($v.video('/clips/loop.mp4'))",
             "$v.video('/clips/loop.mp4').mult($v.hsv($v.ramp(), 0.5, 1)).warp({ rotate: 0.02 }).out()",
             "$v.video('/clips/loop.mp4', { speed: 0.5, loop: [1, 2.5] }).out()",
-            "const clip = $v.video('/clips/loop.mp4');\nclip.out();\nclip.audio.out();",
+            "const clip = $v.video('/clips/loop.mp4');\nclip.out();\nsoundtrack: clip.audio;",
         ],
         declarations: [
             "video(\n    path: string,\n    config?: {\n        fit?: 'cover' | 'contain' | 'stretch';\n        speed?: number;\n        loop?: [start: number, end?: number];\n    },\n): VideoFile;",
@@ -1059,7 +1059,7 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            '$sine($v.toCV($v.shape(0.3), { size: 0.1 }).range(-1, 1)).out()',
+            'tone: $sine($v.toCV($v.shape(0.3), { size: 0.1 }).range(-1, 1))',
         ],
         declarations: [
             'toCV(signal: VideoSignal, config?: { x?: number; y?: number; size?: number }): CollectionWithRange;',

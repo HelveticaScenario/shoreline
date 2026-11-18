@@ -91,41 +91,37 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
         table: None,
         examples: &[DocExample {
             title: "Start empty and build the EQ by hand",
-            code: "$saw('c2').eq({ ui: true }).out()",
+            code: "bass: $saw('c2').eq({ ui: true })",
         }],
     }],
     examples: &[
         DocExample {
             title: "Warm lows with a sweeping mid dip",
             code: r#"
-                $saw('c2')
-                  .eq({
-                    sections: [
-                      { type: 'lowShelf', freq: '150hz', gain: 3 },
-                      {
-                        type: 'peak',
-                        freq: $sine('0.5hz').range('400hz', '2000hz'),
-                        gain: -6,
-                        q: 2,
-                      },
-                      { type: 'highpass', freq: '40hz' },
-                    ],
-                    adaptiveQ: true,
-                  })
-                  .out()
+                bass: $saw('c2').eq({
+                  sections: [
+                    { type: 'lowShelf', freq: '150hz', gain: 3 },
+                    {
+                      type: 'peak',
+                      freq: $sine('0.5hz').range('400hz', '2000hz'),
+                      gain: -6,
+                      q: 2,
+                    },
+                    { type: 'highpass', freq: '40hz' },
+                  ],
+                  adaptiveQ: true,
+                })
             "#,
         },
         DocExample {
             title: "A darker left lane, a brighter right one",
             code: r#"
-                $saw(['c2', 'g2'])
-                  .eq({
-                    sections: [
-                      [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
-                      [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
-                    ],
-                  })
-                  .out()
+                chord: $saw(['c2', 'g2']).eq({
+                  sections: [
+                    [{ type: 'highShelf', freq: '3000hz', gain: -6 }],
+                    [{ type: 'highShelf', freq: '3000hz', gain: 4 }],
+                  ],
+                })
             "#,
         },
     ],

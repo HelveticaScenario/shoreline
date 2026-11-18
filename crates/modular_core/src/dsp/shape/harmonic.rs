@@ -116,7 +116,7 @@ const HARMONIC_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Sine to organ",
-        code: "$sine('c3').unstable.shape.harmonic('add12345', 2).out()",
+        code: "keys: $sine('c3').unstable.shape.harmonic('add12345', 2)",
     }],
 };
 

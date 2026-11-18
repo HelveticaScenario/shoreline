@@ -53,9 +53,9 @@ export { MiniParseError } from './parser';
  * Examples:
  *
  * ```js
- * $saw($`c4 e4 g4`).out()
+ * melody: $saw($`c4 e4 g4`)
  * const bass = $("c2 [c2 g2] c2 e2");
- * $saw(bass).amp($perc(bass)).out()
+ * melody2: $saw(bass).amp($perc(bass))
  * ```
  *
  * A tagged template reads as the untagged template would: its cooked strings

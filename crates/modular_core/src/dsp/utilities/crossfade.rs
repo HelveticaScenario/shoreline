@@ -43,7 +43,7 @@ const CROSSFADE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Half-wet filter",
-        code: "$saw('c2').lpf('400hz').wet(2.5).out()",
+        code: "bass: $saw('c2').lpf('400hz').wet(2.5)",
     }],
 };
 

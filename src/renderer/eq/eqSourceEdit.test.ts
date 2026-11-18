@@ -55,7 +55,8 @@ const multi = `const x = $eq($saw('c2'), {
         { freq: '1000hz', gain: -6, q: 2 }, // mids
     ],
     ui: true,
-}).out();
+});
+out: x
 `;
 
 describe('computeEqSourceEdit set', () => {

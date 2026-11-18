@@ -110,13 +110,13 @@ const KICK_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Four on the floor",
-            code: "$mi.kick('g1', { trigger: $`c*4`, decay: 3 }).out()",
+            code: "kick: $mi.kick('g1', { trigger: $`c*4`, decay: 3 })",
         },
         DocExample {
             title: "Driven, bending kick",
             code: r#"
                 const hits = $`c ~ ~ c ~ ~ c ~`
-                $mi.kick('e1', { trigger: hits, decay: 4, drive: 4 }).out()
+                kick: $mi.kick('e1', { trigger: hits, decay: 4, drive: 4 })
             "#,
         },
     ],
