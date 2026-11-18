@@ -1,3 +1,0 @@
-kind: Improved
-body: The quick fix that turns a value into a `$slider` now works on values inside lists and nested options, like one pitch in `$saw(['a3', 'c4'])`, a step of `$step`, a keyframe value or an `$eq` band's `gain`, and each slider gets that value's own range. On an empty `$phase.*` call such as `$phase.bend()`, it adds a slider for the amount.
-time: 2026-11-15T20:08:51.001625-05:00

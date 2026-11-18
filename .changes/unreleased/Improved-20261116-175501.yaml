@@ -1,3 +1,0 @@
-kind: Improved
-body: Font ligatures are now off by default in the editor and the performance window. To keep them, turn on "Font Ligatures" in the editor settings, or "Code Ligatures" in the performance settings.
-time: 2026-11-16T17:55:01.58186-05:00
