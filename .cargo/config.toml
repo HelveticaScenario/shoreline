@@ -17,3 +17,7 @@ rustflags = ["-C", "target-cpu=x86-64-v2", "-C", "target-feature=+crt-static"]
 # machine. No effect without sccache.
 [env]
 SCCACHE_CLIENT_SIDE = "1"
+# Vendored C code built with `-std=c99` (aubio) calls POSIX functions such as
+# `strncasecmp`, which glibc's headers declare under strict C only with
+# `_DEFAULT_SOURCE`; GCC rejects the implicit declarations otherwise.
+CFLAGS_x86_64_unknown_linux_gnu = "-D_DEFAULT_SOURCE"
