@@ -236,6 +236,29 @@ describe('computeTrackOptionEdit — .track options', () => {
         ).toBe(`lead: $saw('c3')`);
     });
 
+    test('only dropping the whole .track() reports it dropped', () => {
+        const edit = (source: string, prop: 'gain' | 'pan') =>
+            computeTrackOptionEdit(
+                source,
+                anchorOf(source, 'lead'),
+                'lead',
+                prop,
+                null,
+                true,
+            );
+        expect(
+            edit(`lead: $saw('c3').track({ gain: 3 })`, 'gain')?.dropsTrack,
+        ).toBe(true);
+        expect(
+            edit(`lead: $saw('c3').track({ gain: 3 }).scope()`, 'gain')
+                ?.dropsTrack,
+        ).toBeUndefined();
+        expect(
+            edit(`lead: $saw('c3').track({ gain: 3, pan: 1 })`, 'pan')
+                ?.dropsTrack,
+        ).toBeUndefined();
+    });
+
     test('removing the last option keeps .track() a scope chains on', () => {
         expect(
             option(

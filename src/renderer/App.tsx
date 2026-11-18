@@ -71,6 +71,7 @@ import {
     computeSetMainGainEdit,
     computeTrackOptionEdit,
     computeTrackStateEdit,
+    type TrackSourceEdit,
 } from './dsl/trackSourceEdit';
 import { trackGates } from '../shared/dsl/trackGates';
 import type { TrackState } from '../shared/dsl/trackLabels';
@@ -742,7 +743,7 @@ function App() {
                 source: string,
                 anchor: number,
                 name: string,
-            ) => { start: number; end: number; text: string } | null,
+            ) => TrackSourceEdit | null,
         ): boolean => {
             const model = editorRef.current?.getModel();
             const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
@@ -766,6 +767,15 @@ function App() {
                 return false;
             }
             pushVuModelEdit(edit);
+            if (edit.dropsTrack) {
+                // The label's value is its expression again, so later
+                // option edits append a `.track(...)` to it.
+                const next = vuOutputsRef.current.map((o, i) =>
+                    i === idx ? { ...o, fromTrack: false } : o,
+                );
+                vuOutputsRef.current = next;
+                setVuOutputs(next);
+            }
             return true;
         },
         [pushVuModelEdit],
@@ -1506,7 +1516,8 @@ function App() {
                 outGainParams(resetGain),
             );
 
-            const next = outputs.map((o, i) =>
+            // From the ref, which the source edit may have just updated.
+            const next = vuOutputsRef.current.map((o, i) =>
                 i === idx ? { ...o, gain: resetGain } : o,
             );
             vuOutputsRef.current = next;
