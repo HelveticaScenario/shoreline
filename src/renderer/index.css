@@ -1,8 +1,8 @@
+@import './assets/fonts/fonts.css';
+
 * {
     box-sizing: border-box;
 }
-
-@import './assets/fonts/fonts.css';
 
 :root {
     /* Typography - monospace as the foundation */

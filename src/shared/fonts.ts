@@ -31,6 +31,13 @@ export const SYSTEM_FONTS = ['SF Mono', 'Monaco', 'Menlo', 'Consolas'] as const;
 /** Every monospace font the config accepts. */
 export const MONOSPACE_FONTS = [...BUNDLED_FONTS, ...SYSTEM_FONTS] as const;
 
+/**
+ * A CSS font-family list for `font` with a generic fallback. The name is
+ * quoted because an unquoted family that starts with a digit, like 0xProto,
+ * is invalid CSS and drops the whole declaration.
+ */
+export const fontFamilyWithFallback = (font: string) => `"${font}", monospace`;
+
 export type SystemFont = (typeof SYSTEM_FONTS)[number];
 export type MonospaceFont = (typeof MONOSPACE_FONTS)[number];
 

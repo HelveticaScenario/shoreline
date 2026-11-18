@@ -1,3 +1,4 @@
+import { CURSOR_STYLES, DEFAULT_CURSOR_STYLE } from '../shared/cursorStyle';
 import { MONOSPACE_FONTS } from '../shared/fonts';
 
 /**
@@ -57,16 +58,9 @@ export const configSchema = {
             type: 'number',
         },
         cursorStyle: {
-            default: 'block',
+            default: DEFAULT_CURSOR_STYLE,
             description: 'The cursor style in the editor',
-            enum: [
-                'line',
-                'block',
-                'underline',
-                'line-thin',
-                'block-outline',
-                'underline-thin',
-            ],
+            enum: [...CURSOR_STYLES],
             type: 'string',
         },
         font: {

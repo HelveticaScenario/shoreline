@@ -1,5 +1,5 @@
 import type * as MonacoNamespace from 'monaco-editor';
-import { ITALIC_FONTS } from '../../shared/fonts';
+import { fontFamilyWithFallback, ITALIC_FONTS } from '../../shared/fonts';
 import type { AppTheme } from '../themes/types';
 import {
     codeLayout,
@@ -239,7 +239,7 @@ export class PerformanceCode {
         if (!this.dirty) return false;
 
         const fontPx = settings.fontSize * pixelRatio;
-        const font = `${fontPx}px "${settings.font}", monospace`;
+        const font = `${fontPx}px ${fontFamilyWithFallback(settings.font)}`;
         if (this.charWidth === 0) {
             context.font = font;
             const sample = '0'.repeat(100);

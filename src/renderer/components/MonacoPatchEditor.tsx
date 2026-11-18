@@ -49,6 +49,7 @@ import {
 } from '../keybindings/contextKeyBootstrap';
 import electronAPI from '../electronAPI';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
+import { fontFamilyWithFallback } from '../../shared/fonts';
 import { buildEditorMenuItems } from '../keybindings/editorMenuItems';
 import { dispatchCommand, setActiveEditor } from '../keybindings/dispatch';
 import type { EditorViewStates } from '../app/editorViewStates';
@@ -586,7 +587,7 @@ export function MonacoPatchEditor({
             // keymap. Disable it; the native right-click menu wired up in the
             // onContextMenu effect above replaces it.
             contextmenu: false,
-            fontFamily: `${font}, monospace`,
+            fontFamily: fontFamilyWithFallback(font),
             fontLigatures: fontLigatures,
             fontSize: fontSize,
             // LineHeight: 1.6,

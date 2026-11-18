@@ -5,18 +5,14 @@ import { bundledThemes } from './bundled';
 import electronAPI from '../electronAPI';
 import type { PrettierConfig } from '../../shared/ipcTypes';
 import {
+    DEFAULT_CURSOR_STYLE,
+    type CursorStyle,
+} from '../../shared/cursorStyle';
+import {
     DEFAULT_PERFORMANCE_VIEW,
     performanceViewSettings,
     type PerformanceViewSettings,
 } from '../performance/settings';
-
-type CursorStyle =
-    | 'line'
-    | 'block'
-    | 'underline'
-    | 'line-thin'
-    | 'block-outline'
-    | 'underline-thin';
 
 interface ThemeContextValue {
     theme: AppTheme;
@@ -82,7 +78,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const [theme, setTheme] = useState<AppTheme>(() =>
         getThemeById('modular-dark'),
     );
-    const [cursorStyle, setCursorStyle] = useState<CursorStyle>('line');
+    const [cursorStyle, setCursorStyle] =
+        useState<CursorStyle>(DEFAULT_CURSOR_STYLE);
     const [font, setFont] = useState('Fira Code');
     const [fontLigatures, setFontLigatures] = useState(false);
     const [fontSize, setFontSize] = useState(17);
@@ -103,9 +100,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             if (config.theme) {
                 setTheme(getThemeById(config.theme));
             }
-            if (config.cursorStyle) {
-                setCursorStyle(config.cursorStyle);
-            }
+            setCursorStyle(config.cursorStyle ?? DEFAULT_CURSOR_STYLE);
             if (config.font) {
                 setFont(config.font);
             }
@@ -131,9 +126,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
                 if (newConfig.theme) {
                     setTheme(getThemeById(newConfig.theme));
                 }
-                if (newConfig.cursorStyle) {
-                    setCursorStyle(newConfig.cursorStyle);
-                }
+                setCursorStyle(newConfig.cursorStyle ?? DEFAULT_CURSOR_STYLE);
                 if (newConfig.font) {
                     setFont(newConfig.font);
                 }

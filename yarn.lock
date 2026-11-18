@@ -1596,13 +1596,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@fontsource/recursive@npm:^5.2.8":
-  version: 5.2.8
-  resolution: "@fontsource/recursive@npm:5.2.8"
-  checksum: 10c0/0e0566169c746fc82389fbae54f7a18de888212acd193533ffeda1e9398f829edd6daa9c827f5bd4df1b3d15326c933527a411aadd447e8f1859016489ea69c5
-  languageName: node
-  linkType: hard
-
 "@fontsource/roboto-mono@npm:^5.2.8":
   version: 5.2.8
   resolution: "@fontsource/roboto-mono@npm:5.2.8"
@@ -2216,7 +2209,6 @@ __metadata:
     "@fontsource/monaspace-radon": "npm:^5.2.5"
     "@fontsource/monaspace-xenon": "npm:^5.2.5"
     "@fontsource/mononoki": "npm:^5.2.5"
-    "@fontsource/recursive": "npm:^5.2.8"
     "@fontsource/roboto-mono": "npm:^5.2.8"
     "@fontsource/source-code-pro": "npm:^5.2.7"
     "@fontsource/victor-mono": "npm:^5.2.8"

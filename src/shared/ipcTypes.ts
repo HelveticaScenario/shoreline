@@ -6,6 +6,7 @@
  */
 
 import type { AssetKind } from './assetFiles';
+import type { CursorStyle } from './cursorStyle';
 import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
 import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
@@ -93,13 +94,7 @@ export interface KeybindingOverride {
 
 export interface AppConfig {
     theme?: string;
-    cursorStyle?:
-        | 'line'
-        | 'block'
-        | 'underline'
-        | 'line-thin'
-        | 'block-outline'
-        | 'underline-thin';
+    cursorStyle?: CursorStyle;
     font?: MonospaceFont;
     fontLigatures?: boolean;
     fontSize?: number;
