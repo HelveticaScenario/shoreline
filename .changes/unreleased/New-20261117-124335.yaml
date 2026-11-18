@@ -1,3 +1,8 @@
 kind: New
-body: 'Patterns take `.playhead(...)` and `.ribbon(offset, length)`, the same as passing them to `.cycle({...})`: melody: $`c4 e4 g4 b4`.ribbon(1, 2).saw(). The settings carry through later pattern methods, and a later call replaces an earlier one.'
+body: |-
+    Patterns take `.playhead(...)` and `.ribbon(offset, length)`, the same as passing them to `.cycle({...})`. The settings carry through later pattern methods, and a later call replaces an earlier one.
+
+    ```js
+    melody: $`<c4 e4 g4 b4>`.ribbon(1, 2).saw()
+    ```
 time: 2026-11-17T12:43:35.48393-05:00
