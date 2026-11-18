@@ -1,0 +1,3 @@
+kind: Fixed
+body: Loud patches no longer saturate softly as they near full scale. The output plays every level below full scale untouched and clips only what goes past it.
+time: 2026-11-18T12:00:00.000000-05:00
