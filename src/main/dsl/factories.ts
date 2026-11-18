@@ -19,7 +19,7 @@ import './chainMethods';
 import { outputName } from './outputNames';
 import { markRoot, resolvableOutputs, type CallSite } from './outputResolution';
 import { processModuleSchema } from './paramsSchema';
-import { isPatternPayload, patternPayload } from './patterns';
+import { cycleSettings, isPatternPayload, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
 import {
@@ -392,6 +392,15 @@ export class DSLContext {
             for (let i = 0; i < positionalArgs.length; i++) {
                 if (i < args.length) {
                     params[positionalArgs[i].name] = args[i];
+                }
+            }
+
+            // A pattern in a param that takes no signal is played by this
+            // module, which takes the `$cycle` settings it carries under any
+            // its config names.
+            for (const { name } of positionalArgs) {
+                if (!signalParamNames.has(name)) {
+                    Object.assign(params, cycleSettings(params[name]));
                 }
             }
 

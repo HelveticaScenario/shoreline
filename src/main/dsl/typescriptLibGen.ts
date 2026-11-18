@@ -381,9 +381,9 @@ type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
  * methods return it. A pattern is the \`$cycle\` sequencer that
  * plays it: use it wherever a module goes, read its outputs (\`_gate\`,
  * \`_trig\`) and chain any collection method. Every such use of one pattern
- * shares one sequencer. \`.fast\`, \`.slow\`, \`.struct\`, \`.beat\` and
- * \`.glide\` each give a new pattern, a {@link ScalePattern} when called on
- * one; \`$cycle(pattern, …)\` and
+ * shares one sequencer. \`.fast\`, \`.slow\`, \`.struct\`, \`.beat\`,
+ * \`.glide\`, \`.playhead\` and \`.ribbon\` each give a new pattern, a
+ * {@link ScalePattern} when called on one; \`$cycle(pattern, …)\` and
  * \`.cycle(…)\` play it through a sequencer of its own with other settings.
  */
 interface Pattern extends PatternModule {
@@ -497,6 +497,28 @@ interface Pattern extends PatternModule {
    * @param scale scale string, e.g. "c(major)", "D#3(min)", "a(just)"
    */
   scale(scale: string): ScalePattern;
+  /**
+   * Play this pattern from \`playhead\`, a position in cycles, in place of
+   * the global clock: every \`$cycle\` that plays it reads the pattern there,
+   * unless given a \`playhead\` of its own. Kept through later pattern
+   * methods; a later \`.playhead\` replaces it.
+   *
+   * \`\`\`js
+   * melody: $\`c4 e4 g4 b4\`.playhead($clock._playhead.mul(0.5)).saw() // half speed
+   * \`\`\`
+   */
+  playhead(playhead: LaneSum<Signal>): this;
+  /**
+   * Loop the stretch of this pattern \`length\` cycles long from cycle
+   * \`offset\`: every \`$cycle\` that plays it loops there, unless given a
+   * \`ribbon\` of its own. Kept through later pattern methods; a later
+   * \`.ribbon\` replaces it.
+   *
+   * \`\`\`js
+   * melody: $\`<c4 e4 g4 b4>\`.ribbon(1, 2).saw() // loops e4 g4
+   * \`\`\`
+   */
+  ribbon(offset: number, length: number): this;
   /**
    * Shorthand for \`$cycle(pattern, ...rest)\`: plays this pattern through
    * a \`$cycle\` of its own, with the arguments \`$cycle\` takes after its

@@ -489,6 +489,68 @@ describe('sequencing', () => {
         expect((mod.params as { ribbon: unknown }).ribbon).toEqual([0, 2]);
     });
 
+    test('.playhead and .ribbon play as the same .cycle config', () => {
+        const stripSpans = (params: unknown) =>
+            JSON.parse(
+                JSON.stringify(params, (k, v) =>
+                    k === 'argument_span' || k === '__argument_spans'
+                        ? undefined
+                        : v,
+                ),
+            );
+        const viaMethods = execPatch(
+            'out: $("c4 e4").playhead($clock._playhead.mul(0.5)).ribbon(1, 2)',
+        );
+        const viaConfig = execPatch(
+            'out: $("c4 e4").cycle({ playhead: $clock._playhead.mul(0.5), ribbon: [1, 2] })',
+        );
+        const [a] = findModules(viaMethods, '$cycle');
+        const [b] = findModules(viaConfig, '$cycle');
+        expect(a.params.ribbon).toEqual([1, 2]);
+        expect(a.params.playhead).toBeDefined();
+        expect(stripSpans(a.params)).toEqual(stripSpans(b.params));
+    });
+
+    test('cycle settings carry through pattern methods, latest first', () => {
+        const patch = execPatch(`
+            out: $("0 2").ribbon(0, 2).fast(2).scale("c(major)").trans("1")
+                .ribbon(1, 3).slow(2);
+        `);
+        const [cycle] = findModules(patch, '$cycle');
+        expect(cycle.params.ribbon).toEqual([1, 3]);
+    });
+
+    test('cycle settings reach $cycle(pattern) and yield to its config', () => {
+        const patch = execPatch(`
+            const seq = $("c4 e4").ribbon(1, 2);
+            out: $cycle(seq);
+            out2: seq.cycle({ ribbon: [3, 4] });
+        `);
+        expect(
+            findModules(patch, '$cycle').map((m) => m.params.ribbon),
+        ).toEqual([
+            [1, 2],
+            [3, 4],
+        ]);
+    });
+
+    test('a pattern with cycle settings plays apart from the one it came from', () => {
+        const patch = execPatch(`
+            const seq = $("c4 e4");
+            out: seq;
+            out2: seq.ribbon(0, 2);
+        `);
+        expect(
+            findModules(patch, '$cycle').map((m) => m.params.ribbon),
+        ).toEqual([undefined, [0, 2]]);
+    });
+
+    test('an $arrange section with cycle settings is rejected', () => {
+        expect(() =>
+            execPatch('out: $arrange([1, $("c4").ribbon(0, 2)])'),
+        ).toThrow(/call them on the \$arrange\(\.\.\.\) result/);
+    });
+
     test('.cycle() matches $cycle(pattern) and keeps highlight spans', () => {
         const stripSpans = (params: unknown) =>
             JSON.parse(

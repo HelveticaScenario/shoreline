@@ -25,12 +25,40 @@ const BUILT_AT = new WeakMap<
 >();
 
 /**
- * Record `payload` as the wire payload of the pattern `handle`, built by the
- * running script call.
+ * `$cycle` params a pattern carries from `.playhead` and `.ribbon`. Every
+ * `$cycle` that plays the pattern takes them, unless its own config names
+ * them too.
  */
-export function registerPattern(handle: object, payload: object): void {
+export interface CycleSettings {
+    playhead?: unknown;
+    ribbon?: unknown;
+}
+
+const CYCLE_SETTINGS = new WeakMap<object, CycleSettings>();
+
+/**
+ * Record `payload` as the wire payload of the pattern `handle`, built by the
+ * running script call, with the `$cycle` settings it carries.
+ */
+export function registerPattern(
+    handle: object,
+    payload: object,
+    settings: CycleSettings,
+): void {
     PAYLOADS.set(handle, payload);
     BUILT_AT.set(payload, captureSourceLocation());
+    CYCLE_SETTINGS.set(payload, settings);
+}
+
+/** The `$cycle` settings a pattern carries; none for anything else. */
+export function cycleSettings(pattern: unknown): CycleSettings {
+    const payload = patternPayload(pattern);
+    return (
+        (typeof payload === 'object' &&
+            payload !== null &&
+            CYCLE_SETTINGS.get(payload)) ||
+        {}
+    );
 }
 
 /** Types a script's handle by the wire payload behind it. */
