@@ -26,6 +26,7 @@ import {
     DeferredModuleOutput,
     DeferredCollection,
     Bus,
+    Group,
     cycleToLanes,
     replaceSignals,
     PORT_MAX_LANES,
@@ -57,6 +58,10 @@ import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import { assetPath } from './assetPath';
+import {
+    prepareTrackLabels,
+    type TrackLabelProgram,
+} from './trackLabelRuntime';
 
 // Augment Array.prototype with pipe() for TypeScript
 declare global {
@@ -279,8 +284,8 @@ export function executePatchScript(
         }
         builder.setTempo(tempo);
     };
-    const $setOutputGain = (gain: PolySignal) => {
-        builder.setOutputGain(gain);
+    const $setMainGain = (gain: PolySignal) => {
+        builder.setMainGain(gain);
     };
 
     const $setTimeSignature = (numerator: number, denominator: number) => {
@@ -364,8 +369,23 @@ export function executePatchScript(
     const $trackTap = (label: string): TrackTap =>
         createTrackTap(builder, label);
 
-    const $bus = (cb: (mixed: Collection) => PolySignal | void): Bus =>
-        new Bus(builder, cb);
+    const $bus = (...args: unknown[]): Collection => {
+        if (args.length > 0) {
+            throw new Error(
+                '$bus takes no arguments: it is the mix of what tracks send to it, so chain on it, as in verb: $bus().plate()',
+            );
+        }
+        return new Bus(builder).signal;
+    };
+
+    const $group = (...args: unknown[]): Collection => {
+        if (args.length > 0) {
+            throw new Error(
+                '$group takes no arguments: it is the sum of the tracks whose labels name its track, as in kick$drums: … and drums: $group().comp()',
+            );
+        }
+        return new Group(builder).signal;
+    };
 
     const $setEndOfChainCb = (
         cb: (mixed: Collection) => Collection | CollectionWithRange,
@@ -590,7 +610,7 @@ export function executePatchScript(
      * // crossfade 3 voices by a slow LFO
      * const osc = $sine(['c', 'e', 'g'])
      * const weights = $cross(osc.length, $sine('0.25hz').range(0, 1));
-     * osc.amp(weights).out();
+     * chord: osc.amp(weights);
      */
     const $cross = (
         count: number,
@@ -839,10 +859,11 @@ export function executePatchScript(
         $cGroup: controls.$cGroup,
         // Bus
         $bus,
+        $group,
         $trackTap,
         // Global settings
         $setTempo,
-        $setOutputGain,
+        $setMainGain,
         $setTimeSignature,
         $setGroove,
         $swing,
@@ -885,12 +906,21 @@ export function executePatchScript(
     setActiveInterpolationResolutions(interpolationResolutions);
     setActiveCycleFactory($cycle);
 
+    let trackLabels: TrackLabelProgram;
+    try {
+        trackLabels = prepareTrackLabels(source);
+    } catch (error) {
+        throw new Error(`DSL execution error: ${(error as Error).message}`, {
+            cause: error,
+        });
+    }
+
     // The user source runs as a function body (an IIFE), not at the script's
     // top level, so top-level `return` is legal in a patch script.
     const scriptBody = `
     'use strict';
     (function () {
-    ${source}
+    ${trackLabels.runSource}
     })();
   `;
 
@@ -915,6 +945,7 @@ export function executePatchScript(
             enumerable: true,
             get: readStereoInput,
         });
+        trackLabels.install(sandbox, builder);
         // The sandbox is its own realm: array literals in the patch script use
         // the sandbox's Array.prototype, so pipe() must be installed there too
         // (mirroring the host-side installation above). The explicit filename

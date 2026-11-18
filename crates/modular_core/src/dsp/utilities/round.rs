@@ -136,17 +136,17 @@ const ROUND_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Semitone steps",
             code: r#"
-                $sine(
+                tone: $sine(
                   $sine('1hz').range(0, 3).round().div(12).add('c3'),
-                ).out()
+                )
             "#,
         },
         DocExample {
             title: "Eight steps across an octave",
             code: r#"
-                $sine(
+                tone: $sine(
                   $sine('1hz').range(0, 7.5).round().range('c3', 'c4'),
-                ).out()
+                )
             "#,
         },
     ],
@@ -162,7 +162,7 @@ const FLOOR_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Octaves up from C3",
-        code: "$sine($saw('0.5hz').range(0, 4).floor().add('c3')).out()",
+        code: "tone: $sine($saw('0.5hz').range(0, 4).floor().add('c3'))",
     }],
 };
 
@@ -176,7 +176,7 @@ const CEIL_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Octaves down from C4",
-        code: "$sine($saw('0.5hz').range(-4, 0).ceil().add('c4')).out()",
+        code: "tone: $sine($saw('0.5hz').range(-4, 0).ceil().add('c4'))",
     }],
 };
 

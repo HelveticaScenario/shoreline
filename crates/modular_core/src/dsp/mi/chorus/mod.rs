@@ -66,12 +66,12 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
                 const strings = $mi
                   .divideDown($chord('C3[m7]'), { registration: 1 })
                   .lpf('c6', 1)
-                $mi.chorus(strings, { amount: 4 }).out()
+                chord: $mi.chorus(strings, { amount: 4 })
             "#,
         },
         DocExample {
             title: "Wide pad",
-            code: "$mi.chorus($saw('c3'), { amount: 5, depth: 5 }).out()",
+            code: "keys: $mi.chorus($saw('c3'), { amount: 5, depth: 5 })",
         },
     ],
 };

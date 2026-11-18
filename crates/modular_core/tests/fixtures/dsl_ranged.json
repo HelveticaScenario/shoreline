@@ -1946,22 +1946,6 @@
             }
         },
         {
-            "id": "$mul-2",
-            "idIsExplicit": false,
-            "moduleType": "$mul",
-            "params": {
-                "input": [
-                    {
-                        "lane": 0,
-                        "module": "$setLanes-1",
-                        "port": "output",
-                        "type": "cable"
-                    }
-                ],
-                "factor": 0.7071067811865476
-            }
-        },
-        {
             "id": "__vuTap_lifted",
             "idIsExplicit": true,
             "moduleType": "$gain",
@@ -1969,7 +1953,7 @@
                 "input": [
                     {
                         "lane": 0,
-                        "module": "$mul-2",
+                        "module": "$setLanes-1",
                         "port": "output",
                         "type": "cable"
                     }
@@ -2123,22 +2107,6 @@
             }
         },
         {
-            "id": "$mul-3",
-            "idIsExplicit": false,
-            "moduleType": "$mul",
-            "params": {
-                "input": [
-                    {
-                        "lane": 0,
-                        "module": "$setLanes-3",
-                        "port": "output",
-                        "type": "cable"
-                    }
-                ],
-                "factor": 0.7071067811865476
-            }
-        },
-        {
             "id": "__vuTap_wrapped",
             "idIsExplicit": true,
             "moduleType": "$gain",
@@ -2146,7 +2114,7 @@
                 "input": [
                     {
                         "lane": 0,
-                        "module": "$mul-3",
+                        "module": "$setLanes-3",
                         "port": "output",
                         "type": "cable"
                     }

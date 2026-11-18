@@ -179,10 +179,9 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
         title: "Plucks in a dirty-tape space",
         code: r#"
             const notes = $`c4 eb4 g4 bb4`
-            $saw(notes)
+            melody: $saw(notes)
               .amp($perc(notes, { decay: 0.2 }))
               .reverb(3, { size: 5, tone: 2 })
-              .out()
         "#,
     }],
 };

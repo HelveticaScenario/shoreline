@@ -227,9 +227,7 @@ const LT808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Booming tom groove",
-        code: r#"
-            $tr808.lowTom($`c(3,8)`, { decay: 4 }).out()
-        "#,
+        code: r#"lowTom: $tr808.lowTom($`c(3,8)`, { decay: 4 })"#,
     }],
 };
 
@@ -252,9 +250,9 @@ const MT808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Tom fill",
         code: r#"
-            $tr808.highTom($`~ ~ ~ ~ c c ~ ~`).out()
-            $tr808.midTom($`~ ~ ~ ~ ~ ~ c ~`).out()
-            $tr808.lowTom($`~ ~ ~ ~ ~ ~ ~ c`).out()
+            highTom: $tr808.highTom($`~ ~ ~ ~ c c ~ ~`)
+            midTom: $tr808.midTom($`~ ~ ~ ~ ~ ~ c ~`)
+            lowTom: $tr808.lowTom($`~ ~ ~ ~ ~ ~ ~ c`)
         "#,
     }],
 };
@@ -279,7 +277,7 @@ const HT808_DOCS: ModuleDocs = ModuleDocs {
         title: "Tuned tom melody",
         code: r#"
             const toms = $`g3 ~ bb3 c4 ~ g3 f3 ~`
-            $tr808.highTom(toms, { freq: toms }).out()
+            highTom: $tr808.highTom(toms, { freq: toms })
         "#,
     }],
 };
@@ -303,8 +301,8 @@ const LC808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Two-conga pattern",
         code: r#"
-            $tr808.lowConga($`~ ~ c ~ ~ c c ~`).out()
-            $tr808.highConga($`c ~ ~ c ~ ~ ~ ~`).out()
+            lowConga: $tr808.lowConga($`~ ~ c ~ ~ c c ~`)
+            highConga: $tr808.highConga($`c ~ ~ c ~ ~ ~ ~`)
         "#,
     }],
 };
@@ -328,8 +326,8 @@ const MC808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Congas and claves",
         code: r#"
-            $tr808.midConga($`c ~ c c ~ c ~ ~`).out()
-            $tr808.claves($`c(3,8)`).out()
+            midConga: $tr808.midConga($`c ~ c c ~ c ~ ~`)
+            claves: $tr808.claves($`c(3,8)`)
         "#,
     }],
 };
@@ -353,9 +351,9 @@ const HC808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Three-conga groove",
         code: r#"
-            $tr808.highConga($`c ~ ~ c ~ ~ ~ ~`).out()
-            $tr808.midConga($`~ ~ c ~ ~ c ~ ~`).out()
-            $tr808.lowConga($`~ ~ ~ ~ ~ ~ c c`).out()
+            highConga: $tr808.highConga($`c ~ ~ c ~ ~ ~ ~`)
+            midConga: $tr808.midConga($`~ ~ c ~ ~ c ~ ~`)
+            lowConga: $tr808.lowConga($`~ ~ ~ ~ ~ ~ c c`)
         "#,
     }],
 };

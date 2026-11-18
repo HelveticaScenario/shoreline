@@ -90,20 +90,19 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "PWM chord pad",
             code: r#"
-                $pulse($chord('C3[m]'), {
+                chord: $pulse($chord('C3[m]'), {
                   pwm: $sine('0.3hz').range(-2, 2),
-                })
-                  .lpf('c6')
-                  .out()
+                }).lpf('c6')
             "#,
         },
         DocExample {
             title: "Plucked square bass",
             code: r#"
                 const seq = $`c2 c2 eb2 g1`
-                $pulse(seq)
-                  .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
-                  .out()
+                melody: $pulse(seq).lpf(
+                  $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
+                  2,
+                )
             "#,
         },
     ],

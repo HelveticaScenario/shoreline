@@ -1,11 +1,11 @@
 kind: Breaking
 body: |-
-    `$stereoMix` is gone. `$pan` places each lane in the stereo field, with `spread` to fan a chord out, and `.out()` sums the lanes into one stereo pair.
+    `$stereoMix` is gone. `$pan` places each lane in the stereo field, with `spread` to fan a chord out, and a track sums the lanes into one stereo pair.
 
     ```js
     // before
     $stereoMix($saw($chord('C3[m7]')), { pan: -2, width: 4 }).out()
     // after
-    $pan($saw($chord('C3[m7]')), -2, { spread: 4 }).out()
+    chord: $pan($saw($chord('C3[m7]')), -2, { spread: 4 })
     ```
 time: 2026-11-15T01:20:02.889361-05:00

@@ -234,13 +234,11 @@ const OBXD4_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Dark brass swell",
         code: r#"
-            $unstable.filter
-              .obxd4(
-                $saw($chord('F2[maj7]')),
-                $sine('0.1hz').range('c3', 'c6'),
-                2.5,
-              )
-              .out()
+            chord: $unstable.filter.obxd4(
+              $saw($chord('F2[maj7]')),
+              $sine('0.1hz').range('c3', 'c6'),
+              2.5,
+            )
         "#,
     }],
 };
@@ -267,14 +265,12 @@ const XPANDER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "4-pole bandpass sweep",
         code: r#"
-            $unstable.filter
-              .xpander(
-                $saw('c2'),
-                $sine('0.2hz').range('c3', 'c6'),
-                3,
-                { mode: 'bp4' },
-              )
-              .out()
+            bass: $unstable.filter.xpander(
+              $saw('c2'),
+              $sine('0.2hz').range('c3', 'c6'),
+              3,
+              { mode: 'bp4' },
+            )
         "#,
     }],
 };

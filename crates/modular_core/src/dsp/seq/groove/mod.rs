@@ -121,7 +121,7 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
               groove: g,
               velocity: g._velocity,
             })
-            $sine(seq).amp($adsr(seq)).amp(seq._velocity).out()
+            melody: $sine(seq).amp($adsr(seq)).amp(seq._velocity)
         "#,
     }],
 };

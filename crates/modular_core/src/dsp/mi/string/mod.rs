@@ -129,12 +129,12 @@ const STRING_DOCS: ModuleDocs = ModuleDocs {
             title: "Plucked arpeggio",
             code: r#"
                 const seq = $`c3 g3 e4 <b3 a3>`
-                $mi.string(seq, { trigger: seq }).out()
+                melody: $mi.string(seq, { trigger: seq })
             "#,
         },
         DocExample {
             title: "Sitar drone",
-            code: "$mi.string('d2', { structure: 0.3, decay: 4.5 }).out()",
+            code: "bass: $mi.string('d2', { structure: 0.3, decay: 4.5 })",
         },
     ],
 };

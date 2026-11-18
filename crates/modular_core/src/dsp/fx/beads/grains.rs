@@ -156,13 +156,13 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
         title: "Chord cloud from a single saw",
         code: r#"
             const grains = $pulse('8hz')
-            $granular($saw('a3'), grains, {
+            keys: $granular($saw('a3'), grains, {
               time: $sah($noise('white').range(0, 2), grains),
               freq: $`[c4, e4, g4] [b3, d4, g4]`,
               rootFreq: 'a3',
               spread: 2,
               mix: 4,
-            }).out()
+            })
         "#,
     }],
 };

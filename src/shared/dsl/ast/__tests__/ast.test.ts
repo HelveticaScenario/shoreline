@@ -10,7 +10,7 @@ import { parseDsl, parseTransient } from '../parse';
 
 describe('parseDsl', () => {
     test('one source text parses to one shared tree', () => {
-        const source = `$sine('c4').out() // ${Math.random()}`;
+        const source = `out: $sine('c4') // ${Math.random()}`;
         expect(parseDsl(source)).toBe(parseDsl(source));
     });
 
@@ -140,7 +140,7 @@ describe('position', () => {
     });
 
     test('a method call is placed at its name, any other call at its start', () => {
-        const source = "$saw('c2')\n  .out()\n$sine('c4')";
+        const source = "$saw('c2')\n  .lpf('c4')\n$sine('c4')";
         const file = parseDsl(source);
         const calls: ts.CallExpression[] = [];
         forEachDescendant(file, (n) => {
@@ -149,7 +149,7 @@ describe('position', () => {
             }
         });
         expect(calls.map((c) => v8CallAnchor(c, file))).toEqual([
-            source.indexOf('out'),
+            source.indexOf('lpf'),
             0,
             source.indexOf('$sine'),
         ]);

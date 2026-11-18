@@ -120,12 +120,12 @@ const SIX_OP_DOCS: ModuleDocs = ModuleDocs {
             title: "Electric piano",
             code: r#"
                 const seq = $`c3 [eb3 g3] <bb3 f3> ~`
-                $mi.sixOp(seq, { gate: seq, bank: 1 }).out()
+                melody: $mi.sixOp(seq, { gate: seq, bank: 1 })
             "#,
         },
         DocExample {
             title: "Frozen pad",
-            code: "$mi.sixOp('c2', { bank: 2, patch: 11, envelope: 3 }).out()",
+            code: "bass: $mi.sixOp('c2', { bank: 2, patch: 11, envelope: 3 })",
         },
     ],
 };

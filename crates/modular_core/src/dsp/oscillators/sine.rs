@@ -74,17 +74,15 @@ const SINE_DOCS: ModuleDocs = ModuleDocs {
             title: "Soft sine melody",
             code: r#"
                 const seq = $`c4 e4 g4 <b4 a4>`
-                $sine(seq)
-                  .amp($perc(seq, { decay: 0.3 }))
-                  .out()
+                melody: $sine(seq).amp($perc(seq, { decay: 0.3 }))
             "#,
         },
         DocExample {
             title: "FM bell",
             code: r#"
-                $sine('c4', { fm: $sine('c5').range(-3, 3) })
-                  .amp($perc($clock._beatTrigger, { decay: 1 }))
-                  .out()
+                lead: $sine('c4', { fm: $sine('c5').range(-3, 3) }).amp(
+                  $perc($clock._beatTrigger, { decay: 1 }),
+                )
             "#,
         },
     ],

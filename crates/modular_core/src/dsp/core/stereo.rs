@@ -33,7 +33,7 @@ const STEREO_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Two sines a fifth apart",
-        code: "$stereo($sine('c3'), $sine('g3')).out()",
+        code: "keys: $stereo($sine('c3'), $sine('g3'))",
     }],
 };
 
@@ -88,7 +88,7 @@ const MONO_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "A stereo pair as one voice",
-        code: "$mono($stereo($sine('c3'), $saw('c3'))).out()",
+        code: "keys: $mono($stereo($sine('c3'), $saw('c3')))",
     }],
 };
 
@@ -139,7 +139,7 @@ const LEFT_DOCS: ModuleDocs = ModuleDocs {
         title: "Swap the sides",
         code: r#"
             const pair = $stereo($sine('c3'), $saw('c3'))
-            $stereo($right(pair), $left(pair)).out()
+            keys: $stereo($right(pair), $left(pair))
         "#,
     }],
 };
@@ -175,7 +175,7 @@ const RIGHT_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Only the right side",
-        code: "$right($stereo($sine('c3'), $saw('c3'))).out()",
+        code: "keys: $right($stereo($sine('c3'), $saw('c3')))",
     }],
 };
 
@@ -214,7 +214,7 @@ const MID_DOCS: ModuleDocs = ModuleDocs {
         title: "Narrow a stereo signal",
         code: r#"
             const wide = $stereo($saw('c3'), $saw('g3'))
-            $fromMidSide($mid(wide), $side(wide).mul(0.5)).out()
+            keys: $fromMidSide($mid(wide), $side(wide).mul(0.5))
         "#,
     }],
 };
@@ -247,7 +247,7 @@ const SIDE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Only the width",
-        code: "$side($stereo($saw('c3'), $saw('g3'))).out()",
+        code: "keys: $side($stereo($saw('c3'), $saw('g3')))",
     }],
 };
 
@@ -299,7 +299,7 @@ const FROM_MID_SIDE_DOCS: ModuleDocs = ModuleDocs {
         title: "Widen a stereo signal",
         code: r#"
             const pair = $stereo($saw('c3'), $saw('c3').mul(0.8))
-            $fromMidSide($mid(pair), $side(pair).mul(2)).out()
+            keys: $fromMidSide($mid(pair), $side(pair).mul(2))
         "#,
     }],
 };

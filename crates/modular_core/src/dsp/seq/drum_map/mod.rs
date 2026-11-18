@@ -239,9 +239,9 @@ const DRUM_MAP_DOCS: ModuleDocs = ModuleDocs {
               y: 3,
               chaos: 0.5,
             })
-            $tr808.kick(drums).out()
-            $tr808.snare(drums._sd).out()
-            $tr808.hiHat(drums._hh).out()
+            kick: $tr808.kick(drums)
+            snare: $tr808.snare(drums._sd)
+            hats: $tr808.hiHat(drums._hh)
         "#,
     }],
 };

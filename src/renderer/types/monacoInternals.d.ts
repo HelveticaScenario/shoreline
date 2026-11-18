@@ -178,6 +178,79 @@ declare module 'monaco-editor/esm/vs/language/typescript/tsWorker.js' {
         getSemanticDiagnostics(
             fileName: string,
         ): Promise<import('typescript').Diagnostic[]>;
+        getSuggestionDiagnostics(
+            fileName: string,
+        ): Promise<import('typescript').Diagnostic[]>;
+        getDefinitionAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<readonly import('typescript').DefinitionInfo[] | undefined>;
+        getReferencesAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<import('typescript').ReferenceEntry[] | undefined>;
+        getDocumentHighlights(
+            fileName: string,
+            position: number,
+            filesToSearch: string[],
+        ): Promise<import('typescript').DocumentHighlights[] | undefined>;
+        findRenameLocations(
+            fileName: string,
+            position: number,
+            findInStrings: boolean,
+            findInComments: boolean,
+            providePrefixAndSuffixTextForRename: boolean,
+        ): Promise<readonly import('typescript').RenameLocation[] | undefined>;
+        provideInlayHints(
+            fileName: string,
+            start: number,
+            end: number,
+        ): Promise<readonly import('typescript').InlayHint[]>;
+        getQuickInfoAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<import('typescript').QuickInfo | undefined>;
+        getCompletionsAtPosition(
+            fileName: string,
+            position: number,
+        ): Promise<import('typescript').CompletionInfo | undefined>;
+        getRenameInfo(
+            fileName: string,
+            position: number,
+            options: import('typescript').RenameInfoOptions,
+        ): Promise<import('typescript').RenameInfo>;
+        getNavigationTree(
+            fileName: string,
+        ): Promise<import('typescript').NavigationTree | undefined>;
+        getCodeFixesAtPosition(
+            fileName: string,
+            start: number,
+            end: number,
+            errorCodes: number[],
+            formatOptions: import('typescript').FormatCodeSettings,
+        ): Promise<readonly import('typescript').CodeFixAction[]>;
+        getFormattingEditsForDocument(
+            fileName: string,
+            options: import('typescript').FormatCodeSettings,
+        ): Promise<import('typescript').TextChange[]>;
+        getFormattingEditsForRange(
+            fileName: string,
+            start: number,
+            end: number,
+            options: import('typescript').FormatCodeSettings,
+        ): Promise<import('typescript').TextChange[]>;
+        getFormattingEditsAfterKeystroke(
+            fileName: string,
+            position: number,
+            ch: string,
+            options: import('typescript').FormatCodeSettings,
+        ): Promise<import('typescript').TextChange[]>;
+        /** The mirror model named `fileName`, or null for a lib. */
+        protected _getModel(
+            fileName: string,
+        ): { getValue(): string; version: number } | null;
+        /** The text the language service reads for `fileName`. */
+        protected _getScriptText(fileName: string): string | undefined;
         /** `diagnostics` without their source files, to cross to the main thread. */
         static clearFiles(
             diagnostics: readonly import('typescript').Diagnostic[],

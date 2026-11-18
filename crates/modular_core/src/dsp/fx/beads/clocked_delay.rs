@@ -242,7 +242,7 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
                 const pluck = $saw('c3').amp(
                   $perc($clock._beatTrigger, { decay: 0.1 }),
                 )
-                $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 }).out()
+                keys: $clockedDelay(pluck, { bars: 3 / 16, feedback: 3 })
             "#,
         },
         DocExample {
@@ -251,12 +251,12 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
                 const pluck = $saw($`c3 eb3 g3 bb3`).amp(
                   $perc($clock._beatTrigger, { decay: 0.3 }),
                 )
-                $clockedDelay(pluck, {
+                melody: $clockedDelay(pluck, {
                   bars: 1 / 16,
                   shape: 1,
                   feedback: 2,
                   mix: 3,
-                }).out()
+                })
             "#,
         },
     ],

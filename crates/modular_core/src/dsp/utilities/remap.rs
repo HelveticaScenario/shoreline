@@ -92,10 +92,8 @@ const REMAP_DOCS: ModuleDocs = ModuleDocs {
         title: "Pad ducked by an upside-down envelope",
         code: r#"
             const duck = $perc($clock._beatTrigger, { decay: 0.3 })
-            $tr808.kick($clock._beatTrigger).out()
-            $saw($chord('C3[m7]'))
-              .amp($remap(duck, 5, 0, 0, 5))
-              .out()
+            kick: $tr808.kick($clock._beatTrigger)
+            chord: $saw($chord('C3[m7]')).amp($remap(duck, 5, 0, 0, 5))
         "#,
     }],
 };

@@ -23,7 +23,7 @@ function makeModel(source: string) {
 describe('applyButtonChange', () => {
     test('a live toggle drives the gate voltage and rewrites its state literal', () => {
         const { model, pushEditOperations } = makeModel(
-            "$toggleBtn('drone', false).out();",
+            "$toggleBtn('drone', false).track();",
         );
         const setModuleParam = vi.fn();
 
@@ -46,7 +46,7 @@ describe('applyButtonChange', () => {
 
     test('a toggle not in the running patch rewrites the code but leaves the engine alone', () => {
         const { model, pushEditOperations } = makeModel(
-            "$toggleBtn('drone', false).out();",
+            "$toggleBtn('drone', false).track();",
         );
         const setModuleParam = vi.fn();
 
@@ -57,7 +57,7 @@ describe('applyButtonChange', () => {
     });
 
     test('a gate drives the engine but never touches the source', () => {
-        const { model, pushEditOperations } = makeModel("$btn('hit').out();");
+        const { model, pushEditOperations } = makeModel("$btn('hit').track();");
         const setModuleParam = vi.fn();
 
         applyButtonChange(GATE, true, '__button_hit', model, setModuleParam);

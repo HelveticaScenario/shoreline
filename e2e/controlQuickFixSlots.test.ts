@@ -112,73 +112,73 @@ const RUNNABLE: {
     want: string;
 }[] = [
     {
-        marked: `$saw(['a3', 'c|4']).out()`,
+        marked: `out: $saw(['a3', 'c|4'])`,
         name: 'a poly pitch element',
         title: `Wrap 'freq' in a note $slider`,
-        want: `$saw(['a3', $slider('freq', 'c4', 'c2', 'c6')]).out()`,
+        want: `out: $saw(['a3', $slider('freq', 'c4', 'c2', 'c6')])`,
     },
     {
-        marked: `$saw('a3').lpf(['200hz', '4|00hz']).out()`,
+        marked: `out: $saw('a3').lpf(['200hz', '4|00hz'])`,
         name: 'a poly chain element',
         title: `Wrap 'cutoff' in an hz $slider`,
         want: `$slider('cutoff', '400hz'`,
     },
     {
-        marked: `$saw('a3', { shape: [1, 2.|5] }).out()`,
+        marked: `out: $saw('a3', { shape: [1, 2.|5] })`,
         name: 'a poly option element',
         title: `Wrap 'shape' in $slider`,
         want: `{ shape: [1, $slider('shape', 2.5, 0, 5)] }`,
     },
     {
-        marked: `$pWarp($saw('1hz').range(0, 1), $phase.bend([1.|5, 2])).out()`,
+        marked: `out: $pWarp($saw('1hz').range(0, 1), $phase.bend([1.|5, 2]))`,
         name: 'a poly element of a $phase amount',
         title: `Wrap 'amount' in $slider`,
         want: `$phase.bend([$slider('amount', 1.5, -5, 5), 2])`,
     },
     {
-        marked: `$saw('a3').out({ gain: [1.|5, 2] })`,
+        marked: `out: $saw('a3').track({ gain: [1.|5, 2] })`,
         name: 'a poly element of an API option',
         title: `Wrap 'gain' in $slider`,
         want: `{ gain: [$slider('gain', 1.5, 0, 5), 2] }`,
     },
     {
-        marked: `$mix([$saw('a3'), 1.|5]).out()`,
+        marked: `out: $mix([$saw('a3'), 1.|5])`,
         name: 'an item of a list of signals',
         title: `Wrap 'inputs' in $slider`,
         want: `$mix([$saw('a3'), $slider('inputs', 1.5, 0, 5)])`,
     },
     {
-        marked: `$sine($step([1.|5, 2], $pulse('2hz'))).out()`,
+        marked: `out: $sine($step([1.|5, 2], $pulse('2hz')))`,
         name: 'a step',
         title: `Wrap 'steps' in $slider`,
         want: `$step([$slider('steps', 1.5, 0, 5), 2]`,
     },
     {
-        marked: `$sine($keyframes([[1.|5, 0], [2, 1]])).out()`,
+        marked: `out: $sine($keyframes([[1.|5, 0], [2, 1]]))`,
         name: 'a keyframe value',
         title: `Wrap 'keyframes' in $slider`,
         want: `[[$slider('keyframes', 1.5, 0, 5), 0], [2, 1]]`,
     },
     {
-        marked: `$eq($saw('a3'), { sections: [{ freq: '1000hz', gain: |3 }] }).out()`,
+        marked: `out: $eq($saw('a3'), { sections: [{ freq: '1000hz', gain: |3 }] })`,
         name: 'a nested option member',
         title: `Wrap 'gain' in $slider`,
         want: `gain: $slider('gain', 3, -24, 24)`,
     },
     {
-        marked: `$sine($quantizer($saw('1hz'), 'c|4')).out()`,
+        marked: `out: $sine($quantizer($saw('1hz'), 'c|4'))`,
         name: 'a signal with a non-signal alternative',
         title: `Wrap 'scale' in a note $slider`,
         want: `$quantizer($saw('1hz'), $slider('scale', 'c4'`,
     },
     {
-        marked: `$mix([$saw('a3'), $c(1.|5)]).out()`,
+        marked: `out: $mix([$saw('a3'), $c(1.|5)])`,
         name: 'a $c in a list',
         title: `Replace $c(1.5) with $slider`,
         want: `$mix([$saw('a3'), $slider('inputs', 1.5, 0, 5)])`,
     },
     {
-        marked: `$pWarp($saw('1hz').range(0, 1), $phase.bend(|)).out()`,
+        marked: `out: $pWarp($saw('1hz').range(0, 1), $phase.bend(|))`,
         name: 'a missing $phase amount',
         title: `Add slider for 'amount'`,
         want: `$phase.bend($slider('amount', 0, -5, 5))`,
@@ -202,7 +202,7 @@ test.describe('control quick-fixes inside arguments', () => {
     test('only the signal positions of a tuple wrap', async ({ window }) => {
         const slice = await applyFix(
             window,
-            `$sampler('/wavs/x.wav', $pulse('2hz'), { slice: [[0, 0.5], 1.|5] }).out()`,
+            `out: $sampler('/wavs/x.wav', $pulse('2hz'), { slice: [[0, 0.5], 1.|5] })`,
             `Wrap 'slice' in $slider`,
         );
         expect(slice).toContain(
@@ -213,7 +213,7 @@ test.describe('control quick-fixes inside arguments', () => {
         // and its rows show that the slice points offer no wrap.
         await setCode(
             window,
-            `$sampler('/wavs/x.wav', $pulse('2hz'), { slice: [[0, 0.|5], 1.5] }).out()`,
+            `out: $sampler('/wavs/x.wav', $pulse('2hz'), { slice: [[0, 0.|5], 1.5] })`,
         );
         await triggerQuickFix(window);
         const rows = window.locator(ROWS);

@@ -104,7 +104,7 @@ const RING_HAT_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 const trigger = $`c*16`.c
                 const hat = $mi.ringHat('a3', { trigger })
-                hat.out()
+                ringHat: hat
             "#,
         },
         DocExample {
@@ -117,7 +117,7 @@ const RING_HAT_DOCS: ModuleDocs = ModuleDocs {
                   decay: 4.5,
                   noisiness: 1,
                 })
-                hat.out()
+                ringHat: hat
             "#,
         },
     ],

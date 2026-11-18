@@ -75,15 +75,11 @@ export const API_CONTROLS: Record<
     Record<string, Record<string, ControlSource>>
 > = {
     audio: {
-        $setOutputGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
-        out: {
+        $setMainGain: { gain: { spec: { ...LEVEL, defaultValue: 2.5 } } },
+        track: {
             gain: { spec: LEVEL },
             pan: { spec: closedControl(-5, 5, 0) },
-            width: { spec: { ...LEVEL, defaultValue: 0 } },
-        },
-        outMono: {
-            gain: { spec: LEVEL },
-            gainOrOptions: { label: 'gain', spec: LEVEL },
+            spread: { spec: { ...LEVEL, defaultValue: 0 } },
         },
         // An even duty cycle leaves the phase unwarped.
         '$phase.pwm': { width: { spec: closedControl(0, 5, 2.5) } },

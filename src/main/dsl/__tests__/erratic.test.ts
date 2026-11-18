@@ -91,7 +91,7 @@ describe('.erratic()', () => {
                 sampleRate: 48_000,
                 workspaceRoot: '/workspace',
             });
-        const types = run('$erratic($sine("1hz"), 1).out()').patch.modules.map(
+        const types = run('out: $erratic($sine("1hz"), 1)').patch.modules.map(
             (m) => m.moduleType,
         );
         expect(types).toContain('$erratic');

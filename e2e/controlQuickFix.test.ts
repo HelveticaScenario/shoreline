@@ -51,7 +51,7 @@ test.describe('control quick-fixes', () => {
     test('wraps a control literal in a slider over its control range', async ({
         window,
     }) => {
-        await setCode(window, `$lpf($noise('white'), 'c4', 2.|5).out()`);
+        await setCode(window, `out: $lpf($noise('white'), 'c4', 2.|5)`);
         const titles = await quickFixTitles(window);
         const wrap = titles.findIndex((t) =>
             t.includes(`Wrap 'resonance' in $slider`),
@@ -68,7 +68,7 @@ test.describe('control quick-fixes', () => {
     });
 
     test('an audio input offers no wrap', async ({ window }) => {
-        await setCode(window, `$lpf(0.|5, 'c4').out()`);
+        await setCode(window, `out: $lpf(0.|5, 'c4')`);
         await window.evaluate(() => {
             const ed = window.monaco.editor
                 .getEditors()
@@ -83,7 +83,7 @@ test.describe('control quick-fixes', () => {
     });
 
     test('API method params still get controls', async ({ window }) => {
-        await setCode(window, `$saw('a3').out(|)`);
+        await setCode(window, `$saw('a3').track(|)`);
         const titles = await quickFixTitles(window);
         expect(
             titles.some((t) => t.includes(`'gain'`)),

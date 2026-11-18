@@ -316,9 +316,10 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Plucked bass line",
                 code: r#"
                     const seq = $`c2 ~ eb2 g2 ~ c3 bb2 g2`
-                    $saw(seq)
-                      .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c6'), 2)
-                      .out()
+                    melody: $saw(seq).lpf(
+                      $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
+                      2,
+                    )
                 "#,
             }],
         },
@@ -349,7 +350,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Bass that changes every bar",
                 code: r#"
                     const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`
-                    $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
+                    melody: $saw(seq).lpf('c5', 1).amp($adsr(seq))
                 "#,
             }],
         },
@@ -362,7 +363,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Melody over a drone",
                 code: r#"
                     const seq = $`c4 eb4 g4 bb4, c3`
-                    $saw(seq).lpf('c5', 1).amp($adsr(seq)).out()
+                    melody: $saw(seq).lpf('c5', 1).amp($adsr(seq))
                 "#,
             }],
         },
@@ -375,7 +376,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "A melody that never quite repeats",
                 code: r#"
                     const seq = $`c4 [eb4|g4|bb4] f4? [g4|c5]`
-                    $sine(seq).amp($adsr(seq)).out()
+                    melody: $sine(seq).amp($adsr(seq))
                 "#,
             }],
         },
@@ -424,7 +425,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 title: "Euclidean rhythm",
                 code: r#"
                     const seq = $`c2(3,8) [g2 c3](5,8,2)`
-                    $pulse(seq).lpf('c5', 2).amp($adsr(seq)).out()
+                    melody: $pulse(seq).lpf('c5', 2).amp($adsr(seq))
                 "#,
             }],
         },
@@ -435,11 +436,10 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             $setGroove($swing(0.6))
             const hats = $`c5*8`
             const bass = $cycle($`c2*4`, { groove: 0 })
-            $noise('white')
+            noise: $noise('white')
               .amp($perc(hats, { decay: 0.05 }))
               .amp(hats._velocity)
-              .out()
-            $saw(bass).lpf('c4', 1).amp($adsr(bass)).out()
+            melody: $saw(bass).lpf('c4', 1).amp($adsr(bass))
         "#,
     }],
 };

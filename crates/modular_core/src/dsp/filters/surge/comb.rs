@@ -164,9 +164,9 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
               $perc($clock._beatTrigger, { decay: 0.02 }),
             )
             const notes = $`c3 eb3 g3 bb3`
-            $unstable.filter
-              .comb(burst, notes, 4.5, { mix: 'full' })
-              .out()
+            noise: $unstable.filter.comb(burst, notes, 4.5, {
+              mix: 'full',
+            })
         "#,
     }],
 };

@@ -95,12 +95,12 @@ const WAVE_TERRAIN_DOCS: ModuleDocs = ModuleDocs {
             title: "Drifting over the landscapes",
             code: r#"
                 const drift = $sine('0.05hz').range(0, 5)
-                $mi.waveTerrain('c2', { terrain: drift }).out()
+                bass: $mi.waveTerrain('c2', { terrain: drift })
             "#,
         },
         DocExample {
             title: "Phase-modulated voice",
-            code: "$mi.waveTerrain('g2', { radius: 4, offset: 1 })._pm.out()",
+            code: "bass: $mi.waveTerrain('g2', { radius: 4, offset: 1 })._pm",
         },
     ],
 };

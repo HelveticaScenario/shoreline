@@ -48,8 +48,8 @@ const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
         title: "Just-tuned fifths",
         code: r#"
             const root = $`c3 a2 f2 g2`
-            $saw(root).out()
-            $saw($mulHz(root, 1.5)).out()
+            melody: $saw(root)
+            melody2: $saw($mulHz(root, 1.5))
         "#,
     }],
 };

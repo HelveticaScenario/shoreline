@@ -102,12 +102,12 @@ const ADDITIVE_DOCS: ModuleDocs = ModuleDocs {
             title: "Sweeping harmonics",
             code: r#"
                 const sweep = $sine('0.1hz').range(0, 5)
-                $mi.additive('c2', { centroid: sweep, slope: 4 }).out()
+                bass: $mi.additive('c2', { centroid: sweep, slope: 4 })
             "#,
         },
         DocExample {
             title: "Drawbar organ",
-            code: "$mi.additive('c3', { centroid: 1, series: 'organ' }).out()",
+            code: "keys: $mi.additive('c3', { centroid: 1, series: 'organ' })",
         },
     ],
 };

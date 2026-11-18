@@ -12,7 +12,7 @@ const GAIN_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Slow swell",
-        code: "$saw('c3').gain($sine('0.25hz').range(0, 5)).out()",
+        code: "keys: $saw('c3').gain($sine('0.25hz').range(0, 5))",
     }],
 };
 

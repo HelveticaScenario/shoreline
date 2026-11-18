@@ -1738,8 +1738,8 @@ impl AudioState {
         // Build the complete next VU meter membership. Running levels carry
         // over from any current entry metering the same tap so a patch update
         // doesn't blink the display. The lookup goes through the same remap
-        // table module state transfer uses, so a tap whose id shifted (e.g.
-        // an unlabeled out renumbered by an edit) keeps its levels. Briefly
+        // table module state transfer uses, so a tap whose id shifted keeps
+        // its levels. Briefly
         // locking here is safe — the audio thread only ever try_locks this
         // mutex.
         {
@@ -3059,7 +3059,7 @@ where
                                 let swap_pos = audio_processor.block_pos;
                                 audio_processor.apply_patch_update(update, swap_pos);
                                 // The swap may step the output (a muted patch
-                                // replacing a loud one, an out removed);
+                                // replacing a loud one, a track removed);
                                 // release the step at the emit stage.
                                 final_state_processor.arm_declick();
                                 audio_processor

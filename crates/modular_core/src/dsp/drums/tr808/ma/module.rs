@@ -46,8 +46,8 @@ const MA808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Sixteenth shaker",
         code: r#"
-            $tr808.kick($`c*4`).out()
-            $tr808.maracas($`c*16`).out()
+            kick: $tr808.kick($`c*4`)
+            maracas: $tr808.maracas($`c*16`)
         "#,
     }],
 };

@@ -90,17 +90,18 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Trance chord",
             code: r#"
-                $supersaw($chord('A2[m]'), { unison: 7, detune: 0.3 })
-                  .lpf('c6', 1)
-                  .out()
+                chord: $supersaw($chord('A2[m]'), {
+                  unison: 7,
+                  detune: 0.3,
+                }).lpf('c6', 1)
             "#,
         },
         DocExample {
             title: "Wide lead sweep",
             code: r#"
-                $supersaw('a3', { detune: 0.3 })
-                  .lpf($sine('0.1hz').range('c5', 'c7'))
-                  .out()
+                keys: $supersaw('a3', { detune: 0.3 }).lpf(
+                  $sine('0.1hz').range('c5', 'c7'),
+                )
             "#,
         },
     ],

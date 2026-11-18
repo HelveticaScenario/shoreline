@@ -174,25 +174,25 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Warm maj7 pad",
-            code: "$saw($chord('C3[maj7]')).lpf('c5', 1).out()",
+            code: "chord: $saw($chord('C3[maj7]')).lpf('c5', 1)",
         },
         DocExample {
             title: "Gliding through the inversions",
             code: r#"
                 const inv = $sine('0.05hz').range(0, 4)
                 const c = $chord('C3[maj7]', { inversion: inv })
-                $saw(c).amp(c._level).out()
+                chord: $saw(c).amp(c._level)
             "#,
         },
         DocExample {
             title: "A drifting melody that stays in key",
             code: r#"
-                $sine(
+                melody: $sine(
                   $quantizer(
                     $sine('0.1hz').range('a3', 'a5'),
                     $chord('A(minor)'),
                   ),
-                ).out()
+                )
             "#,
         },
     ],
