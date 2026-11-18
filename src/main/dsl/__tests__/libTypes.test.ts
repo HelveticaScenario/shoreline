@@ -20,6 +20,9 @@ const PATCH_FILE = '/modular/patch.js';
 
 const libSource = buildLibSource(schemas);
 
+/** Every file but the patch is the same in each program, so each is parsed once. */
+const sharedSourceFiles = new Map<string, ts.SourceFile | undefined>();
+
 /** `patch` compiled against the DSL lib, as the editor compiles it. */
 function programFor(patch: string): ts.Program {
     const options: ts.CompilerOptions = {
@@ -41,24 +44,50 @@ function programFor(patch: string): ts.Program {
         ...base,
         fileExists: (name) => files.has(name) || base.fileExists(name),
         getSourceFile: (name, language, ...rest) => {
-            const text = files.get(name);
-            return text === undefined
-                ? base.getSourceFile(name, language, ...rest)
-                : ts.createSourceFile(name, text, language);
+            if (name === PATCH_FILE)
+                return ts.createSourceFile(name, patch, language);
+            if (!sharedSourceFiles.has(name)) {
+                const text = files.get(name);
+                sharedSourceFiles.set(
+                    name,
+                    text === undefined
+                        ? base.getSourceFile(name, language, ...rest)
+                        : ts.createSourceFile(name, text, language),
+                );
+            }
+            return sharedSourceFiles.get(name);
         },
         readFile: (name) => files.get(name) ?? base.readFile(name),
     };
     return ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
 }
 
-/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
-function diagnostics(patch: string): string[] {
-    return ts.getPreEmitDiagnostics(programFor(patch)).map((d) => {
+/** `found` as `file:line: message`. */
+function format(found: readonly ts.Diagnostic[]): string[] {
+    return found.map((d) => {
         const line = d.file
             ? `${d.file.fileName}:${d.file.getLineAndCharacterOfPosition(d.start ?? 0).line + 1}`
             : '?';
         return `${line}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`;
     });
+}
+
+/** Every diagnostic for `patch` against the DSL lib, the lib's own included. */
+function diagnostics(patch: string): string[] {
+    return format(ts.getPreEmitDiagnostics(programFor(patch)));
+}
+
+/**
+ * The diagnostics in `patch` itself. Checking only the patch leaves the rest of
+ * the lib unchecked, which is most of a full check's time.
+ */
+function patchDiagnostics(patch: string): string[] {
+    const program = programFor(patch);
+    const file = program.getSourceFile(PATCH_FILE);
+    return format([
+        ...program.getSyntacticDiagnostics(file),
+        ...program.getSemanticDiagnostics(file),
+    ]);
 }
 
 describe('generated DSL lib', () => {
@@ -72,7 +101,7 @@ describe('generated DSL lib', () => {
     });
 
     test('collections index and iterate as one-lane collections', () => {
-        const patchErrors = diagnostics(`
+        const patchErrors = patchDiagnostics(`
                 const [a, b] = $saw(['c3', 'e3']);
                 out: a.amp(2);
                 out2: b[0][0].add(1);
@@ -88,21 +117,21 @@ describe('generated DSL lib', () => {
                 out5: $perc(seq[1]);
                 out6: $perc(seq[1]._trig);
                 for (const voice of seq) voice._gate.scope();
-            `).filter((d) => d.startsWith(PATCH_FILE));
+            `);
         expect(patchErrors).toEqual([]);
     });
 
     test('arithmetic chains off collections, ranged collections and patterns', () => {
-        const patchErrors = diagnostics(`
+        const patchErrors = patchDiagnostics(`
                 out: $sine('c3').add(1).sub(0.5).mul(2).div(4).exp(2);
                 out2: $sine('1hz').range(0, 1).mul($('1 2'));
                 out3: $('0 2 4').add(1);
-            `).filter((d) => d.startsWith(PATCH_FILE));
+            `);
         expect(patchErrors).toEqual([]);
     });
 
     test('concat joins collections of one type and keeps that type', () => {
-        const patchErrors = diagnostics(`
+        const patchErrors = patchDiagnostics(`
                 out: $sine('c3').concat($saw('e3'));
                 $sine('1hz').range(0, 1).concat($sine('2hz')).range(0, 5);
                 const oscs = $enosc('c3').concat($enosc('g3'));
@@ -113,22 +142,20 @@ describe('generated DSL lib', () => {
                 seq.concat($('c5'))._gate.scope();
                 const tap = $trackTap('bass').concat($trackTap('lead'));
                 tap.level.range(0, 1);
-            `).filter((d) => d.startsWith(PATCH_FILE));
+            `);
         expect(patchErrors).toEqual([]);
     });
 
     test('concat rejects a collection of another type', () => {
-        const patchErrors = diagnostics(`
+        const patchErrors = patchDiagnostics(`
                 $enosc('c3').concat($sine('c3'));
                 $('c4').concat($enosc('c3'));
-            `).filter((d) => d.startsWith(PATCH_FILE));
+            `);
         expect(patchErrors).toHaveLength(2);
     });
 
     test('an arithmetic method needs its operand', () => {
-        const patchErrors = diagnostics(`out: $sine('c3').add();`).filter((d) =>
-            d.startsWith(PATCH_FILE),
-        );
+        const patchErrors = patchDiagnostics(`out: $sine('c3').add();`);
         expect(patchErrors).toHaveLength(1);
     });
 });
@@ -137,7 +164,7 @@ describe('track labels in the editor', () => {
     /** Patch errors with the label bindings the editor's worker appends. */
     const labelErrors = (patch: string): string[] => {
         const lines = patch.split('\n').length;
-        return diagnostics(trackLabelView(ts, patch).text).filter((d) => {
+        return patchDiagnostics(trackLabelView(ts, patch).text).filter((d) => {
             const at = /^\/modular\/patch\.js:(\d+):/.exec(d);
             return at !== null && Number(at[1]) <= lines;
         });
