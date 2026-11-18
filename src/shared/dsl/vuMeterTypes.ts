@@ -1,14 +1,14 @@
 /**
- * One out-group's VU meter entry, emitted by the GraphBuilder on
+ * One track's VU meter entry, emitted by the GraphBuilder on
  * `PatchGraph.vuMeters`. Rust reads the metering fields (moduleId / portName /
  * channels / muteModuleId); the rest is renderer metadata that rides through
  * `appliedPatch` untouched (same contract as `Scope.sourceLocation`).
  */
 export interface VuMeterDef {
     /**
-     * Stable identity: the label if present, else the next positional
-     * `out N` not claimed by a label. Unique across every meter, including
-     * the master's reserved `__main__`.
+     * Stable identity: the track's name, which its mute/solo prefix and
+     * channel suffix leave out. Unique across every meter, including the
+     * master's reserved `__main__`.
      */
     key: string;
     label: string | null;
@@ -28,8 +28,8 @@ export interface VuMeterDef {
     solo: boolean;
     /**
      * Pan position (-5 left … +5 right) when the panel's knob controls it —
-     * stereo outs whose `pan` option is a number or absent. Null when pan is
-     * signal-driven or the out is mono (no knob).
+     * stereo tracks whose `pan` option is a number or absent. Null when pan is
+     * signal-driven or the track is mono (no knob).
      */
     pan: number | null;
     /** `_smoothControl` driving the stereo mixer's pan; null when `pan` is null. */
@@ -41,7 +41,7 @@ export interface VuMeterDef {
     panLocked: boolean;
     /**
      * Output gain in DSL units (audio taper; 5 = unity) when the panel's
-     * fader controls it — outs whose `gain` option is a number or absent.
+     * fader controls it — tracks whose `gain` option is a number or absent.
      * Null when gain is signal-driven.
      */
     gain: number | null;
@@ -57,11 +57,20 @@ export interface VuMeterDef {
     gainSource?: { moduleId: string; portName: string; lane: number };
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
+    /** The group track this track plays into, by key; null for none. */
+    group?: string | null;
+    /** Whether this track is a group's, which other tracks can play into. */
+    isGroup?: boolean;
+    /** Whether this track is a bus's, which the mixer shows beside the main. */
+    isBus?: boolean;
     /**
-     * Location of the `.out(...)` / `.outMono(...)` call in the DSL source.
-     * Absent when several out groups share the call site (a loop or helper):
-     * a source edit there would rewrite every instance, so such meters'
-     * controls act on the live graph only.
+     * Whether the track's label labels a `.track(...)` made elsewhere (in a
+     * helper or a const), whose options the mixer cannot rewrite.
+     */
+    fromTrack?: boolean;
+    /**
+     * Location of the track's label in the DSL source; absent for the
+     * master meter.
      */
     sourceLocation?: { line: number; column: number };
 }

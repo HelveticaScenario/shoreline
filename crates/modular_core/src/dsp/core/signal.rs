@@ -61,8 +61,8 @@ const SIGNAL_DOCS: ModuleDocs = ModuleDocs {
         title: "One pitch shared by two oscillators",
         code: r#"
             const root = $signal('c3')
-            $saw(root).out()
-            $pulse(root.add(7 / 12)).out()
+            keys: $saw(root)
+            keys2: $pulse(root.add(7 / 12))
         "#,
     }],
 };

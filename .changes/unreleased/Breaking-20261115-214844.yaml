@@ -1,11 +1,12 @@
 kind: Breaking
 body: |-
-    Send to a `$bus` with the new `sends` option of `.out()` and `.outMono()`, which takes a bus, a `[bus, gain]` pair, or an array of them, so one out can feed several buses. `.send()` is gone:
+    `.send()` is gone. Send to a `$bus` with the `sends` option of `.track()`, which takes a bus track's name, a `[name, gain]` pair, or an array of them, so one track can feed several buses. A send carries the track's final signal, after its gain, pan, mute and solo:
 
     ```js
     // before
     $saw("c3").send(verb, 2).out();
     // after
-    $saw("c3").out({ sends: [verb, 2] });
+    verb: $bus().plate()
+    lead: $saw("c3").track({ sends: [verb, 2] })
     ```
 time: 2026-11-15T21:48:44.105599-05:00

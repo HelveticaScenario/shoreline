@@ -292,30 +292,30 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Minor chord",
-            code: "$enosc('c3', $enosc.scale.minor).out()",
+            code: "keys: $enosc('c3', $enosc.scale.minor)",
         },
         DocExample {
             title: "Harmonic stack",
             code: r#"
-                $enosc('c2', $enosc.scale.harm4to7, {
+                bass: $enosc('c2', $enosc.scale.harm4to7, {
                   spread: 1,
                   count: 6,
-                }).out()
+                })
             "#,
         },
         DocExample {
             title: "Custom scale",
-            code: "$enosc('c2', $enosc.scale.custom('0 2 3 7 9', true)).out()",
+            code: "bass: $enosc('c2', $enosc.scale.custom('0 2 3 7 9', true))",
         },
         DocExample {
             title: "Stereo pulsar drone",
             code: r#"
-                $enosc('a2', $enosc.scale.just6, {
+                bass: $enosc('a2', $enosc.scale.just6, {
                   spread: $sine('0.05hz').range(1, 3),
                   crossFm: 1.5,
                   phase: $phase.pulsar(2),
                   fold: 1,
-                }).out()
+                })
             "#,
         },
     ],

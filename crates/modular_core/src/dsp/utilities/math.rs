@@ -170,15 +170,15 @@ const MATH_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Crossfading two oscillators",
             code: r#"
-                $math('x * sin(t) + y * cos(t)', {
+                math: $math('x * sin(t) + y * cos(t)', {
                   x: $saw('c3'),
                   y: $pulse('c3'),
-                }).out()
+                })
             "#,
         },
         DocExample {
             title: "Ring-modulated bell",
-            code: "$math('x * y / 5', { x: $sine('c4'), y: $sine('g5') }).out()",
+            code: "math: $math('x * y / 5', { x: $sine('c4'), y: $sine('g5') })",
         },
     ],
 };

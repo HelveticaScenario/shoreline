@@ -85,7 +85,7 @@ describe('$v graph building', () => {
         it("plays a video's audio when the picture does not show the video", () => {
             const source = `
                 const clip = $v.video('/a.mp4');
-                clip.audio.out();
+                out: clip.audio;
                 $v.out($v.osc(10));
             `;
             expect(exec(source).video!.sources).toEqual([]);
@@ -95,7 +95,7 @@ describe('$v graph building', () => {
         it('keeps a shown video and its audio', () => {
             const source = `
                 const clip = $v.video('/a.mp4');
-                clip.audio.out();
+                out: clip.audio;
                 $v.out(clip);
             `;
             expect(exec(source).video!.sources).toEqual([

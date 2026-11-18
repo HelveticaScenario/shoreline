@@ -223,11 +223,10 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
         title: "Plucks in a big plate",
         code: r#"
             const notes = $`c4 eb4 g4 bb4`
-            $sine(notes)
+            melody: $sine(notes)
               .amp($perc(notes, { decay: 0.2 }))
               .dattorro({ decay: 3 })
               .wet(2)
-              .out()
         "#,
     }],
 };

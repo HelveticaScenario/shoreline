@@ -104,14 +104,14 @@ const WAVESHAPER_DOCS: ModuleDocs = ModuleDocs {
             title: "Folding bass",
             code: r#"
                 const drive = $sine('0.25hz').range(0.5, 4)
-                $mi.waveshaper('c2', { fold: drive }).out()
+                bass: $mi.waveshaper('c2', { fold: drive })
             "#,
         },
         DocExample {
             title: "Bumpy overtones",
             code: r#"
                 const shaper = $mi.waveshaper('g2', { shape: 4, fold: 3 })
-                shaper._overtones.out()
+                bass: shaper._overtones
             "#,
         },
     ],

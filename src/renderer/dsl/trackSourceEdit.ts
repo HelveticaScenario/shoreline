@@ -1,25 +1,28 @@
 /**
- * Utility for editing the `mute` / `solo` / `pan` / `gain` options of
- * `.out(...)` and `.outMono(...)` calls, and the `$setOutputGain(...)` level,
- * in DSL source code.
+ * Source edits behind the mixer's controls: a track's mute and solo buttons
+ * rewrite its label's prefix, its gain fader and pan knob the options of its
+ * `.track(...)`, and the master fader the `$setMainGain(...)` level.
  *
- * The VU meter panel's buttons anchor each out call with a Monaco tracked
- * decoration; this module turns that anchor (a character offset at the method
- * name) plus the desired property change into a single text edit, reading
- * the call, its arguments, its options object and their separating commas
- * from the syntax tree.
+ * A track is found at its label's anchor, an offset within the label that
+ * the playing patch's label had when it ran, moved along with the user's
+ * edits since, and must still carry the track's name there. Each function returns one text edit, or null
+ * when the source has no editable form for it; the caller then applies only
+ * the live graph update.
  */
 import ts from 'typescript';
 
-import { booleanLiteral, negatableNumber } from '../../shared/dsl/ast/literals';
+import { negatableNumber } from '../../shared/dsl/ast/literals';
 import { propertyName } from '../../shared/dsl/ast/names';
 import { parseDsl } from '../../shared/dsl/ast/parse';
-import { findDescendant, forEachDescendant } from '../../shared/dsl/ast/walk';
+import { forEachDescendant } from '../../shared/dsl/ast/walk';
+import {
+    parseTrackLabel,
+    type TrackState,
+    withTrackState,
+} from '../../shared/dsl/trackLabels';
 import { callParens, closingTokenStart } from './listEdits';
 
-export type OutOptionProp = 'mute' | 'solo';
-
-export interface OutOptionEdit {
+export interface TrackSourceEdit {
     /** Inclusive start character offset */
     start: number;
     /** Exclusive end character offset */
@@ -31,25 +34,7 @@ export interface OutOptionEdit {
 /** Whether `node` is a literal an option's value may be rewritten from. */
 type LiteralCheck = (node: ts.Node) => boolean;
 
-const isBoolean: LiteralCheck = (node) => booleanLiteral(node) !== null;
 const isNumber: LiteralCheck = (node) => negatableNumber(node) !== null;
-
-/** The `.out` / `.outMono` call whose method name starts at `anchor`. */
-function outCallAt(
-    file: ts.SourceFile,
-    anchor: number,
-): ts.CallExpression | undefined {
-    return findDescendant(
-        file,
-        (node): node is ts.CallExpression =>
-            ts.isCallExpression(node) &&
-            ts.isPropertyAccessExpression(node.expression) &&
-            (node.expression.name.text === 'out' ||
-                node.expression.name.text === 'outMono') &&
-            node.expression.name.getStart(file) === anchor,
-        anchor,
-    );
-}
 
 /** The comma tokens on either side of `element` in the argument or
  *  property list holding it. */
@@ -129,53 +114,136 @@ function insideFunction(node: ts.Node): boolean {
     return false;
 }
 
-/**
- * Compute the text edit that sets (`value` true) or removes (`value` false)
- * the `prop` property in the options argument of the `.out(...)` /
- * `.outMono(...)` call whose method name starts at `anchorOffset`.
- *
- * Returns null when the call can't be found or the existing property value
- * is not a `true`/`false` literal — callers skip the source edit but still
- * apply the live graph update (the same silent-skip contract as sliders).
- */
-export function computeOutOptionEdit(
+/** The labelled statement of track `name` whose label starts at `anchor`. */
+function trackAt(
+    file: ts.SourceFile,
+    anchor: number,
+    name: string,
+): ts.LabeledStatement | undefined {
+    // Anywhere in the label: text typed at the label's start, such as a
+    // prefix, moves the anchor inside it.
+    const statement = file.statements.find(
+        (st): st is ts.LabeledStatement =>
+            ts.isLabeledStatement(st) &&
+            st.label.getStart(file) <= anchor &&
+            anchor <= st.label.end,
+    );
+    if (!statement || !ts.isExpressionStatement(statement.statement)) {
+        return undefined;
+    }
+    const track = parseTrackLabel(statement.label.text);
+    return 'error' in track || track.name !== name ? undefined : statement;
+}
+
+/** The edit that gives track `name` the label prefix of `state`. */
+export function computeTrackStateEdit(
     source: string,
-    anchorOffset: number,
-    prop: OutOptionProp,
-    value: boolean,
-): OutOptionEdit | null {
-    return computeOptionPropertyEdit(
-        source,
-        anchorOffset,
-        prop,
-        value ? 'true' : null,
-        isBoolean,
+    anchor: number,
+    name: string,
+    state: TrackState,
+): TrackSourceEdit | null {
+    const file = parseDsl(source);
+    const statement = trackAt(file, anchor, name);
+    if (!statement) {
+        return null;
+    }
+    const label = statement.label.text;
+    const text = withTrackState(label, state);
+    return text === label
+        ? null
+        : {
+              end: statement.label.end,
+              start: statement.label.getStart(file),
+              text,
+          };
+}
+
+/** `expression` without the `.scope(...)` calls chained at its end. */
+function withoutScopes(expression: ts.Expression): ts.Expression {
+    let e = expression;
+    while (
+        ts.isCallExpression(e) &&
+        ts.isPropertyAccessExpression(e.expression) &&
+        e.expression.name.text === 'scope'
+    ) {
+        e = e.expression.expression;
+    }
+    return e;
+}
+
+/** Whether `e` is a `.track(...)` call. */
+function isTrackCall(e: ts.Expression): e is ts.CallExpression {
+    return (
+        ts.isCallExpression(e) &&
+        ts.isPropertyAccessExpression(e.expression) &&
+        e.expression.name.text === 'track'
+    );
+}
+
+/** Whether `.track(...)` can chain onto `e` as written, without parentheses. */
+function chainable(e: ts.Expression): boolean {
+    return (
+        ts.isCallExpression(e) ||
+        ts.isPropertyAccessExpression(e) ||
+        ts.isElementAccessExpression(e) ||
+        ts.isIdentifier(e) ||
+        ts.isParenthesizedExpression(e) ||
+        ts.isTaggedTemplateExpression(e) ||
+        ts.isArrayLiteralExpression(e)
     );
 }
 
 /**
- * Same contract as `computeOutOptionEdit` for numeric-valued options (the
- * pan knob): a number sets `prop: <value>`, null removes the property. An
- * existing value must be a numeric literal or the edit is skipped.
+ * The edit that sets (`value` a number) or removes (`value` null) option
+ * `prop` of track `name`: in the `.track(...)` its label's expression ends
+ * with, or in one appended to that expression. `fromTrack` says the label's
+ * value was a `.track(...)` made elsewhere, such as in a helper, which this
+ * edits nothing of.
  */
-export function computeOutNumericOptionEdit(
+export function computeTrackOptionEdit(
     source: string,
-    anchorOffset: number,
-    prop: string,
+    anchor: number,
+    name: string,
+    prop: 'gain' | 'pan',
     value: number | null,
-): OutOptionEdit | null {
-    return computeOptionPropertyEdit(
-        source,
-        anchorOffset,
-        prop,
-        value === null ? null : String(Number(value.toPrecision(4))),
-        isNumber,
-    );
+    fromTrack: boolean,
+): TrackSourceEdit | null {
+    const file = parseDsl(source);
+    const statement = trackAt(file, anchor, name);
+    if (!statement) {
+        return null;
+    }
+    const expression = (statement.statement as ts.ExpressionStatement)
+        .expression;
+    const newText =
+        value === null ? null : String(Number(value.toPrecision(4)));
+    const target = withoutScopes(expression);
+    if (isTrackCall(target)) {
+        return trackOptionEdit(file, target, prop, newText);
+    }
+    if (newText === null || fromTrack) {
+        return null;
+    }
+    // After any scopes, which keep drawing the signal they drew.
+    const call = `.track({ ${prop}: ${newText} })`;
+    if (chainable(expression)) {
+        return {
+            end: expression.getEnd(),
+            start: expression.getEnd(),
+            text: call,
+        };
+    }
+    const start = expression.getStart(file);
+    return {
+        end: expression.getEnd(),
+        start,
+        text: `(${source.slice(start, expression.getEnd())})${call}`,
+    };
 }
 
 /**
- * Compute the text edit that sets the master output gain: updates the
- * numeric literal in the last `$setOutputGain(...)` outside any function,
+ * Compute the text edit that sets the main gain: updates the numeric
+ * literal in the last `$setMainGain(...)` outside any function,
  * or appends a new call at the end of the source. A call inside a function
  * is never the one edited: whether and when it runs is the function's
  * caller's business. Returns null when that call's argument is not a
@@ -183,10 +251,10 @@ export function computeOutNumericOptionEdit(
  * statement of its own at the top of the patch, so whether it runs depends
  * on a branch or loop.
  */
-export function computeSetOutputGainEdit(
+export function computeSetMainGainEdit(
     source: string,
     value: number,
-): OutOptionEdit | null {
+): TrackSourceEdit | null {
     const newText = String(Number(value.toPrecision(4)));
     const file = parseDsl(source);
     let last: ts.CallExpression | undefined;
@@ -194,7 +262,7 @@ export function computeSetOutputGainEdit(
         if (
             ts.isCallExpression(node) &&
             ts.isIdentifier(node.expression) &&
-            node.expression.text === '$setOutputGain' &&
+            node.expression.text === '$setMainGain' &&
             !insideFunction(node) &&
             (!last || node.getStart(file) > last.getStart(file))
         ) {
@@ -219,100 +287,33 @@ export function computeSetOutputGainEdit(
     return {
         end: source.length,
         start: source.length,
-        text: `${needsNewline ? '\n' : ''}$setOutputGain(${newText})\n`,
+        text: `${needsNewline ? '\n' : ''}$setMainGain(${newText})\n`,
     };
 }
 
-function computeOptionPropertyEdit(
-    source: string,
-    anchorOffset: number,
+/** The edit to option `prop` of the `.track(...)` call `call`. */
+function trackOptionEdit(
+    file: ts.SourceFile,
+    call: ts.CallExpression,
     prop: string,
     newText: string | null,
-    isLiteral: LiteralCheck,
-): OutOptionEdit | null {
-    const file = parseDsl(source);
-    const call = outCallAt(file, anchorOffset);
-    const bounds = call && callParens(call, file);
-    if (!call || !bounds) {
+): TrackSourceEdit | null {
+    const source = file.text;
+    const bounds = callParens(call, file);
+    if (!bounds || call.arguments.length > 1) {
         return null;
     }
-    const method = (call.expression as ts.PropertyAccessExpression).name.text;
     const { open, close } = bounds;
-    const args = call.arguments;
-
-    // `.out(...)` carries its options object as the sole argument. `.outMono`
-    // normally takes a leading positional channel, so its options object is
-    // the second argument — unless the single-object overload `.outMono({…})`
-    // placed it first (an object as the first argument).
-    const firstIsObject =
-        args[0] !== undefined && ts.isObjectLiteralExpression(args[0]);
-    const optionsIndex = method === 'out' || firstIsObject ? 0 : 1;
-    const optionsArg = args[optionsIndex] as ts.Expression | undefined;
-    // Arguments past the options are no form these edits know.
-    const optionsLast = args.length === optionsIndex + 1;
-    const options =
-        optionsArg && ts.isObjectLiteralExpression(optionsArg)
-            ? optionsArg
-            : null;
+    const optionsArg = call.arguments[0];
+    if (optionsArg !== undefined && !ts.isObjectLiteralExpression(optionsArg)) {
+        return null;
+    }
+    const options = optionsArg;
 
     if (newText !== null) {
-        // --- Set `prop: <newText>` ---
         if (!options) {
-            if (method === 'out') {
-                // `.out()` — arg list must be empty (a non-object first arg
-                // is not a valid out() call).
-                if (optionsArg !== undefined) {
-                    return null;
-                }
-                return {
-                    end: close,
-                    start: open,
-                    text: `{ ${prop}: ${newText} }`,
-                };
-            }
-            // `.outMono(...)` — wrap a positional gain, append an options
-            // object, or supply the default channel for a bare call. Setting
-            // `gain` itself keeps the positional form.
-            if (optionsArg !== undefined) {
-                if (ts.isSpreadElement(optionsArg)) {
-                    return null;
-                }
-                const span = {
-                    end: optionsArg.getEnd(),
-                    start: optionsArg.getStart(file),
-                };
-                if (prop === 'gain') {
-                    return isLiteral(optionsArg)
-                        ? { ...span, text: newText }
-                        : null;
-                }
-                const gainText = optionsArg.getText(file);
-                return {
-                    ...span,
-                    text: `{ gain: ${gainText}, ${prop}: ${newText} }`,
-                };
-            }
-            if (args.length === 1) {
-                const end = args[0].getEnd();
-                return {
-                    end,
-                    start: end,
-                    text:
-                        prop === 'gain'
-                            ? `, ${newText}`
-                            : `, { ${prop}: ${newText} }`,
-                };
-            }
-            return {
-                end: close,
-                start: open,
-                text:
-                    prop === 'gain'
-                        ? `0, ${newText}`
-                        : `0, { ${prop}: ${newText} }`,
-            };
+            return { end: close, start: open, text: `{ ${prop}: ${newText} }` };
         }
-
         const objClose = closingTokenStart(
             options,
             file,
@@ -325,7 +326,7 @@ function computeOptionPropertyEdit(
         if (existing) {
             if (
                 !ts.isPropertyAssignment(existing) ||
-                !isLiteral(existing.initializer)
+                !isNumber(existing.initializer)
             ) {
                 return null;
             }
@@ -357,16 +358,6 @@ function computeOptionPropertyEdit(
 
     // --- Remove the property ---
     if (!options) {
-        // A positional outMono gain literal is removable in place.
-        if (
-            method === 'outMono' &&
-            prop === 'gain' &&
-            optionsArg !== undefined &&
-            optionsLast &&
-            isLiteral(optionsArg)
-        ) {
-            return { ...removalSpan(optionsArg, file), text: '' };
-        }
         return null;
     }
     const objClose = closingTokenStart(
@@ -379,11 +370,10 @@ function computeOptionPropertyEdit(
         objClose === null ||
         !existing ||
         !ts.isPropertyAssignment(existing) ||
-        !isLiteral(existing.initializer)
+        !isNumber(existing.initializer)
     ) {
         return null;
     }
-
     // Removing one of a repeated key would leave an earlier one in force.
     if (
         options.properties.some(
@@ -396,16 +386,15 @@ function computeOptionPropertyEdit(
     const leftover =
         source.slice(options.getStart(file) + 1, span.start) +
         source.slice(span.end, objClose);
-    // The only property, with no comment beside it to keep: drop the whole
-    // options argument.
     if (options.properties.length === 1 && leftover.trim() === '') {
-        if (!optionsLast) {
-            return null;
+        // Nothing left to set: drop the whole `.track(...)`, unless a scope
+        // chains on it, which draws the track's mixdown only off a track.
+        if (!ts.isPropertyAccessExpression(call.parent)) {
+            const receiver = (call.expression as ts.PropertyAccessExpression)
+                .expression;
+            return { end: call.getEnd(), start: receiver.getEnd(), text: '' };
         }
-        if (method === 'out') {
-            return { end: close, start: open, text: '' };
-        }
-        return { ...removalSpan(options, file), text: '' };
+        return { end: close, start: open, text: '' };
     }
     return { ...span, text: '' };
 }

@@ -68,18 +68,14 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Thick seven-voice saw",
-            code: r#"
-                $saw($unison('c3', 7, 3))
-                  .lpf('c6', 1)
-                  .out()
-            "#,
+            code: r#"melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"#,
         },
         DocExample {
             title: "Chord with breathing detune",
             code: r#"
-                $saw(
+                melody: $saw(
                   $unison($chord('C3[m9]'), 3, $sine('0.1hz').range(0, 4)),
-                ).out()
+                )
             "#,
         },
     ],

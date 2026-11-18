@@ -42,13 +42,16 @@ import {
     outputSetOf,
 } from './outputResolution';
 import { isPatternPayload, patternSignal } from './patterns';
+import { signalRootOf, carrySignalRoot, setSignalRoot } from './signalRoots';
 import { isPlainObject } from './plainObject';
+import { trackGates } from '../../shared/dsl/trackGates';
+import { trackNameKey } from '../../shared/dsl/trackLabels';
 import {
     assertSignalGroupsTopLevelOnly,
     expandSignalGroups,
     isSignalGroupLike,
 } from './signalGroups';
-import type { TrackTapSources, PendingTrackTap } from './trackTap';
+import type { TrackTapSources, PendingTrackTap, TrackTap } from './trackTap';
 import {
     type Channels,
     collectionChannels,
@@ -146,54 +149,63 @@ export function $cartesian<A extends unknown[][]>(
     ) as ElementsOf<A>[];
 }
 
-/** A send to a bus: the bus alone sends at full level, `[bus, gain]` at `gain`. */
-export type Send = Bus | [bus: Bus, gain: PolySignal];
+/**
+ * A send to a bus, named by its track's name: the name alone sends at full
+ * level, `[name, gain]` at `gain`.
+ */
+export type Send = TrackTap | [bus: TrackTap, gain: PolySignal];
 
-/** Options for stereo output routing */
-export interface StereoOutOptions {
-    /** Base output channel (0-62, default 0). Left plays on baseChannel, right on baseChannel+1 */
-    baseChannel?: number;
-    /** Output gain on the perceptual `.gain()` scale (5 = unity), applied after the stereo mix */
+/** Options of `.track()`: how a track mixes into its output channels. */
+export interface TrackOptions {
+    /** Gain on the perceptual `.gain()` scale (5 = unity), applied after the mixdown */
     gain?: PolySignal;
     /** Pan position (-5 = left, 0 = center, +5 = right). Default 0 */
     pan?: PolySignal;
     /** How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge). Default 0 */
     spread?: Signal;
-    /** Label shown on this output's VU meter. Must be unique across outs */
-    label?: string;
-    /** Silence this output. It is still metered; its VU meter greys out */
-    mute?: boolean;
-    /** When any output is soloed, only soloed outputs are audible */
-    solo?: boolean;
-    /** Buses this output also feeds, before its gain, pan, mute and solo */
+    /** Buses this track also feeds with its final signal */
     sends?: Send | Send[];
 }
 
-/** Options for mono output routing */
-export interface MonoOutOptions {
-    /** Output channel (0-63, default 0) */
-    channel?: number;
-    /** Output gain on the perceptual `.gain()` scale (5 = unity), applied after the mix */
-    gain?: PolySignal;
-    /** Label shown on this output's VU meter. Must be unique across outs */
-    label?: string;
-    /** Silence this output. It is still metered; its VU meter greys out */
-    mute?: boolean;
-    /** When any output is soloed, only soloed outputs are audible */
-    solo?: boolean;
-    /** Buses this output also feeds, before its gain, pan, mute and solo */
-    sends?: Send | Send[];
+const TRACK_OPTION_NAMES = new Set(['gain', 'pan', 'spread', 'sends']);
+
+/** A track as its label declares it. */
+export interface TrackDeclaration {
+    name: string;
+    displayName: string;
+    state: { mute: boolean; solo: boolean };
+    channel: number;
+    mono: boolean;
+    /** The group track this track plays into instead of output channels. */
+    group: string | null;
+}
+
+/** A `.scope()` on a track, drawn from the track's mixdown. */
+interface TrackScope {
+    config?: ScopeConfig;
+    sourceLocation?: { line: number; column: number };
 }
 
 /** VU meter / mute / solo state shared by both out group kinds */
 interface OutGroupVuState {
-    label?: string;
-    mute?: boolean;
-    solo?: boolean;
-    /** Source-order position across all out groups; assigned by addOut/addOutMono */
+    /** The track's name: the meter's key and its hidden modules' id. */
+    label: string;
+    displayName: string;
+    mute: boolean;
+    solo: boolean;
+    /** Source-order position across all out groups; assigned by addTrack */
     ordinal: number;
-    /** Location of the `.out(...)`/`.outMono(...)` call in the DSL source */
+    /** Location of the track's label in the DSL source */
     sourceLocation?: { line: number; column: number };
+    scopes: TrackScope[];
+    /** Whether the label's value was a `.track(...)` result. */
+    fromTrack: boolean;
+    /** The group track this track plays into instead of output channels. */
+    group: string | null;
+    /** Whether this track is a group's: rooted at a `$group()`. */
+    isGroup: boolean;
+    /** Whether this track is a bus's: rooted at a `$bus()`. */
+    isBus: boolean;
 }
 
 /** Internal storage for a stereo output group */
@@ -212,80 +224,19 @@ export interface MonoOutGroup extends OutGroupVuState {
     gain?: PolySignal;
 }
 
-/**
- * Distinguishes MonoOutOptions from a gain PolySignal (number | string |
- * array | ModuleOutput | iterable).
- */
-function isMonoOutOptions(v: unknown): v is MonoOutOptions {
-    return isPlainObject(v);
+/** Each track name's binding, by the value the name reads as. */
+const TRACK_BINDINGS = new WeakMap<object, string>();
+
+/** Mark `value` as what track `name`'s name reads as. */
+export function markTrackBinding(value: object, name: string): void {
+    TRACK_BINDINGS.set(value, name);
 }
 
-/**
- * Resolve the `.outMono(...)` overloads — `(channel?, gain?)`,
- * `(channel, options)`, or `(options)` — into one options object. An
- * explicit `channel` inside the options wins over the positional argument.
- */
-function resolveMonoOutArgs(
-    channelOrOptions: number | MonoOutOptions,
-    gainOrOptions?: PolySignal | MonoOutOptions,
-): MonoOutOptions {
-    if (isMonoOutOptions(channelOrOptions)) {
-        return channelOrOptions;
-    }
-    if (
-        channelOrOptions !== undefined &&
-        typeof channelOrOptions !== 'number'
-    ) {
-        throw new Error(
-            '.outMono: the first argument is a channel number or an options object; pass a gain as the second argument',
-        );
-    }
-    if (isMonoOutOptions(gainOrOptions)) {
-        return { channel: channelOrOptions, ...gainOrOptions };
-    }
-    return { channel: channelOrOptions, gain: gainOrOptions };
-}
-
-/**
- * Whether `value` is one `[bus, gain]` pair rather than a list of sends: a
- * bus followed by something that is neither a bus nor a pair.
- */
-function isSendPair(value: unknown): value is [Bus, PolySignal] {
-    if (!Array.isArray(value) || value.length !== 2) {
-        return false;
-    }
-    const [bus, gain] = value as unknown[];
-    return (
-        bus instanceof Bus &&
-        !(gain instanceof Bus) &&
-        !(Array.isArray(gain) && gain[0] instanceof Bus)
-    );
-}
-
-/** The `[bus, gain]` pairs of an out's `sends` option. */
-function resolveSends(
-    sends: Send | Send[] | undefined,
-): [Bus, PolySignal | undefined][] {
-    if (sends === undefined) {
-        return [];
-    }
-    const entries = sends instanceof Bus || isSendPair(sends) ? [sends] : sends;
-    if (!Array.isArray(entries)) {
-        throw new Error(
-            '.out sends must be a $bus, a [bus, gain] pair, or an array of them',
-        );
-    }
-    return entries.map((entry: unknown) => {
-        if (entry instanceof Bus) {
-            return [entry, undefined];
-        }
-        if (isSendPair(entry)) {
-            return [entry[0], entry[1]];
-        }
-        throw new Error(
-            '.out sends: each send must be a $bus or a [bus, gain] pair',
-        );
-    });
+/** The track name `value` is the binding of. */
+function trackBindingName(value: unknown): string | undefined {
+    return typeof value === 'object' && value !== null
+        ? TRACK_BINDINGS.get(value)
+        : undefined;
 }
 
 /**
@@ -323,124 +274,117 @@ interface SendGroup {
 }
 
 /**
- * A send-return bus. Its callback runs in `toPatch`, once every send is
- * known, so `.out`/`.outMono` reserve their out group (ordinal, label,
- * channel) at the call and fill its outputs from the callback's result.
+ * A send-return bus: `$bus()`. Its signal is one lane, the mix of every send
+ * to it, known only once every track has run, so it is deferred until
+ * `toPatch`. Sends name the bus by the track rooted at its signal.
  */
 export class Bus {
     private builder: GraphBuilder;
-    private cb: (mixed: Collection) => PolySignal | void;
     private sendGroups: SendGroup[] = [];
-    private outGroups: OutGroup[] = [];
-    private locked: boolean = false;
+    private readonly mix: DeferredModuleOutput;
+    readonly signal: Collection;
+    /** The track rooted at this bus's signal. */
+    trackName: string | undefined;
 
-    constructor(
-        builder: GraphBuilder,
-        cb: (mixed: Collection) => PolySignal | void,
-    ) {
+    constructor(builder: GraphBuilder) {
         this.builder = builder;
-        this.cb = cb;
-
+        this.mix = new DeferredModuleOutput(builder);
+        this.signal = new Collection(this.mix);
+        setSignalRoot(this.signal, this);
         builder.addBus(this);
     }
 
-    addSend(value: ModuleOutput | ModuleOutput[], gain?: PolySignal): void {
-        if (this.locked) {
-            throw new Error('`sends` is not allowed in $bus callbacks');
-        }
-        const outputs = Array.isArray(value) ? [...value] : [value];
-        const group: SendGroup = {
-            gain,
-            outputs,
-        };
-        this.sendGroups.push(group);
+    addSend(outputs: ModuleOutput[], gain?: PolySignal): void {
+        this.sendGroups.push({ gain, outputs });
     }
 
-    /**
-     * Send the bus's return (its callback's result) to speakers as stereo,
-     * with the same options as a collection's `.out()`.
-     */
-    out(options: StereoOutOptions = {}): this {
-        this.assertOpen('.out', options);
-        this.outGroups.push(
-            this.builder.addOut(
-                [],
-                { baseChannel: 0, ...options },
-                captureSourceLocation(),
-            ),
-        );
-        return this;
-    }
-
-    /**
-     * Send the bus's return (its callback's result) to speakers as mono,
-     * with the same arguments as a collection's `.outMono()`.
-     */
-    outMono(
-        channelOrOptions: number | MonoOutOptions = 0,
-        gainOrOptions?: PolySignal | MonoOutOptions,
-    ): this {
-        const options = resolveMonoOutArgs(channelOrOptions, gainOrOptions);
-        this.assertOpen('.outMono', options);
-        this.outGroups.push(
-            this.builder.addOutMono([], options, captureSourceLocation()),
-        );
-        return this;
-    }
-
-    /**
-     * Outs on a bus must be declared before `toPatch` runs its callback, and
-     * cannot send: a bus's return exists only once its callback has run.
-     */
-    private assertOpen(
-        method: string,
-        options: StereoOutOptions | MonoOutOptions,
-    ): void {
-        if (this.locked) {
-            throw new Error(
-                `\`${method}\` on a bus is not allowed in $bus callbacks`,
-            );
-        }
-        if (options.sends !== undefined) {
-            throw new Error(
-                `\`${method}\` on a bus cannot take \`sends\`: a bus cannot send to another bus`,
-            );
-        }
-    }
-
-    lock() {
-        this.locked = true;
-    }
-
+    /** Build the mix of the sends and point the bus's signal at it. */
     finalize() {
-        const mixFactory = this.builder.getFactory('$mix');
-        const mixed = mixFactory(
-            this.sendGroups.map((e) => {
-                const coll = this.builder.$c(e.outputs);
-                if (e.gain !== undefined) {
-                    return this.builder.getFactory('$gain')(coll, e.gain);
-                }
-                return coll;
-            }),
-        ) as Collection;
-        const result = this.cb(mixed);
-        if (this.outGroups.length === 0) {
+        if (this.sendGroups.length === 0) {
+            this.mix.set(0);
             return;
         }
-        if (result === undefined || result === null) {
-            throw new Error(
-                '$bus callback must return a signal to route with `.out()`/`.outMono()`',
-            );
+        const mixed = this.builder.getFactory('$mix')(
+            this.sendGroups.map((e) => {
+                const coll = this.builder.$c(e.outputs);
+                return e.gain === undefined
+                    ? coll
+                    : this.builder.getFactory('$gain')(coll, e.gain);
+            }),
+        );
+        this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
+    }
+}
+
+/**
+ * A group: `$group()`. Its signal is one stereo lane, the sum of the final
+ * output of every track whose label names the group's track, known only once
+ * every track is built, so it is deferred until `toPatch`.
+ */
+export class Group {
+    private builder: GraphBuilder;
+    private members: ModuleOutput[][] = [];
+    private readonly mix: DeferredModuleOutput;
+    readonly signal: Collection;
+    /** The track rooted at this group's signal. */
+    trackName: string | undefined;
+
+    constructor(builder: GraphBuilder) {
+        this.builder = builder;
+        this.mix = new DeferredModuleOutput(builder);
+        this.signal = new Collection(this.mix);
+        setSignalRoot(this.signal, this);
+        builder.addGroup(this);
+    }
+
+    addMember(outputs: ModuleOutput[]): void {
+        this.members.push(outputs);
+    }
+
+    /** Build the sum of the members and point the group's signal at it. */
+    finalize() {
+        if (this.members.length === 0) {
+            this.mix.set(0);
+            return;
         }
-        const outputs = this.builder.$c(result).items;
-        if (outputs.length === 0) {
-            throw new Error(
-                '$bus callback returned no signal to route with `.out()`/`.outMono()`',
-            );
+        const mixed = this.builder.getFactory('$mix')(this.members);
+        this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
+    }
+}
+
+/**
+ * A signal with the options it mixes into the mixer with. It is not
+ * a signal: a track is heard by labelling it, and only `.scope()` chains on
+ * it, drawing the track's mixdown.
+ */
+export class Track {
+    readonly source: unknown;
+    readonly options: TrackOptions;
+    readonly scopes: TrackScope[] = [];
+
+    constructor(source: unknown, options: TrackOptions) {
+        if (
+            options === null ||
+            typeof options !== 'object' ||
+            Array.isArray(options)
+        ) {
+            throw new Error('.track takes an options object');
         }
-        for (const group of this.outGroups) {
-            group.outputs.push(...outputs);
+        for (const key of Object.keys(options)) {
+            if (!TRACK_OPTION_NAMES.has(key)) {
+                throw new Error(
+                    `.track has no \`${key}\` option: it takes gain, pan, spread and sends, and the track's label sets its name, mute, solo and channels`,
+                );
+            }
         }
+        this.source = source;
+        this.options = options;
+    }
+
+    /** Scope the track's mixdown: one lane, after its pan, spread and gain. */
+    scope(config?: ScopeConfig): this {
+        this.scopes.push({ config, sourceLocation: captureSourceLocation() });
+        return this;
     }
 }
 
@@ -509,6 +453,7 @@ export class BaseCollection<T extends ModuleOutput> {
     slice(start?: number, end?: number): this {
         const ctor = this.constructor as new (...args: T[]) => this;
         const sliced = new ctor(...this.items.slice(start, end));
+        carrySignalRoot(sliced, this);
         const set = outputSetOf(this);
         if (set) {
             sliceRoot(sliced, set, this.items.length, start, end);
@@ -553,6 +498,7 @@ export class BaseCollection<T extends ModuleOutput> {
         }
         const joined = new ctor(...this.items, ...(that.items as T[]));
         concatRoots(joined, this, that);
+        carrySignalRoot(joined, this);
         return joined;
     }
 
@@ -574,49 +520,11 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 
     /**
-     * Send all outputs to speakers as stereo
-     * @param options.baseChannel - Base output channel (0-62, default 0)
-     * @param options.gain - Output gain
-     * @param options.pan - Pan position (-5 = left, 0 = center, +5 = right)
-     * @param options.spread - How far the lanes fan out across the stereo field (0 = none, 5 = edge to edge, default 0)
-     * @param options.label - Label shown on this output's VU meter
-     * @param options.mute - Silence this output (still metered)
-     * @param options.solo - When any output is soloed, only soloed outputs are audible
-     * @param options.sends - Buses this output also feeds: a bus, a `[bus, gain]` pair, or an array of them
+     * How this signal mixes into its track: gain, pan, spread and sends. A
+     * track is heard once labelled (`bass: sig.track({ pan: -2 })`).
      */
-    out(options: StereoOutOptions = {}): this {
-        if (this.items.length > 0) {
-            const loc = captureSourceLocation();
-            this.items[0].builder.addOut(
-                [...this.items],
-                {
-                    baseChannel: 0,
-                    ...options,
-                },
-                loc,
-            );
-        }
-        return this;
-    }
-
-    /**
-     * Send all outputs to speakers as mono
-     * @param channelOrOptions - Output channel (0-63, default 0), or `{ channel, gain, label, mute, solo, sends }` options
-     * @param gainOrOptions - Output gain, or the same options (an explicit `channel` there wins)
-     */
-    outMono(
-        channelOrOptions: number | MonoOutOptions = 0,
-        gainOrOptions?: PolySignal | MonoOutOptions,
-    ): this {
-        if (this.items.length > 0) {
-            const loc = captureSourceLocation();
-            this.items[0].builder.addOutMono(
-                [...this.items],
-                resolveMonoOutArgs(channelOrOptions, gainOrOptions),
-                loc,
-            );
-        }
-        return this;
+    track(options: TrackOptions = {}): Track {
+        return new Track(this, options);
     }
 
     pipe<U>(pipelineFunc: (self: this) => U): U;
@@ -641,7 +549,9 @@ export class BaseCollection<T extends ModuleOutput> {
         mix: PolySignal = 2.5,
     ): Collection {
         const result = pipelineFunc(this);
-        return crossfadeMix(this.items[0].builder, this, result, mix);
+        const mixed = crossfadeMix(this.items[0].builder, this, result, mix);
+        carrySignalRoot(mixed, this);
+        return mixed;
     }
 
     /**
@@ -650,7 +560,12 @@ export class BaseCollection<T extends ModuleOutput> {
      */
     wet(mix: PolySignal = 2.5): Collection {
         const builder = this.items[0]?.builder;
-        return builder ? wetMix(builder, this, mix) : new Collection();
+        if (!builder) {
+            return new Collection();
+        }
+        const mixed = wetMix(builder, this, mix);
+        carrySignalRoot(mixed, this);
+        return mixed;
     }
 
     /** A one-lane collection reads as its lane, so it interpolates into patterns. */
@@ -887,13 +802,11 @@ export class GraphBuilder implements ChainHost {
     private outGroups = new Map<number, OutGroup[]>();
     /** Monotonic source-order counter for out groups */
     private outGroupOrdinal = 0;
-    /** Out labels seen so far, for duplicate detection */
-    private outLabels = new Set<string>();
     private factoryRegistry = new Map<string, FactoryFunction>();
     private sourceLocationMap = new Map<string, SourceLocation>();
     /** Track all deferred outputs for string replacement during toPatch */
     private deferredOutputs = new Map<string, DeferredModuleOutput>();
-    /** `$trackTap` taps, resolved against their labeled out in toPatch */
+    /** `$trackTap` taps, resolved against their track by name in toPatch */
     private trackTaps: {
         label: string;
         tap: PendingTrackTap;
@@ -903,8 +816,8 @@ export class GraphBuilder implements ChainHost {
     private tempo: number = 120;
     /** Whether $setTempo was explicitly called in the DSL */
     private tempoExplicitlySet: boolean = false;
-    /** Global output gain signal. */
-    private outputGain: PolySignal = DEFAULT_OUTPUT_GAIN;
+    /** Main gain signal. */
+    private mainGain: PolySignal = DEFAULT_OUTPUT_GAIN;
     /** Time signature numerator (beats per bar) for ROOT_CLOCK */
     private timeSignatureNumerator: number = 4;
     /** Time signature denominator (beat value) for ROOT_CLOCK */
@@ -912,10 +825,22 @@ export class GraphBuilder implements ChainHost {
     /** Global groove template for ROOT_CLOCK; straight when unset */
     private groove: GrooveTemplate | undefined = undefined;
     private busses: Bus[] = [];
+    /** Each labelled bus, by its track's name. */
+    private bussesByName = new Map<string, Bus>();
+    private groups: Group[] = [];
+    /** Each labelled group, by its track's name. */
+    private groupsByName = new Map<string, Group>();
+    /**
+     * Each track's `sends` option, settled in toPatch: which names are buses
+     * is known only once every label has run.
+     */
+    private pendingSends: {
+        track: string;
+        sends: unknown;
+    }[] = [];
     private endOfChainCb: (
         mixed: Collection,
     ) => Collection | CollectionWithRange = (e) => e;
-    private processingBusses: boolean = false;
     private processingEndOfChain: boolean = false;
 
     constructor(schemas: ModuleSchema[]) {
@@ -1213,11 +1138,11 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Set the global output gain
-     * @param gain - Signal value for output gain (2.5 is default, 5.0 is unity)
+     * Set the main gain
+     * @param gain - Signal value for main gain (2.5 is default, 5.0 is unity)
      */
-    setOutputGain(gain: PolySignal): void {
-        this.outputGain = gain;
+    setMainGain(gain: PolySignal): void {
+        this.mainGain = gain;
     }
 
     /**
@@ -1307,14 +1232,15 @@ export class GraphBuilder implements ChainHost {
      * which adds overhead from lane count derivation on every patch build.
      */
     toPatch(): PatchGraph {
-        this.processingBusses = true;
-        for (const bus of this.busses) {
-            // Lock the bus from having more sends applied to it
-            bus.lock();
-        }
-        for (const bus of this.busses) {
-            bus.finalize();
-        }
+        // A send carries its track's final signal through the mixer stage of
+        // every group it plays into, so sends are added once every track's
+        // stage is built, and the buses are finalized after.
+        const sendsByTrack = new Map(
+            this.pendingSends.map(({ track, sends }) => [
+                track,
+                this.resolveSends(track, sends),
+            ]),
+        );
 
         const signalFactory = this.getFactory('$signal');
         const mixFactory = this.getFactory('$mix');
@@ -1332,7 +1258,53 @@ export class GraphBuilder implements ChainHost {
         // sorted into source order before emission.
         const vuMeters: (VuMeterDef & { ordinal: number })[] = [];
 
-        // Each labeled out's signals, for `$trackTap` taps.
+        /**
+         * A track's mixer stage: its mixdown, pan and gain, then its mute/solo
+         * gate.
+         */
+        interface MixStage {
+            type: OutGroup['type'];
+            pan: PolySignal;
+            spread: PolySignal;
+            gain: PolySignal;
+            gate: Collection;
+        }
+        // A stereo stage pans its lanes and sums them into one stereo lane;
+        // a centred lane plays at unity on both sides, as on a DAW track. A
+        // mono stage sums its lanes folded. The result is post-gain,
+        // pre-gate, which is where a track's meter reads, like a post-fader
+        // DAW meter.
+        const gainStage = (
+            outputs: ModuleOutput[],
+            stage: Omit<MixStage, 'gate'>,
+            tapId?: string,
+        ): ModuleOutput[] => {
+            const mixed =
+                stage.type === 'stereo'
+                    ? setLanesFactory(
+                          panFactory(outputs, stage.pan, {
+                              spread: stage.spread,
+                          }),
+                          1,
+                      ).items
+                    : setLanesFactory(monoFactory(outputs), 1).items;
+            return gainFactory(
+                mixed,
+                stage.gain,
+                tapId === undefined ? undefined : { id: tapId },
+            ).items;
+        };
+        const gated = (signal: ModuleOutput[], gate: Collection) =>
+            (ampFactory(signal, gate) as Collection).items;
+        // Each track's stage and the group it plays into, by name, and each
+        // sending track's final signal.
+        const stagesByLabel = new Map<
+            string,
+            { stage: MixStage; group: string | null }
+        >();
+        const sending: { label: string; outputs: ModuleOutput[] }[] = [];
+
+        // Each track's signals, by name, for `$trackTap` taps.
         const outsByLabel = new Map<
             string,
             {
@@ -1357,34 +1329,25 @@ export class GraphBuilder implements ChainHost {
                 .flat()
                 .sort((a, b) => a.ordinal - b.ordinal);
 
-            // Solo state is global: any solo silences every non-soloed group.
-            const anySolo = allGroups.some((g) => g.solo);
+            const gates = trackGates(
+                allGroups.map((g) => ({
+                    group: g.group,
+                    isBus: g.isBus,
+                    key: g.label,
+                    mute: g.mute,
+                    solo: g.solo,
+                })),
+            );
 
-            // Display key and sanitized module-id suffix per group, assigned
-            // in source order. Keys join renderer state to meters, so they
-            // are unique across every meter: labels are unique and never
-            // '__main__' (both enforced at addOut time), and unlabeled outs
-            // take the next `out N` name not claimed by a label. Suffixes
-            // seed the hidden __vu* module ids, so they are unique too —
-            // 'main' is reserved for the master gain stage, and distinct
-            // labels that sanitize alike get a numeric disambiguator.
-            const keyByOrdinal = new Map<number, string>();
+            // Module-id suffix per group, assigned in source order. Keys are
+            // track names, unique and never '__main__' (a name is an
+            // identifier); suffixes seed the hidden __vu* module ids, so they
+            // are unique too — 'main' is reserved for the main gain stage,
+            // and names that sanitize alike get a numeric disambiguator.
             const skByOrdinal = new Map<number, string>();
             const usedSk = new Set<string>(['main']);
-            let autoKeyNumber = 1;
             for (const group of allGroups) {
-                let key: string;
-                if (group.label === undefined) {
-                    while (this.outLabels.has(`out ${autoKeyNumber}`)) {
-                        autoKeyNumber++;
-                    }
-                    key = `out ${autoKeyNumber}`;
-                    autoKeyNumber++;
-                } else {
-                    key = group.label;
-                }
-                keyByOrdinal.set(group.ordinal, key);
-                const skBase = key.replace(/[^a-zA-Z0-9_]/g, '_');
+                const skBase = group.label.replace(/[^a-zA-Z0-9_]/g, '_');
                 let sk = skBase;
                 for (let n = 2; usedSk.has(sk); n++) {
                     sk = `${skBase}_${n}`;
@@ -1393,27 +1356,11 @@ export class GraphBuilder implements ChainHost {
                 skByOrdinal.set(group.ordinal, sk);
             }
 
-            // Out groups created by the same `.out()` call (a call site
-            // inside a loop or helper) share one source span, so a per-meter
-            // option edit there would rewrite every instance. Meters at a
-            // shared call site carry no sourceLocation; their panel controls
-            // stay live-only and the source reasserts on the next eval.
-            const groupsPerCallSite = new Map<string, number>();
-            for (const group of allGroups) {
-                if (group.sourceLocation) {
-                    const siteKey = `${group.sourceLocation.line}:${group.sourceLocation.column}`;
-                    groupsPerCallSite.set(
-                        siteKey,
-                        (groupsPerCallSite.get(siteKey) ?? 0) + 1,
-                    );
-                }
-            }
-
             for (const baseChannel of sortedChannels) {
                 const groups = this.outGroups.get(baseChannel)!;
 
                 for (const group of groups) {
-                    const key = keyByOrdinal.get(group.ordinal)!;
+                    const key = group.label;
                     // Sanitized id suffix for the group's deterministic
                     // __vuTap_/__vuMute_ module ids.
                     const sk = skByOrdinal.get(group.ordinal)!;
@@ -1444,8 +1391,8 @@ export class GraphBuilder implements ChainHost {
                     const gainValue = gainControllable
                         ? ((group.gain as number | undefined) ?? UNITY_OUT_GAIN)
                         : null;
-                    // A signal gain is averaged to one lane, so the out stays
-                    // one lane wide, and a mono out's is folded with it.
+                    // A signal gain is averaged to one lane, so the track stays
+                    // one lane wide, and a mono track's is folded with it.
                     const gainSource = gainControllable
                         ? smoothControlFactory(gainValue, {
                               ...OUT_GAIN_RANGE,
@@ -1469,34 +1416,20 @@ export class GraphBuilder implements ChainHost {
                                 })
                               : group.pan!;
 
-                    // Group mix, then the gain stage — the tap: the meter
-                    // reads post-gain, pre-mute like a post-fader DAW meter.
-                    // A stereo out pans its lanes and sums them into one
-                    // stereo lane; a centred lane plays at unity on both
-                    // sides, as on a DAW track. A mono out sums its lanes
-                    // folded.
-                    const mixSignals: ModuleOutput[] =
-                        group.type === 'stereo'
-                            ? setLanesFactory(
-                                  panFactory(group.outputs, panSource, {
-                                      spread: group.spread ?? 0,
-                                  }),
-                                  1,
-                              ).items
-                            : setLanesFactory(monoFactory(group.outputs), 1)
-                                  .items;
-
-                    let outputSignals: ModuleOutput[] = gainFactory(
-                        mixSignals,
-                        gainSource,
-                        { id: tapId },
-                    ).items;
+                    const levels = {
+                        gain: gainSource,
+                        pan: panSource,
+                        spread:
+                            group.type === 'stereo' ? (group.spread ?? 0) : 0,
+                        type: group.type,
+                    };
+                    const tapOutputs = gainStage(group.outputs, levels, tapId);
 
                     // Mute/solo gate stage. The gate $signal holds 5 (unity
                     // for `$amp`) or 0 (silence); the VU panel
                     // flips it live via the single-module update path, and the
                     // $slew declicks the 5 V swing over ~10 ms.
-                    const gate = (anySolo ? group.solo : !group.mute) ? 5 : 0;
+                    const gate = gates.get(group.label) ? 5 : 0;
                     const muteSig = signalFactory(gate, {
                         ...GATE_RANGE,
                         id: `__vuMute_${sk}`,
@@ -1505,7 +1438,7 @@ export class GraphBuilder implements ChainHost {
                         fall: 0.002,
                         id: `__vuSlew_${sk}`,
                         rise: 0.002,
-                    });
+                    }) as Collection;
                     // The gate must sit at this patch's mute state from a
                     // swap's first sample — a carried-over open gate would
                     // leak an on-bar attack while still closing. Live M/S
@@ -1516,70 +1449,40 @@ export class GraphBuilder implements ChainHost {
                     if (slewSpec) {
                         slewSpec.skipStateTransfer = true;
                     }
-                    const gated = ampFactory(
-                        outputSignals,
-                        smoothed,
-                    ) as Collection;
-                    outputSignals = gated.items;
+                    const outputSignals = gated(tapOutputs, smoothed);
+                    const stage: MixStage = { ...levels, gate: smoothed };
+                    stagesByLabel.set(group.label, {
+                        group: group.group,
+                        stage,
+                    });
 
-                    if (group.label !== undefined) {
-                        outsByLabel.set(group.label, {
-                            active: muteSig.items[0],
-                            audio: outputSignals,
-                            // The tap reads the gain as written, ranged as
-                            // the user's own signal is.
-                            level: gainControllable ? gainSource : group.gain!,
-                            pan: panSource,
+                    if (sendsByTrack.has(group.label)) {
+                        sending.push({
+                            label: group.label,
+                            outputs: outputSignals,
                         });
                     }
 
-                    // Unlabeled outs' id suffix comes from a positional
-                    // counter that shifts when outs elsewhere are added or
-                    // removed, so these ids carry no identity across edits.
-                    // Flag them implicit so the similarity reconciler matches
-                    // the instances structurally, as it does for every other
-                    // anonymous module. Label-derived ids stay explicit —
-                    // the label is stable identity.
-                    if (group.label === undefined) {
-                        for (const hiddenId of [
-                            tapId,
-                            `__vuMute_${sk}`,
-                            `__vuSlew_${sk}`,
-                            `__vuGain_${sk}`,
-                            `__vuPan_${sk}`,
-                        ]) {
-                            const spec = this.modules.get(hiddenId);
-                            if (spec) {
-                                spec.idIsExplicit = false;
-                            }
-                        }
-                        // A structural match can pair a gain or pan control
-                        // with another out's, so they start at this patch's
-                        // value rather than ramp from a stranger's. Live
-                        // fader drags are single-module updates and still
-                        // ramp.
-                        for (const controlId of [
-                            `__vuGain_${sk}`,
-                            `__vuPan_${sk}`,
-                        ]) {
-                            const spec = this.modules.get(controlId);
-                            if (spec) {
-                                spec.skipStateTransfer = true;
-                            }
-                        }
-                    }
+                    outsByLabel.set(group.label, {
+                        active: muteSig.items[0],
+                        audio: outputSignals,
+                        // The tap reads the gain as written, ranged as the
+                        // user's own signal is.
+                        level: gainControllable ? gainSource : group.gain!,
+                        pan: panSource,
+                    });
 
-                    const editableLocation =
-                        group.sourceLocation &&
-                        groupsPerCallSite.get(
-                            `${group.sourceLocation.line}:${group.sourceLocation.column}`,
-                        ) === 1
-                            ? group.sourceLocation
-                            : undefined;
+                    for (const { config, sourceLocation } of group.scopes) {
+                        this.addScope(tapOutputs, config, sourceLocation);
+                    }
 
                     vuMeters.push({
                         baseChannel,
                         channels: group.type === 'stereo' ? 2 : 1,
+                        fromTrack: group.fromTrack,
+                        group: group.group,
+                        isGroup: group.isGroup,
+                        isBus: group.isBus,
                         gain: gainValue,
                         gainLocked: !gainControllable,
                         gainModuleId: gainControllable
@@ -1589,9 +1492,9 @@ export class GraphBuilder implements ChainHost {
                             ? undefined
                             : controlSourceTap(group.gain),
                         key,
-                        label: group.label ?? null,
+                        label: group.displayName,
                         moduleId: tapId,
-                        mute: group.mute === true,
+                        mute: group.mute,
                         muteModuleId: `__vuMute_${sk}`,
                         ordinal: group.ordinal,
                         pan: panValue,
@@ -1601,9 +1504,21 @@ export class GraphBuilder implements ChainHost {
                             ? controlSourceTap(group.pan)
                             : undefined,
                         portName: 'output',
-                        solo: group.solo === true,
-                        sourceLocation: editableLocation,
+                        solo: group.solo,
+                        sourceLocation: group.sourceLocation,
                     });
+
+                    // A track with a group plays into it and nowhere else.
+                    if (group.group !== null) {
+                        const target = this.groupsByName.get(group.group);
+                        if (!target) {
+                            throw new Error(
+                                `track ${group.label} cannot play into ${group.group}, which is not a group. A group is a track whose signal is $group() or methods chained on it`,
+                            );
+                        }
+                        target.addMember(outputSignals);
+                        continue;
+                    }
 
                     // Build channel collection with baseChannel silent channels prepended
                     const channelCollection: (ModuleOutput | number)[] = [];
@@ -1627,6 +1542,26 @@ export class GraphBuilder implements ChainHost {
                     allChannelCollections.push(channelCollection);
                 }
             }
+            for (const group of this.groups) {
+                group.finalize();
+            }
+            for (const { label, outputs } of sending) {
+                let sent = outputs;
+                for (
+                    let parent = stagesByLabel.get(label)!.group;
+                    parent !== null;
+                    parent = stagesByLabel.get(parent)!.group
+                ) {
+                    const { stage } = stagesByLabel.get(parent)!;
+                    sent = gated(gainStage(sent, stage), stage.gate);
+                }
+                for (const [bus, gain] of sendsByTrack.get(label)!) {
+                    bus.addSend(sent, gain);
+                }
+            }
+            for (const bus of this.busses) {
+                bus.finalize();
+            }
             // Mix all channel collections together using poly mix
             // Each collection contributes to corresponding output channels
             const finalMix = mixFactory(allChannelCollections) as Collection;
@@ -1634,26 +1569,26 @@ export class GraphBuilder implements ChainHost {
             // Apply end of chain processing and global output gain. A
             // numeric output gain is lifted into a _smoothControl so the
             // master fader can drive it live; the fader's source edits go
-            // through $setOutputGain. A signal-valued output gain renders as
+            // through $setMainGain. A signal-valued main gain renders as
             // a locked, live-tracking fader.
             this.processingEndOfChain = true;
-            const masterGainControllable = typeof this.outputGain === 'number';
-            const masterGainValue = masterGainControllable
-                ? (this.outputGain as number)
+            const mainGainControllable = typeof this.mainGain === 'number';
+            const mainGainValue = mainGainControllable
+                ? (this.mainGain as number)
                 : null;
-            const masterGainSignal = masterGainControllable
-                ? smoothControlFactory(this.outputGain, {
+            const mainGainSignal = mainGainControllable
+                ? smoothControlFactory(this.mainGain, {
                       ...OUT_GAIN_RANGE,
                       id: '__vuGain_main',
                   })
-                : this.outputGain;
+                : this.mainGain;
             const gainedMix = gainFactory(
                 this.endOfChainCb(finalMix),
-                masterGainSignal,
+                mainGainSignal,
             );
 
             // The root output's lanes are device channels, so whatever stereo
-            // the end-of-chain callback or a signal master gain brings in is
+            // the end-of-chain callback or a signal main gain brings in is
             // folded, keeping each lane on its own channel.
             signalFactory(monoFactory(gainedMix), { id: 'ROOT_OUTPUT' });
 
@@ -1663,12 +1598,12 @@ export class GraphBuilder implements ChainHost {
             vuMeters.push({
                 baseChannel: 0,
                 channels: 2,
-                gain: masterGainValue,
-                gainLocked: !masterGainControllable,
-                gainModuleId: masterGainControllable ? '__vuGain_main' : null,
-                gainSource: masterGainControllable
+                gain: mainGainValue,
+                gainLocked: !mainGainControllable,
+                gainModuleId: mainGainControllable ? '__vuGain_main' : null,
+                gainSource: mainGainControllable
                     ? undefined
-                    : controlSourceTap(this.outputGain),
+                    : controlSourceTap(this.mainGain),
                 key: '__main__',
                 label: 'Main',
                 main: true,
@@ -1684,8 +1619,14 @@ export class GraphBuilder implements ChainHost {
                 sourceLocation: undefined,
             });
         } else {
+            for (const group of this.groups) {
+                group.finalize();
+            }
             // No outputs registered - create silent root signal (0V)
             signalFactory(0, { id: 'ROOT_OUTPUT' });
+            for (const bus of this.busses) {
+                bus.finalize();
+            }
         }
 
         // A tap control is the first lane of its source: tapped directly
@@ -1710,17 +1651,17 @@ export class GraphBuilder implements ChainHost {
             }
             return (signalFactory(first, { ...range }) as Collection).items[0];
         };
-        // Every tap of an out shares its sources.
+        // Every tap of a track shares its sources.
         const outSources = new Map<string, TrackTapSources>();
         for (const { label, tap, sourceLocation } of this.trackTaps) {
-            const out = outsByLabel.get(label);
+            const out = outsByLabel.get(trackNameKey(label));
             if (!out) {
                 const at = sourceLocation
                     ? ` (line ${sourceLocation.line})`
                     : '';
-                throw new Error(`$trackTap: no out is labeled "${label}"${at}`);
+                throw new Error(`$trackTap: no track is named "${label}"${at}`);
             }
-            let sources = outSources.get(label);
+            let sources = outSources.get(trackNameKey(label));
             if (!sources) {
                 sources = {
                     active: control(out.active, GATE_RANGE),
@@ -1728,7 +1669,7 @@ export class GraphBuilder implements ChainHost {
                     level: control(out.level, OUT_GAIN_RANGE),
                     panning: control(out.pan, OUT_PAN_RANGE),
                 };
-                outSources.set(label, sources);
+                outSources.set(trackNameKey(label), sources);
             }
             tap.resolve(sources);
         }
@@ -1919,13 +1860,16 @@ export class GraphBuilder implements ChainHost {
         this.eqPanels = [];
         this.counters.clear();
         this.outGroups.clear();
+        this.bussesByName.clear();
+        this.groups = [];
+        this.groupsByName.clear();
+        this.pendingSends = [];
         this.outGroupOrdinal = 0;
-        this.outLabels.clear();
         this.sourceLocationMap.clear();
         this.deferredOutputs.clear();
         this.trackTaps = [];
         this.tempo = 120;
-        this.outputGain = DEFAULT_OUTPUT_GAIN;
+        this.mainGain = DEFAULT_OUTPUT_GAIN;
         this.timeSignatureNumerator = 4;
         this.timeSignatureDenominator = 4;
         this.groove = undefined;
@@ -1940,114 +1884,118 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Register module output(s) for stereo output routing
+     * Register the track a label declares, from the labelled value: a
+     * signal or its `.track()`.
      */
-    addOut(
-        value: ModuleOutput | ModuleOutput[],
-        options: StereoOutOptions = {},
+    addTrack(
+        declaration: TrackDeclaration,
+        value: unknown,
         sourceLocation?: { line: number; column: number },
-    ): StereoOutGroup {
+    ): void {
         if (this.processingEndOfChain) {
             throw new Error(
-                '`.out` is not allowed in the end of chain processor callback.',
+                'a track label is not allowed in the end of chain processor callback.',
             );
         }
-
-        // The right channel lands on baseChannel + 1, so the pair has to fit
-        // inside the engine's port width.
-        const baseChannel = options.baseChannel ?? 0;
-        if (baseChannel < 0 || baseChannel > PORT_MAX_LANES - 2) {
+        const { name, channel, mono } = declaration;
+        const track = value instanceof Track ? value : undefined;
+        const source = track ? track.source : value;
+        const options = track?.options ?? {};
+        if (
+            mono &&
+            (options.pan !== undefined || options.spread !== undefined)
+        ) {
             throw new Error(
-                `baseChannel must be 0-${PORT_MAX_LANES - 2}, got ${baseChannel}`,
+                `track ${name} is mono, so its .track() takes no pan or spread`,
             );
         }
-
-        this.registerOutLabel(options.label);
-
-        const outputs = Array.isArray(value) ? [...value] : [value];
-        for (const [bus, gain] of resolveSends(options.sends)) {
-            bus.addSend(outputs, gain);
+        if (
+            source === undefined ||
+            source === null ||
+            typeof source === 'boolean' ||
+            (typeof source === 'object' && !(Symbol.iterator in source))
+        ) {
+            throw new Error(
+                `track ${name} must be a signal, got ${source === null ? 'null' : typeof source}`,
+            );
         }
-        const group: StereoOutGroup = {
+        const outputs = this.$c(source as PolySignal).items;
+        if (outputs.length === 0) {
+            throw new Error(`track ${name} has no signal`);
+        }
+        const root = signalRootOf(source);
+        const bus = root instanceof Bus ? root : undefined;
+        const ownGroup = root instanceof Group ? root : undefined;
+        if (ownGroup) {
+            if (ownGroup.trackName !== undefined) {
+                throw new Error(
+                    `track ${name} plays the $group that track ${ownGroup.trackName} plays: a group has one track, the one label suffixes name`,
+                );
+            }
+            ownGroup.trackName = name;
+            this.groupsByName.set(name, ownGroup);
+        }
+        if (bus && declaration.group !== null) {
+            throw new Error(
+                `track ${name} is a bus, and a bus cannot play into a group`,
+            );
+        }
+        if (bus) {
+            if (declaration.state.solo) {
+                throw new Error(
+                    `track ${name} is a bus, and a bus cannot be soloed`,
+                );
+            }
+            if (options.sends !== undefined) {
+                throw new Error(
+                    `track ${name} is a bus, and a bus cannot send to another bus`,
+                );
+            }
+            if (bus.trackName !== undefined) {
+                throw new Error(
+                    `track ${name} plays the $bus that track ${bus.trackName} plays: a bus has one track, the one sends name`,
+                );
+            }
+            bus.trackName = name;
+            this.bussesByName.set(name, bus);
+        } else if (options.sends !== undefined) {
+            this.pendingSends.push({ sends: options.sends, track: name });
+        }
+        const state = {
+            displayName: declaration.displayName,
+            fromTrack: track !== undefined,
+            group: declaration.group,
+            isGroup: ownGroup !== undefined,
+            isBus: bus !== undefined,
             gain: options.gain,
-            label: options.label,
-            mute: options.mute === true,
+            label: name,
+            mute: declaration.state.mute,
             ordinal: this.outGroupOrdinal++,
             outputs,
-            pan: options.pan,
-            solo: options.solo === true,
+            scopes: track?.scopes ?? [],
+            solo: declaration.state.solo,
             sourceLocation,
-            type: 'stereo',
-            spread: options.spread,
         };
-
-        const existing = this.outGroups.get(baseChannel) ?? [];
-        existing.push(group);
-        this.outGroups.set(baseChannel, existing);
-        return group;
-    }
-
-    /**
-     * Register module output(s) for mono output routing
-     */
-    addOutMono(
-        value: ModuleOutput | ModuleOutput[],
-        options: MonoOutOptions = {},
-        sourceLocation?: { line: number; column: number },
-    ): MonoOutGroup {
-        if (this.processingEndOfChain) {
-            throw new Error(
-                '`.outMono` is not allowed in the end of chain processor callback.',
-            );
-        }
-
-        const channel = options.channel ?? 0;
-        if (channel < 0 || channel > PORT_MAX_LANES - 1) {
-            throw new Error(
-                `channel must be 0-${PORT_MAX_LANES - 1}, got ${channel}`,
-            );
-        }
-
-        this.registerOutLabel(options.label);
-
-        const outputs = Array.isArray(value) ? [...value] : [value];
-        for (const [bus, gain] of resolveSends(options.sends)) {
-            bus.addSend(outputs, gain);
-        }
-        const group: MonoOutGroup = {
-            gain: options.gain,
-            label: options.label,
-            mute: options.mute === true,
-            ordinal: this.outGroupOrdinal++,
-            outputs,
-            solo: options.solo === true,
-            sourceLocation,
-            type: 'mono',
-        };
-
+        const group: OutGroup = mono
+            ? { ...state, type: 'mono' }
+            : {
+                  ...state,
+                  pan: options.pan,
+                  spread: options.spread,
+                  type: 'stereo',
+              };
         const existing = this.outGroups.get(channel) ?? [];
         existing.push(group);
         this.outGroups.set(channel, existing);
-        return group;
     }
 
-    /** Validate an out label and record it for duplicate detection. */
-    private registerOutLabel(label: string | undefined): void {
-        if (label === undefined) {
-            return;
-        }
-        if (typeof label !== 'string' || label.length === 0) {
-            throw new Error('.out label must be a non-empty string');
-        }
-        if (label === '__main__') {
+    addGroup(group: Group) {
+        if (this.processingEndOfChain) {
             throw new Error(
-                '.out label "__main__" is reserved for the master meter',
+                '`$group` is not allowed in the end of chain processor callback.',
             );
         }
-        if (this.outLabels.has(label)) {
-            throw new Error(`.out label "${label}" must be unique`);
-        }
-        this.outLabels.add(label);
+        this.groups.push(group);
     }
 
     addBus(bus: Bus) {
@@ -2055,15 +2003,71 @@ export class GraphBuilder implements ChainHost {
             throw new Error(
                 '`$bus` is not allowed in the end of chain processor callback.',
             );
-        } else if (this.processingBusses) {
-            throw new Error('`$bus` is not allowed in other $bus callbacks');
         }
         this.busses.push(bus);
     }
 
+    /** The bus `value` names: a bus track's name. */
+    private sendTarget(value: unknown): Bus | undefined {
+        const name = trackBindingName(value);
+        return name === undefined ? undefined : this.bussesByName.get(name);
+    }
+
     /**
-     * Register an `$trackTap` tap. It resolves in toPatch, so the out may be
-     * declared after the tap; a label no out declares throws there.
+     * Whether `value` is one `[bus, gain]` pair rather than a list of sends:
+     * a bus followed by something that is neither a bus nor a pair.
+     */
+    private isSendPair(value: unknown): value is [unknown, PolySignal] {
+        if (!Array.isArray(value) || value.length !== 2) {
+            return false;
+        }
+        const [bus, gain] = value as unknown[];
+        // A track's name second is a second send, never a level, so a
+        // name that is no bus is reported instead of becoming a gain.
+        return (
+            this.sendTarget(bus) !== undefined &&
+            trackBindingName(gain) === undefined &&
+            !(Array.isArray(gain) && trackBindingName(gain[0]) !== undefined)
+        );
+    }
+
+    /** The `[bus, gain]` pairs of `track`'s `sends` option. */
+    private resolveSends(
+        track: string,
+        sends: unknown,
+    ): [Bus, PolySignal | undefined][] {
+        const entries =
+            this.sendTarget(sends) !== undefined || this.isSendPair(sends)
+                ? [sends]
+                : sends;
+        const invalid = (entry: unknown): Error => {
+            const target = trackBindingName(
+                Array.isArray(entry) ? entry[0] : entry,
+            );
+            return new Error(
+                target === undefined
+                    ? `track ${track}: sends takes a bus track's name, a [name, gain] pair, or an array of them`
+                    : `track ${track}: sends cannot reach ${target}, which is not a bus. A bus is a track whose signal is $bus() or methods chained on it; to set a send's level from a track, wrap its name, as in [bus, $c(name)]`,
+            );
+        };
+        if (!Array.isArray(entries)) {
+            throw invalid(entries);
+        }
+        return entries.map((entry: unknown) => {
+            const bus = this.sendTarget(entry);
+            if (bus) {
+                return [bus, undefined];
+            }
+            if (this.isSendPair(entry)) {
+                return [this.sendTarget(entry[0])!, entry[1]];
+            }
+            throw invalid(entry);
+        });
+    }
+
+    /**
+     * Register an `$trackTap` tap. It resolves in toPatch, so the track may
+     * be labelled after the tap; a name no track has throws there.
      */
     addTrackTap(
         label: string,

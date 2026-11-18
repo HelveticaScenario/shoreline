@@ -97,12 +97,12 @@ const PHASE_DISTORTION_DOCS: ModuleDocs = ModuleDocs {
             title: "Resonant sweep",
             code: r#"
                 const sweep = $sine('0.2hz').range(0.5, 4.5)
-                $mi.phaseDistortion('c2', { amount: sweep }).out()
+                bass: $mi.phaseDistortion('c2', { amount: sweep })
             "#,
         },
         DocExample {
             title: "Free-running growl",
-            code: "$mi.phaseDistortion('a1', { ratio: 3.2, sync: false }).out()",
+            code: "bass: $mi.phaseDistortion('a1', { ratio: 3.2, sync: false })",
         },
     ],
 };

@@ -46,8 +46,8 @@ const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
         title: "Slow, even beating",
         code: r#"
             const pitch = $`c3 eb3 g3 bb2`
-            $saw(pitch).out()
-            $saw($addHz(pitch, 0.7)).out()
+            melody: $saw(pitch)
+            melody2: $saw($addHz(pitch, 0.7))
         "#,
     }],
 };

@@ -14,8 +14,8 @@ const DOCS: DocContent = {
     categories: ['pitch'],
     description: 'Outputs every note of a chord.',
     examples: [
-        { code: "$saw($chord('C3[maj7]')).out()", title: 'Pad' },
-        { code: "$sine($chord('A[m9]')).out()", title: 'Bells' },
+        { code: "out: $saw($chord('C3[maj7]'))", title: 'Pad' },
+        { code: "out: $sine($chord('A[m9]'))", title: 'Bells' },
     ],
     sections: [
         {
@@ -54,7 +54,7 @@ describe('renderDocContentJsDoc', () => {
             '',
             '```js',
             '// Pad',
-            "$saw($chord('C3[maj7]')).out()",
+            "out: $saw($chord('C3[maj7]'))",
             '```',
             '',
             'More in the reference: {@link $chord}',

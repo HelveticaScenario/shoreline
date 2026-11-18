@@ -7,7 +7,7 @@ import { GATE_HIGH_VOLTAGE } from './buttonTypes';
  */
 export type ControlRange = { readonly max: number; readonly min: number };
 
-/** Buttons and an out's mute/solo gate: 0 V or 5 V. */
+/** Buttons and a track's mute/solo gate: 0 V or 5 V. */
 export const GATE_RANGE: ControlRange = { max: GATE_HIGH_VOLTAGE, min: 0 };
 
 /** An out's gain fader, in DSL units (5 = unity). */

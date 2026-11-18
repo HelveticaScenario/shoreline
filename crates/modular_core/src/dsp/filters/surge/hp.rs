@@ -114,9 +114,11 @@ const HP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Resonant highpass sweep",
         code: r#"
-            $unstable.filter
-              .hp($saw('c2'), $sine('0.1hz').range('c2', 'c6'), 3)
-              .out()
+            bass: $unstable.filter.hp(
+              $saw('c2'),
+              $sine('0.1hz').range('c2', 'c6'),
+              3,
+            )
         "#,
     }],
 };

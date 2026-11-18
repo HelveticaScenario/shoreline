@@ -8,14 +8,20 @@ import { describe, expect, test } from 'vitest';
 import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
+import {
+    busSoloDiagnostics,
+    groupSuffixDiagnostics,
+    globalNameDiagnostics,
+    trackLabelView,
+} from '../../../renderer/components/monaco/trackLabelBindings';
 
 const LIB_FILE = '/modular/dsl-lib.d.ts';
 const PATCH_FILE = '/modular/patch.js';
 
 const libSource = buildLibSource(schemas);
 
-/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
-function diagnostics(patch: string): string[] {
+/** `patch` compiled against the DSL lib, as the editor compiles it. */
+function programFor(patch: string): ts.Program {
     const options: ts.CompilerOptions = {
         allowJs: true,
         allowNonTsExtensions: true,
@@ -42,8 +48,12 @@ function diagnostics(patch: string): string[] {
         },
         readFile: (name) => files.get(name) ?? base.readFile(name),
     };
-    const program = ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
-    return ts.getPreEmitDiagnostics(program).map((d) => {
+    return ts.createProgram([LIB_FILE, PATCH_FILE], options, host);
+}
+
+/** The diagnostics for `patch` against the DSL lib, as `file:line: message`. */
+function diagnostics(patch: string): string[] {
+    return ts.getPreEmitDiagnostics(programFor(patch)).map((d) => {
         const line = d.file
             ? `${d.file.fileName}:${d.file.getLineAndCharacterOfPosition(d.start ?? 0).line + 1}`
             : '?';
@@ -64,19 +74,19 @@ describe('generated DSL lib', () => {
     test('collections index and iterate as one-lane collections', () => {
         const patchErrors = diagnostics(`
                 const [a, b] = $saw(['c3', 'e3']);
-                a.amp(2).out();
-                b[0][0].add(1).out();
+                out: a.amp(2);
+                out2: b[0][0].add(1);
                 for (const voice of $sine(['c3', 'g3'])) voice.scope();
-                $saw([a, b[0]]).out();
+                out3: $saw([a, b[0]]);
                 $r($sine('1hz'), $sine('2hz')[0]).range(0, 1);
                 $deferred(2)[1].set($sine('c3'));
-                $sine($clock._tempo.div(60)).out();
+                out4: $sine($clock._tempo.div(60));
                 const tap = $trackTap('bass');
                 tap[0].level.range(0, 1);
                 for (const c of tap) c.panning.range(-1, 1);
                 const seq = $('[c4,e4] [g4,b4]');
-                $perc(seq[1]).out();
-                $perc(seq[1]._trig).out();
+                out5: $perc(seq[1]);
+                out6: $perc(seq[1]._trig);
                 for (const voice of seq) voice._gate.scope();
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
@@ -84,22 +94,22 @@ describe('generated DSL lib', () => {
 
     test('arithmetic chains off collections, ranged collections and patterns', () => {
         const patchErrors = diagnostics(`
-                $sine('c3').add(1).sub(0.5).mul(2).div(4).exp(2).out();
-                $sine('1hz').range(0, 1).mul($('1 2')).out();
-                $('0 2 4').add(1).out();
+                out: $sine('c3').add(1).sub(0.5).mul(2).div(4).exp(2);
+                out2: $sine('1hz').range(0, 1).mul($('1 2'));
+                out3: $('0 2 4').add(1);
             `).filter((d) => d.startsWith(PATCH_FILE));
         expect(patchErrors).toEqual([]);
     });
 
     test('concat joins collections of one type and keeps that type', () => {
         const patchErrors = diagnostics(`
-                $sine('c3').concat($saw('e3')).out();
+                out: $sine('c3').concat($saw('e3'));
                 $sine('1hz').range(0, 1).concat($sine('2hz')).range(0, 5);
                 const oscs = $enosc('c3').concat($enosc('g3'));
-                oscs._all.out();
-                $saw(oscs).out();
+                out2: oscs._all;
+                out3: $saw(oscs);
                 const seq = $('c4 e4').concat($('g3 b3'));
-                $perc(seq._trig).out();
+                out4: $perc(seq._trig);
                 seq.concat($('c5'))._gate.scope();
                 const tap = $trackTap('bass').concat($trackTap('lead'));
                 tap.level.range(0, 1);
@@ -116,9 +126,274 @@ describe('generated DSL lib', () => {
     });
 
     test('an arithmetic method needs its operand', () => {
-        const patchErrors = diagnostics(`$sine('c3').add().out();`).filter(
-            (d) => d.startsWith(PATCH_FILE),
+        const patchErrors = diagnostics(`out: $sine('c3').add();`).filter((d) =>
+            d.startsWith(PATCH_FILE),
         );
         expect(patchErrors).toHaveLength(1);
+    });
+});
+
+describe('track labels in the editor', () => {
+    /** Patch errors with the label bindings the editor's worker appends. */
+    const labelErrors = (patch: string): string[] => {
+        const lines = patch.split('\n').length;
+        return diagnostics(trackLabelView(ts, patch).text).filter((d) => {
+            const at = /^\/modular\/patch\.js:(\d+):/.exec(d);
+            return at !== null && Number(at[1]) <= lines;
+        });
+    };
+
+    test("a bus track's name takes sends and is its signal", () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate().wet(2).track({ gain: 3 })
+echo: $bus().mi.chorus().delay(0.25)
+const b = $bus()
+room: b.pipe((s) => s.lpf('c5'))
+kick: $sine('c1')
+bass: $saw('c2').amp(kick.active).track({ sends: [verb, 2] })
+lead: $saw('c3').track({ pan: kick.panning, sends: [verb, [echo, 2], room] }).scope()
+pad: $sine('c4').amp($motionFollower(verb)).amp(verb.active)
+`),
+        ).toEqual([]);
+    });
+
+    test('ranged chain results and concat keep a bus chain a bus', () => {
+        expect(
+            labelErrors(`
+verb: $bus().reverb()
+fold: $bus().fold(2).lpf('c5')
+wide: $bus().concat($sine('c3'))
+lead: $saw('c3').track({ sends: [verb, fold, wide] })
+`),
+        ).toEqual([]);
+        expect(
+            labelErrors(`
+a: $bus()
+b: $bus().reverb().track({ sends: a })
+`),
+        ).toHaveLength(1);
+        expect(
+            labelErrors(`
+low: $bus().xover()._low
+lead: $saw('c3').track({ sends: low })
+`),
+        ).toHaveLength(1);
+    });
+
+    test('a send level is any signal but a track name', () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick: $sine('c1')
+a: $saw('c3').track({ sends: [verb, 2] })
+b: $saw('c3').track({ sends: [verb, $sine('1hz').range(0, 5)] })
+c: $saw('c3').track({ sends: [[verb, $c(kick)], [verb, 'c4'], [verb, [1, 2]]] })
+d: $saw('c3').track({ sends: [verb, kick.level] })
+x: $bus().reverb().concat($sine('c3'))
+`),
+        ).toEqual([]);
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick: $sine('c1')
+a: $saw('c3').track({ sends: [verb, kick] })
+`),
+        ).toHaveLength(1);
+    });
+
+    test('a signal that only reads a bus is not a send target', () => {
+        expect(
+            labelErrors(`
+fx: $lpf($bus(), 'c5')
+lead: $saw('c3').track({ sends: fx })
+`),
+        ).toHaveLength(1);
+        expect(
+            labelErrors(`
+fx: $bus().lpf('c5').range(0, 1, -5, 5)
+lead: $saw('c3').track({ sends: fx })
+`),
+        ).toHaveLength(1);
+    });
+
+    test('a bus signal itself, and a bus track sending, are errors', () => {
+        expect(
+            labelErrors(`
+const b = $bus()
+verb: b.plate()
+lead: $saw('c3').track({ sends: b })
+`),
+        ).toHaveLength(1);
+        expect(
+            labelErrors(`
+a: $bus()
+b: $bus().track({ sends: a })
+`),
+        ).toHaveLength(1);
+    });
+
+    test('a name reads before its label', () => {
+        expect(
+            labelErrors(`
+bass: $saw('c2').amp(kick)
+kick: $sine('c1')
+`),
+        ).toEqual([]);
+    });
+
+    test('only a bus is a send target', () => {
+        expect(
+            labelErrors(`
+kick: $sine('c1')
+lead: $saw('c3').track({ sends: kick })
+`),
+        ).toHaveLength(1);
+    });
+
+    test('a track has no chain methods but scope', () => {
+        expect(labelErrors(`lead: $saw('c3').track().lpf('c4')`)).toHaveLength(
+            1,
+        );
+    });
+
+    test('a name bound to an untyped value is a signal', () => {
+        expect(
+            labelErrors(`
+function chain(s) { return s.lpf(1) }
+lead: chain($saw('c3'))
+lead.lpf(2)
+`),
+        ).toEqual([]);
+    });
+
+    test('a bus name sends before its label', () => {
+        expect(
+            labelErrors(`
+lead: $saw('c3').track({ sends: verb })
+verb: $bus().plate()
+`),
+        ).toEqual([]);
+    });
+
+    test('tracks that read each other both keep their type', () => {
+        expect(
+            labelErrors(`
+kick: $sine('c1').amp(bass.active)
+bass: $saw('c2').amp(kick.active)
+kick.nothing
+bass.nothing
+`),
+        ).toHaveLength(2);
+    });
+
+    test('labels are not reported as unused', () => {
+        expect(labelErrors(`lead: $saw('c3')`)).toEqual([]);
+    });
+
+    test('a group chain is a group, and sends and nesting type-check', () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+kick$drums: $sine('c1').track({ sends: verb })
+drums$rhythm: $group().reverb().lpf('c5').track({ gain: 3, sends: [verb, 2] })
+rhythm$2: $group()
+pad: $sine('c4').amp($motionFollower(drums)).amp(drums.active)
+`),
+        ).toEqual([]);
+    });
+
+    /** The group suffix diagnostics for `patch`, as the flagged text. */
+    const suffixErrors = (patch: string): string[] => {
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        return groupSuffixDiagnostics(
+            ts,
+            program.getTypeChecker(),
+            program.getSourceFile(PATCH_FILE)!,
+            view,
+        ).map(
+            (d) =>
+                `${patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0))}: ${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`,
+        );
+    };
+
+    test('a suffix naming a group is clean', () => {
+        expect(
+            suffixErrors(`
+kick$drums: $sine('c1')
+drums$rhythm: $group().reverb()
+rhythm: $group()
+`),
+        ).toEqual([]);
+    });
+
+    test('a suffix naming a track that is not a group is flagged', () => {
+        expect(
+            suffixErrors(`
+kick$bass: $sine('c1')
+bass: $saw('c2')
+hat$fx: $noise()
+fx: $lpf($group(), 'c5')
+`),
+        ).toEqual([
+            expect.stringMatching(/^bass: bass is not a group/),
+            expect.stringMatching(/^fx: fx is not a group/),
+        ]);
+    });
+
+    test('a group the editor cannot type is left to the run', () => {
+        expect(
+            suffixErrors(`
+function fx(s) { return s.lpf('c5') }
+kick$drums: $sine('c1')
+drums: fx($group())
+hat$perc: $noise().amp(perc.active)
+perc: $group().amp(hat.active)
+wide$pads: $sine('c4')
+pads: $group().reverb().concat($sine('c3'))
+`),
+        ).toEqual([]);
+    });
+
+    test('a bus track with a group suffix is flagged', () => {
+        expect(
+            suffixErrors(`
+verb$fx: $bus().plate()
+fx: $group()
+`),
+        ).toEqual([expect.stringMatching(/^fx: verb is a bus/)]);
+    });
+
+    test('a label named after a global is flagged on its name', () => {
+        const patch = `Math: $saw('c2')\n_console$2: $sine('c3')\nlead: $saw('c3')`;
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        expect(
+            globalNameDiagnostics(
+                ts,
+                program,
+                program.getSourceFile(PATCH_FILE)!,
+                view,
+            ).map((d) =>
+                patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0)),
+            ),
+        ).toEqual(['Math', 'console']);
+    });
+
+    test('a soloed bus track is flagged on its prefix', () => {
+        const patch = `S_verb: $bus().reverb()\n_S_echo: $bus().delay(0.25).track({ gain: 2 })\n_fx: $bus()\nS_lead: $saw('c3')`;
+        const view = trackLabelView(ts, patch);
+        const program = programFor(view.text);
+        expect(
+            busSoloDiagnostics(
+                ts,
+                program.getTypeChecker(),
+                program.getSourceFile(PATCH_FILE)!,
+                view,
+            ).map((d) =>
+                patch.slice(d.start ?? 0, (d.start ?? 0) + (d.length ?? 0)),
+            ),
+        ).toEqual(['S_', '_S_']);
     });
 });

@@ -48,7 +48,7 @@ Always set `MODULAR_BACKGROUND_LAUNCH=1` when launching the app (`yarn start`, P
 
 ### Data Flow
 
-1. **DSL execution** — JavaScript code runs in a `node:vm` context with an execution timeout in `src/main/dsl/executor.ts`, producing a `PatchGraph` JSON structure.
+1. **DSL execution** — JavaScript code runs in a `node:vm` context with an execution timeout in `src/main/dsl/executor.ts`, producing a `PatchGraph` JSON structure. A top-level label (`bass$2: $saw('c2')`) declares a mixer track; `src/shared/dsl/trackLabels.ts` reads labels for the executor (`trackLabelRuntime.ts`, which overwrites each label in place so no source column moves), the editor's TypeScript worker (`trackLabelBindings.ts`, which appends a declaration per track name after the patch text) and the mixer's source edits (`trackSourceEdit.ts`).
 2. **IPC transport** — PatchGraph sent from renderer to main process over Electron IPC (channels defined in `src/shared/ipcTypes.ts`), which calls `synthesizer.updatePatch(graph)`.
 3. **Validation** — Rust validates the graph on the main thread (`crates/modular/src/validation.rs`).
 4. **Audio thread** — Applied via lock-free command queue (rtrb SPSC) to the audio thread (`crates/modular/src/audio.rs`). Modules instantiated and processed here.
@@ -173,7 +173,7 @@ Monaco shows the description, sections and first example; the Reference pane sho
 
 When adding methods to `BaseCollection`, `Collection`, `CollectionWithRange`, `DeferredCollection`, or patterns (`PATTERN_METHODS` in `src/main/dsl/miniNotation/index.ts`), add the method name to `RESERVED_MEMBER_NAMES` in `crates/reserved_member_names.rs`. This is the single source of truth shared by the Rust proc-macro and, via NAPI, the TypeScript tests that check the list against the classes.
 
-The list limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$out` and `$out.soft`. A pattern is the `$cycle` that plays it and has every collection member beside its own methods, so those names are reserved too; `$cycle` itself is exempt, as the module a pattern's `.cycle(...)` calls. A module's outputs sit behind an underscore (`seq._gate`), so an output may take any name. A module the DSL exposes starts with `$`, an internal one with `_`.
+The list limits module names. Every module whose first argument is a signal is a chain method of collections (`$lpf` as `sig.lpf(...)`, `$mi.chorus` as `sig.mi.chorus(...)`), so the first segment of a module's name after its `$` cannot be reserved: `#[module]` rejects `$track` and `$track.soft`. A pattern is the `$cycle` that plays it and has every collection member beside its own methods, so those names are reserved too; `$cycle` itself is exempt, as the module a pattern's `.cycle(...)` calls. A module's outputs sit behind an underscore (`seq._gate`), so an output may take any name. A module the DSL exposes starts with `$`, an internal one with `_`.
 
 ### Code Organization
 

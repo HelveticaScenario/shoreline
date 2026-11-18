@@ -52,13 +52,11 @@ const HOLD_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Clock ticks held into notes",
         code: r#"
-            $saw('c3')
-              .amp(
-                $adsr($hold($clock._beatTrigger, 0.15), {
-                  release: 0.2,
-                }),
-              )
-              .out()
+            keys: $saw('c3').amp(
+              $adsr($hold($clock._beatTrigger, 0.15), {
+                release: 0.2,
+              }),
+            )
         "#,
     }],
 };

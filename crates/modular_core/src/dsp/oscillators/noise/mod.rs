@@ -115,27 +115,25 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Brown-noise surf",
-            code: "$noise('brown').amp($sine('0.1hz').range(1, 5)).out()",
+            code: "noise: $noise('brown').amp($sine('0.1hz').range(1, 5))",
         },
         DocExample {
             title: "Random melody in key",
             code: r#"
-                $sine(
+                melody: $sine(
                   $quantizer(
                     $noise('white', { rate: '4hz' }).range('c3', 'c5'),
                     $chord('C(minor)'),
                   ),
-                ).out()
+                )
             "#,
         },
         DocExample {
             title: "Raindrop blips on random triggers",
             code: r#"
-                $sine('c6')
-                  .amp(
-                    $perc($noise('dust', { rate: '6hz' }), { decay: 0.03 }),
-                  )
-                  .out()
+                lead: $sine('c6').amp(
+                  $perc($noise('dust', { rate: '6hz' }), { decay: 0.03 }),
+                )
             "#,
         },
     ],

@@ -14,14 +14,14 @@ function wrapsAt(text: string): number {
 
 describe('computeControlQuickFixes — literals inside arguments', () => {
     test('a poly array element takes its param control', () => {
-        expect(wrapped(`$saw(['a3', 'c|4']).out()`)).toBe(
-            `$saw(['a3', $slider('freq', 'c4', 'c2', 'c6')]).out()`,
+        expect(wrapped(`out: $saw(['a3', 'c|4'])`)).toBe(
+            `out: $saw(['a3', $slider('freq', 'c4', 'c2', 'c6')])`,
         );
         expect(wrapped(`$saw('a3').lpf(['200hz', '4|00hz'])`)).toContain(
             `$slider('cutoff', '400hz'`,
         );
-        expect(wrapped(`$saw('a3', { shape: [1, 2.|5] }).out()`)).toBe(
-            `$saw('a3', { shape: [1, $slider('shape', 2.5, 0, 5)] }).out()`,
+        expect(wrapped(`out: $saw('a3', { shape: [1, 2.|5] })`)).toBe(
+            `out: $saw('a3', { shape: [1, $slider('shape', 2.5, 0, 5)] })`,
         );
     });
 
@@ -29,8 +29,8 @@ describe('computeControlQuickFixes — literals inside arguments', () => {
         expect(wrapped(`$phase.bend([1.|5, 2])`)).toBe(
             `$phase.bend([$slider('amount', 1.5, -5, 5), 2])`,
         );
-        expect(wrapped(`$saw('a3').out({ gain: [1.|5, 2] })`)).toBe(
-            `$saw('a3').out({ gain: [$slider('gain', 1.5, 0, 5), 2] })`,
+        expect(wrapped(`out: $saw('a3').track({ gain: [1.|5, 2] })`)).toBe(
+            `out: $saw('a3').track({ gain: [$slider('gain', 1.5, 0, 5), 2] })`,
         );
     });
 
@@ -90,7 +90,7 @@ describe('computeControlQuickFixes — literals inside arguments', () => {
     });
 
     test('an element after a spread has no known slot', () => {
-        expect(wrapsAt(`$saw([...['a3'], 'c|4']).out()`)).toBe(0);
+        expect(wrapsAt(`out: $saw([...['a3'], 'c|4'])`)).toBe(0);
     });
 });
 
