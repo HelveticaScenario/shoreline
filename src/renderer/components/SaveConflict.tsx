@@ -1,6 +1,7 @@
 import { DiffEditor } from '@monaco-editor/react';
 import { useEffect, useRef } from 'react';
 
+import { fontFamilyWithFallback } from '../../shared/fonts';
 import { useTheme } from '../themes/ThemeContext';
 import { applyMonacoTheme } from './monaco/theme';
 import './SaveConflict.css';
@@ -148,7 +149,7 @@ export function SaveConflictDiff({
                             renderSideBySide: true,
                             minimap: { enabled: false },
                             scrollBeyondLastLine: false,
-                            fontFamily: font,
+                            fontFamily: fontFamilyWithFallback(font),
                             fontSize,
                             fontLigatures,
                         }}

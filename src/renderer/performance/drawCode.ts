@@ -1,3 +1,4 @@
+import { fontFamilyWithFallback } from '../../shared/fonts';
 import type { AppTheme } from '../themes/types';
 import { drawLineControls, type InlineControl } from './drawControls';
 import type { TokenColors, TokenStyle } from './tokenColors';
@@ -186,7 +187,7 @@ export function styledRuns(
 }
 
 const fontOf = (look: CodeLook, style: Pick<TokenStyle, 'bold' | 'italic'>) =>
-    `${style.italic && look.italicFace ? 'italic ' : ''}${style.bold ? 'bold ' : ''}${look.fontPx}px "${look.font}", monospace`;
+    `${style.italic && look.italicFace ? 'italic ' : ''}${style.bold ? 'bold ' : ''}${look.fontPx}px ${fontFamilyWithFallback(look.font)}`;
 
 /** Draws `frame` onto a cleared, transparent canvas. */
 export function drawCode(

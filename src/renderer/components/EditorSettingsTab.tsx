@@ -2,25 +2,13 @@ import React from 'react';
 import type { AppConfig, MonospaceFont } from '../../shared/ipcTypes';
 import type { AppTheme } from '../themes/types';
 import type { SidebarSide } from './sidebarLayout';
+import {
+    CURSOR_STYLES,
+    DEFAULT_CURSOR_STYLE,
+    type CursorStyle,
+} from '../../shared/cursorStyle';
 import { BUNDLED_FONTS } from '../../shared/fonts';
 import { useInstalledSystemFonts } from './fonts';
-
-type CursorStyle =
-    | 'line'
-    | 'block'
-    | 'underline'
-    | 'line-thin'
-    | 'block-outline'
-    | 'underline-thin';
-
-const CURSOR_STYLES: CursorStyle[] = [
-    'line',
-    'block',
-    'underline',
-    'line-thin',
-    'block-outline',
-    'underline-thin',
-];
 
 interface EditorSettingsTabProps {
     config: AppConfig;
@@ -125,7 +113,7 @@ export function EditorSettingsTab({
                 <h3>Cursor Style</h3>
                 <select
                     className="device-select"
-                    value={config.cursorStyle || 'line'}
+                    value={config.cursorStyle ?? DEFAULT_CURSOR_STYLE}
                     onChange={(e) =>
                         onConfigChange({
                             cursorStyle: e.target.value as CursorStyle,

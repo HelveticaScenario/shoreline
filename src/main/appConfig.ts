@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
+import { CURSOR_STYLES, DEFAULT_CURSOR_STYLE } from '../shared/cursorStyle';
 import { MONOSPACE_FONTS } from '../shared/fonts';
 
 const MonospaceFontSchema = z.enum(MONOSPACE_FONTS);
@@ -15,16 +16,7 @@ export const AppConfigSchema = z.object({
             bufferSize: z.number().optional(),
         })
         .optional(),
-    cursorStyle: z
-        .enum([
-            'line',
-            'block',
-            'underline',
-            'line-thin',
-            'block-outline',
-            'underline-thin',
-        ])
-        .optional(),
+    cursorStyle: z.enum(CURSOR_STYLES).optional(),
     font: MonospaceFontSchema.optional(),
     fontLigatures: z.boolean().optional(),
     fontSize: z.number().min(8).max(72).optional(),
@@ -58,7 +50,7 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 /** The config a first launch writes; an existing config never gains these. */
 const DEFAULT_CONFIG: AppConfig = {
-    cursorStyle: 'line',
+    cursorStyle: DEFAULT_CURSOR_STYLE,
     font: 'Fira Code',
     fontSize: 17,
     prettier: { quotes: 'backtick' },

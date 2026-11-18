@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -14,13 +14,30 @@ const declaredFamilies = (css: string) =>
     [...css.matchAll(/font-family:\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
 
 describe('bundled fonts', () => {
-    it('imports the font sheet before any rule, where CSS honours @import', () => {
+    it('every stylesheet puts its @imports before any rule, where CSS honours them', () => {
+        const sheets = readdirSync(join(root, 'src'), { recursive: true })
+            .map((file) => String(file).replaceAll('\\', '/'))
+            .filter((file) => file.endsWith('.css'));
+        expect(sheets).toContain('renderer/index.css');
+
+        const late = sheets.filter((file) => {
+            const css = stripComments(
+                readFileSync(join(root, 'src', file), 'utf8'),
+            );
+            const firstRule = css.indexOf('{');
+            return (
+                firstRule >= 0 &&
+                [...css.matchAll(/@import\b/g)].some((m) => m.index > firstRule)
+            );
+        });
+        expect(late).toEqual([]);
+    });
+
+    it('the app stylesheet imports the font sheet', () => {
         const css = stripComments(
             readFileSync(join(root, 'src/renderer/index.css'), 'utf8'),
-        ).trimStart();
-        expect(css.startsWith("@import './assets/fonts/fonts.css';")).toBe(
-            true,
         );
+        expect(css).toContain("@import './assets/fonts/fonts.css';");
     });
 
     it('ships a regular and bold face for every bundled font', () => {
@@ -42,6 +59,8 @@ describe('bundled fonts', () => {
         }
         for (const [, face] of sheet.matchAll(/@font-face\s*{([^}]*)}/g)) {
             const [family] = declaredFamilies(face);
+            const file = face.match(/url\('\.\/([^']+)'\)/)![1];
+            expect(existsSync(join(fontsDir, file)), file).toBe(true);
             add(family, face.match(/font-weight:\s*(\d+)/)![1]);
         }
 
