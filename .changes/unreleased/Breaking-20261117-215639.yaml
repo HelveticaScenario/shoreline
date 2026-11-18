@@ -1,13 +1,13 @@
 kind: Breaking
 body: |-
-    The output treats ±40 V as full scale, where it was ±5 V, so a single voice at ±5 V plays at -18 dBFS and chords and mixes have room to sum. The meters read 0 dB at 40 V. `$setMainGain` defaults to 5, unity, where it was -18 dB, so a patch that leaves the main gain alone plays at the same level as before; one that sets it plays 18 dB quieter, so raise it by 1.5 on top of the `.gain()` conversion: an old main gain `g` becomes `6.5 + 5 * log10(g / 5)`. A full-scale audio input still reads as ±5 V.
+    The output treats ±40 V as full scale, where it was ±5 V, so a single voice at ±5 V plays at -18 dBFS and chords and mixes have room to sum. The meters read 0 dB at 40 V. `$setMainGain` defaults to 5, unity, so a patch that never set the main gain plays at the same level as before. One that set a main gain `g` sounds the same at `6.5 + 5 * log10(g / 5)`, so 4 becomes 6.02 and 2.5 becomes 5.
 
     ```js
     // before
     $setOutputGain(4)
-    lead: $saw('c3')
+    $saw('c3').outMono(1)
     // after, at the same level
     $setMainGain(6.02)
-    lead: $saw('c3')
+    lead$1m: $saw('c3')
     ```
 time: 2026-11-17T21:56:39.667379-05:00

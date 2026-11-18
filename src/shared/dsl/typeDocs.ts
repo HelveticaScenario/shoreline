@@ -568,10 +568,10 @@ export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
     },
     {
         description:
-            'Set the main gain applied to the final mix. 2.5 is the default (50%); 5.0 is unity gain.',
+            'Set the main gain applied to the final mix: 5, unity, is the default, and each step of 1 is 12 dB.',
         examples: [
-            '$setMainGain(2.5) // 50% gain (default)',
-            '$setMainGain(5.0) // unity gain',
+            '$setMainGain(3.5) // -18 dB',
+            '$setMainGain(5.0) // unity gain (default)',
             "$setMainGain($sine('1hz')) // modulated gain",
         ],
         group: 'Global Settings',

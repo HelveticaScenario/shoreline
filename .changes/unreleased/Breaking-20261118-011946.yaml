@@ -4,8 +4,8 @@ body: |-
 
     ```js
     // before
-    pad: $saw('c3').gain(2.5)
+    $saw('c3').gain(2.5).outMono(1)
     // after, at the same level
-    pad: $saw('c3').gain(3.5)
+    pad$1m: $saw('c3').gain(3.5)
     ```
 time: 2026-11-18T01:19:46.56075-05:00
