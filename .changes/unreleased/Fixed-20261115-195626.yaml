@@ -1,3 +1,0 @@
-kind: Fixed
-body: The editor no longer shows a ghost `.mono()` after a mono signal that passes through `$g1`, `$g2` or `$g3`, `.lane()`, `.slice()`, `$cross`, a pattern's `.cycle()`, a `? :` or `??` choice, or a destructured `const`. `$trackTap`'s `level`, `panning` and `active` count as mono too.
-time: 2026-11-15T19:56:26.806142-05:00

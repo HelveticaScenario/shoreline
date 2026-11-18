@@ -1,3 +1,0 @@
-kind: Fixed
-body: 'Calling `.scope()` on a pattern or other multi-output module now draws the output it feeds: `$perc($("0").scope())` shows the trigger `$perc` takes, not the pattern''s pitch.'
-time: 2026-11-15T20:52:35.473513-05:00

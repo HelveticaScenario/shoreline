@@ -1,3 +1,0 @@
-kind: Fixed
-body: The editor fonts that ship with the app now load. Picking one such as 0xProto, Hack or Iosevka used to show a fallback font unless it was installed on your computer. Recursive is now its monospaced Rec Mono Linear style, so code lines up in columns. A new install starts with the line cursor.
-time: 2026-11-18T01:53:16.521781-05:00
