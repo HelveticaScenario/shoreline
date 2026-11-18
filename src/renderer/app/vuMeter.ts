@@ -26,9 +26,9 @@ const FAST_RELEASE_DB_PER_S = 96;
 const SCALE_BREAK_DB = -24;
 const SCALE_BREAK_FRAC = 0.6;
 
-/** 0 dB reference is 5 V (full scale in the engine's voltage convention). */
+/** 0 dB reference is 40 V, the level the output plays at full scale. */
 export function voltsToDb(v: number): number {
-    return 20 * Math.log10(Math.max(v, 1e-6) / 5);
+    return 20 * Math.log10(Math.max(v, 1e-6) / 40);
 }
 
 /** Readout-pill text: "-∞" at the floor, else a signed dB value. */

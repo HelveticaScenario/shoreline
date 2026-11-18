@@ -12,6 +12,6 @@ body: |-
     verb: $bus().plate()
     _bass$2m: $saw("c2")
     lead: $sine("c4").track({ pan: -2, sends: [verb, 2] })
-    $setMainGain(3)
+    $setMainGain(5.39)
     ```
 time: 2026-11-16T00:34:34.1215-05:00

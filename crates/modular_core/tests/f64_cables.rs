@@ -139,9 +139,9 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
             json!({ "input": playhead(), "divisor": 4.0 }),
         ),
         (
-            "eighth",
+            "minus_twelve_db",
             "$gain",
-            json!({ "input": playhead(), "level": 2.5 }),
+            json!({ "input": playhead(), "level": 4.0 }),
         ),
         (
             "plain",
@@ -150,7 +150,16 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
         ),
     ];
     let f64_inputs = [
-        "sub", "frac", "bar", "nearest", "next", "half", "early", "double", "quarter", "eighth",
+        "sub",
+        "frac",
+        "bar",
+        "nearest",
+        "next",
+        "half",
+        "early",
+        "double",
+        "quarter",
+        "minus_twelve_db",
     ];
     for (clock_mode, block_size) in [(ProcessingMode::Sample, 1), (ProcessingMode::Block, 64)] {
         let patch = build(&modules, &f64_inputs, clock_mode, block_size);
@@ -173,7 +182,7 @@ fn playhead_and_inheriting_modules_keep_f64_precision() {
             close("early", bars - 3.0);
             close("double", bars * 2.0);
             close("quarter", bars * 0.25);
-            close("eighth", bars * 0.125);
+            close("minus_twelve_db", bars * 10f64.powf(-12.0 / 20.0));
 
             // An f32 reader gets the nearest f32 of each f64 output.
             let sub = read_f64(patch, "sub", "output", slot);

@@ -1165,9 +1165,9 @@ function $setTempo(tempo: number): void;
 
 /**
  * Set the main gain applied to the final mix.
- * @param gain Gain as a {@link LaneSum<Signal>} (2.5 is default, 5.0 is unity)
- * @example $setMainGain(2.5) // 50% gain (default)
- * @example $setMainGain(5.0) // unity
+ * @param gain Gain as a {@link LaneSum<Signal>} (5, unity, is the default; 12 dB per step of 1)
+ * @example $setMainGain(3.5) // -18 dB
+ * @example $setMainGain(5.0) // unity (default)
  * @example $setMainGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
  */
 function $setMainGain(gain: LaneSum<Signal>): void;

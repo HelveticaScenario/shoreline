@@ -1,5 +1,5 @@
 //! `$gain` through the block-input resolution paths and the per-sample
-//! `update` path, pinned to its audio-taper formula.
+//! `update` path, pinned to its gain-curve formula.
 
 mod block_common;
 
@@ -13,10 +13,7 @@ fn expected(input: &[f32], level: &[f32]) -> Vec<f32> {
     input
         .iter()
         .zip(level)
-        .map(|(x, level)| {
-            let g = level * (1.0 / 5.0);
-            x * (g * g * g)
-        })
+        .map(|(x, &level)| x * taper(level))
         .collect()
 }
 
@@ -90,7 +87,8 @@ fn bounds_follow_the_taper() {
         "$gain",
         json!({ "input": poly_cable("src", LANES), "level": 2.5 }),
     );
-    assert!(bounds.iter().all(|&b| b == Bounds::new(-0.625, 0.625)));
+    let edge = 5.0 * taper(2.5);
+    assert!(bounds.iter().all(|&b| b == Bounds::new(-edge, edge)));
     check_bounds_agree(
         "$gain",
         json!({ "input": poly_cable("src", LANES), "level": poly_cable("lfo", LANES) }),

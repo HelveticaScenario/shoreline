@@ -492,7 +492,7 @@ mod tests {
 
     #[test]
     fn test_mix_gain_extends_lanes() {
-        // A: 1 lane [5], B: 2 lanes [10, 20], gain: 3 lanes [1, 2, 0.5]
+        // A: 1 lane [5], B: 2 lanes [10, 20], gain: 3 lanes [0 dB, +12 dB, -12 dB]
         let mut mixer = make_mix(MixParams {
             inputs: vec![
                 PolySignal::mono(Signal::Volts(5.0)),
@@ -501,19 +501,20 @@ mod tests {
             mode: MixMode::Sum,
             gain: Some(PolySignal::poly(&[
                 Signal::Volts(5.0),
-                Signal::Volts(10.0),
-                Signal::Volts(2.5),
+                Signal::Volts(6.0),
+                Signal::Volts(4.0),
             ])),
         });
         mixer.update(48000.0);
         // Output lanes = max(2 input lanes, 3 gain lanes) = 3
         assert_eq!(mixer.outputs.sample.lanes(), 3);
-        // Lane 0: (5 + 10) * (5/5)^3 = 15 * 1.0 = 15
+        let db = |db: f32| 10f32.powf(db / 20.0);
+        // Lane 0: (5 + 10) at unity
         assert_eq!(mixer.outputs.sample.get(0), 15.0);
-        // Lane 1: (0 + 20) * (10/5)^3 = 20 * 8.0 = 160
-        assert_eq!(mixer.outputs.sample.get(1), 160.0);
-        // Lane 2: pre_gain cycles from lane 0 (15 pre-gain), gain[2] = (2.5/5)^3 = 0.125 -> 15 * 0.125 = 1.875
-        assert_eq!(mixer.outputs.sample.get(2), 1.875);
+        // Lane 1: (0 + 20) at +12 dB
+        assert!((mixer.outputs.sample.get(1) - 20.0 * db(12.0)).abs() < 1e-3);
+        // Lane 2: pre-gain cycles from lane 0 (15) at -12 dB
+        assert!((mixer.outputs.sample.get(2) - 15.0 * db(-12.0)).abs() < 1e-4);
     }
 
     #[test]

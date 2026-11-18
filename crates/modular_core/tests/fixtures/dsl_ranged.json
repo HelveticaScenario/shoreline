@@ -2252,7 +2252,7 @@
             "idIsExplicit": true,
             "moduleType": "_smoothControl",
             "params": {
-                "value": 2.5,
+                "value": 5,
                 "max": 10,
                 "min": 0
             }

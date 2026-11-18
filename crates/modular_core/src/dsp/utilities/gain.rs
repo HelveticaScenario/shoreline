@@ -5,9 +5,9 @@ use crate::module_docs::{DocExample, ModuleDocs};
 
 const GAIN_DOCS: ModuleDocs = ModuleDocs {
     summary: "Perceptual gain",
-    description: "Scales a signal by `(level / 5)³`, an audio-taper curve on which \
-                  equal steps of `level` sound like equal steps of loudness. Outs apply \
-                  their gain through it.",
+    description: "Scales a signal on a decibel curve: 5 is unity and each step of 1 is \
+                  12 dB, so 4.5 is -6 dB and 4 is -12 dB. Near 0 it fades to silence. \
+                  Outs apply their gain through it.",
     categories: &[ModuleCategory::Math],
     sections: &[],
     examples: &[DocExample {
@@ -21,7 +21,7 @@ operator_module!(
     name = "$gain",
     docs = GAIN_DOCS,
     input = "signal to turn up or down",
-    operand = level: "perceptual level: 5 unity, 0 silence, each halving about -18 dB",
+    operand = level: "level: 5 unity, 12 dB per step of 1, 0 silence",
         default = 5.0,
         control_range = (0.0, 5.0),
     output = "the scaled signal",

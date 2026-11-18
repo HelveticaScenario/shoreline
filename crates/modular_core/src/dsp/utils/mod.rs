@@ -150,14 +150,34 @@ impl CatmullRom {
     }
 }
 
-/// The audio-taper gain curve as a multiplier: `(level / 5)³`, unity at 5 and
-/// silence at 0, so equal steps of `level` sound like equal steps of loudness.
-/// Odd, so a negative level inverts. The DSL's `GAIN_CURVE_EXP` and the VU
-/// meter's dB scale assume this exponent.
+/// Decibels per unit of `level` on the gain curve.
+const GAIN_DB_PER_LEVEL: f32 = 12.0;
+/// Natural-log growth of the curve's amplitude per unit of `level`.
+const GAIN_LN_PER_LEVEL: f32 = GAIN_DB_PER_LEVEL / 20.0 * std::f32::consts::LN_10;
+/// Below this level the curve is the straight line from silence that meets
+/// the exponential tangentially, about -51 dB.
+const GAIN_KNEE: f32 = 1.0 / GAIN_LN_PER_LEVEL;
+/// The line's slope: the knee's amplitude, `e / 1000`, over the knee.
+const GAIN_KNEE_SLOPE: f32 = std::f32::consts::E * 1e-3 * GAIN_LN_PER_LEVEL;
+
+/// The gain curve as a multiplier: unity at 5 and 12 dB per unit of `level`
+/// above the knee, fading linearly to silence at 0. Odd, so a negative level
+/// inverts. The DSL's `outGainToDb` and the VU meter's dB scale mirror it.
 #[inline(always)]
 pub fn audio_taper<T: Sample>(level: T) -> T {
-    let g = level * (T::from_f32(1.0) / T::from_f32(5.0));
-    g * g * g
+    let a = level.abs();
+    let magnitude = if a >= T::from_f32(GAIN_KNEE) {
+        // Every constant here is exact in f32, so an f64 caller keeps f64 precision.
+        let db = T::from_f32(GAIN_DB_PER_LEVEL) * (a - T::from_f32(5.0));
+        T::from_f32(10.0).powf(db / T::from_f32(20.0))
+    } else {
+        a * T::from_f32(GAIN_KNEE_SLOPE)
+    };
+    if level < T::default() {
+        T::default() - magnitude
+    } else {
+        magnitude
+    }
 }
 
 /// A sample value: f32, or f64 for a module whose outputs are f64 (see

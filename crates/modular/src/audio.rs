@@ -606,15 +606,13 @@ pub struct ApplyPatchError {
 use crate::validation::ValidationError;
 use crate::validation::validate_patch;
 
-/// Attenuation factor applied to audio output to prevent clipping.
-/// DSP modules output signals in the range [-5, 5] volts (modular synth convention).
-/// This factor brings the output into a reasonable range for audio output.
-const AUDIO_OUTPUT_ATTENUATION: f32 = 0.2;
+/// Volts-to-full-scale factor for audio output: ±40 V plays at 0 dBFS, so a
+/// single ±5 V voice sits at -18 dBFS and summed lanes and tracks have headroom.
+const AUDIO_OUTPUT_ATTENUATION: f32 = 0.025;
 
-/// Gain factor applied to audio input.
-/// Audio input from cpal is in the range [-1, 1]. This factor brings it into
-/// the [-5, 5] volt range used by DSP modules (inverse of AUDIO_OUTPUT_ATTENUATION).
-const AUDIO_INPUT_GAIN: f32 = 1.0 / AUDIO_OUTPUT_ATTENUATION;
+/// Volts per unit of audio input: a full-scale input reads as ±5 V, the level
+/// of a single voice.
+const AUDIO_INPUT_GAIN: f32 = 5.0;
 
 /// Safety hard clip to full scale. Non-finite samples play as silence.
 #[inline(always)]

@@ -12,7 +12,7 @@ export interface TrackOptionField {
 
 export const TRACK_OPTIONS: readonly TrackOptionField[] = [
     {
-        doc: 'Gain on the perceptual `.gain()` scale (5 = unity), applied after the mixdown',
+        doc: 'Gain on the `.gain()` scale (5 = unity, 12 dB per step of 1), applied after the mixdown',
         name: 'gain',
         type: 'Poly<Signal>',
     },

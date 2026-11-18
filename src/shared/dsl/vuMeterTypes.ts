@@ -91,30 +91,41 @@ export interface VuMeterGhost {
     gain?: number;
 }
 
-/** Exponent of the perceptual (audio-taper) gain curve used by out gains. */
-export const GAIN_CURVE_EXP = 3;
-
-/** Out gain value producing unity amplitude: (5 / 5)³ = 1. */
+/** Out gain value producing unity amplitude. */
 export const UNITY_OUT_GAIN = 5;
 
-/** Global master output-gain default, restored by a master-fader reset. */
-export const DEFAULT_OUTPUT_GAIN = 2.5;
+/** Global master output-gain default (unity), restored by a master-fader reset. */
+export const DEFAULT_OUTPUT_GAIN = 5;
 
 /**
- * Out gain (DSL units, 0…10) → dB. Outs apply their gain through `$gain`,
- * whose amplitude is (g/5)^GAIN_CURVE_EXP. Returns -Infinity at 0.
+ * The `$gain` curve that outs apply their gain through, mirroring
+ * `audio_taper` in Rust: 12 dB per unit above the knee, then a straight line
+ * to silence that meets the exponential tangentially.
  */
+const GAIN_DB_PER_LEVEL = 12;
+const GAIN_LN_PER_LEVEL = (GAIN_DB_PER_LEVEL / 20) * Math.LN10;
+const GAIN_KNEE = 1 / GAIN_LN_PER_LEVEL;
+const GAIN_KNEE_SLOPE = Math.E * 1e-3 * GAIN_LN_PER_LEVEL;
+const GAIN_KNEE_DB = GAIN_DB_PER_LEVEL * (GAIN_KNEE - UNITY_OUT_GAIN);
+
+/** Out gain (DSL units, 0…10) → dB. Returns -Infinity at 0. */
 export function outGainToDb(gain: number): number {
     if (gain <= 0) {
         return -Infinity;
     }
-    return 20 * GAIN_CURVE_EXP * Math.log10(gain / UNITY_OUT_GAIN);
+    if (gain >= GAIN_KNEE) {
+        return GAIN_DB_PER_LEVEL * (gain - UNITY_OUT_GAIN);
+    }
+    return 20 * Math.log10(gain * GAIN_KNEE_SLOPE);
 }
 
-/** dB → out gain (DSL units). -Infinity (or below the floor) maps to 0. */
+/** dB → out gain (DSL units). -Infinity maps to 0. */
 export function dbToOutGain(db: number): number {
     if (!Number.isFinite(db)) {
         return 0;
     }
-    return UNITY_OUT_GAIN * Math.pow(10, db / (20 * GAIN_CURVE_EXP));
+    if (db >= GAIN_KNEE_DB) {
+        return UNITY_OUT_GAIN + db / GAIN_DB_PER_LEVEL;
+    }
+    return Math.pow(10, db / 20) / GAIN_KNEE_SLOPE;
 }
