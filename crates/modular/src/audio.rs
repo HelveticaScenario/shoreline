@@ -616,25 +616,13 @@ const AUDIO_OUTPUT_ATTENUATION: f32 = 0.2;
 /// the [-5, 5] volt range used by DSP modules (inverse of AUDIO_OUTPUT_ATTENUATION).
 const AUDIO_INPUT_GAIN: f32 = 1.0 / AUDIO_OUTPUT_ATTENUATION;
 
-/// Safety soft clipper: linear below the knee, tanh saturation above.
-/// Prevents output from ever reaching ±1.0 to protect speakers and hearing.
-const SAFETY_CLIP_KNEE: f32 = 0.9;
-const SAFETY_CLIP_HEADROOM: f32 = 1.0 - SAFETY_CLIP_KNEE;
-
+/// Safety hard clip to full scale. Non-finite samples play as silence.
 #[inline(always)]
-fn safety_soft_clip(x: f32) -> f32 {
-    if !x.is_finite() {
-        return 0.0;
-    }
-    if x.abs() <= SAFETY_CLIP_KNEE {
-        x
+fn safety_clip(x: f32) -> f32 {
+    if x.is_finite() {
+        x.clamp(-1.0, 1.0)
     } else {
-        let sign = x.signum();
-        let excess = x.abs() - SAFETY_CLIP_KNEE;
-        let clipped =
-            SAFETY_CLIP_KNEE + SAFETY_CLIP_HEADROOM * (excess / SAFETY_CLIP_HEADROOM).tanh();
-        // tanh asymptotically approaches 1.0 but f32 can round to exactly 1.0 for large inputs
-        sign * clipped.min(SAFETY_CLIP_KNEE + SAFETY_CLIP_HEADROOM * 0.9999)
+        0.0
     }
 }
 
@@ -2926,7 +2914,7 @@ where
                             }
 
                             // Drain [block_pos, end) into cpal output, inlining the
-                            // volume-change state machine + soft clip that
+                            // volume-change state machine + safety clip that
                             // `FinalStateProcessor` used to provide per-frame.
                             if end > audio_processor.block_pos {
                                 let mut recording_guard = recording_feed.try_lock();
@@ -2997,7 +2985,7 @@ where
                                             if ch == 0 {
                                                 declicked_ch0 = v;
                                             }
-                                            let sample = safety_soft_clip(
+                                            let sample = safety_clip(
                                                 v * AUDIO_OUTPUT_ATTENUATION
                                                     * final_state_processor.attenuation_factor,
                                             );
@@ -3033,7 +3021,7 @@ where
                                             let v = declicked_ch0
                                                 * AUDIO_OUTPUT_ATTENUATION
                                                 * final_state_processor.attenuation_factor;
-                                            feed.push(safety_soft_clip(v));
+                                            feed.push(safety_clip(v));
                                         }
                                     } else {
                                         final_state_processor.reset_declick();
@@ -3292,7 +3280,7 @@ impl FinalStateProcessor {
     /// Compensate one channel's raw output sample across patch swaps. Must be
     /// called exactly once per channel per emitted sample: it ticks the tail
     /// and records the emitted value. Operates in raw volts so the tail
-    /// composes with output attenuation and the soft clip exactly like patch
+    /// composes with output attenuation and the safety clip exactly like patch
     /// audio.
     #[inline]
     fn declick(&mut self, ch: usize, raw: f32) -> f32 {
@@ -5760,62 +5748,28 @@ mod tests {
     }
 
     // ============================================================================
-    // Safety soft clip tests
+    // Safety clip tests
     // ============================================================================
 
     #[test]
-    fn test_safety_soft_clip_linear_below_knee() {
-        for &val in &[0.0, 0.1, -0.1, 0.5, -0.5, 0.89, -0.89, 0.9, -0.9] {
-            assert_eq!(
-                safety_soft_clip(val),
-                val,
-                "expected linear passthrough for {val}"
-            );
+    fn test_safety_clip_linear_within_full_scale() {
+        for &val in &[0.0, 0.1, -0.1, 0.5, -0.5, 0.99, -0.99, 1.0, -1.0] {
+            assert_eq!(safety_clip(val), val, "expected passthrough for {val}");
         }
     }
 
     #[test]
-    fn test_safety_soft_clip_saturates_above_knee() {
-        for &val in &[1.0, 2.0, 5.0, 10.0, 100.0] {
-            let out = safety_soft_clip(val);
-            assert!(
-                out > SAFETY_CLIP_KNEE,
-                "output {out} should be above knee for input {val}"
-            );
-            assert!(
-                out < 1.0,
-                "output {out} should be below 1.0 for input {val}"
-            );
-        }
-        for &val in &[-1.0, -2.0, -5.0, -10.0, -100.0] {
-            let out = safety_soft_clip(val);
-            assert!(
-                out < -SAFETY_CLIP_KNEE,
-                "output {out} should be below -knee for input {val}"
-            );
-            assert!(
-                out > -1.0,
-                "output {out} should be above -1.0 for input {val}"
-            );
+    fn test_safety_clip_clamps_to_full_scale() {
+        for &val in &[1.0001, 2.0, 10.0, 100.0] {
+            assert_eq!(safety_clip(val), 1.0);
+            assert_eq!(safety_clip(-val), -1.0);
         }
     }
 
     #[test]
-    fn test_safety_soft_clip_monotonic() {
-        let mut prev = safety_soft_clip(-100.0);
-        let mut x = -100.0;
-        while x <= 100.0 {
-            let out = safety_soft_clip(x);
-            assert!(out >= prev, "not monotonic at {x}: {prev} -> {out}");
-            prev = out;
-            x += 0.1;
-        }
-    }
-
-    #[test]
-    fn test_safety_soft_clip_nan_inf() {
-        assert_eq!(safety_soft_clip(f32::NAN), 0.0);
-        assert_eq!(safety_soft_clip(f32::INFINITY), 0.0);
-        assert_eq!(safety_soft_clip(f32::NEG_INFINITY), 0.0);
+    fn test_safety_clip_nan_inf() {
+        assert_eq!(safety_clip(f32::NAN), 0.0);
+        assert_eq!(safety_clip(f32::INFINITY), 0.0);
+        assert_eq!(safety_clip(f32::NEG_INFINITY), 0.0);
     }
 }
