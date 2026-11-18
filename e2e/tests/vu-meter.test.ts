@@ -353,6 +353,45 @@ test.describe('vu meter panel', () => {
         expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
     });
 
+    test('the fader writes a .track() again after a reset drops it', async ({
+        window,
+    }) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await openUntitledBuffer(window);
+        await window.evaluate(() => {
+            window.__TEST_API__!.setEditorValue(
+                `lead: $sine($hz(440)).track({ gain: 3 })`,
+            );
+        });
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await window.waitForFunction(
+            () => window.__TEST_API__!.getLastPatchResult() !== null,
+        );
+        await window.waitForTimeout(1000);
+        await window.evaluate(() => {
+            window.__TEST_API__!.setMixerVisible(true);
+        });
+        await window.waitForTimeout(500);
+
+        const canvas = window.locator(
+            '.vu-meter[data-vu-key="lead"] .vu-meter-canvas',
+        );
+        await canvas.click({ button: 'right', position: { x: 20, y: 15 } });
+        await window.waitForTimeout(300);
+        expect(
+            await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
+        ).toBe(`lead: $sine($hz(440))`);
+
+        await canvas.click({ position: { x: 20, y: 15 } });
+        await window.waitForTimeout(300);
+        expect(
+            await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
+        ).toMatch(/^lead: \$sine\(\$hz\(440\)\)\.track\(\{ gain: [\d.]+ \}\)$/);
+    });
+
     test('a bus track meters what is sent to it', async ({
         window,
     }, testInfo) => {
