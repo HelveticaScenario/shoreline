@@ -29,6 +29,9 @@ export interface TrackSourceEdit {
     end: number;
     /** Replacement text */
     text: string;
+    /** Whether the edit removes the label's own `.track(...)`, after which
+     *  the label's value is no longer a track. */
+    dropsTrack?: true;
 }
 
 /** Whether `node` is a literal an option's value may be rewritten from. */
@@ -392,7 +395,12 @@ function trackOptionEdit(
         if (!ts.isPropertyAccessExpression(call.parent)) {
             const receiver = (call.expression as ts.PropertyAccessExpression)
                 .expression;
-            return { end: call.getEnd(), start: receiver.getEnd(), text: '' };
+            return {
+                dropsTrack: true,
+                end: call.getEnd(),
+                start: receiver.getEnd(),
+                text: '',
+            };
         }
         return { end: close, start: open, text: '' };
     }
