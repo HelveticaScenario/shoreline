@@ -25,7 +25,9 @@ import { captureSourceLocation } from '../captureSourceLocation';
 import { lookupArgumentSpan } from '../factories';
 import { Collection } from '../GraphBuilder';
 import {
+    type CycleSettings,
     cycleOf,
+    cycleSettings,
     isPatternPayload,
     makeCycle,
     type PAYLOAD,
@@ -171,6 +173,8 @@ export interface ScalePatternMethods {
         curve?: GlideCurve,
         mode?: GlideMode,
     ): ScalePattern<GlidePattern>;
+    playhead(playhead: unknown): ScalePattern;
+    ribbon(offset: number, length: number): ScalePattern;
 }
 
 /**
@@ -345,6 +349,13 @@ export function $arrange(
         }
         const [cyclesRaw, sectionPattern] = sectionArg;
         const pattern = patternPayload(sectionPattern);
+        if (Object.keys(cycleSettings(pattern)).length > 0) {
+            throw new MiniParseError(
+                `$arrange() section ${i}: .playhead and .ribbon set the ` +
+                    '$cycle that plays the whole arrangement, so call them ' +
+                    'on the $arrange(...) result',
+            );
+        }
 
         if (typeof cyclesRaw !== 'number' || Number.isNaN(cyclesRaw)) {
             throw new MiniParseError(
@@ -429,6 +440,11 @@ export type Pattern<T extends PatternPayload = PatternPayload> =
  * `.scale`: reads the pattern's atoms as degrees of a scale, making a
  * `ScalePattern`.
  *
+ * `.playhead` / `.ribbon`: set that `$cycle` param of every `$cycle` that
+ * plays the pattern, unless the `$cycle`'s own config sets it. The settings
+ * carry through every later pattern method, and a later call replaces an
+ * earlier one.
+ *
  * `.cycle(...rest)`: shorthand for `$cycle(pattern, ...rest)`, forwarding
  * every argument after the pattern to the `$cycle` factory. The `$cycle` it
  * makes is its own, apart from the one the pattern plays through as a
@@ -446,6 +462,8 @@ export interface PatternMethods {
         curve?: GlideCurve,
         mode?: GlideMode,
     ): Pattern<GlidePattern>;
+    playhead(playhead: unknown): Pattern;
+    ribbon(offset: number, length: number): Pattern;
 }
 
 /**
@@ -711,6 +729,8 @@ export const PATTERN_METHODS = [
     'glide',
     'scale',
     'trans',
+    'playhead',
+    'ribbon',
 ] as const;
 
 /** Whether a `$cycle` has `name`, own or inherited, as a collection member. */
@@ -752,8 +772,19 @@ function isCycleMember(prop: string | symbol): boolean {
  * `$cycle`. Reading a collection member, or using the pattern where a signal
  * belongs, makes that `$cycle`. The payload is what crosses to the engine:
  * `patternPayload` gives it to host code, and the script cannot reach it.
+ * A pattern method's result keeps the `$cycle` settings of the pattern it
+ * wraps.
  */
-function patternHandle<T extends PatternPayload>(pattern: T): Pattern<T> {
+function patternHandle<T extends PatternPayload>(
+    pattern: T,
+    settings: CycleSettings = 'pattern' in pattern
+        ? cycleSettings(pattern.pattern)
+        : {},
+): Pattern<T> {
+    // The same wire payload under other settings is a pattern of its own,
+    // with a `$cycle` of its own.
+    const withSettings = (change: CycleSettings) =>
+        patternHandle({ ...pattern }, { ...settings, ...change });
     const shared = {
         beat: (t: number | string, div: number | string) =>
             makeBeat(pattern, t, div),
@@ -761,6 +792,9 @@ function patternHandle<T extends PatternPayload>(pattern: T): Pattern<T> {
         fast: (factor: number | string) => makeFast(pattern, factor),
         glide: (g: number | string, curve?: GlideCurve, mode?: GlideMode) =>
             makeGlide(pattern, g, curve, mode),
+        playhead: (playhead: unknown) => withSettings({ playhead }),
+        ribbon: (offset: number, length: number) =>
+            withSettings({ ribbon: [offset, length] }),
         scale: (scale: string) => makeScale(pattern, scale),
         slow: (factor: number | string) => makeSlow(pattern, factor),
         struct: (boolPattern: string) => makeStruct(pattern, boolPattern),
@@ -807,7 +841,7 @@ function patternHandle<T extends PatternPayload>(pattern: T): Pattern<T> {
                 Reflect.has(target, prop),
         },
     ) as Pattern<T>;
-    registerPattern(handle, pattern);
+    registerPattern(handle, pattern, settings);
     return handle;
 }
 

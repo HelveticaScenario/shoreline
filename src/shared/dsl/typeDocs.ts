@@ -242,6 +242,20 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             },
             {
                 description:
+                    'Play the pattern from a playhead position in cycles, in place of the global clock',
+                example: '$`c e g b`.playhead($clock._playhead.mul(0.5))',
+                name: 'playhead',
+                signature: 'playhead(playhead: LaneSum<Signal>): Pattern',
+            },
+            {
+                description:
+                    'Loop the stretch of the pattern `length` cycles long from cycle `offset`',
+                example: '$`<c e g b>`.ribbon(1, 2)',
+                name: 'ribbon',
+                signature: 'ribbon(offset: number, length: number): Pattern',
+            },
+            {
+                description:
                     'Play this pattern through a `$cycle` of its own, with `$cycle` settings',
                 example: '$`c e g`.cycle({ ribbon: [0, 2] })',
                 name: 'cycle',
