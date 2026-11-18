@@ -350,3 +350,16 @@ pub fn allocations_while_rendering(module_type: &str, params: Value) -> usize {
     COUNTING.with(|c| c.set(false));
     ALLOCATIONS.with(Cell::get)
 }
+
+/// The gain curve that `$gain` and `$mix` apply: unity at 5, 12 dB per unit
+/// of level above the knee, then a straight line to silence.
+pub fn taper(level: f32) -> f32 {
+    let ln_per_level = 12.0 / 20.0 * std::f32::consts::LN_10;
+    let a = level.abs();
+    let magnitude = if a >= 1.0 / ln_per_level {
+        10f32.powf(12.0 * (a - 5.0) / 20.0)
+    } else {
+        a * (std::f32::consts::E * 1e-3 * ln_per_level)
+    };
+    if level < 0.0 { -magnitude } else { magnitude }
+}

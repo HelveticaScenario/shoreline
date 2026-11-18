@@ -57,8 +57,7 @@ fn mix_every_mode_across_input_widths() {
                             }
                         };
                         let amp = lfo[k - lane + 3];
-                        let g = amp * (1.0 / 5.0);
-                        let v = pre * (g * g * g);
+                        let v = pre * taper(amp);
                         if v.is_finite() { v } else { 0.0 }
                     })
                     .collect()

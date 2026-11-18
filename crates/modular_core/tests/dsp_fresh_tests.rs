@@ -318,10 +318,57 @@ fn arithmetic_combines_input_and_operand() {
 
 #[test]
 fn gain_follows_the_audio_taper() {
-    // Level 2.5 is (2.5 / 5)³ = 1/8 amplitude.
-    let gain = make_module("$gain", "gain-1", json!({ "input": 4.0, "level": 2.5 }));
-    let sample = settle_and_read(gain.as_ref(), 500);
-    assert!(approx_eq(sample, 0.5, 1e-6), "expected 0.5, got {sample}");
+    // 12 dB per unit of level: 5 is unity, 4.5 is -6 dB, 4 is -12 dB, 5.5 is +6 dB,
+    // 1 is -48 dB, 0 is silence and a negative level inverts.
+    for (level, db) in [
+        (5.0, 0.0),
+        (4.5, -6.0),
+        (4.0, -12.0),
+        (5.5, 6.0),
+        (1.0, -48.0),
+    ] {
+        let gain = make_module("$gain", "gain-1", json!({ "input": 1.0, "level": level }));
+        let sample = settle_and_read(gain.as_ref(), 500);
+        let expected = 10f32.powf(db / 20.0);
+        assert!(
+            approx_eq(sample, expected, expected * 1e-4),
+            "level {level}: expected {expected}, got {sample}"
+        );
+    }
+    let silent = make_module("$gain", "gain-1", json!({ "input": 1.0, "level": 0.0 }));
+    assert_eq!(settle_and_read(silent.as_ref(), 500), 0.0);
+    let inverted = make_module("$gain", "gain-1", json!({ "input": 1.0, "level": -5.0 }));
+    assert!(approx_eq(
+        settle_and_read(inverted.as_ref(), 500),
+        -1.0,
+        1e-5
+    ));
+}
+
+#[test]
+fn gain_curve_fades_to_silence_continuously() {
+    let amp = |level: f32| {
+        let gain = make_module("$gain", "gain-1", json!({ "input": 1.0, "level": level }));
+        settle_and_read(gain.as_ref(), 500)
+    };
+    let mut prev = f32::INFINITY;
+    for step in (0..=100).rev() {
+        let level = step as f32 * 0.02;
+        let sample = amp(level);
+        assert!(
+            sample <= prev,
+            "not monotonic at {level}: {prev} -> {sample}"
+        );
+        prev = sample;
+    }
+    assert_eq!(prev, 0.0);
+    // The linear fade meets the exponential at the knee, level 20 / (12 ln 10).
+    let knee = 20.0 / (12.0 * std::f32::consts::LN_10);
+    let (below, above) = (amp(knee - 1e-4), amp(knee + 1e-4));
+    assert!(
+        (above - below).abs() < 1e-6,
+        "jump at the knee: {below} -> {above}"
+    );
 }
 
 #[test]

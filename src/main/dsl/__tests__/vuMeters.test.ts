@@ -8,7 +8,10 @@
 import { describe, expect, test } from 'vitest';
 import type { ModuleSpec, PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
-import type { VuMeterDef } from '../../../shared/dsl/vuMeterTypes';
+import {
+    DEFAULT_OUTPUT_GAIN,
+    type VuMeterDef,
+} from '../../../shared/dsl/vuMeterTypes';
 import { type DSLExecutionResult, executePatchScript } from '../executor';
 
 const DEFAULT_EXECUTION_OPTIONS = {
@@ -74,7 +77,7 @@ describe('vuMeters emission', () => {
         const main = meters[meters.length - 1];
         expect(main).toMatchObject({
             channels: 2,
-            gain: 2.5,
+            gain: DEFAULT_OUTPUT_GAIN,
             gainLocked: false,
             gainModuleId: '__vuGain_main',
             key: '__main__',
@@ -87,7 +90,9 @@ describe('vuMeters emission', () => {
         });
         expect(main.muteModuleId).toBeUndefined();
         // The lifted main gain seeds the builder's output-gain default.
-        expect(moduleById(patch, '__vuGain_main').params.value).toBe(2.5);
+        expect(moduleById(patch, '__vuGain_main').params.value).toBe(
+            DEFAULT_OUTPUT_GAIN,
+        );
     });
 
     test('$setMainGain seeds the lifted main gain', () => {

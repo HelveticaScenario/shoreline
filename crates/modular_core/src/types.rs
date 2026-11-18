@@ -3608,7 +3608,7 @@ pub struct ScopeStats {
 #[napi(object)]
 pub struct VuMeterFrame {
     pub module_id: String,
-    /// Per-channel RMS in volts (0 dB reference = 5 V).
+    /// Per-channel RMS in volts (0 dB reference = 40 V, the output's full scale).
     pub rms: Vec<f64>,
     /// Per-channel max |sample| since the previous poll, in volts.
     pub peak: Vec<f64>,

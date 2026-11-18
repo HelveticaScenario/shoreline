@@ -157,7 +157,7 @@ export type Send = TrackTap | [bus: TrackTap, gain: PolySignal];
 
 /** Options of `.track()`: how a track mixes into its output channels. */
 export interface TrackOptions {
-    /** Gain on the perceptual `.gain()` scale (5 = unity), applied after the mixdown */
+    /** Gain on the `.gain()` scale (5 = unity, 12 dB per step of 1), applied after the mixdown */
     gain?: PolySignal;
     /** Pan position (-5 = left, 0 = center, +5 = right). Default 0 */
     pan?: PolySignal;
@@ -1139,7 +1139,7 @@ export class GraphBuilder implements ChainHost {
 
     /**
      * Set the main gain
-     * @param gain - Signal value for main gain (2.5 is default, 5.0 is unity)
+     * @param gain - Signal value for main gain (5, unity, is the default; 12 dB per step of 1)
      */
     setMainGain(gain: PolySignal): void {
         this.mainGain = gain;
