@@ -57,7 +57,7 @@ export const configSchema = {
             type: 'number',
         },
         cursorStyle: {
-            default: 'block',
+            default: 'line',
             description: 'The cursor style in the editor',
             enum: [
                 'line',

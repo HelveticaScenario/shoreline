@@ -80,10 +80,6 @@
 @import '@fontsource/anonymous-pro/400.css';
 @import '@fontsource/anonymous-pro/700.css';
 
-/* Recursive (Mono Linear) */
-@import '@fontsource/recursive/400.css';
-@import '@fontsource/recursive/700.css';
-
 /* --- Manually bundled fonts --- */
 
 /* Hack (MIT License) */
@@ -134,5 +130,22 @@
     font-style: normal;
     font-weight: 700;
     src: url('./IntelOneMono-Bold.woff2') format('woff2');
+    font-display: swap;
+}
+
+/* Recursive, as its Rec Mono Linear static faces (OFL 1.1) */
+@font-face {
+    font-family: 'Recursive';
+    font-style: normal;
+    font-weight: 400;
+    src: url('./RecMonoLinear-Regular.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Recursive';
+    font-style: normal;
+    font-weight: 700;
+    src: url('./RecMonoLinear-Bold.woff2') format('woff2');
     font-display: swap;
 }

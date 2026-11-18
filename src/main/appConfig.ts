@@ -58,7 +58,7 @@ export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 /** The config a first launch writes; an existing config never gains these. */
 const DEFAULT_CONFIG: AppConfig = {
-    cursorStyle: 'block',
+    cursorStyle: 'line',
     font: 'Fira Code',
     fontSize: 17,
     prettier: { quotes: 'backtick' },

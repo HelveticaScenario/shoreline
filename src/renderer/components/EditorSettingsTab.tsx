@@ -125,7 +125,7 @@ export function EditorSettingsTab({
                 <h3>Cursor Style</h3>
                 <select
                     className="device-select"
-                    value={config.cursorStyle || 'block'}
+                    value={config.cursorStyle || 'line'}
                     onChange={(e) =>
                         onConfigChange({
                             cursorStyle: e.target.value as CursorStyle,
