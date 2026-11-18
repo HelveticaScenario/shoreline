@@ -104,7 +104,7 @@ const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Warbly tape chords",
-            code: "$saw($chord('F3[maj9]')).lpf('f5', 1).wowFlutter().out()",
+            code: "chord: $saw($chord('F3[maj9]')).lpf('f5', 1).wowFlutter()",
         },
         DocExample {
             title: "The full Beads chain",
@@ -114,7 +114,7 @@ const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
                   mix: 4,
                   quality: 'dirtyTape',
                 })
-                $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 }).out()
+                keys: $reverb($wowFlutter(cloud), 3, { size: 5, tone: 2 })
             "#,
         },
     ],

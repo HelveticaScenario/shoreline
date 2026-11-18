@@ -42,7 +42,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `$mix($sine(['c', 'e']).concat($sine('g'))).out()`,
+                    `out: $mix($sine(['c', 'e']).concat($sine('g')))`,
                     '$mix',
                     'inputs',
                 ).flat(),
@@ -54,7 +54,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `$mix($enosc('c3').concat($enosc('g3'))._root).out()`,
+                    `out: $mix($enosc('c3').concat($enosc('g3'))._root)`,
                     '$mix',
                     'inputs',
                 ).flat(),
@@ -67,7 +67,7 @@ describe('concat', () => {
             wiring(
                 cables(
                     `const seq = $('c e').concat($('g b'))
-                     $perc(seq).out()`,
+                     out: $perc(seq)`,
                     '$perc',
                     'trigger',
                 ),
@@ -76,7 +76,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `$saw($enosc('c3').concat($enosc('g3'))).out()`,
+                    `out: $saw($enosc('c3').concat($enosc('g3')))`,
                     '$saw',
                     'freq',
                 ),
@@ -89,7 +89,7 @@ describe('concat', () => {
             wiring(
                 cables(
                     `const seq = $('c e').concat($('g b'))
-                     $perc(seq[1]).out()`,
+                     out: $perc(seq[1])`,
                     '$perc',
                     'trigger',
                 ),
@@ -98,7 +98,7 @@ describe('concat', () => {
     });
 
     test('a module with outputs does not join a plain signal', () => {
-        expect(() => run(`$enosc('c3').concat($sine('c')).out()`)).toThrow(
+        expect(() => run(`out: $enosc('c3').concat($sine('c'))`)).toThrow(
             /same type/,
         );
     });
@@ -107,7 +107,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `$mix($sine('c').concat($enosc('c3'))).out()`,
+                    `out: $mix($sine('c').concat($enosc('c3')))`,
                     '$mix',
                     'inputs',
                 ).flat(),
@@ -119,7 +119,7 @@ describe('concat', () => {
         expect(
             wiring(
                 cables(
-                    `$mix($saw('c').delay(0.25).concat($saw('e').delay(0.5))).out()`,
+                    `out: $mix($saw('c').delay(0.25).concat($saw('e').delay(0.5)))`,
                     '$mix',
                     'inputs',
                 ).flat(),
@@ -130,10 +130,10 @@ describe('concat', () => {
     test('a $trackTap joins its audio and its controls', () => {
         const { patch } = run(
             `const tap = $trackTap('a').concat($trackTap('b'))
-             $mix(tap).out()
-             $mix(tap.level).outMono(2)
-             $saw('c').out({ label: 'a' })
-             $saw('e').out({ label: 'b' })`,
+             out: $mix(tap)
+             out2$2m: $mix(tap.level)
+             a: $saw('c')
+             b: $saw('e')`,
         );
         const mixes = patch.modules.filter((m) => m.moduleType === '$mix');
         const lanes = mixes.map(
@@ -144,7 +144,7 @@ describe('concat', () => {
 
     test('a ranged collection does not join one without a range', () => {
         expect(() =>
-            run(`$sine('1hz').range(0, 5).concat($c($saw('c'))).out()`),
+            run(`out: $sine('1hz').range(0, 5).concat($c($saw('c')))`),
         ).toThrow(/same type/);
     });
 });

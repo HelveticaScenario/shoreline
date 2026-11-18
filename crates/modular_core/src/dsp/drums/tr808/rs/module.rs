@@ -60,8 +60,8 @@ const RS808_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Syncopated rim clicks",
         code: r#"
-            $tr808.kick($`c*4`).out()
-            $tr808.rimShot($`c(3,8)`).out()
+            kick: $tr808.kick($`c*4`)
+            rimShot: $tr808.rimShot($`c(3,8)`)
         "#,
     }],
 };
@@ -292,9 +292,7 @@ const CL808_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Son clave",
-        code: r#"
-            $tr808.claves($`c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~`).out()
-        "#,
+        code: r#"claves: $tr808.claves($`c ~ ~ c ~ ~ c ~ ~ ~ c ~ c ~ ~ ~`)"#,
     }],
 };
 

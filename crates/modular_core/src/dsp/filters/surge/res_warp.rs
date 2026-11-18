@@ -176,14 +176,12 @@ const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
         title: "Rubbery resonant bass",
         code: r#"
             const seq = $`f1 [~ f2] ab1 [c2 eb2]`
-            $unstable.filter
-              .resWarpLp(
-                $saw(seq),
-                $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
-                4,
-                { stages: 2 },
-              )
-              .out()
+            melody: $unstable.filter.resWarpLp(
+              $saw(seq),
+              $perc(seq, { decay: 0.2 }).range('c3', 'c6'),
+              4,
+              { stages: 2 },
+            )
         "#,
     }],
 };
@@ -197,13 +195,11 @@ const RES_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Thick highpass sweep",
         code: r#"
-            $unstable.filter
-              .resWarpHp(
-                $saw('c2'),
-                $sine('0.2hz').range('c3', 'c6'),
-                4,
-              )
-              .out()
+            bass: $unstable.filter.resWarpHp(
+              $saw('c2'),
+              $sine('0.2hz').range('c3', 'c6'),
+              4,
+            )
         "#,
     }],
 };
@@ -217,13 +213,11 @@ const RES_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Buzzing band sweep",
         code: r#"
-            $unstable.filter
-              .resWarpBp(
-                $saw('c2'),
-                $sine('0.5hz').range('c4', 'c6'),
-                4,
-              )
-              .out()
+            bass: $unstable.filter.resWarpBp(
+              $saw('c2'),
+              $sine('0.5hz').range('c4', 'c6'),
+              4,
+            )
         "#,
     }],
 };
@@ -236,13 +230,11 @@ const RES_WARP_NOTCH_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Warped notch sweep",
         code: r#"
-            $unstable.filter
-              .resWarpNotch(
-                $saw('c2'),
-                $sine('0.2hz').range('c3', 'c6'),
-                3,
-              )
-              .out()
+            bass: $unstable.filter.resWarpNotch(
+              $saw('c2'),
+              $sine('0.2hz').range('c3', 'c6'),
+              3,
+            )
         "#,
     }],
 };
@@ -257,7 +249,7 @@ const RES_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
         title: "Saturated phaser",
         code: r#"
             const saw = $saw('c2')
-            $mix([
+            bass: $mix([
               saw,
               $unstable.filter.resWarpAp(
                 saw,
@@ -265,7 +257,7 @@ const RES_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
                 3,
                 { stages: 3 },
               ),
-            ]).out()
+            ])
         "#,
     }],
 };

@@ -44,15 +44,13 @@ const CURVE_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Snappy filter envelope",
         code: r#"
-            $saw('c2')
-              .lpf(
-                $curve(
-                  $adsr($clock._beatTrigger, { decay: 0.3 }),
-                  3,
-                ).range('c3', 'c7', 0, 5),
-                2,
-              )
-              .out()
+            bass: $saw('c2').lpf(
+              $curve(
+                $adsr($clock._beatTrigger, { decay: 0.3 }),
+                3,
+              ).range('c3', 'c7', 0, 5),
+              2,
+            )
         "#,
     }],
 };

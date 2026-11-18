@@ -49,14 +49,15 @@ const BPF_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Auto-wah saw",
-            code: "$saw('c2').bpf($sine('2hz').range('c4', 'c6'), 3).out()",
+            code: "bass: $saw('c2').bpf($sine('2hz').range('c4', 'c6'), 3)",
         },
         DocExample {
             title: "Whistling wind",
             code: r#"
-                $noise('white')
-                  .bpf($lorenz({ rate: 0.1 }).range('c5', 'c7'), 4.5)
-                  .out()
+                noise: $noise('white').bpf(
+                  $lorenz({ rate: 0.1 }).range('c5', 'c7'),
+                  4.5,
+                )
             "#,
         },
     ],

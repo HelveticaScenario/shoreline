@@ -28,11 +28,11 @@ function textAt(source: string, loc: { line: number; column: number }) {
 describe('eq panels', () => {
     test('ui: true emits a panel anchored at the $eq callee', () => {
         const source = `const sig = $saw('c2')
-$eq(sig, {
+out: $eq(sig, {
     sections: [{ type: 'lowShelf', freq: '150hz', gain: 3 }],
     ui: true,
-}).out()
-$eq(sig, { sections: [{ freq: 0 }] }).out()`;
+})
+out2: $eq(sig, { sections: [{ freq: 0 }] })`;
         const result = exec(source);
         expect(result.eqPanels).toHaveLength(1);
         const [panel] = result.eqPanels;
@@ -57,20 +57,20 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
     });
 
     test('anchors on line 1 too', () => {
-        const source = `$eq($saw('c2'), { ui: true }).out()`;
+        const source = `out: $eq($saw('c2'), { ui: true })`;
         const [panel] = exec(source).eqPanels;
         expect(textAt(source, panel.sourceLocation!)).toMatch(/^\$eq\(/);
     });
 
     test('the chain form anchors at its eq method name', () => {
-        const source = `$saw('c2').eq({ ui: true }).out()`;
+        const source = `out: $saw('c2').eq({ ui: true })`;
         const [panel] = exec(source).eqPanels;
         expect(textAt(source, panel.sourceLocation!)).toMatch(/^eq\(\{/);
     });
 
     test('a shared list gets a headless full-rate scope on lane 0', () => {
         const result = exec(
-            `$eq($saw(['c2', 'c3']), { sections: [{ freq: 0 }], ui: true }).out()`,
+            `out: $eq($saw(['c2', 'c3']), { sections: [{ freq: 0 }], ui: true })`,
         );
         const [panel] = result.eqPanels;
         const feeds = (result.patch.scopes as ScopeWithLocation[]).filter(
@@ -90,10 +90,10 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
     });
 
     test('per-lane lists get one feed per list lane', () => {
-        const result = exec(`$eq($saw('c2'), {
+        const result = exec(`out: $eq($saw('c2'), {
             sections: [[{ freq: 0 }], [{ freq: 1 }]],
             ui: true,
-        }).out()`);
+        })`);
         const [panel] = result.eqPanels;
         expect(panel.spectrum.lanes).toEqual([0, 1]);
         const feeds = (result.patch.scopes as ScopeWithLocation[]).filter(
@@ -105,8 +105,8 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
     test('eqs sharing a call site keep zone placement but are not editable', () => {
         const result = exec(`
             const band = (s) => $eq(s, { ui: true })
-            band($saw('c2')).out()
-            band($saw('c3')).out()
+            out: band($saw('c2'))
+            out2: band($saw('c3'))
         `);
         expect(result.eqPanels).toHaveLength(2);
         for (const panel of result.eqPanels) {
@@ -117,7 +117,7 @@ $eq(sig, { sections: [{ freq: 0 }] }).out()`;
 
     test('no ui, no panels or feeds', () => {
         const result = exec(
-            `$eq($saw('c2'), { sections: [{ freq: 0 }] }).out()`,
+            `out: $eq($saw('c2'), { sections: [{ freq: 0 }] })`,
         );
         expect(result.eqPanels).toEqual([]);
         expect(

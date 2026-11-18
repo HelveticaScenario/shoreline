@@ -45,11 +45,11 @@ const SPREAD_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Octave stack",
-            code: "$sine($spread('c3', 'c6', 4)).out()",
+            code: "tone: $sine($spread('c3', 'c6', 4))",
         },
         DocExample {
             title: "Cluster bunched toward the top",
-            code: "$saw($spread('c3', 'c4', 6, { bias: 3 })).out()",
+            code: "tone: $saw($spread('c3', 'c4', 6, { bias: 3 }))",
         },
     ],
 };

@@ -57,13 +57,13 @@ This builds the native Rust audio module and launches the Electron app.
 **Simple Sine Wave:**
 
 ```javascript
-$sine('440hz').out();
+tone: $sine('440hz');
 ```
 
 **Musical Note:**
 
 ```javascript
-$sine('a3').out();
+keys: $sine('a3');
 ```
 
 **FM Synthesis:**
@@ -71,14 +71,22 @@ $sine('a3').out();
 ```javascript
 const mod = $sine('220hz');
 const carrier = $sine('440hz').phase(mod.amp(0.5));
-carrier.out();
+fm: carrier;
+```
+
+**Tracks:** a label in front of a statement sends it to the mixer. `_name` mutes it, `S_name` solos it (`S__name` does both, and solo wins), and `name$2` plays it on channels 2 and 3 (`name$2m` in mono on channel 2), and `name$drums` plays it into the group track `drums`, a track that starts from `$group()`. `.track()` sets its gain, pan, spread and sends.
+
+```javascript
+verb: $bus().plate().track({ gain: 3 });
+bass$0m: $saw('c2').lpf('400hz');
+lead: $sine('c5').track({ pan: -2, sends: [verb, 2] });
 ```
 
 **With a UI Slider:**
 
 ```javascript
 const shape = $slider('Shape', 0, 0, 5);
-$saw('a3', { shape }).out();
+keys: $saw('a3', { shape });
 ```
 
 ## Project Structure

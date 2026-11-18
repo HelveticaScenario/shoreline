@@ -145,17 +145,18 @@ const LORENZ_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Wandering filter sweep",
             code: r#"
-                $saw('c2')
-                  .lpf($lorenz({ rate: 0.2 }).range('c3', 'c6'), 3)
-                  .out()
+                bass: $saw('c2').lpf(
+                  $lorenz({ rate: 0.2 }).range('c3', 'c6'),
+                  3,
+                )
             "#,
         },
         DocExample {
             title: "Two voices drifting together",
             code: r#"
                 const chaos = $lorenz({ rate: 0.1 })
-                $sine(chaos.range('a3', 'a4')).out()
-                $sine(chaos._y.range('e4', 'e5')).out()
+                tone: $sine(chaos.range('a3', 'a4'))
+                tone2: $sine(chaos._y.range('e4', 'e5'))
             "#,
         },
     ],

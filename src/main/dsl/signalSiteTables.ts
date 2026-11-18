@@ -36,7 +36,7 @@ const CROSS_SITE: ModuleSiteInfo = {
 
 /** Members of a type that are mono whatever the value they hang off carries. */
 const MONO_MEMBERS: SignalSiteTables['monoMembers'] = {
-    // A tap's controls follow the out's fader, pan and mute, not its audio.
+    // A tap's controls follow the track's fader, pan and mute, not its audio.
     TrackTap: ['active', 'level', 'panning'],
 };
 

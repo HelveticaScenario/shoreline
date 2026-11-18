@@ -218,14 +218,12 @@ const CUTOFF_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Growling saturated sweep",
         code: r#"
-            $unstable.filter
-              .cutoffWarpLp(
-                $saw('c2'),
-                $sine('0.2hz').range('c3', 'c6'),
-                3,
-                { drive: 'ojd', stages: 2 },
-              )
-              .out()
+            bass: $unstable.filter.cutoffWarpLp(
+              $saw('c2'),
+              $sine('0.2hz').range('c3', 'c6'),
+              3,
+              { drive: 'ojd', stages: 2 },
+            )
         "#,
     }],
 };
@@ -239,14 +237,12 @@ const CUTOFF_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Crackling highpass sweep",
         code: r#"
-            $unstable.filter
-              .cutoffWarpHp(
-                $saw('c2'),
-                $sine('0.2hz').range('c3', 'c6'),
-                3,
-                { stages: 2 },
-              )
-              .out()
+            bass: $unstable.filter.cutoffWarpHp(
+              $saw('c2'),
+              $sine('0.2hz').range('c3', 'c6'),
+              3,
+              { stages: 2 },
+            )
         "#,
     }],
 };
@@ -260,13 +256,11 @@ const CUTOFF_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Honking distorted wah",
         code: r#"
-            $unstable.filter
-              .cutoffWarpBp(
-                $saw('c2'),
-                $sine('1hz').range('c4', 'c6'),
-                3,
-              )
-              .out()
+            bass: $unstable.filter.cutoffWarpBp(
+              $saw('c2'),
+              $sine('1hz').range('c4', 'c6'),
+              3,
+            )
         "#,
     }],
 };
@@ -280,13 +274,11 @@ const CUTOFF_WARP_NOTCH_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Gritty notch sweep",
         code: r#"
-            $unstable.filter
-              .cutoffWarpNotch(
-                $saw('c2'),
-                $sine('0.2hz').range('c3', 'c6'),
-                3,
-              )
-              .out()
+            bass: $unstable.filter.cutoffWarpNotch(
+              $saw('c2'),
+              $sine('0.2hz').range('c3', 'c6'),
+              3,
+            )
         "#,
     }],
 };
@@ -306,7 +298,7 @@ const CUTOFF_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
               drive: 'softClip',
               stages: 4,
             })
-            $mix([saw, wet]).out()
+            bass: $mix([saw, wet])
         "#,
     }],
 };

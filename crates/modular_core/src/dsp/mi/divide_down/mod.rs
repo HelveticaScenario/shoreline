@@ -99,14 +99,14 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
             title: "Registration sweep",
             code: r#"
                 const sweep = $sine('0.1hz').range(0, 5)
-                $mi.divideDown('c3', { registration: sweep }).out()
+                keys: $mi.divideDown('c3', { registration: sweep })
             "#,
         },
         DocExample {
             title: "String chord",
             code: r#"
                 const notes = $chord('C3[m7]')
-                $mi.divideDown(notes, { registration: 1 }).out()
+                chord: $mi.divideDown(notes, { registration: 1 })
             "#,
         },
     ],

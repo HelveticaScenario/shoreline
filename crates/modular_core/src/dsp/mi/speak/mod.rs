@@ -157,14 +157,14 @@ const SPEAK_DOCS: ModuleDocs = ModuleDocs {
             title: "Hello",
             code: r#"
                 const word = $`7 4 11 11 14`
-                $mi.speak('c3', { trigger: word, bank: 2, word }).out()
+                keys: $mi.speak('c3', { trigger: word, bank: 2, word })
             "#,
         },
         DocExample {
             title: "Scanned machine voice",
             code: r#"
                 const scan = $sine('0.05hz').range(0, 21)
-                $mi.speak('c2', { bank: 4, word: scan, prosody: 5 }).out()
+                bass: $mi.speak('c2', { bank: 4, word: scan, prosody: 5 })
             "#,
         },
     ],

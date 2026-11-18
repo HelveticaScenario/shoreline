@@ -54,7 +54,7 @@ const SET_LANES_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Detuned saws spread across stereo",
-        code: "$setLanes($saw($spread(-0.02, 0.02, 5)), 2).out()",
+        code: "tone: $setLanes($saw($spread(-0.02, 0.02, 5)), 2)",
     }],
 };
 

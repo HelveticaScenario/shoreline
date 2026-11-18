@@ -277,9 +277,9 @@ describe('expandSignalGroups', () => {
 describe('signal groups through the executor pipeline', () => {
     test('two-group $sine emits full cartesian arrays', () => {
         const patch = execPatch(`
-            $sine($g1(["c3", "e3", "g3"]), {
+            out: $sine($g1(["c3", "e3", "g3"]), {
                 phaseOffset: $g2([0, 0.25]),
-            }).out()
+            })
         `);
         const sine = findModule(patch, '$sine');
         expect(sine.params.freq).toEqual(['c3', 'e3', 'g3', 'c3', 'e3', 'g3']);
@@ -291,7 +291,7 @@ describe('signal groups through the executor pipeline', () => {
             const v = $sine($g1(["c3", "e3", "g3"]), {
                 phaseOffset: $g2([0, 0.25]),
             });
-            $mix([...v]).out()
+            out: $mix([...v])
         `);
         const sineId = findModule(patch, '$sine').id;
         const mix = findModule(patch, '$mix');
@@ -310,9 +310,9 @@ describe('signal groups through the executor pipeline', () => {
 
     test('module outputs inside a group become cables before expansion', () => {
         const patch = execPatch(`
-            $saw($g1([...$sine("1hz"), ...$sine("2hz")]), {
+            out: $saw($g1([...$sine("1hz"), ...$sine("2hz")]), {
                 phaseOffset: $g2([0, 0.5]),
-            }).out()
+            })
         `);
         const saw = findModule(patch, '$saw');
         const freq = saw.params.freq as Array<{ type: string; module: string }>;
@@ -326,12 +326,12 @@ describe('signal groups through the executor pipeline', () => {
     });
 
     test('positional-arg groups work', () => {
-        const patch = execPatch(`$sine($g1(["c3", "e3"])).out()`);
+        const patch = execPatch(`out: $sine($g1(["c3", "e3"]))`);
         expect(findModule(patch, '$sine').params.freq).toEqual(['c3', 'e3']);
     });
 
     test('ungrouped modules are untouched', () => {
-        const patch = execPatch(`$sine(["c3", "e3", "g3"]).out()`);
+        const patch = execPatch(`out: $sine(["c3", "e3", "g3"])`);
         expect(findModule(patch, '$sine').params.freq).toEqual([
             'c3',
             'e3',
@@ -340,26 +340,26 @@ describe('signal groups through the executor pipeline', () => {
     });
 
     test('nested groups throw', () => {
-        expect(() => execPatch(`$sine($g1($g2(["c3"]))).out()`)).toThrow(
+        expect(() => execPatch(`out: $sine($g1($g2(["c3"])))`)).toThrow(
             'cannot wrap another signal group',
         );
     });
 
     test('a group inside an array param throws', () => {
-        expect(() => execPatch(`$sine([$g1("c3"), "e3"]).out()`)).toThrow(
+        expect(() => execPatch(`out: $sine([$g1("c3"), "e3"])`)).toThrow(
             'must wrap the entire value passed to a parameter',
         );
     });
 
     test('a group on a mono (summing) input throws', () => {
         expect(() =>
-            execPatch(`$pan($saw("c3"), 0, { spread: $g1([1, 2]) }).out()`),
+            execPatch(`out: $pan($saw("c3"), 0, { spread: $g1([1, 2]) })`),
         ).toThrow('is a mono (summing) input');
     });
 
     test('a group on a non-signal param throws', () => {
         expect(() =>
-            execPatch(`$sine("c3", { fmMode: $g1("linear") }).out()`),
+            execPatch(`out: $sine("c3", { fmMode: $g1("linear") })`),
         ).toThrow('is not a polyphonic signal input');
     });
 
@@ -367,9 +367,9 @@ describe('signal groups through the executor pipeline', () => {
         expect(() =>
             execPatch(`
                 const wide = (n) => Array.from({ length: n }, (_, i) => i * 0.01);
-                $sine($g1(wide(16)), {
+                out: $sine($g1(wide(16)), {
                     phaseOffset: $g2(wide(8)),
-                }).out()
+                })
             `),
         ).toThrow('multiply to 128 lanes (g1:16 x g2:8); the limit is 64');
     });

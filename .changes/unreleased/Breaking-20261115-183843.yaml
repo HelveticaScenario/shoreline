@@ -10,8 +10,8 @@ body: |-
     e._even.outMono(3)
     // after
     const e = $enosc('c2', $enosc.scale.harm4to7)
-    e.mono().amp(2).out()
-    $left(e).outMono(2)
-    $right(e).outMono(3)
+    mix: e.mono().amp(2)
+    odd$2m: $left(e)
+    even$3m: $right(e)
     ```
 time: 2026-11-15T18:38:43.950515-05:00

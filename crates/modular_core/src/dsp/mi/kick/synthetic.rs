@@ -118,7 +118,7 @@ const SYNTH_KICK_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Four on the floor",
-            code: "$mi.synthKick('a1', { trigger: $`c*4` }).out()",
+            code: "synthKick: $mi.synthKick('a1', { trigger: $`c*4` })",
         },
         DocExample {
             title: "Long, gritty sweep",
@@ -130,7 +130,7 @@ const SYNTH_KICK_DOCS: ModuleDocs = ModuleDocs {
                   dirt: 4,
                   fmDecay: 3,
                 })
-                kick.out()
+                synthKick: kick
             "#,
         },
     ],

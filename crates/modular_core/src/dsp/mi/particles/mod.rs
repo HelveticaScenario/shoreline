@@ -118,11 +118,11 @@ const PARTICLES_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Dripping",
-            code: "$mi.particles('c5', { density: 1.5, resonance: 4.5 }).out()",
+            code: "lead: $mi.particles('c5', { density: 1.5, resonance: 4.5 })",
         },
         DocExample {
             title: "Diffuse cloud",
-            code: "$mi.particles('c4', { spread: 4, resonance: 0.5 }).out()",
+            code: "lead: $mi.particles('c4', { spread: 4, resonance: 0.5 })",
         },
     ],
 };

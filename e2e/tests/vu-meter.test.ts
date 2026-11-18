@@ -1,15 +1,14 @@
 /**
- * E2E tests for the VU meter panel: per-output meters, mute/solo buttons
- * (source edit + live gate update), code-only Ctrl/Cmd edits with ghost
+ * E2E tests for the mixer panel: per-track meters, mute/solo buttons
+ * (label prefix edit + live gate update), code-only Ctrl/Cmd edits with ghost
  * state, and panel toggling.
  */
 
 import { test, expect, openUntitledBuffer } from '../fixtures';
 
-const TWO_OUT_PATCH = [
-    `$sine($hz(440)).out({ label: 'lead' })`,
-    `$saw($hz(110)).outMono(0, { label: 'bass' })`,
-].join('\n');
+const TWO_OUT_PATCH = [`lead: $sine($hz(440))`, `bass$0m: $saw($hz(110))`].join(
+    '\n',
+);
 
 /** Sum of a frame's per-channel rms for the given tap module id. */
 async function rmsFor(
@@ -81,7 +80,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`out({ label: 'lead', mute: true })`);
+        expect(source).toContain(`_lead: $sine`);
 
         await expect(
             window.locator('.vu-meter[data-vu-key="lead"]'),
@@ -100,7 +99,8 @@ test.describe('vu meter panel', () => {
         const restored = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(restored).not.toContain('mute');
+        expect(restored).toContain(`lead: $sine`);
+        expect(restored).not.toContain('_lead');
         await expect(
             window.locator('.vu-meter[data-vu-key="lead"]'),
         ).not.toHaveClass(/vu-meter--suppressed/);
@@ -119,7 +119,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`outMono(0, { label: 'bass', solo: true })`);
+        expect(source).toContain(`S_bass$0m: $saw`);
 
         await expect(
             window.locator('.vu-meter[data-vu-key="lead"]'),
@@ -127,6 +127,31 @@ test.describe('vu meter panel', () => {
         await expect(
             window.locator('.vu-meter[data-vu-key="bass"]'),
         ).not.toHaveClass(/vu-meter--suppressed/);
+    });
+
+    test('solo on a muted track keeps its mute and plays it', async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+        const strip = window.locator('.vu-meter[data-vu-key="lead"]');
+        await strip.locator('.vu-btn-mute').click();
+        await window.waitForTimeout(300);
+        await strip.locator('.vu-btn-solo').click();
+        await window.waitForTimeout(300);
+
+        const source = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        expect(source).toContain(`S__lead: $sine`);
+        await expect(strip).not.toHaveClass(/vu-meter--suppressed/);
+        await expect(strip.locator('.vu-btn-mute')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
+        await expect(strip.locator('.vu-btn-solo')).toHaveAttribute(
+            'aria-pressed',
+            'true',
+        );
     });
 
     test('mute state derives from the source across re-evals', async ({
@@ -168,7 +193,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).toContain(`out({ label: 'lead', mute: true })`);
+        expect(source).toContain(`_lead: $sine`);
 
         // ...but the audio is untouched: the meter stays live and the
         // button's inner (audio) section stays unmuted while the outer
@@ -209,7 +234,7 @@ test.describe('vu meter panel', () => {
         const source = await window.evaluate(() =>
             window.__TEST_API__!.getEditorValue(),
         );
-        expect(source).not.toContain('mute');
+        expect(source).not.toContain('_lead');
         await expect(muteButton).toHaveAttribute('aria-pressed', 'false');
         await expect(muteButton).toHaveAttribute('data-code-pressed', 'false');
     });
@@ -251,7 +276,42 @@ test.describe('vu meter panel', () => {
             window.__TEST_API__!.getEditorValue(),
         );
         expect(reverted).not.toContain('gain:');
-        expect(reverted).toContain(`out({ label: 'lead' })`);
+        expect(reverted).toContain(`lead: $sine($hz(440))\n`);
+    });
+
+    test('mixer controls still edit the code while the patch is stopped', async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+        await window.getByRole('button', { name: /Stop/ }).click();
+        await window.waitForTimeout(500);
+
+        await window
+            .locator('.vu-meter[data-vu-key="lead"] .vu-btn-mute')
+            .click();
+        await window
+            .locator('.vu-meter--main .vu-meter-canvas')
+            .click({ position: { x: 20, y: 15 } });
+        await window.waitForTimeout(300);
+        const edited = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        expect(edited).toContain(`_lead: $sine`);
+        expect(edited).toMatch(/\$setMainGain\([\d.]+\)/);
+    });
+
+    test('the main fader writes $setMainGain into the code', async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+        await window
+            .locator('.vu-meter--main .vu-meter-canvas')
+            .click({ position: { x: 20, y: 15 } });
+        await window.waitForTimeout(300);
+        const edited = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        expect(edited).toMatch(/\$setMainGain\([\d.]+\)/);
     });
 
     test('right-click resets the gain to unity in audio and code', async ({
@@ -291,6 +351,92 @@ test.describe('vu meter panel', () => {
             window.__TEST_API__!.getVuOutputs(),
         );
         expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
+    });
+
+    test('a bus track meters what is sent to it', async ({
+        window,
+    }, testInfo) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await openUntitledBuffer(window);
+        await window.evaluate(() => {
+            window.__TEST_API__!.setEditorValue(
+                [
+                    `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
+                    `fx$2: $bus().lpf('c8')`,
+                ].join('\n'),
+            );
+        });
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await window.evaluate(() => {
+            window.__TEST_API__!.setMixerVisible(true);
+        });
+        // A bus strip sits just left of the main strip, lettered like a
+        // return.
+        const bus = window.locator(
+            '.vu-meter-buses:has(+ .vu-meter--main) > .vu-meter[data-vu-key="fx"]',
+        );
+        await expect(bus).toHaveCount(1);
+        await expect(bus.locator('.vu-btn-mute')).toHaveText('A');
+        // A bus has no solo button, only the gap where one would be.
+        await expect(bus.locator('.vu-btn-solo')).toHaveCount(0);
+        await expect(bus.locator('.vu-btn-gap')).toHaveCount(1);
+        await expect(
+            window.locator('.vu-meter-scroll .vu-meter[data-vu-key="dry"]'),
+        ).toHaveCount(1);
+        await window.screenshot({ path: testInfo.outputPath('buses.png') });
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 15_000 })
+            .toBeGreaterThan(0.01);
+    });
+
+    test('a group shows its tracks beside it and folds them away', async ({
+        window,
+    }, testInfo) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await openUntitledBuffer(window);
+        await window.evaluate(() => {
+            window.__TEST_API__!.setEditorValue(
+                [
+                    `kick$drums: $sine($hz(55))`,
+                    `hats$drums: $noise()`,
+                    `drums$rhythm: $group().lpf('c8')`,
+                    `bass$rhythm: $saw($hz(110))`,
+                    `rhythm: $group()`,
+                    `lead: $sine($hz(440))`,
+                ].join('\n'),
+            );
+        });
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await window.evaluate(() => {
+            window.__TEST_API__!.setMixerVisible(true);
+        });
+
+        const drums = window.locator('.vu-group[data-vu-group="drums"]');
+        await expect(drums.locator('.vu-meter')).toHaveCount(3);
+        await expect(
+            window.locator(
+                '.vu-group[data-vu-group="rhythm"] > .vu-group[data-vu-group="drums"]',
+            ),
+        ).toHaveCount(1);
+        await expect(
+            window.locator('.vu-meter-scroll > .vu-meter[data-vu-key="lead"]'),
+        ).toHaveCount(1);
+        await window.screenshot({ path: testInfo.outputPath('groups.png') });
+
+        await drums.locator('.vu-group-fold').first().click();
+        await expect(drums.locator('.vu-meter')).toHaveCount(1);
+        await expect(
+            window.locator('.vu-meter[data-vu-key="kick"]'),
+        ).toHaveCount(0);
+        await window.screenshot({ path: testInfo.outputPath('folded.png') });
+        await drums.locator('.vu-group-fold').first().click();
+        await expect(drums.locator('.vu-meter')).toHaveCount(3);
     });
 
     test('panel visibility toggles', async ({ window }) => {

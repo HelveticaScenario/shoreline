@@ -44,8 +44,8 @@ const RAMP_DOCS: ModuleDocs = ModuleDocs {
         title: "Locked sine and synced saw",
         code: r#"
             const phase = $ramp('c3')
-            $pSine(phase).out()
-            $pSaw($pWarp(phase, $phase.sync(2))).out()
+            tone: $pSine(phase)
+            tone2: $pSaw($pWarp(phase, $phase.sync(2)))
         "#,
     }],
 };
