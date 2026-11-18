@@ -76,7 +76,7 @@ export const configSchema = {
             type: 'string',
         },
         fontLigatures: {
-            default: true,
+            default: false,
             description: 'Enable or disable font ligatures in the editor',
             type: 'boolean',
         },
@@ -137,7 +137,7 @@ export const configSchema = {
             type: 'string',
         },
         performanceFontLigatures: {
-            default: true,
+            default: false,
             description: 'Enable font ligatures in the performance window',
             type: 'boolean',
         },

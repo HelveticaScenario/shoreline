@@ -84,7 +84,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     );
     const [cursorStyle, setCursorStyle] = useState<CursorStyle>('line');
     const [font, setFont] = useState('Fira Code');
-    const [fontLigatures, setFontLigatures] = useState(true);
+    const [fontLigatures, setFontLigatures] = useState(false);
     const [fontSize, setFontSize] = useState(17);
     const [prettierConfig, setPrettierConfig] = useState<PrettierConfig>({});
     const [codeBackdropOpacity, setCodeBackdropOpacity] = useState(0.6);
