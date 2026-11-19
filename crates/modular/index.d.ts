@@ -813,7 +813,7 @@ export type StereoMode = /**
 /** One VU meter's loudness snapshot, joined to its `VuMeterSpec` by `module_id`. */
 export interface VuMeterFrame {
   moduleId: string
-  /** Per-channel RMS in volts (0 dB reference = 40 V, the output's full scale). */
+  /** Per-channel RMS in volts (0 dB reference = 20 V, the output's full scale). */
   rms: Array<number>
   /** Per-channel max |sample| since the previous poll, in volts. */
   peak: Array<number>
