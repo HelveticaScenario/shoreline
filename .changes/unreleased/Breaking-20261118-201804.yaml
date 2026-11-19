@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    The output treats ±20 V as full scale, where it was ±40 V, so every patch plays 6 dB louder and a single voice at ±5 V sits at -12 dBFS. The meters read 0 dB at 20 V. To keep a patch at its old level, lower the main gain by half a step:
+
+    ```js
+    // before
+    $setMainGain(5)
+    // after
+    $setMainGain(4.5)
+    ```
+time: 2026-11-18T20:18:04.119232-05:00
