@@ -1325,10 +1325,9 @@ export class GraphBuilder implements ChainHost {
         // Each locked control's live tap, resolved once every deferred is set.
         const controlTaps = new Map<VuControl, ControlTap>();
         /**
-         * A mixer control for `value` (`fallback` when absent): a number
-         * within `range` is lifted into a `_smoothControl` with id `id`, which
-         * the panel drives live; anything else stays wired as written and
-         * locks the control, whose signal the panel follows.
+         * A mixer control for `value` (`fallback` when absent): a number is
+         * lifted into a `_smoothControl` with id `id`, which the panel drives
+         * live; a signal locks the control, which the panel follows.
          */
         const liftControl = (
             value: PolySignal | undefined,
@@ -1337,7 +1336,7 @@ export class GraphBuilder implements ChainHost {
             id: string,
         ): { control: VuControl; signal: PolySignal } => {
             const v = value ?? fallback;
-            if (typeof v === 'number' && v >= range.min && v <= range.max) {
+            if (typeof v === 'number') {
                 return {
                     control: { locked: false, moduleId: id, value: v },
                     signal: smoothControlFactory(v, { ...range, id }),
@@ -1346,7 +1345,7 @@ export class GraphBuilder implements ChainHost {
             const control: VuControl = {
                 locked: true,
                 moduleId: null,
-                value: typeof v === 'number' ? v : null,
+                value: null,
             };
             const tap = controlSourceTap(v);
             if (tap) {

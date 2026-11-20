@@ -249,7 +249,7 @@ describe("the mixer's send dials", () => {
         ]);
     });
 
-    test("a level past the dial's span locks the dial and plays as written", () => {
+    test("a level past the dial's span plays as written on a live dial", () => {
         const patch = patchOf(
             `${BUSES}lead: $saw('c3').track({ sends: [[a, -2], [b, 7]] })`,
         );
@@ -257,8 +257,8 @@ describe("the mixer's send dials", () => {
             (m) => m.key === 'lead',
         )!;
         expect(lead.sends).toEqual([
-            { bus: 'a', locked: true, moduleId: null, value: -2 },
-            { bus: 'b', locked: true, moduleId: null, value: 7 },
+            { bus: 'a', locked: false, moduleId: '__vuSend_lead_a', value: -2 },
+            { bus: 'b', locked: false, moduleId: '__vuSend_lead_b', value: 7 },
         ]);
         expect(busSends(patch, 0)).toEqual(['lead@-2']);
         expect(busSends(patch, 1)).toEqual(['lead@7']);
