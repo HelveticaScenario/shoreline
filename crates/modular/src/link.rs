@@ -80,22 +80,15 @@ impl LinkState {
     /// main-thread drop. Also clears any pending start and the per-buffer
     /// snapshot whenever the live instance changes.
     pub fn install(&mut self, new: Option<Box<LinkResources>>) -> Option<Box<LinkResources>> {
-        let old = self.take();
-
-        if new.is_some() {
-            self.resources = new;
-            self.sample_count = 0;
-        }
-
-        old
-    }
-
-    /// Take the current resources (if any), leaving Link inactive. Used both
-    /// for swap (via `install`) and explicit teardown.
-    fn take(&mut self) -> Option<Box<LinkResources>> {
         self.buffer = None;
         self.pending_start = false;
-        self.resources.take()
+        self.sample_count = 0;
+        std::mem::replace(&mut self.resources, new)
+    }
+
+    fn link_and_session(&mut self) -> Option<(&AblLink, &mut SessionState)> {
+        let res = self.resources.as_deref_mut()?;
+        Some((&res.link, &mut res.session_state))
     }
 
     /// Force-clear the pending-start flag. Called on explicit Stop so a later
@@ -179,12 +172,7 @@ impl LinkState {
     /// Push an explicit tempo override to the Link session via the RT-safe
     /// capture/commit pair.
     pub fn set_tempo_now(&mut self, tempo: f64) {
-        if let Some(LinkResources {
-            link,
-            session_state: ss,
-            ..
-        }) = self.resources.as_deref_mut()
-        {
+        if let Some((link, ss)) = self.link_and_session() {
             link.capture_audio_session_state(ss);
             let time = link.clock_micros();
             ss.set_tempo(tempo, time);
@@ -196,12 +184,7 @@ impl LinkState {
     /// bar boundary. Sets the pending_start flag so the audio loop can
     /// release the local stopped atomic when the boundary arrives.
     pub fn request_quantized_start(&mut self) {
-        if let Some(LinkResources {
-            link,
-            session_state: ss,
-            ..
-        }) = self.resources.as_deref_mut()
-        {
+        if let Some((link, ss)) = self.link_and_session() {
             link.capture_audio_session_state(ss);
             let time = link.clock_micros();
             ss.set_is_playing_and_request_beat_at_time(true, time, 0.0, QUANTUM);
@@ -212,12 +195,7 @@ impl LinkState {
 
     /// Propagate a stop to the Link session.
     pub fn signal_stop(&mut self) {
-        if let Some(LinkResources {
-            link,
-            session_state: ss,
-            ..
-        }) = self.resources.as_deref_mut()
-        {
+        if let Some((link, ss)) = self.link_and_session() {
             link.capture_audio_session_state(ss);
             let time = link.clock_micros();
             ss.set_is_playing(false, time);
@@ -276,6 +254,24 @@ mod tests {
         });
         state.pending_start = true;
         state
+    }
+
+    #[test]
+    fn install_moves_the_box_without_reallocating() {
+        let res = Box::new(LinkResources {
+            link: AblLink::new(120.0),
+            host_time_filter: HostTimeFilter::new(),
+            session_state: SessionState::new(),
+        });
+        let ptr: *const LinkResources = &*res;
+
+        let mut state = LinkState::new();
+        assert!(state.install(Some(res)).is_none());
+        assert!(state.is_active());
+
+        let returned = state.install(None).expect("installed resources come back");
+        assert!(std::ptr::eq(&*returned, ptr));
+        assert!(!state.is_active());
     }
 
     #[test]
