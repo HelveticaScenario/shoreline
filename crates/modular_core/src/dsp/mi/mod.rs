@@ -17,6 +17,7 @@ pub mod formant;
 pub mod hat;
 pub mod kick;
 pub mod modal;
+pub mod noise;
 pub mod particles;
 pub mod phase_distortion;
 pub mod six_op;
@@ -43,6 +44,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     kick::MiKick::install_constructor(map);
     kick::MiSynthKick::install_constructor(map);
     modal::Modal::install_constructor(map);
+    noise::MiNoise::install_constructor(map);
     particles::MiParticles::install_constructor(map);
     phase_distortion::PhaseDistortion::install_constructor(map);
     six_op::SixOp::install_constructor(map);
@@ -73,6 +75,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     kick::MiKick::install_params_deserializer(map);
     kick::MiSynthKick::install_params_deserializer(map);
     modal::Modal::install_params_deserializer(map);
+    noise::MiNoise::install_params_deserializer(map);
     particles::MiParticles::install_params_deserializer(map);
     phase_distortion::PhaseDistortion::install_params_deserializer(map);
     six_op::SixOp::install_params_deserializer(map);
@@ -104,6 +107,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         kick::MiKick::get_schema(),
         kick::MiSynthKick::get_schema(),
         modal::Modal::get_schema(),
+        noise::MiNoise::get_schema(),
         particles::MiParticles::get_schema(),
         phase_distortion::PhaseDistortion::get_schema(),
         six_op::SixOp::get_schema(),
