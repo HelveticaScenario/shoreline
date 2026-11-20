@@ -332,19 +332,14 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         return unsubscribe;
     }, []);
 
-    // The engine moved to a new system default output: show it.
+    // The engine moved to a new system default output: show what it runs
+    // with now.
     useEffect(
         () =>
             electronAPI.audio.onOutputSwitched(() => {
-                void Promise.all([
-                    electronAPI.audio.getDeviceCache(),
-                    electronAPI.audio.getCurrentState(),
-                ]).then(([cache, state]) => {
-                    setDeviceCache(cache);
-                    setCurrentState(state);
-                });
+                void loadData();
             }),
-        [],
+        [loadData],
     );
 
     // Apply configuration using recreateStreams

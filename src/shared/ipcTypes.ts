@@ -346,6 +346,8 @@ export interface DeviceSwitchNotice {
     message: string;
     /** The patch that was playing stopped. */
     stopped: boolean;
+    /** The recording in progress ended. */
+    recordingStopped: boolean;
 }
 
 /**

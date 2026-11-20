@@ -2259,6 +2259,9 @@ function App() {
                 if (notice.stopped) {
                     handleStopRef.current();
                 }
+                if (notice.recordingStopped) {
+                    setIsRecording(false);
+                }
             }),
         [],
     );

@@ -294,19 +294,29 @@ export interface DeviceCacheSnapshot {
 
 /** What changed when the output followed a new system default device. */
 export interface DeviceFollowReport {
-  outputDeviceName: string
+  /** The new default output, when Shoreline lists it. */
+  outputDeviceName?: string
   /**
-   * The input could not open at the sample rate the new output runs at,
-   * which leaves the input off.
+   * The preferred input could not open at the sample rate the new output
+   * runs at, which leaves the input off.
    */
   unopenedInputDeviceName?: string
   previousSampleRate: number
   sampleRate: number
   /**
-   * Why the streams could not be opened on the new device, which leaves
-   * the previous streams running.
+   * The rate last asked for, which `sample_rate` differs from when the
+   * new output cannot run at it.
    */
+  preferredSampleRate: number
+  /** The file of the recording the move ended. */
+  recordingPath?: string
+  /** Why the streams could not be opened on the new device. */
   error?: string
+  /**
+   * The streams could not move and the device they play on is gone, so
+   * nothing can be heard until the output changes again.
+   */
+  outputLost: boolean
 }
 
 /**

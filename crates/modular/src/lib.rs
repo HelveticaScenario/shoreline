@@ -685,6 +685,11 @@ pub struct Synthesizer {
     /// The system default output last moved to, so a default that cannot be
     /// opened is not retried until it changes again.
     seen_default_output: Option<String>,
+    /// The settings last asked for, which following the system default
+    /// output returns to whenever the new device allows them.
+    preferred_sample_rate: u32,
+    preferred_buffer_size: Option<u32>,
+    preferred_input_device_id: Option<String>,
     device_cache: AudioDeviceCache,
     fallback_warning: Option<String>,
     next_update_id: u64,
@@ -1151,6 +1156,14 @@ impl Synthesizer {
             is_recording: false,
             host_id,
             seen_default_output: follows_system_default_output.then(|| output_device_id.clone()),
+            preferred_sample_rate: config
+                .sample_rate
+                .unwrap_or(setup_result.sample_rate as u32),
+            preferred_buffer_size: config.buffer_size,
+            preferred_input_device_id: config
+                .input_device_id
+                .clone()
+                .filter(|id| !id.is_empty() && id != "none"),
             output_device_id: Some(output_device_id),
             follows_system_default_output,
             input_device_id: setup_result.input_device_id,
@@ -1663,6 +1676,29 @@ impl Synthesizer {
         input_device_id: Option<String>,
         host_id: Option<String>,
     ) -> Result<()> {
+        self.reopen_streams(
+            output_device_id,
+            sample_rate,
+            buffer_size,
+            input_device_id.clone(),
+            host_id,
+        )?;
+        self.preferred_sample_rate = sample_rate;
+        self.preferred_buffer_size = buffer_size;
+        self.preferred_input_device_id =
+            input_device_id.filter(|id| !id.is_empty() && id != "none");
+        Ok(())
+    }
+
+    /// `recreate_streams` without making these settings the preferred ones.
+    fn reopen_streams(
+        &mut self,
+        output_device_id: Option<String>,
+        sample_rate: u32,
+        buffer_size: Option<u32>,
+        input_device_id: Option<String>,
+        host_id: Option<String>,
+    ) -> Result<()> {
         let follows_output = output_device_id.is_none();
         let output_device_id = match output_device_id {
             Some(id) => id,
@@ -1685,14 +1721,15 @@ impl Synthesizer {
     }
 
     /// Open streams on exactly these devices, replacing the running ones.
-    /// The fresh engine starts stopped and empty.
+    /// The fresh engine starts stopped and empty, with Link as it was. A
+    /// recording in progress ends with the old streams; returns its file.
     fn open_streams(
         &mut self,
         output_device_id: String,
         sample_rate: u32,
         buffer_size: Option<u32>,
         input_device_id: Option<String>,
-    ) -> Result<()> {
+    ) -> Result<Option<String>> {
         // Find the host for the output device
         let output_device_info = self
             .device_cache
@@ -1800,7 +1837,7 @@ impl Synthesizer {
         // Update self with new streams and state
         self._output_stream = setup_result.output_stream;
         self._input_stream = setup_result.input_stream;
-        self.state = setup_result.state;
+        let previous_state = std::mem::replace(&mut self.state, setup_result.state);
         // The fresh AudioState starts with a zero profiling refcount, so reset
         // the process-global profiling flag to match. Otherwise switching audio
         // devices while profiling is enabled leaves the global stuck on with no
@@ -1820,7 +1857,22 @@ impl Synthesizer {
             output_device_id, self.input_device_id, sample_rate, setup_result.channels, host_id
         );
 
-        Ok(())
+        if previous_state.transport_meter.read_link_enabled()
+            && let Err(error) = self.enable_link(true)
+        {
+            eprintln!("Link did not rejoin on the new streams: {}", error);
+        }
+
+        if !std::mem::take(&mut self.is_recording) {
+            return Ok(None);
+        }
+        match previous_state.stop_recording() {
+            Ok(finished) => Ok(finished.map(|f| f.path.to_string_lossy().to_string())),
+            Err(error) => {
+                eprintln!("Recording did not finish cleanly: {}", error);
+                Ok(None)
+            }
+        }
     }
 
     // Legacy API compatibility methods (now use cache)
@@ -1871,7 +1923,7 @@ impl Synthesizer {
     #[napi]
     pub fn restart_audio(&mut self) -> Result<()> {
         let output_device_id = self.chosen_output_device_id()?;
-        self.recreate_streams(
+        self.reopen_streams(
             output_device_id,
             self.sample_rate as u32,
             self.buffer_size,

@@ -24,6 +24,7 @@ import type {
     FileTreeEntry,
     ContextMenuOptions,
     EditorContextMenuOptions,
+    DeviceSwitchNotice,
     DSLExecuteResult,
     KeybindingOverride,
     MainLogLevel,
@@ -678,23 +679,35 @@ setInterval(() => {
     synth.pruneDisconnectedMidi();
 }, 10000);
 
+// A notice raised before the main window loads, delivered once it does.
+let pendingSwitchNotice: DeviceSwitchNotice | null = null;
+
+function sendSwitchNotice(notice: DeviceSwitchNotice) {
+    if (
+        mainWindow &&
+        !mainWindow.isDestroyed() &&
+        !mainWindow.webContents.isLoading()
+    ) {
+        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED, notice);
+    } else {
+        pendingSwitchNotice = notice;
+    }
+}
+
+// The saved config is left alone: it holds the settings asked for, which a
+// later move returns to when its device allows them.
 setInterval(() => {
     const followed = followSystemDefaultOutput(synth, appliedPatch);
     if (!followed) {
         return;
     }
     cvSent.values.clear();
-    if (!followed.report.error) {
-        saveAudioConfig();
-    }
     const notice = deviceSwitchNotice(
         followed.report,
         followed.stoppedPlayback,
     );
     console.log('System default output changed:', notice.message);
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED, notice);
-    }
+    sendSwitchNotice(notice);
 }, SYSTEM_DEFAULT_POLL_MS);
 
 // Workspace root state
@@ -2131,6 +2144,11 @@ const createWindow = (): void => {
     // ready — anything sent earlier would be dropped by the loading page.
     mainWindow.webContents.on('did-finish-load', () => {
         flushPendingLogs();
+        if (pendingSwitchNotice) {
+            const notice = pendingSwitchNotice;
+            pendingSwitchNotice = null;
+            sendSwitchNotice(notice);
+        }
         fallbackWarnings.attach((warning) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send(
