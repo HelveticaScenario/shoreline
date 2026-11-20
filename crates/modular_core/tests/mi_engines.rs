@@ -86,6 +86,19 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
                 port("$mi.waveTerrain", knobs, "pm"),
             ]
         }
+        7 => {
+            // Plaits' quantisers pick chord `floor(11.22 h - 0.075)` from
+            // `harmonics` and pattern `floor(12 t - 0.075)` from `timbre`,
+            // rising from their initial 0. Its envelope is off, as the
+            // module's is at full `decay` once the first trigger strikes it.
+            let chord = (h * 1.02 * 11.0 - 0.075).floor();
+            let pattern = (t * 12.0 - 0.075).floor();
+            let knobs = json!({ "chord": chord, "inversion": 5.0 * t, "pattern": pattern, "shape": 5.0 * m });
+            [
+                port("$mi.chiptune", knobs.clone(), "chord"),
+                port("$mi.chiptune", knobs, "bass"),
+            ]
+        }
         8 => {
             let knobs = json!({ "detune": 5.0 * h, "square": 5.0 * t, "shape": 5.0 * m });
             [

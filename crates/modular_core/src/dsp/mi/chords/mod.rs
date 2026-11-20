@@ -98,6 +98,24 @@ struct MiChordsOutputs {
     root: PolyOutput,
 }
 
+/// The chords `ChordBank` numbers, for the docs of the modules that pick one.
+pub(crate) const CHORD_TABLE: DocTable = DocTable {
+    columns: &["chord", "Name"],
+    rows: &[
+        &["0", "octave"],
+        &["1", "fifth"],
+        &["2", "sus4"],
+        &["3", "minor"],
+        &["4", "minor 7th"],
+        &["5", "minor 9th"],
+        &["6", "minor 11th"],
+        &["7", "6/9"],
+        &["8", "major 9th"],
+        &["9", "major 7th"],
+        &["10", "major"],
+    ],
+};
+
 const MI_CHORDS_DOCS: ModuleDocs = ModuleDocs {
     summary: "Organ and wavetable chords",
     description: "Mutable Instruments Plaits' chord engine: four-note chords \
@@ -106,22 +124,7 @@ const MI_CHORDS_DOCS: ModuleDocs = ModuleDocs {
     sections: &[DocSection {
         title: "Chords",
         body: "`chord` picks one of eleven chords by number.",
-        table: Some(DocTable {
-            columns: &["chord", "Name"],
-            rows: &[
-                &["0", "octave"],
-                &["1", "fifth"],
-                &["2", "sus4"],
-                &["3", "minor"],
-                &["4", "minor 7th"],
-                &["5", "minor 9th"],
-                &["6", "minor 11th"],
-                &["7", "6/9"],
-                &["8", "major 9th"],
-                &["9", "major 7th"],
-                &["10", "major"],
-            ],
-        }),
+        table: Some(CHORD_TABLE),
         examples: &[],
     }],
     examples: &[
