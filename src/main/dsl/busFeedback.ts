@@ -4,6 +4,7 @@
  * in a built patch, however the bus reached it: a `$bus()` held in a const,
  * passed through a helper or an array, or driving the track's gain or pan.
  */
+import { isCableRef } from '../patchSimilarityRemap';
 
 interface BuiltModule {
     id: string;
@@ -35,12 +36,11 @@ function cableSources(params: unknown, into: string[]): void {
     if (typeof params !== 'object' || params === null) {
         return;
     }
-    const value = params as Record<string, unknown>;
-    if (value.type === 'cable' && typeof value.module === 'string') {
-        into.push(value.module);
+    if (isCableRef(params)) {
+        into.push(params.module);
         return;
     }
-    for (const item of Object.values(value)) {
+    for (const item of Object.values(params)) {
         cableSources(item, into);
     }
 }

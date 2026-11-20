@@ -41,7 +41,7 @@ export const isNumber: LiteralCheck = (node) => negatableNumber(node) !== null;
 
 /** The comma tokens on either side of `element` in the argument or
  *  property list holding it. */
-export function commasAround(
+function commasAround(
     element: ts.Node,
     file: ts.SourceFile,
 ): { before?: ts.Node; after?: ts.Node } {

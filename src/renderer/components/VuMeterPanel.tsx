@@ -6,9 +6,11 @@ import React, {
     useState,
     useSyncExternalStore,
 } from 'react';
+import { OUT_PAN_RANGE } from '../../shared/dsl/controlRanges';
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
 import { trackGates } from '../../shared/dsl/trackGates';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
+import { Knob, type KnobHandlers, type KnobRange } from './VuKnob';
 import {
     type SendBus,
     SEND_ROW_HEIGHT,
@@ -37,19 +39,14 @@ const READOUT_MIN_HEIGHT = 180;
  *  are shown; each row of dials needs this plus a row's height, so the
  *  sends give way before the pan knob does. */
 const SENDS_MIN_HEIGHT = 140;
-/** Pan change per vertical drag pixel (full ±5 range over 100px). */
-const PAN_PER_PIXEL = 0.1;
+const PAN_RANGE: KnobRange = { ...OUT_PAN_RANGE, origin: 0 };
 
-interface VuMeterPanelProps {
+interface VuMeterPanelProps extends KnobHandlers {
     outputs: VuMeterDef[];
     onToggleMute: (key: string, codeOnly: boolean) => void;
     onToggleSolo: (key: string, codeOnly: boolean) => void;
     /** Code-side values diverging from the audio, keyed by meter key. */
     ghosts: Map<string, VuMeterGhost>;
-    /** Live pan while dragging. `codeOnly` gestures edit the source only. */
-    onPanChange: (key: string, pan: number, codeOnly: boolean) => void;
-    /** Drag released — flush the final pan into the source once. */
-    onPanCommit: (key: string, pan: number, codeOnly: boolean) => void;
     /** Live fader drag on the meter: absolute position mapped to dB. */
     onGainChange: (key: string, db: number, codeOnly: boolean) => void;
     /** Drag released — flush the final gain into the source once. */
@@ -65,182 +62,6 @@ interface VuMeterPanelProps {
     unregisterCanvas: (key: string) => void;
     registerReadout: (key: string, el: HTMLElement) => void;
     unregisterReadout: (key: string) => void;
-    /** Locked pan knobs register their pointer line for live rotation. */
-    registerPanPointer: (key: string, el: SVGLineElement) => void;
-    unregisterPanPointer: (key: string) => void;
-    /** Live send dial drag. `codeOnly` gestures edit the source only. */
-    onSendChange: (
-        key: string,
-        bus: string,
-        level: number,
-        codeOnly: boolean,
-    ) => void;
-    /** Send dial released, or right-clicked to 0: write the level into the
-     *  source, removing the send at 0. */
-    onSendCommit: (
-        key: string,
-        bus: string,
-        level: number,
-        codeOnly: boolean,
-    ) => void;
-    /** Locked send dials register their SVG for live painting. */
-    registerSendDial: (key: string, bus: string, el: SVGSVGElement) => void;
-    unregisterSendDial: (key: string, bus: string) => void;
-}
-
-/**
- * Pan knob: a pointer line inside a circle with a fixed center-detent
- * triangle above it. Vertical drag changes the pan; a Ctrl/Cmd drag edits
- * the source only, showing a faded ghost pointer at the code-side value
- * while it diverges from the audio. Right-click recenters; Ctrl/Cmd
- * right-click reverts the source to the audio's value, dropping the ghost.
- * A locked knob (signal-driven pan) takes no input; its pointer line is
- * registered so the RAF loop can rotate it live with the signal.
- */
-function PanKnob({
-    pan,
-    ghostPan,
-    locked,
-    onPanChange,
-    onPanCommit,
-    registerPointer,
-}: {
-    pan: number;
-    /** Code-side pan while it diverges from the audio; undefined hides it. */
-    ghostPan: number | undefined;
-    locked: boolean;
-    onPanChange: (pan: number, codeOnly: boolean) => void;
-    onPanCommit: (pan: number, codeOnly: boolean) => void;
-    registerPointer: (el: SVGLineElement | null) => void;
-}) {
-    const dragRef = useRef<{
-        startY: number;
-        startPan: number;
-        lastPan: number;
-        codeOnly: boolean;
-    } | null>(null);
-
-    const handlePointerDown = useCallback(
-        (e: React.PointerEvent<HTMLDivElement>) => {
-            // Right presses belong to the contextmenu (revert) gesture.
-            if (e.button !== 0) {
-                return;
-            }
-            e.preventDefault();
-            e.currentTarget.setPointerCapture(e.pointerId);
-            const codeOnly = isCodeOnly(e);
-            // A code-only drag continues from the code-side value, not the
-            // audio's.
-            const startPan = codeOnly ? (ghostPan ?? pan) : pan;
-            dragRef.current = {
-                codeOnly,
-                lastPan: startPan,
-                startPan,
-                startY: e.clientY,
-            };
-        },
-        [pan, ghostPan],
-    );
-
-    const handlePointerMove = useCallback(
-        (e: React.PointerEvent<HTMLDivElement>) => {
-            const drag = dragRef.current;
-            if (!drag) {
-                return;
-            }
-            const raw =
-                drag.startPan + (drag.startY - e.clientY) * PAN_PER_PIXEL;
-            const next = Math.round(Math.min(5, Math.max(-5, raw)) * 10) / 10;
-            if (next !== drag.lastPan) {
-                drag.lastPan = next;
-                onPanChange(next, drag.codeOnly);
-            }
-        },
-        [onPanChange],
-    );
-
-    // Also bound to pointercancel/lostpointercapture: a drag that loses its
-    // capture must end here, or button-less hover moves keep changing the
-    // pan and the final value never commits. Re-entry after a normal
-    // pointerup is a no-op (dragRef is already null).
-    const handlePointerUp = useCallback(() => {
-        const drag = dragRef.current;
-        dragRef.current = null;
-        if (drag && drag.lastPan !== drag.startPan) {
-            onPanCommit(drag.lastPan, drag.codeOnly);
-        }
-    }, [onPanCommit]);
-
-    // Pan −5…+5 sweeps the pointer line ±135° from vertical.
-    const angle = (pan / 5) * 135;
-
-    return (
-        <div
-            className={`vu-pan-knob${locked ? ' vu-pan-knob--locked' : ''}`}
-            title={
-                locked
-                    ? 'Pan (signal-controlled)'
-                    : `Pan ${pan} (drag; ⌃/⌘ drag: edit code only; right-click: center; ⌃/⌘ right-click: revert)`
-            }
-            onPointerDown={locked ? undefined : handlePointerDown}
-            onPointerMove={locked ? undefined : handlePointerMove}
-            onPointerUp={locked ? undefined : handlePointerUp}
-            onPointerCancel={locked ? undefined : handlePointerUp}
-            onLostPointerCapture={locked ? undefined : handlePointerUp}
-            onContextMenu={
-                locked
-                    ? undefined
-                    : (e) => {
-                          e.preventDefault();
-                          if (isCodeOnly(e)) {
-                              // Revert the source to the audio's pan; no-op
-                              // when they already agree.
-                              if (ghostPan !== undefined) {
-                                  onPanChange(pan, true);
-                                  onPanCommit(pan, true);
-                              }
-                              return;
-                          }
-                          onPanChange(0, false);
-                          onPanCommit(0, false);
-                      }
-            }
-        >
-            <svg viewBox="0 0 26 30">
-                <path d="M10 1 L16 1 L13 5 Z" fill="currentColor" />
-                <circle
-                    cx="13"
-                    cy="17"
-                    r="9"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                />
-                {ghostPan !== undefined && (
-                    <line
-                        className="vu-pan-ghost"
-                        x1="13"
-                        y1="17"
-                        x2="13"
-                        y2="8"
-                        stroke="currentColor"
-                        strokeWidth="1.6"
-                        transform={`rotate(${(ghostPan / 5) * 135} 13 17)`}
-                    />
-                )}
-                <line
-                    ref={locked ? registerPointer : undefined}
-                    x1="13"
-                    y1="17"
-                    x2="13"
-                    y2="8"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    transform={`rotate(${angle} 13 17)`}
-                />
-            </svg>
-        </div>
-    );
 }
 
 /**
@@ -270,7 +91,7 @@ function busLetter(index: number): string {
     return index < 26 ? letter : busLetter(Math.floor(index / 26) - 1) + letter;
 }
 
-interface VuMeterProps {
+interface VuMeterProps extends KnobHandlers {
     output: VuMeterDef;
     /** Code-side values diverging from the audio for this meter. */
     ghost: VuMeterGhost | undefined;
@@ -286,8 +107,6 @@ interface VuMeterProps {
     sendBuses: SendBus[] | null;
     onToggleMute: (key: string, codeOnly: boolean) => void;
     onToggleSolo: (key: string, codeOnly: boolean) => void;
-    onPanChange: (key: string, pan: number, codeOnly: boolean) => void;
-    onPanCommit: (key: string, pan: number, codeOnly: boolean) => void;
     onGainChange: (key: string, db: number, codeOnly: boolean) => void;
     onGainCommit: (key: string, codeOnly: boolean) => void;
     onGainReset: (key: string) => void;
@@ -298,22 +117,6 @@ interface VuMeterProps {
     unregisterCanvas: (key: string) => void;
     registerReadout: (key: string, el: HTMLElement) => void;
     unregisterReadout: (key: string) => void;
-    registerPanPointer: (key: string, el: SVGLineElement) => void;
-    unregisterPanPointer: (key: string) => void;
-    onSendChange: (
-        key: string,
-        bus: string,
-        level: number,
-        codeOnly: boolean,
-    ) => void;
-    onSendCommit: (
-        key: string,
-        bus: string,
-        level: number,
-        codeOnly: boolean,
-    ) => void;
-    registerSendDial: (key: string, bus: string, el: SVGSVGElement) => void;
-    unregisterSendDial: (key: string, bus: string) => void;
 }
 
 function VuMeter({
@@ -327,8 +130,6 @@ function VuMeter({
     sendBuses,
     onToggleMute,
     onToggleSolo,
-    onPanChange,
-    onPanCommit,
     onGainChange,
     onGainCommit,
     onGainReset,
@@ -339,28 +140,12 @@ function VuMeter({
     unregisterCanvas,
     registerReadout,
     unregisterReadout,
-    registerPanPointer,
-    unregisterPanPointer,
-    onSendChange,
-    onSendCommit,
-    registerSendDial,
-    unregisterSendDial,
+    ...knobs
 }: VuMeterProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     /** Non-null while a fader drag is live; the modifier state is sampled
      *  once at pointerdown and holds for the whole drag. */
     const faderDragRef = useRef<{ codeOnly: boolean } | null>(null);
-
-    const panPointerRef = useCallback(
-        (el: SVGLineElement | null) => {
-            if (el) {
-                registerPanPointer(output.key, el);
-            } else {
-                unregisterPanPointer(output.key);
-            }
-        },
-        [output.key, registerPanPointer, unregisterPanPointer],
-    );
 
     // Size the backing store to device pixels and keep it matched while the
     // panel is resized. Reassigning canvas.width clears the canvas, so only
@@ -419,7 +204,7 @@ function VuMeter({
         [],
     );
 
-    const faderEnabled = output.gainModuleId !== null;
+    const faderEnabled = output.gain.moduleId !== null;
 
     const handleFaderDown = useCallback(
         (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -504,11 +289,8 @@ function VuMeter({
                     trackKey={output.key}
                     buses={sendBuses}
                     sends={output.sends}
-                    ghosts={ghost?.sends}
-                    onSendChange={onSendChange}
-                    onSendCommit={onSendCommit}
-                    registerSendDial={registerSendDial}
-                    unregisterSendDial={unregisterSendDial}
+                    ghost={ghost}
+                    {...knobs}
                 />
             )}
             <div className="vu-meter-body">
@@ -524,21 +306,47 @@ function VuMeter({
                         </button>
                     )}
                     <div className="vu-meter-controls-spacer" />
-                    {showPan &&
-                        (output.panModuleId != null || output.panLocked) && (
-                            <PanKnob
-                                pan={output.pan ?? 0}
-                                ghostPan={ghost?.pan}
-                                locked={output.panLocked}
-                                onPanChange={(pan, codeOnly) =>
-                                    onPanChange(output.key, pan, codeOnly)
-                                }
-                                onPanCommit={(pan, codeOnly) =>
-                                    onPanCommit(output.key, pan, codeOnly)
-                                }
-                                registerPointer={panPointerRef}
-                            />
-                        )}
+                    {showPan && output.pan && (
+                        // Remounted when its lock changes, which drops what
+                        // the meter loop painted onto it.
+                        <Knob
+                            key={`pan:${output.pan.locked}`}
+                            className="vu-pan-knob"
+                            value={output.pan.value ?? 0}
+                            ghost={ghost?.pan}
+                            range={PAN_RANGE}
+                            step={0.1}
+                            resetValue={0}
+                            locked={output.pan.locked}
+                            detent
+                            title={
+                                output.pan.locked
+                                    ? 'Pan (signal-controlled)'
+                                    : `Pan ${output.pan.value} (drag; ⌃/⌘ drag: edit code only; right-click: center; ⌃/⌘ right-click: revert)`
+                            }
+                            onChange={(value, codeOnly) =>
+                                knobs.onKnobChange(
+                                    output.key,
+                                    'pan',
+                                    value,
+                                    codeOnly,
+                                )
+                            }
+                            onCommit={(value, codeOnly) =>
+                                knobs.onKnobCommit(
+                                    output.key,
+                                    'pan',
+                                    value,
+                                    codeOnly,
+                                )
+                            }
+                            registerSvg={(el) =>
+                                el
+                                    ? knobs.registerKnob(output.key, 'pan', el)
+                                    : knobs.unregisterKnob(output.key, 'pan')
+                            }
+                        />
+                    )}
                     {output.muteModuleId != null && (
                         <>
                             {/* Outer ring = code state, inner core = audio
@@ -601,9 +409,9 @@ function VuMeter({
                         ref={canvasRef}
                         className={`vu-meter-canvas${
                             faderEnabled ? ' vu-meter-canvas--fader' : ''
-                        }${output.gainLocked ? ' vu-meter-canvas--locked' : ''}`}
+                        }${output.gain.locked ? ' vu-meter-canvas--locked' : ''}`}
                         title={
-                            output.gainLocked
+                            output.gain.locked
                                 ? 'Gain (signal-controlled)'
                                 : faderEnabled
                                   ? 'Gain (drag; ⌃/⌘ drag: edit code only; right-click: reset; ⌃/⌘ right-click: revert)'
@@ -638,8 +446,6 @@ export function VuMeterPanel({
     onToggleMute,
     onToggleSolo,
     ghosts,
-    onPanChange,
-    onPanCommit,
     onGainChange,
     onGainCommit,
     onGainReset,
@@ -650,12 +456,10 @@ export function VuMeterPanel({
     unregisterCanvas,
     registerReadout,
     unregisterReadout,
-    registerPanPointer,
-    unregisterPanPointer,
-    onSendChange,
-    onSendCommit,
-    registerSendDial,
-    unregisterSendDial,
+    onKnobChange,
+    onKnobCommit,
+    registerKnob,
+    unregisterKnob,
 }: VuMeterPanelProps) {
     const channelOutputs = outputs.filter((o) => !o.main);
     const trackOutputs = channelOutputs.filter((o) => !o.isBus);
@@ -735,24 +539,20 @@ export function VuMeterPanel({
         onGainCommit,
         onGainReset,
         onGainRevert,
-        onPanChange,
-        onPanCommit,
         onPeakReset,
-        onSendChange,
-        onSendCommit,
+        onKnobChange,
+        onKnobCommit,
         onToggleMute,
         onToggleSolo,
         registerCanvas,
-        registerPanPointer,
+        registerKnob,
         registerReadout,
-        registerSendDial,
         sendBuses,
         showPan,
         showReadout,
         unregisterCanvas,
-        unregisterPanPointer,
+        unregisterKnob,
         unregisterReadout,
-        unregisterSendDial,
     };
 
     const renderTrack = (output: VuMeterDef): React.ReactNode => {

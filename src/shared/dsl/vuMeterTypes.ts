@@ -5,22 +5,29 @@ export interface ControlTap {
     lane: number;
 }
 
-/** A track's send to one bus, as the mixer's send dial shows it. */
-export interface VuSendDef {
+/**
+ * A mixer control on a track: its fader, pan knob or a send dial. A number
+ * within the control's range is lifted into a `_smoothControl` the panel
+ * drives live; anything else stays wired as written, and the control locks.
+ */
+export interface VuControl {
+    /** The value the control shows; null when a signal drives it. */
+    value: number | null;
+    /** `_smoothControl` the panel drives; null when locked. */
+    moduleId: string | null;
+    /** True when the control takes no input: a signal drives it, its
+     *  number lies past the control's range, or a send names its bus twice. */
+    locked: boolean;
+    /** Index of its live tap in the meter's `controlSources`, for a control a
+     *  signal drives. */
+    sourceIndex?: number;
+}
+
+/** A track's send to one bus, as the mixer's send dial shows it. Its value
+ *  is a linear level: 5 for a bus named alone, 0 where none is named. */
+export interface VuSendDef extends VuControl {
     /** The bus's track name: the key of its meter. */
     bus: string;
-    /**
-     * Linear level (5 = full) when it is a number: a numeric level, a bare
-     * bus name (5) or no send at all (0). Null when signal-driven.
-     */
-    level: number | null;
-    /** `_smoothControl` driving the send's level; null when locked. */
-    moduleId: string | null;
-    /** True when the level is signal-driven or past the dial's 0–5, or the
-     *  track sends to the bus more than once: the dial takes no input. */
-    locked: boolean;
-    /** Index of this send's live tap in the meter's `sendSources`. */
-    sourceIndex?: number;
 }
 
 /**
@@ -51,43 +58,19 @@ export interface VuMeterDef {
     baseChannel: number;
     mute: boolean;
     solo: boolean;
-    /**
-     * Pan position (-5 left … +5 right) when the panel's knob controls it —
-     * stereo tracks whose `pan` option is a number or absent. Null when pan is
-     * signal-driven or the track is mono (no knob).
-     */
-    pan: number | null;
-    /** `_smoothControl` driving the stereo mixer's pan; null when `pan` is null. */
-    panModuleId: string | null;
-    /**
-     * True when pan is signal-driven: the knob renders locked (externally
-     * controlled) and tracks the live value from the meter frames.
-     */
-    panLocked: boolean;
-    /**
-     * Output gain in DSL units (audio taper; 5 = unity) when the panel's
-     * fader controls it — tracks whose `gain` option is a number or absent.
-     * Null when gain is signal-driven.
-     */
-    gain: number | null;
-    /** `_smoothControl` driving the gain stage; null when `gain` is null. */
-    gainModuleId: string | null;
-    /** True when gain is signal-driven: the fader is locked and live. */
-    gainLocked: boolean;
-    /**
-     * Live-display taps for locked controls (Rust samples them into the
-     * meter frames). Absent when the control is editable or untappable.
-     */
-    panSource?: ControlTap;
-    gainSource?: ControlTap;
+    /** Pan (-5 left … +5 right); null for a mono track, which has no knob. */
+    pan: VuControl | null;
+    /** Output gain in DSL units (audio taper; 5 = unity). */
+    gain: VuControl;
     /**
      * One send per bus for a track or group, in no particular order; absent
      * on buses and the main strip. A track gets a send to every bus, at 0
      * when its source names none, so a dial is live from its first move.
      */
     sends?: VuSendDef[];
-    /** Live taps of locked sends, sampled into the meter frames' `sends`. */
-    sendSources?: ControlTap[];
+    /** Live taps of the locked controls, sampled into the meter frames'
+     *  `controls`. */
+    controlSources?: ControlTap[];
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
     /** The group track this track plays into, by key; null for none. */
@@ -122,9 +105,15 @@ export interface VuMeterGhost {
     pan?: number;
     /** Out gain in the source (DSL units, 0…10). */
     gain?: number;
-    /** Send levels in the source by bus key, 0 where the source has none. */
-    sends?: Record<string, number>;
+    /** A send's level in the source, by its bus's key; 0 where the source
+     *  names none. */
+    [send: SendGhostKey]: number | undefined;
 }
+
+/** The ghost of the send to bus `bus`. */
+export type SendGhostKey = `send:${string}`;
+
+export const sendGhostKey = (bus: string): SendGhostKey => `send:${bus}`;
 
 /** Out gain value producing unity amplitude. */
 export const UNITY_OUT_GAIN = 5;

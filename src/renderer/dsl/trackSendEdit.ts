@@ -5,9 +5,9 @@
  */
 import ts from 'typescript';
 
-import { closingTokenStart } from './listEdits';
+import { SEND_LEVEL_RANGE } from '../../shared/dsl/controlRanges';
+import { appendArrayElement } from './listEdits';
 import {
-    commasAround,
     computeTrackOptionsEdit,
     findProperty,
     formatControlValue,
@@ -16,9 +16,6 @@ import {
     trackOptionEdit,
     type TrackSourceEdit,
 } from './trackSourceEdit';
-
-/** The level a send naming its bus alone plays at. */
-const FULL_LEVEL = 5;
 
 /** One send as written: its node, its bus, and its level when a pair. */
 interface SendEntry {
@@ -174,7 +171,7 @@ function sendsEdit(
                 ? replace(entry.level, levelText)
                 : null;
         }
-        return Number(levelText) === FULL_LEVEL
+        return Number(levelText) === SEND_LEVEL_RANGE.max
             ? null
             : replace(entry.node, `[${bus}, ${levelText}]`);
     }
@@ -183,20 +180,14 @@ function sendsEdit(
         const value = property.initializer;
         return replace(value, `[${value.getText(file)}, ${added}]`);
     }
-    const last = sends.list.elements.at(-1);
-    if (!last) {
-        const close = closingTokenStart(
-            sends.list,
-            file,
-            ts.SyntaxKind.CloseBracketToken,
-        );
-        return close === null
-            ? null
-            : { end: close, start: close, text: added };
-    }
-    const trailing = commasAround(last, file).after;
-    const at = trailing ? trailing.getEnd() : last.getEnd();
-    return { end: at, start: at, text: `${trailing ? '' : ','} ${added}` };
+    const append = appendArrayElement(file, sends.list, added);
+    return (
+        append && {
+            end: append.span.end,
+            start: append.span.start,
+            text: append.newText,
+        }
+    );
 }
 
 /**

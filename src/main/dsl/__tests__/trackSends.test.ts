@@ -195,7 +195,7 @@ describe("the mixer's send dials", () => {
             `${BUSES}drums: $group()\nkick$drums: $sine('c1').track({ sends: [a, 2] })\nlead: $saw('c3').track({ sends: b })`,
         );
         const levels = (key: string) =>
-            meters.get(key)!.sends!.map((s) => [s.bus, s.level, s.locked]);
+            meters.get(key)!.sends!.map((s) => [s.bus, s.value, s.locked]);
         expect(levels('kick')).toEqual([
             ['a', 2, false],
             ['b', 0, false],
@@ -229,12 +229,12 @@ describe("the mixer's send dials", () => {
             `${BUSES}lfo: $sine(1)\nlead: $saw('c3').track({ sends: [[a, $sine(2)], [a, 1], b] })`,
         ).get('lead')!;
         expect(lead.sends).toEqual([
-            { bus: 'a', level: null, locked: true, moduleId: null },
+            { bus: 'a', locked: true, moduleId: null, value: null },
             {
                 bus: 'b',
-                level: 5,
                 locked: false,
                 moduleId: expect.any(String),
+                value: 5,
             },
         ]);
         const single = metersOf(
@@ -244,7 +244,7 @@ describe("the mixer's send dials", () => {
             locked: true,
             sourceIndex: 0,
         });
-        expect(single.sendSources).toEqual([
+        expect(single.controlSources).toEqual([
             expect.objectContaining({ portName: 'output' }),
         ]);
     });
@@ -257,8 +257,8 @@ describe("the mixer's send dials", () => {
             (m) => m.key === 'lead',
         )!;
         expect(lead.sends).toEqual([
-            { bus: 'a', level: -2, locked: true, moduleId: null },
-            { bus: 'b', level: 7, locked: true, moduleId: null },
+            { bus: 'a', locked: true, moduleId: null, value: -2 },
+            { bus: 'b', locked: true, moduleId: null, value: 7 },
         ]);
         expect(busSends(patch, 0)).toEqual(['lead@-2']);
         expect(busSends(patch, 1)).toEqual(['lead@7']);

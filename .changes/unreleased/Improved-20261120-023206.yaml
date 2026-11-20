@@ -1,0 +1,3 @@
+kind: Improved
+body: The mixer's pan knob draws like the send dials, its arc filling out from the centre. A gain or pan written in code past what the fader or knob reaches (gain above 10, pan beyond ±5) now plays as written and locks the control, instead of jumping the first time it is touched.
+time: 2026-11-20T02:32:06.477667-05:00

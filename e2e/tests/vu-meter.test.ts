@@ -29,12 +29,17 @@ async function rmsFor(
  * Play `lines` in a new buffer with the mixer showing, until the mixer shows
  * track `key`: a run that starts before the buffer holds the patch plays
  * what the buffer held, so the patch runs again until it is the one playing.
+ * Skips the test when the app exposes no test API.
  */
 async function playPatch(
     window: import('playwright').Page,
     lines: string[],
     key: string,
 ) {
+    await window.waitForTimeout(3000);
+    const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+    test.skip(!hasTestAPI, '__TEST_API__ not available');
+
     await openUntitledBuffer(window);
     await window.evaluate((patch) => {
         window.__TEST_API__!.setEditorValue(patch);
@@ -56,10 +61,6 @@ async function playPatch(
 }
 
 async function setupTwoOutPatch(window: import('playwright').Page) {
-    await window.waitForTimeout(3000);
-    const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-    test.skip(!hasTestAPI, '__TEST_API__ not available');
-
     await playPatch(window, TWO_OUT_PATCH.split('\n'), 'bass');
     await window.waitForTimeout(2000);
 }
@@ -283,7 +284,7 @@ test.describe('vu meter panel', () => {
         const outputs = await window.evaluate(() =>
             window.__TEST_API__!.getVuOutputs(),
         );
-        expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
+        expect(outputs.find((o: any) => o.key === 'lead').gain.value).toBe(5);
 
         // Cmd-right-click reverts the source to the audio's unity gain
         // (the property is removed) and drops the ghost.
@@ -355,7 +356,9 @@ test.describe('vu meter panel', () => {
         let outputs = await window.evaluate(() =>
             window.__TEST_API__!.getVuOutputs(),
         );
-        expect(outputs.find((o: any) => o.key === 'lead').gain).not.toBe(5);
+        expect(outputs.find((o: any) => o.key === 'lead').gain.value).not.toBe(
+            5,
+        );
 
         // Plain right-click resets both back to unity; the source drops
         // the property.
@@ -371,7 +374,7 @@ test.describe('vu meter panel', () => {
         outputs = await window.evaluate(() =>
             window.__TEST_API__!.getVuOutputs(),
         );
-        expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
+        expect(outputs.find((o: any) => o.key === 'lead').gain.value).toBe(5);
     });
 
     test('the fader writes a .track() again after a reset drops it', async ({
@@ -416,23 +419,14 @@ test.describe('vu meter panel', () => {
     test('a bus track meters what is sent to it', async ({
         window,
     }, testInfo) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
-        await openUntitledBuffer(window);
-        await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue(
-                [
-                    `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
-                    `fx$2: $bus().lpf('c8')`,
-                ].join('\n'),
-            );
-        });
-        await window.evaluate(() => window.__TEST_API__!.executePatch());
-        await window.evaluate(() => {
-            window.__TEST_API__!.setMixerVisible(true);
-        });
+        await playPatch(
+            window,
+            [
+                `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
+                `fx$2: $bus().lpf('c8')`,
+            ],
+            'fx',
+        );
         // A bus strip sits just left of the main strip, lettered like a
         // return.
         const bus = window.locator(
@@ -455,10 +449,6 @@ test.describe('vu meter panel', () => {
     test('send dials add, set and remove a send to a bus', async ({
         window,
     }, testInfo) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
         await playPatch(
             window,
             [
@@ -481,14 +471,16 @@ test.describe('vu meter panel', () => {
         await expect(window.locator('.vu-meter--main .vu-send')).toHaveCount(0);
         // A signal-driven send is locked.
         await expect(
-            window.locator('.vu-meter[data-vu-key="pad"] .vu-send').nth(1),
-        ).toHaveClass(/vu-send--locked/);
+            window
+                .locator('.vu-meter[data-vu-key="pad"] .vu-send .vu-knob')
+                .nth(1),
+        ).toHaveClass(/vu-knob--locked/);
         await expect
             .poll(() => rmsFor(window, '__vuTap_fx'))
             .toBeLessThan(0.001);
 
         // Dragging up adds the send and plays it at once.
-        const dial = lead.locator('.vu-send').first();
+        const dial = lead.locator('.vu-send .vu-knob').first();
         const box = (await dial.boundingBox())!;
         const x = box.x + box.width / 2;
         const y = box.y + box.height / 2;
@@ -521,17 +513,13 @@ test.describe('vu meter panel', () => {
     test('cmd-drag on a send dial edits the code only until reverted', async ({
         window,
     }) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
         await playPatch(
             window,
             [`lead: $sine($hz(440))`, `fx$2: $bus()`],
             'fx',
         );
         const dial = window
-            .locator('.vu-meter[data-vu-key="lead"] .vu-send')
+            .locator('.vu-meter[data-vu-key="lead"] .vu-send .vu-knob')
             .first();
         await expect(dial).toBeVisible();
         const box = (await dial.boundingBox())!;
@@ -552,23 +540,19 @@ test.describe('vu meter panel', () => {
         await expect
             .poll(source)
             .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
-        await expect(dial.locator('.vu-send-ghost')).toHaveCount(1);
+        await expect(dial.locator('.vu-knob-ghost')).toHaveCount(1);
         await window.waitForTimeout(1000);
         expect(await rmsFor(window, '__vuTap_fx')).toBeLessThan(0.001);
 
         // Cmd-right-click puts the code back to what is playing.
         await dial.click({ button: 'right', modifiers: ['Meta'] });
         await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
-        await expect(dial.locator('.vu-send-ghost')).toHaveCount(0);
+        await expect(dial.locator('.vu-knob-ghost')).toHaveCount(0);
     });
 
     test('the sends hide together when the mixer is too short', async ({
         window,
     }) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
         const buses = 'abcdefghijkl'.split('');
         await playPatch(
             window,
@@ -585,27 +569,18 @@ test.describe('vu meter panel', () => {
     test('a group shows its tracks beside it and folds them away', async ({
         window,
     }, testInfo) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
-        await openUntitledBuffer(window);
-        await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue(
-                [
-                    `kick$drums: $sine($hz(55))`,
-                    `hats$drums: $noise()`,
-                    `drums$rhythm: $group().lpf('c8')`,
-                    `bass$rhythm: $saw($hz(110))`,
-                    `rhythm: $group()`,
-                    `lead: $sine($hz(440))`,
-                ].join('\n'),
-            );
-        });
-        await window.evaluate(() => window.__TEST_API__!.executePatch());
-        await window.evaluate(() => {
-            window.__TEST_API__!.setMixerVisible(true);
-        });
+        await playPatch(
+            window,
+            [
+                `kick$drums: $sine($hz(55))`,
+                `hats$drums: $noise()`,
+                `drums$rhythm: $group().lpf('c8')`,
+                `bass$rhythm: $saw($hz(110))`,
+                `rhythm: $group()`,
+                `lead: $sine($hz(440))`,
+            ],
+            'lead',
+        );
 
         const drums = window.locator('.vu-group[data-vu-group="drums"]');
         await expect(drums.locator('.vu-meter')).toHaveCount(3);

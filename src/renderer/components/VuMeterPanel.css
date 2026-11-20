@@ -114,21 +114,8 @@
 .vu-pan-knob {
     align-self: center;
     width: 26px;
-    height: 30px;
-    color: #b5b5b5;
-    cursor: ns-resize;
-    touch-action: none;
+    height: 32px;
     margin-bottom: 2px;
-}
-
-.vu-pan-knob:hover {
-    color: var(--text-primary, #e8e8e8);
-}
-
-.vu-pan-knob svg {
-    display: block;
-    width: 100%;
-    height: 100%;
 }
 
 /* Two concentric sections: the button's own face (outer ring) shows the
@@ -200,11 +187,6 @@
     font-weight: 400;
 }
 
-/* Ghost pan pointer at the code-side value awaiting a patch update. */
-.vu-pan-ghost {
-    opacity: 0.35;
-}
-
 /* Muted / not-soloed outputs keep metering; only the meter dims. */
 .vu-meter--suppressed .vu-meter-canvas-wrap {
     filter: grayscale(1) opacity(0.5);
@@ -230,11 +212,6 @@
 
 /* Signal-driven controls: locked, tinted, live-tracking. */
 .vu-meter-canvas--locked {
-    cursor: default;
-}
-
-.vu-pan-knob--locked {
-    color: var(--accent-primary, #4ec9b0);
     cursor: default;
 }
 
@@ -296,13 +273,6 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    color: #b5b5b5;
-    cursor: ns-resize;
-    touch-action: none;
-}
-
-.vu-send:hover {
-    color: var(--text-primary, #e8e8e8);
 }
 
 .vu-send-letter {
@@ -310,36 +280,58 @@
     line-height: 10px;
 }
 
-.vu-send svg {
-    display: block;
+.vu-send-knob {
     width: 20px;
     height: 20px;
+}
+
+/* A mixer knob: pan or a send dial. */
+.vu-knob {
+    color: #b5b5b5;
+    cursor: ns-resize;
+    touch-action: none;
+}
+
+.vu-knob:hover {
+    color: var(--text-primary, #e8e8e8);
+}
+
+.vu-knob svg {
+    display: block;
+    width: 100%;
+    height: 100%;
     fill: none;
     stroke-linecap: round;
 }
 
-.vu-send-track {
+.vu-knob-detent {
+    fill: currentColor;
+}
+
+.vu-knob-track {
     stroke: #3a3a3a;
     stroke-width: 2.5;
 }
 
-.vu-send-value {
+.vu-knob-value {
     stroke: currentColor;
     stroke-width: 2.5;
 }
 
-.vu-send-ghost {
+.vu-knob-pointer {
+    stroke: currentColor;
+    stroke-width: 1.6;
+}
+
+/* Ghost pointer at the code-side value awaiting a patch update. */
+.vu-knob-ghost {
     stroke: currentColor;
     stroke-width: 1.6;
     opacity: 0.35;
 }
 
-.vu-send-pointer {
-    stroke: currentColor;
-    stroke-width: 1.6;
-}
-
-.vu-send--locked {
+/* Signal-driven: locked, tinted, live-tracking. */
+.vu-knob--locked {
     color: var(--accent-primary, #4ec9b0);
     cursor: default;
 }

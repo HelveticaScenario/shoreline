@@ -68,9 +68,7 @@ fn vu_spec() -> modular_core::types::VuMeterSpec {
         port_name: "output".to_string(),
         channels: 2,
         mute_module_id: Some("mute-1".to_string()),
-        pan_source: None,
-        gain_source: None,
-        send_sources: None,
+        control_sources: None,
     }
 }
 

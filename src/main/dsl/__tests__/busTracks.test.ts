@@ -63,7 +63,11 @@ describe('$bus tracks', () => {
                 gain: number;
             }[]
         ).find((m) => m.key === 'fx');
-        expect(fx).toMatchObject({ baseChannel: 2, channels: 1, gain: 3 });
+        expect(fx).toMatchObject({
+            baseChannel: 2,
+            channels: 1,
+            gain: { value: 3 },
+        });
     });
 
     test('a bus held in a const is a bus once labelled', () => {
