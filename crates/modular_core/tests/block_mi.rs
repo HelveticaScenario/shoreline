@@ -80,6 +80,8 @@ fn allocation_free() {
         "$mi.synthKick",
         "$mi.synthSnare",
         "$mi.twoOp",
+        "$mi.va",
+        "$mi.vcf",
         "$mi.formantVowel",
         "$mi.samVowel",
         "$mi.lpcVowel",

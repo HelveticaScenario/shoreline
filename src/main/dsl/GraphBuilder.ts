@@ -151,9 +151,9 @@ export function $cartesian<A extends unknown[][]>(
 
 /**
  * A send to a bus, named by its track's name: the name alone sends at full
- * level, `[name, gain]` at `gain`.
+ * level, `[name, level]` at a linear `level` (5 = full, 0 = none).
  */
-export type Send = TrackTap | [bus: TrackTap, gain: PolySignal];
+export type Send = TrackTap | [bus: TrackTap, level: PolySignal];
 
 /** Options of `.track()`: how a track mixes into its output channels. */
 export interface TrackOptions {
@@ -270,7 +270,7 @@ export type OutGroup = StereoOutGroup | MonoOutGroup;
 
 interface SendGroup {
     outputs: ModuleOutput[];
-    gain?: PolySignal;
+    level?: PolySignal;
 }
 
 /**
@@ -294,8 +294,8 @@ export class Bus {
         builder.addBus(this);
     }
 
-    addSend(outputs: ModuleOutput[], gain?: PolySignal): void {
-        this.sendGroups.push({ gain, outputs });
+    addSend(outputs: ModuleOutput[], level?: PolySignal): void {
+        this.sendGroups.push({ level, outputs });
     }
 
     /** Build the mix of the sends and point the bus's signal at it. */
@@ -307,9 +307,9 @@ export class Bus {
         const mixed = this.builder.getFactory('$mix')(
             this.sendGroups.map((e) => {
                 const coll = this.builder.$c(e.outputs);
-                return e.gain === undefined
+                return e.level === undefined
                     ? coll
-                    : this.builder.getFactory('$gain')(coll, e.gain);
+                    : this.builder.getFactory('$amp')(coll, e.level);
             }),
         );
         this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
@@ -1555,8 +1555,8 @@ export class GraphBuilder implements ChainHost {
                     const { stage } = stagesByLabel.get(parent)!;
                     sent = gated(gainStage(sent, stage), stage.gate);
                 }
-                for (const [bus, gain] of sendsByTrack.get(label)!) {
-                    bus.addSend(sent, gain);
+                for (const [bus, level] of sendsByTrack.get(label)!) {
+                    bus.addSend(sent, level);
                 }
             }
             for (const bus of this.busses) {
@@ -2014,24 +2014,24 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Whether `value` is one `[bus, gain]` pair rather than a list of sends:
+     * Whether `value` is one `[bus, level]` pair rather than a list of sends:
      * a bus followed by something that is neither a bus nor a pair.
      */
     private isSendPair(value: unknown): value is [unknown, PolySignal] {
         if (!Array.isArray(value) || value.length !== 2) {
             return false;
         }
-        const [bus, gain] = value as unknown[];
+        const [bus, level] = value as unknown[];
         // A track's name second is a second send, never a level, so a
-        // name that is no bus is reported instead of becoming a gain.
+        // name that is no bus is reported instead of becoming a level.
         return (
             this.sendTarget(bus) !== undefined &&
-            trackBindingName(gain) === undefined &&
-            !(Array.isArray(gain) && trackBindingName(gain[0]) !== undefined)
+            trackBindingName(level) === undefined &&
+            !(Array.isArray(level) && trackBindingName(level[0]) !== undefined)
         );
     }
 
-    /** The `[bus, gain]` pairs of `track`'s `sends` option. */
+    /** The `[bus, level]` pairs of `track`'s `sends` option. */
     private resolveSends(
         track: string,
         sends: unknown,
@@ -2046,7 +2046,7 @@ export class GraphBuilder implements ChainHost {
             );
             return new Error(
                 target === undefined
-                    ? `track ${track}: sends takes a bus track's name, a [name, gain] pair, or an array of them`
+                    ? `track ${track}: sends takes a bus track's name, a [name, level] pair, or an array of them`
                     : `track ${track}: sends cannot reach ${target}, which is not a bus. A bus is a track whose signal is $bus() or methods chained on it; to set a send's level from a track, wrap its name, as in [bus, $c(name)]`,
             );
         };
