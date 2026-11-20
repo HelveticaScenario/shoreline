@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { VideoDocs } from './VideoDocs';
+import { BuiltinDocs } from './BuiltinDocs';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
 import { ModuleReference } from './ModuleReference';
 import type { DocsTarget } from './docsCommand';
@@ -18,13 +19,14 @@ import {
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import './DocsPanel.css';
 
-type Page = 'types' | 'globals' | 'reference' | 'video';
+type Page = 'types' | 'globals' | 'reference' | 'video' | 'builtins';
 
 const PAGES: { id: Page; label: string }[] = [
     { id: 'reference', label: 'Reference' },
     { id: 'types', label: 'Types' },
     { id: 'globals', label: 'Globals' },
     { id: 'video', label: 'Video' },
+    { id: 'builtins', label: 'Built-ins' },
 ];
 
 const MODULE_NAME_ORDER = new Intl.Collator('en', {
@@ -284,6 +286,8 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             }
             case 'video':
                 return <VideoDocs />;
+            case 'builtins':
+                return <BuiltinDocs />;
             case 'types':
                 return (
                     <div>

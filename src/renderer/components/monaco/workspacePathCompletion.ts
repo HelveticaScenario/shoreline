@@ -1,11 +1,16 @@
 /**
- * Completes workspace file paths in string literals that start with `/` (the
- * workspace folder), and inserts files dropped from the explorer.
+ * Completes asset paths in string literals: workspace files in a literal that
+ * starts with `/` (the workspace folder), bundled files in one that starts
+ * with `builtin/` or part of it. Also inserts files dropped from the explorer.
  */
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { IRange, editor, languages } from 'monaco-editor';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
 import type { AssetKind } from '../../../shared/assetFiles';
+import {
+    BUILTIN_PREFIX,
+    BUILTIN_WAVETABLES,
+} from '../../../shared/builtinAssets';
 
 /** Drag data type the file explorer sets to a file's `/`-rooted path. */
 export const WORKSPACE_PATH_MIME = 'application/x-shoreline-workspace-path';
@@ -150,10 +155,36 @@ export function quotePath(path: string, preferred: string): string {
     return `${quote}${body}${quote}`;
 }
 
+/** A path offered for completion and the words shown beside it. */
+interface PathSuggestion {
+    path: string;
+    detail: string;
+}
+
+const BUILTIN_SUGGESTIONS: PathSuggestion[] = BUILTIN_WAVETABLES.map(
+    ({ path }) => ({ path, detail: ASSET_DETAILS.wav }),
+);
+
+/** The workspace assets `listFiles` lists, or none when it fails. */
+async function workspaceSuggestions(
+    listFiles: () => Promise<FileTreeEntry[]>,
+): Promise<PathSuggestion[]> {
+    try {
+        return assetPaths(await listFiles()).map(({ path, kind }) => ({
+            path,
+            detail: ASSET_DETAILS[kind],
+        }));
+    } catch (error) {
+        console.error('[path completion] failed to list files', error);
+        return [];
+    }
+}
+
 /**
- * Registers completion of workspace asset paths inside string literals that
- * start with `/`. `listFiles` is read on every request, so files added since
- * the editor opened are offered.
+ * Registers completion of asset paths inside string literals: workspace files
+ * when the literal starts with `/`, bundled files when it starts with
+ * `builtin/` or part of it, and both in an empty literal. `listFiles` is read
+ * on every request, so files added since the editor opened are offered.
  */
 export function registerWorkspacePathCompletionProvider(
     monaco: Monaco,
@@ -164,20 +195,20 @@ export function registerWorkspacePathCompletionProvider(
         async provideCompletionItems(model, position) {
             const line = model.getLineContent(position.lineNumber);
             const span = stringLiteralAt(line, position.column);
-            if (
-                !span ||
-                line.slice(span.contentStart - 1, position.column - 1)[0] !==
-                    '/'
-            ) {
-                return undefined;
-            }
-            let assets: { path: string; kind: AssetKind }[];
-            try {
-                assets = assetPaths(await listFiles());
-            } catch (error) {
-                console.error('[path completion] failed to list files', error);
-                return undefined;
-            }
+            if (!span) return undefined;
+            const typed = line.slice(
+                span.contentStart - 1,
+                position.column - 1,
+            );
+            const workspace = typed === '' || typed.startsWith('/');
+            const builtin =
+                BUILTIN_PREFIX.startsWith(typed) ||
+                typed.startsWith(BUILTIN_PREFIX);
+            if (!workspace && !builtin) return undefined;
+            const offered = [
+                ...(workspace ? await workspaceSuggestions(listFiles) : []),
+                ...(builtin ? BUILTIN_SUGGESTIONS : []),
+            ];
             // The whole literal, quotes included, is replaced: the path may
             // need the other quote, and accepting never leaves the rest of an
             // earlier path behind. In an unclosed literal the rest of the line
@@ -189,10 +220,10 @@ export function registerWorkspacePathCompletionProvider(
                 endColumn: span.closed ? span.contentEnd + 1 : position.column,
             };
             return {
-                suggestions: assets.map(({ path, kind }) => ({
+                suggestions: offered.map(({ path, detail }) => ({
                     label: path,
                     kind: monaco.languages.CompletionItemKind.File,
-                    detail: ASSET_DETAILS[kind],
+                    detail,
                     insertText: quotePath(path, span.quote),
                     filterText: `${span.quote}${path}`,
                     range,

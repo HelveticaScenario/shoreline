@@ -27,6 +27,8 @@ const config: ForgeConfig = {
             unpack: '**/*.{node,node.pdb,dSYM,dSYM/**}',
         },
         executableName: 'Shoreline',
+        // Copied to Resources/builtin, where `builtin/` paths resolve.
+        extraResource: ['assets/builtin'],
         extendInfo: {
             NSLocalNetworkUsageDescription:
                 'Shoreline uses the local network to sync tempo with other music apps via Ableton Link.',

@@ -9,6 +9,10 @@ import {
     stringLiteralAt,
     assetPaths,
 } from './workspacePathCompletion';
+import {
+    BUILTIN_PREFIX,
+    BUILTIN_WAVETABLES,
+} from '../../../shared/builtinAssets';
 
 const TREE: FileTreeEntry[] = [
     { name: 'song.js', path: 'song.js', type: 'file', fileType: 'js' },
@@ -321,7 +325,45 @@ describe('workspace path completion', () => {
         });
     });
 
-    test('offers nothing in a literal not starting with /', async () => {
+    test('offers the bundled files in a literal starting with builtin/ or part of it', async () => {
+        const builtins = BUILTIN_WAVETABLES.map((a) => `'${a.path}'`);
+        for (const typed of ['b', 'builtin', 'builtin/', 'builtin/tables/be']) {
+            const line = `$wavetable('c3', '${typed}')`;
+            const list = await complete(line, 19 + typed.length);
+            expect(list?.suggestions.map((s) => s.insertText)).toEqual(
+                builtins,
+            );
+        }
+        const list = await complete("$wavetable('c3', 'b')", 20);
+        expect(list?.suggestions[0]).toMatchObject({
+            detail: 'WAV file',
+            filterText: `'${BUILTIN_WAVETABLES[0].path}`,
+            range: { startColumn: 18, endColumn: 21 },
+        });
+    });
+
+    test('a literal starting with / offers no bundled files', async () => {
+        const list = await complete("$sampler('/', 5)", 12);
+        expect(
+            list?.suggestions.some((s) =>
+                s.insertText.slice(1).startsWith(BUILTIN_PREFIX),
+            ),
+        ).toBe(false);
+    });
+
+    test('an empty literal offers workspace files, then bundled ones', async () => {
+        const list = await complete("$sampler('', 5)", 11);
+        expect(list?.suggestions.map((s) => s.label)).toEqual([
+            '/wavs/kick.wav',
+            "/wavs/don't.wav",
+            '/wavs/pads/warm.wav',
+            '/pictures/photo.png',
+            '/clips/loop.mp4',
+            ...BUILTIN_WAVETABLES.map((a) => a.path),
+        ]);
+    });
+
+    test('offers nothing in a literal starting with anything else', async () => {
         expect(await complete("$sine('c4')", 9)).toBeUndefined();
     });
 

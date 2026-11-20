@@ -15732,7 +15732,7 @@
     "name": "$wavetable",
     "docs": {
       "summary": "Wavetable oscillator",
-      "description": "Plays the single-cycle frames of a wavetable WAV and blends between them, for evolving glassy, vocal or digital timbres. Sweep `position` with an LFO or envelope, and bend each cycle further with a `$phase.*` warp.",
+      "description": "Plays the single-cycle frames of a wavetable WAV and blends between them, for evolving glassy, vocal or digital timbres. Sweep `position` with an LFO or envelope, and bend each cycle further with a `$phase.*` warp. Tables bundled with the app live under `'builtin/tables/'`.",
       "categories": [
         "oscillator"
       ],
@@ -15740,11 +15740,11 @@
       "examples": [
         {
           "title": "Scanning pad",
-          "code": "chord: $wavetable(\n  $chord('C3[m9]'),\n  '/wavs/tables/pad.wav',\n  $sine('0.1hz').range(0, 5),\n)"
+          "code": "chord: $wavetable(\n  $chord('C3[m9]'),\n  'builtin/tables/mi/formants.wav',\n  $sine('0.1hz').range(0, 5),\n)"
         },
         {
           "title": "Plucked table sweep",
-          "code": "const seq = $`c3 eb3 g3 bb3`\nconst env = $perc(seq, { decay: 0.5 })\nmelody: $wavetable(\n  seq,\n  '/wavs/tables/pad.wav',\n  env.range(0, 4),\n).amp(env)"
+          "code": "const seq = $`c3 eb3 g3 bb3`\nconst env = $perc(seq, { decay: 0.5 })\nmelody: $wavetable(\n  seq,\n  'builtin/tables/mi/fm-bell.wav',\n  env.range(0, 4),\n).amp(env)"
         }
       ]
     },
