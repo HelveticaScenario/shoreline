@@ -23,6 +23,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -88,10 +90,6 @@ struct MultimodeParams {
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     high_res: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]

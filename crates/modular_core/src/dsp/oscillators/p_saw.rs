@@ -1,12 +1,17 @@
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::utils::wrap,
+    dsp::{
+        oscillators::waveforms::{triangle, triangle_symmetry},
+        utils::wrap,
+    },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
+
+use crate::dsp::utils::default_true;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -28,6 +33,12 @@ struct PSawOscillatorParams {
     )]
     #[deserr(default)]
     shape: Option<PolySignal>,
+    #[input(
+        "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone"
+    )]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    bandlimit: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -99,59 +110,18 @@ impl PSawOscillator {
             }
             phase_increment = phase_increment.abs().clamp(0.0, 0.5);
 
-            // Convert shape (0–5) to symmetry (peak position):
-            // 0 = saw (peak at 1.0), 2.5 = triangle (peak at 0.5), 5 = ramp (peak at 0.0)
-            let s = (1.0 - *state.shape * 0.2).clamp(0.001, 0.999) as f64;
-
-            // DPW (Differentiated Polynomial Waveform) method:
-            // Compute the smooth anti-derivative of the waveform at both the
-            // previous and current phase, then differentiate numerically.
-            // The numeric differentiation naturally band-limits the output.
-            //
-            // The differencing is done in f64: at slow (LFO-rate) phasor inputs
-            // the per-sample phase delta is tiny, so the difference of near-equal
-            // integral values and its division must keep enough precision that
-            // f32 rounding does not amplify into per-sample hash.
-            let raw_output = if phase_increment > 1.0e-7 {
-                let integral_old = triangle_integral(state.prev_phase, s);
-                let integral_new = triangle_integral(phase, s);
-                (integral_new - integral_old) / phase_increment
-            } else {
-                // Near-DC fallback: use naive waveform (no aliasing at low freq)
-                naive_triangle(phase, s)
-            };
+            let s = triangle_symmetry(*state.shape, self.params.bandlimit);
+            let raw_output = triangle(
+                state.prev_phase,
+                phase,
+                phase_increment,
+                s,
+                self.params.bandlimit,
+            );
 
             state.prev_phase = phase;
             self.outputs.sample.set(lane, raw_output as f32 * 5.0);
         }
-    }
-}
-
-/// Anti-derivative of the variable-symmetry triangle waveform.
-///
-/// This is a continuous, differentiable, periodic piecewise-parabolic function
-/// (F(0) = F(1) = 0). Used by the DPW method: the numeric differentiation
-/// `(F[n] - F[n-1]) / dt` naturally band-limits the output without requiring
-/// any explicit PolyBLEP/PolyBLAMP corrections.
-#[inline(always)]
-fn triangle_integral(phase: f64, s: f64) -> f64 {
-    if phase < s {
-        // Integral of rising segment: f(p) = 2p/s - 1  →  F(p) = p²/s - p
-        phase * phase / s - phase
-    } else {
-        // Integral of falling segment: f(p) = 1 - 2(p-s)/(1-s)  →  F(p) = p - (p-s)²/(1-s) - s
-        let d = phase - s;
-        phase - d * d / (1.0 - s) - s
-    }
-}
-
-/// Naive variable-symmetry triangle (used as fallback at near-zero frequency).
-#[inline(always)]
-fn naive_triangle(phase: f64, s: f64) -> f64 {
-    if phase < s {
-        2.0 * phase / s - 1.0
-    } else {
-        1.0 - 2.0 * (phase - s) / (1.0 - s)
     }
 }
 
@@ -160,8 +130,41 @@ message_handlers!(impl PSawOscillator {});
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dsp::oscillators::waveforms::naive_triangle;
     use crate::poly::PolySignal;
     use crate::types::{OutputStruct, Signal};
+
+    fn make_p_saw(bandlimit: bool) -> PSawOscillator {
+        let params = PSawOscillatorParams {
+            phase: PolySignal::mono(Signal::Volts(0.0)),
+            shape: None, // 0 → saw
+            bandlimit,
+        };
+        let lanes = params.phase.lanes().max(1);
+        let mut outputs = PSawOscillatorOutputs::default();
+        outputs.set_all_lanes(lanes);
+        PSawOscillator {
+            params,
+            outputs,
+            _lane_count: lanes,
+            _channels: 1,
+            _block_index: Default::default(),
+            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
+        }
+    }
+
+    /// Without band-limiting the output is the exact wave at the input phase.
+    #[test]
+    fn unbandlimited_reads_the_exact_wave() {
+        let mut osc = make_p_saw(false);
+        for i in 0..200 {
+            let phase = (i as f32 * 0.037).fract();
+            osc.params.phase = PolySignal::mono(Signal::Volts(phase));
+            osc.update(48_000.0);
+            let expected = naive_triangle(phase as f64, triangle_symmetry(0.0, false)) as f32 * 5.0;
+            assert_eq!(osc.outputs.sample.get(0), expected);
+        }
+    }
 
     #[test]
     fn low_rate_phase_ramp_is_a_clean_ramp() {
@@ -170,21 +173,7 @@ mod tests {
         // values by the per-sample phase delta; when that delta is tiny the
         // differencing must keep enough precision that f32 rounding does not
         // blow up into per-sample hash. Mirrors the saw.rs regression.
-        let params = PSawOscillatorParams {
-            phase: PolySignal::mono(Signal::Volts(0.0)),
-            shape: None, // 0 → saw
-        };
-        let lanes = params.phase.lanes().max(1);
-        let mut outputs = PSawOscillatorOutputs::default();
-        outputs.set_all_lanes(lanes);
-        let mut osc = PSawOscillator {
-            params,
-            outputs,
-            _lane_count: lanes,
-            _channels: 1,
-            _block_index: Default::default(),
-            lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
-        };
+        let mut osc = make_p_saw(true);
 
         // 0.2 Hz at 48 kHz ⇒ the phasor advances 0.2/48000 per sample. Start
         // mid-ramp (0.5) so 2000 samples stay on the rising segment (no wrap).

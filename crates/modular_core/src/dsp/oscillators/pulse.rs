@@ -3,11 +3,16 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
+        oscillators::{
+            FmMode, apply_fm, sync_edge_fraction, sync_reset,
+            waveforms::{naive_pulse, pulse, pulse_width},
+        },
         utils::{SchmittTrigger, sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -57,6 +62,12 @@ struct PulseOscillatorParams {
     )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
+    #[input(
+        "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone"
+    )]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    bandlimit: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -120,10 +131,14 @@ impl PulseLaneState {
     /// the next output sample. `width` is this sample's glided width plus
     /// PWM, clamped to 0–5, and `sync` its sync input, if connected.
     #[inline(always)]
-    fn step(&mut self, phase_increment: f32, width: f32, offset: f32, sync: Option<f32>) -> f32 {
-        // Pulse width (0.0 to 1.0, 0.5 is square wave)
-        let pulse_width = (width / 5.0).clamp(0.01, 0.99);
-
+    fn step(
+        &mut self,
+        phase_increment: f32,
+        width: f32,
+        offset: f32,
+        sync: Option<f32>,
+        bandlimit: bool,
+    ) -> f32 {
         self.phase = wrap_phase(self.phase + phase_increment);
 
         // Phase offset shifts the read position without altering the
@@ -131,37 +146,25 @@ impl PulseLaneState {
         let read_offset = offset.rem_euclid(1.0);
         let read_phase = (self.phase + read_offset).rem_euclid(1.0);
 
-        let naive_pulse = |p: f32| if p < pulse_width { 1.0 } else { -1.0 };
-
-        // Naive pulse plus PolyBLEP at its own rising (phase 0) and falling
-        // (phase = width) edges. The sync reset lands in the upcoming
-        // interval, so these operate on the real, pre-reset phase.
-        let abs_phase_inc = phase_increment.abs();
-        let mut body = naive_pulse(read_phase);
-        body += poly_blep_pulse(read_phase, abs_phase_inc);
-        body -= poly_blep_pulse(
-            if read_phase >= pulse_width {
-                read_phase - pulse_width
-            } else {
-                read_phase - pulse_width + 1.0
-            },
-            abs_phase_inc,
-        );
+        // The sync reset lands in the upcoming interval, so the edges are
+        // placed on the real, pre-reset phase.
+        let pulse_width = pulse_width(width);
+        let body = pulse(read_phase, pulse_width, phase_increment.abs(), bandlimit);
 
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
 
         // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the reset discontinuity.
-        // (The jump is zero when the pulse was already high at the reset.)
+        // at the subsample crossing when band-limited. (The jump is zero when
+        // the pulse was already high at the reset.)
         let mut now = 0.0;
         if let Some(v) = sync {
             if self.sync_schmitt.process(v) {
                 let frac = sync_edge_fraction(self.sync_prev, v);
-                let before = naive_pulse(read_phase);
+                let before = naive_pulse(read_phase, pulse_width);
                 self.phase = 0.0;
-                let after = naive_pulse(read_offset);
-                let (n, carry) = sync_blep(after - before, frac);
+                let after = naive_pulse(read_offset, pulse_width);
+                let (n, carry) = sync_reset(after - before, frac, bandlimit);
                 now = n;
                 self.blep_carry = carry;
             }
@@ -196,9 +199,10 @@ impl PulseOscillator {
                 .value_or(lane, PulseOscillatorParams::PHASE_OFFSET_DEFAULT);
             let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
             let width = (width + pwm).clamp(0.0, 5.0);
-            self.outputs
-                .sample
-                .set(lane, state.step(increment, width, offset, sync));
+            self.outputs.sample.set(
+                lane,
+                state.step(increment, width, offset, sync, p.bandlimit),
+            );
         }
     }
 
@@ -260,6 +264,7 @@ impl PulseOscillator {
                     width,
                     offset[lane],
                     sync.map(|sync| sync[lane]),
+                    p.bandlimit,
                 ));
             }
         }
@@ -270,21 +275,6 @@ impl PulseOscillator {
         }
         Some(())
     }
-}
-
-// PolyBLEP for pulse wave
-fn poly_blep_pulse(phase: f32, phase_increment: f32) -> f32 {
-    // Detect discontinuity at phase wrap (0.0)
-    if phase < phase_increment {
-        let t = phase / phase_increment;
-        return t + t - t * t - 1.0;
-    }
-    // Detect discontinuity approaching 1.0
-    else if phase > 1.0 - phase_increment {
-        let t = (phase - 1.0) / phase_increment;
-        return t * t + t + t + 1.0;
-    }
-    0.0
 }
 
 message_handlers!(impl PulseOscillator {});

@@ -1,0 +1,3 @@
+kind: New
+body: 'New `bandlimit` option on `$saw`, `$pulse`, `$sine`, `$pSaw`, `$pPulse` and `$wavetable`. Set `bandlimit: false` for exact steps, ramps and corners (clean LFO and gate shapes, an exact hard-sync reset) or a raw, aliased digital tone at high notes.'
+time: 2026-11-20T17:20:15.4303-05:00

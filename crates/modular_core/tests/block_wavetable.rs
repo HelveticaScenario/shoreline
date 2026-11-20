@@ -1,9 +1,11 @@
 //! `$wavetable` renders identically on the block and per-sample paths: held and
-//! modulated pitch and position, FM, phase offset, hard sync and phase warps.
+//! modulated pitch and position, FM, phase offset, hard sync and phase warps,
+//! band-limited or not.
 
 mod block_common;
 
 use block_common::*;
+use modular_core::types::ProcessingMode;
 use serde_json::json;
 
 #[global_allocator]
@@ -39,6 +41,39 @@ fn wavetable_paths_agree() {
             "phase": { "type": "mirror", "amount": cable("lfo", 1) },
         }),
     );
+    check_paths_agree(
+        "$wavetable",
+        json!({
+            "wav": wav,
+            "pitch": poly_cable("lfo", LANES),
+            "sync": cable("src", 0),
+            "phase": { "type": "pulsar", "amount": 4.0 },
+            "bandlimit": false,
+        }),
+    );
+    check_paths_agree(
+        "$wavetable",
+        json!({ "wav": wav, "pitch": 3.0, "position": 5.0, "bandlimit": false }),
+    );
+}
+
+/// Without band-limiting the full table plays at every pitch: below the
+/// table's own frequency nothing changes, and a high note keeps the harmonics
+/// the band-limited read drops.
+#[test]
+fn unbandlimited_reads_the_full_table() {
+    let outputs = |pitch: f32, bandlimit: bool| {
+        let wav = json!({ "type": "wav_ref", "path": "table", "channels": 1 });
+        let patch = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$wavetable",
+            json!({ "wav": wav, "pitch": pitch, "position": 5.0, "bandlimit": bandlimit }),
+        );
+        render(&patch, &[BLOCK_SIZE]).0
+    };
+    assert_eq!(outputs(-2.0, false), outputs(-2.0, true));
+    assert_ne!(outputs(4.0, false), outputs(4.0, true));
 }
 
 #[test]

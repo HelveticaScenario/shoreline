@@ -5,13 +5,15 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
+        oscillators::{FmMode, apply_fm, sync_edge_fraction, sync_reset},
         utils::{SchmittTrigger, interpolate, sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
+
+use crate::dsp::utils::default_true;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -40,6 +42,10 @@ struct SineOscillatorParams {
     )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
+    #[input("smooths the click of a hard-sync reset; off makes the reset an exact step")]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    bandlimit: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -99,7 +105,7 @@ impl LaneState {
     /// Advance the phase by `increment` (cycles per sample) and return the
     /// next output sample. `sync` is this sample's sync input, if connected.
     #[inline(always)]
-    fn step(&mut self, increment: f32, offset: f32, sync: Option<f32>) -> f32 {
+    fn step(&mut self, increment: f32, offset: f32, sync: Option<f32>, bandlimit: bool) -> f32 {
         self.phase = wrap_phase(self.phase + increment);
 
         // Phase offset shifts the read position without altering the
@@ -113,14 +119,14 @@ impl LaneState {
         self.blep_carry = 0.0;
 
         // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the discontinuity.
+        // at the subsample crossing when band-limited.
         let mut now = 0.0;
         if let Some(v) = sync {
             if self.sync_schmitt.process(v) {
                 let frac = sync_edge_fraction(self.sync_prev, v);
                 self.phase = 0.0;
                 let after = interpolate(LUT_SINE, offset.rem_euclid(1.0), LUT_SINE_SIZE);
-                let (n, carry) = sync_blep(after - body, frac);
+                let (n, carry) = sync_reset(after - body, frac, bandlimit);
                 now = n;
                 self.blep_carry = carry;
             }
@@ -144,7 +150,7 @@ impl SineOscillator {
             let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
             self.outputs
                 .sample
-                .set(lane, state.step(increment, offset, sync));
+                .set(lane, state.step(increment, offset, sync, p.bandlimit));
         }
     }
 
@@ -186,7 +192,12 @@ impl SineOscillator {
                 } else {
                     apply_fm(pitch[lane], fm[lane], p.fm_mode) / sample_rate
                 };
-                *out = sanitize(state.step(increment, offset[lane], sync.map(|sync| sync[lane])));
+                *out = sanitize(state.step(
+                    increment,
+                    offset[lane],
+                    sync.map(|sync| sync[lane]),
+                    p.bandlimit,
+                ));
             }
         }
         Some(())
@@ -208,6 +219,7 @@ mod tests {
             fm_mode,
             sync: None,
             phase_offset: None,
+            bandlimit: true,
         };
         let lanes = params.freq.lanes().max(1);
         let mut outputs = SineOscillatorOutputs::default();
@@ -220,6 +232,42 @@ mod tests {
             _block_index: Default::default(),
             lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
         }
+    }
+
+    /// Renders 60 samples, the sync input rising at sample 50.
+    fn render_synced(bandlimit: bool) -> Vec<f32> {
+        let mut osc = make_sine(0.0, FmMode::Exp);
+        osc.params.bandlimit = bandlimit;
+        (0..60)
+            .map(|n| {
+                let sync = if n >= 50 { 5.0 } else { 0.0 };
+                osc.params.sync = Some(PolySignal::mono(Signal::Volts(sync)));
+                osc.update(48_000.0);
+                osc.outputs.sample.get(0)
+            })
+            .collect()
+    }
+
+    /// Without band-limiting a sync reset is an exact step: the edge sample
+    /// still reads the running wave, and the next restarts the cycle as a
+    /// fresh oscillator's first sample does.
+    #[test]
+    fn unbandlimited_sync_resets_exactly() {
+        let mut free = make_sine(0.0, FmMode::Exp);
+        let free: Vec<f32> = (0..60)
+            .map(|_| {
+                free.update(48_000.0);
+                free.outputs.sample.get(0)
+            })
+            .collect();
+        let naive = render_synced(false);
+        assert_eq!(naive[..51], free[..51]);
+        assert_eq!(naive[51], free[0]);
+        assert_ne!(
+            render_synced(true)[50],
+            free[50],
+            "the band-limited reset is smoothed"
+        );
     }
 
     #[test]

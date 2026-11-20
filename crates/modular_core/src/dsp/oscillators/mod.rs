@@ -63,6 +63,17 @@ pub fn sync_blep(jump: f32, frac: f32) -> (f32, f32) {
     (half * before * before, -half * frac * frac)
 }
 
+/// [`sync_blep`] when `bandlimit` is set; otherwise no correction, leaving the
+/// reset as a hard step.
+#[inline]
+pub fn sync_reset(jump: f32, frac: f32, bandlimit: bool) -> (f32, f32) {
+    if bandlimit {
+        sync_blep(jump, frac)
+    } else {
+        (0.0, 0.0)
+    }
+}
+
 pub mod enosc;
 pub mod noise;
 pub mod p_pulse;
@@ -73,6 +84,7 @@ pub mod pulse;
 pub mod saw;
 pub mod sine;
 pub mod supersaw;
+pub mod waveforms;
 pub mod wavetable;
 pub mod wavetable_prep;
 

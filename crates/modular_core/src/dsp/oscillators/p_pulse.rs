@@ -1,12 +1,17 @@
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::utils::wrap,
+    dsp::{
+        oscillators::waveforms::{pulse, pulse_width},
+        utils::wrap,
+    },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 use deserr::Deserr;
 use schemars::JsonSchema;
+
+use crate::dsp::utils::default_true;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -36,6 +41,12 @@ struct PPulseOscillatorParams {
     )]
     #[deserr(default)]
     pwm: Option<PolySignal>,
+    #[input(
+        "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone"
+    )]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    bandlimit: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -113,46 +124,59 @@ impl PPulseOscillator {
 
             state.prev_phase = phase;
 
-            // Pulse width (0.0 to 1.0, 0.5 is square wave)
-            let pulse_width = (width / 5.0).clamp(0.01, 0.99);
-
-            // Naive pulse wave
-            let mut pulse = if phase < pulse_width { 1.0 } else { -1.0 };
-
-            // Apply PolyBLEP at the rising edge (phase = 0)
-            pulse += poly_blep(phase, phase_increment);
-
-            // Apply PolyBLEP at the falling edge (phase = pulse_width)
-            pulse -= poly_blep(
-                if phase >= pulse_width {
-                    phase - pulse_width
-                } else {
-                    phase - pulse_width + 1.0
-                },
+            let sample = pulse(
+                phase,
+                pulse_width(width),
                 phase_increment,
+                self.params.bandlimit,
             );
-
-            self.outputs.sample.set(lane, pulse * 5.0);
+            self.outputs.sample.set(lane, sample * 5.0);
         }
     }
 }
 
-/// PolyBLEP (Polynomial Band-Limited Step) correction.
-/// Smooths step discontinuities by replacing the hard edge with a
-/// polynomial residual within one sample of the transition.
-#[inline(always)]
-fn poly_blep(phase: f32, phase_increment: f32) -> f32 {
-    if phase_increment < 1.0e-7 {
-        return 0.0;
-    }
-    if phase < phase_increment {
-        let t = phase / phase_increment;
-        return t + t - t * t - 1.0;
-    } else if phase > 1.0 - phase_increment {
-        let t = (phase - 1.0) / phase_increment;
-        return t * t + t + t + 1.0;
-    }
-    0.0
-}
-
 message_handlers!(impl PPulseOscillator {});
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::poly::PolySignal;
+    use crate::types::{OutputStruct, Signal};
+
+    fn render(bandlimit: bool) -> Vec<f32> {
+        let params = PPulseOscillatorParams {
+            phase: PolySignal::mono(Signal::Volts(0.0)),
+            width: None,
+            pwm: None,
+            bandlimit,
+        };
+        let mut outputs = PPulseOscillatorOutputs::default();
+        outputs.set_all_lanes(1);
+        let mut osc = PPulseOscillator {
+            params,
+            outputs,
+            _lane_count: 1,
+            _channels: 1,
+            _block_index: Default::default(),
+            lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
+        };
+        (0..200)
+            .map(|i| {
+                let phase = (i as f32 * 0.037).fract();
+                osc.params.phase = PolySignal::mono(Signal::Volts(phase));
+                osc.update(48_000.0);
+                osc.outputs.sample.get(0)
+            })
+            .collect()
+    }
+
+    /// Without band-limiting every sample is fully high or fully low.
+    #[test]
+    fn unbandlimited_pulse_only_switches() {
+        assert!(render(false).iter().all(|&v| v.abs() == 5.0));
+        assert!(
+            render(true).iter().any(|&v| v.abs() != 5.0),
+            "band-limited edges are smoothed"
+        );
+    }
+}

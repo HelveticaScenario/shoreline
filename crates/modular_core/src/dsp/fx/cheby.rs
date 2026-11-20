@@ -6,6 +6,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 use crate::dsp::fx::enosc_tables::{aa_cheby, interpolate_cheby};
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
@@ -42,10 +44,6 @@ struct ChebyParams {
     #[serde(rename = "blockDC", default = "default_true")]
     #[deserr(rename = "blockDC", default = default_true())]
     block_dc: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]

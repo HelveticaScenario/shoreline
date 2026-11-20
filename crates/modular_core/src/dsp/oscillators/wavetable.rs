@@ -14,6 +14,8 @@
 
 use deserr::Deserr;
 use schemars::JsonSchema;
+
+use crate::dsp::utils::default_true;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
@@ -23,7 +25,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, apply_fm, sync_blep, sync_edge_fraction, wavetable_prep::PreparedWavetable,
+            FmMode, apply_fm, sync_edge_fraction, sync_reset, wavetable_prep::PreparedWavetable,
         },
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
         utils::{SchmittTrigger, sanitize},
@@ -75,6 +77,12 @@ pub(crate) struct WavetableOscParams {
     )]
     #[deserr(default)]
     pub(crate) phase_offset: Option<PolySignal>,
+    #[input(
+        "drops harmonics as the pitch rises so high notes stay clean; off reads the full table at every pitch, for a raw aliased tone"
+    )]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    pub(crate) bandlimit: bool,
     /// Pre-computed mipmap pyramid, populated by `prepare_resources` on the
     /// main thread. Skipped from serialization and deserialization.
     #[serde(skip)]
@@ -137,12 +145,23 @@ impl Default for LaneState {
 /// `position`. Clamped to `[1, PORT_MAX_LANES]`.
 impl LaneState {
     /// Track `pitch` and `fm`, recomputing the frequency and mipmap level only
-    /// when they change.
+    /// when they change. Without `bandlimit` the level is the full-bandwidth 0.
     #[inline(always)]
-    fn tune(&mut self, prepared: &PreparedWavetable, pitch: f32, fm: f32, fm_mode: FmMode) {
+    fn tune(
+        &mut self,
+        prepared: &PreparedWavetable,
+        pitch: f32,
+        fm: f32,
+        fm_mode: FmMode,
+        bandlimit: bool,
+    ) {
         if pitch != self.last_pitch || fm != self.last_fm {
             self.freq = apply_fm(pitch, fm, fm_mode);
-            self.level = prepared.mipmap_level_for_freq(self.freq);
+            self.level = if bandlimit {
+                prepared.mipmap_level_for_freq(self.freq)
+            } else {
+                0
+            };
             self.last_pitch = pitch;
             self.last_fm = fm;
         }
@@ -151,7 +170,8 @@ impl LaneState {
     /// One output sample (±5 V) at `position` (0–5 V across the frames), then
     /// advance the phase. `warp` reshapes the read phase with its stage values
     /// already resolved for this lane; `sync` is this sample's sync input,
-    /// if connected.
+    /// if connected. Without `bandlimit` the warp and sync reset are left
+    /// unsmoothed.
     #[inline(always)]
     #[allow(clippy::too_many_arguments)]
     fn step(
@@ -163,6 +183,7 @@ impl LaneState {
         offset: f32,
         warp: Option<(&PhaseWarp, &ResolvedWarp)>,
         sync: Option<f32>,
+        bandlimit: bool,
     ) -> f32 {
         let frame_scale = if prepared.frame_count > 1 {
             (prepared.frame_count - 1) as f32
@@ -177,7 +198,12 @@ impl LaneState {
         // it advances, so the first sample reads the starting phase.
         let read_offset = offset.rem_euclid(1.0);
         let raw_phase = (self.phase as f32 + read_offset).rem_euclid(1.0);
-        let freq_norm = self.freq / sample_rate;
+        // The warp antialiases from the frequency; 0 turns that off.
+        let freq_norm = if bandlimit {
+            self.freq / sample_rate
+        } else {
+            0.0
+        };
         // The warp's state as it stood before this sample, for the sync
         // reset's second read below.
         let warp_before = self.warp;
@@ -224,7 +250,7 @@ impl LaneState {
                     None => read_offset,
                 };
                 let after = prepared.read_sample(self.level, frame_f, warped_zero);
-                let (now, carry) = sync_blep(after - before, frac);
+                let (now, carry) = sync_reset(after - before, frac, bandlimit);
                 sample += now;
                 self.blep_carry = carry;
                 next = 0.0;
@@ -323,6 +349,7 @@ impl WavetableOsc {
                 p.pitch.get_value(lane),
                 p.fm.value_or(lane, 0.0),
                 p.fm_mode,
+                p.bandlimit,
             );
             let resolved = p.phase.as_ref().map(|warp| {
                 (
@@ -340,6 +367,7 @@ impl WavetableOsc {
                     .value_or(lane, WavetableOscParams::PHASE_OFFSET_DEFAULT),
                 resolved.as_ref().map(|(warp, resolved)| (*warp, resolved)),
                 p.sync.as_ref().map(|sync| sync.get_value(lane)),
+                p.bandlimit,
             );
             self.outputs.sample.set(lane, sample);
         }
@@ -380,7 +408,7 @@ impl WavetableOsc {
             let sync = sync.as_ref().map(|sync| sync.row(i));
             let slots = out.slot_mut(i).iter_mut().zip(self.lane_state.iter_mut());
             for (lane, (out, state)) in slots.enumerate() {
-                state.tune(prepared, pitch[lane], fm[lane], p.fm_mode);
+                state.tune(prepared, pitch[lane], fm[lane], p.fm_mode, p.bandlimit);
                 let sample = state.step(
                     prepared,
                     sample_rate,
@@ -389,6 +417,7 @@ impl WavetableOsc {
                     offset[lane],
                     None,
                     sync.map(|sync| sync[lane]),
+                    p.bandlimit,
                 );
                 *out = sanitize(sample);
             }
@@ -413,8 +442,8 @@ impl WavetableOsc {
 
 impl crate::types::PatchUpdateHandler for WavetableOsc {
     fn on_patch_update(&mut self) {
-        // The cached frequency and level also depend on `fmMode` and the table,
-        // either of which a patch update can change.
+        // The cached frequency and level also depend on `fmMode`, `bandlimit`
+        // and the table, any of which a patch update can change.
         for state in self.lane_state.iter_mut() {
             state.last_pitch = f32::NAN;
         }
@@ -473,6 +502,7 @@ mod tests {
             sync: None,
             phase: None,
             phase_offset: None,
+            bandlimit: true,
             prepared: None,
         }
     }
