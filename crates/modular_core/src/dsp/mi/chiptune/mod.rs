@@ -44,12 +44,12 @@ const NUM_PATTERNS: usize = 12;
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct MiChiptuneParams {
     #[input(
-        "the root: the arpeggio starts on it and the bass sounds an octave below",
+        "the root: the chord is built on it, the arpeggio climbs from it and the bass sounds an octave below",
         type = pitch
     )]
     freq: PolySignal,
     #[input(
-        "steps the arpeggio to its next note; unpatched, the whole chord sounds",
+        "steps the arpeggio to its next note; once patched, the `chord` output is silent until the first trigger. Unpatched, the whole chord sounds",
         type = trig,
     )]
     #[deserr(default)]
@@ -63,9 +63,9 @@ struct MiChiptuneParams {
     #[deserr(default)]
     chord: Option<PolySignal>,
     #[input(
-        "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from two octaves below `freq` (0) to three above",
+        "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
         type = control,
-        default = 2.5,
+        default = 0.0,
         range = (0.0, 5.0),
     )]
     #[deserr(default)]
@@ -375,19 +375,22 @@ impl Lane {
                     }
                     self.inversion_key = Some(key);
                 }
+                // The voicing sounds two octaves below the note it is given,
+                // so close position stands on `freq`.
+                let chord_f0 = f0 * 4.0;
                 let mut out = 0.0;
                 for (voice, (ratio, amplitude)) in self
                     .voices
                     .iter_mut()
                     .zip(self.inversion.ratios.iter().zip(&self.inversion.amplitudes))
                 {
-                    out += voice.step(f0 * ratio, shape, max) * amplitude;
+                    out += voice.step(chord_f0 * ratio, shape, max) * amplitude;
                 }
                 (out, 1.0)
             }
         };
 
-        let mut bass = self.bass.step(f0 * 0.5 * root_transposition, max);
+        let mut bass = self.bass.step(f0 * 0.5 * root_transposition);
 
         if clock != Clock::Unpatched {
             let shape = 1.0 - knob(decay);

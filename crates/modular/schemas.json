@@ -36579,14 +36579,14 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "the root: the arpeggio starts on it and the bass sounds an octave below",
+          "description": "the root: the chord is built on it, the arpeggio climbs from it and the bass sounds an octave below",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
           }
         },
         "trigger": {
-          "description": "steps the arpeggio to its next note; unpatched, the whole chord sounds",
+          "description": "steps the arpeggio to its next note; once patched, the `chord` output is silent until the first trigger. Unpatched, the whole chord sounds",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -36619,7 +36619,7 @@
           }
         },
         "inversion": {
-          "description": "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from two octaves below `freq` (0) to three above",
+          "description": "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -36630,7 +36630,7 @@
           ],
           "x-signal": {
             "paramType": "control",
-            "defaultValue": 2.5,
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "maxValue": 5.0,
             "controlMin": 0.0,
@@ -36832,7 +36832,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "the root: the arpeggio starts on it and the bass sounds an octave below",
+        "description": "the root: the chord is built on it, the arpeggio climbs from it and the bass sounds an octave below",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -36841,7 +36841,7 @@
       },
       {
         "name": "trigger",
-        "description": "steps the arpeggio to its next note; unpatched, the whole chord sounds",
+        "description": "steps the arpeggio to its next note; once patched, the `chord` output is silent until the first trigger. Unpatched, the whole chord sounds",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -36864,9 +36864,9 @@
       },
       {
         "name": "inversion",
-        "description": "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from two octaves below `freq` (0) to three above",
+        "description": "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
         "paramType": "control",
-        "defaultValue": 2.5,
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "maxValue": 5.0,
         "controlMin": 0.0,

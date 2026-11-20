@@ -88,8 +88,8 @@ impl Arpeggiator {
         }
         self.note += self.direction;
 
-        // Up-down turns at most once per step, so two passes settle it.
-        for _ in 0..4 {
+        // Up-down turns at most once per step, so two passes always settle.
+        for _ in 0..2 {
             let mut done = true;
             if self.note >= num_notes || self.note < 0 {
                 self.octave += self.direction;

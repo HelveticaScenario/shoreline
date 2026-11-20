@@ -1,12 +1,9 @@
 //! `plaits::NESTriangleOscillator<5>`: the NES's 32-step triangle, fading
 //! into a band-limited triangle where its steps would alias.
 
-use crate::dsp::mi::core::{
-    control::Ramp,
-    polyblep::{
-        edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
-        this_integrated_blep_sample,
-    },
+use crate::dsp::mi::core::polyblep::{
+    edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
+    this_integrated_blep_sample,
 };
 
 const NUM_STEPS: i32 = 32;
@@ -21,30 +18,25 @@ pub struct NesTriangle {
     next_sample: f32,
     step: i32,
     ascending: bool,
-    frequency: Ramp,
 }
 
 impl Default for NesTriangle {
     fn default() -> Self {
-        let mut frequency = Ramp::default();
-        frequency.set(0.001, None);
         Self {
             phase: 0.0,
             next_sample: 0.0,
             step: 0,
             ascending: true,
-            frequency,
         }
     }
 }
 
 impl NesTriangle {
-    /// One sample at `frequency` cycles per sample (0 to `max`, `max` at most
-    /// 0.5).
+    /// One sample at `frequency` cycles per sample, held at most a quarter
+    /// cycle.
     #[inline(always)]
-    pub fn step(&mut self, frequency: f32, max: f32) -> f32 {
-        self.frequency.set(frequency.min(max), Some(1.0));
-        let frequency = self.frequency.next_value();
+    pub fn step(&mut self, frequency: f32) -> f32 {
+        let frequency = frequency.min(0.25);
         self.phase += frequency;
 
         let fade_to_tri = ((frequency - 0.5 / NUM_STEPS_F) * 2.0 * NUM_STEPS_F).clamp(0.0, 1.0);

@@ -53,8 +53,8 @@ static float Patch(int index) { return (float(index) + 0.5f) / 32.64f; }
 
 // Two settings per ported engine (three of the VCF, across both filter
 // slopes and the sub; of the chiptune engine, two chords and an arpeggio),
-// numbered as in Plaits' voice.cc; one or two
-// patches of each six-op bank; four of the speech engine's vowel path where
+// numbered as in Plaits' voice.cc; one or two patches of each six-op bank;
+// four of the speech engine's vowel path where
 // harmonics sounds one synth alone: the formant filters (0), SAM (1/6) and
 // LPC (just below 1/3); and two of its word banks, the colours (0.48) and
 // the synth words (0.9), scanned; the bass and snare drums struck at 10 and

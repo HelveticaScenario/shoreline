@@ -2,36 +2,14 @@
 //! at the note, so a slower square narrows to a pulse and a faster one
 //! hard-syncs.
 
-use crate::dsp::mi::core::{
-    control::Ramp,
-    polyblep::{edge_time, next_blep_sample, this_blep_sample},
-};
+use crate::dsp::mi::core::polyblep::{edge_time, next_blep_sample, this_blep_sample};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct SuperSquare {
     master_phase: f32,
     slave_phase: f32,
     next_sample: f32,
     high: bool,
-    master_frequency: Ramp,
-    slave_frequency: Ramp,
-}
-
-impl Default for SuperSquare {
-    fn default() -> Self {
-        let mut master_frequency = Ramp::default();
-        master_frequency.set(0.0, None);
-        let mut slave_frequency = Ramp::default();
-        slave_frequency.set(0.01, None);
-        Self {
-            master_phase: 0.0,
-            slave_phase: 0.0,
-            next_sample: 0.0,
-            high: false,
-            master_frequency,
-            slave_frequency,
-        }
-    }
 }
 
 impl SuperSquare {
@@ -45,11 +23,8 @@ impl SuperSquare {
         } else {
             1.0 + 16.0 * (shape - 0.5) * (shape - 0.5)
         };
-        self.master_frequency.set(frequency.min(max), Some(1.0));
-        self.slave_frequency
-            .set((frequency * ratio).min(max), Some(1.0));
-        let master_frequency = self.master_frequency.next_value();
-        let slave_frequency = self.slave_frequency.next_value();
+        let master_frequency = frequency.min(max);
+        let slave_frequency = (frequency * ratio).min(max);
 
         let mut this_sample = self.next_sample;
         let mut next_sample = 0.0;
@@ -76,8 +51,9 @@ impl SuperSquare {
         }
 
         self.slave_phase += slave_frequency;
-        // At most half a cycle per sample, each pass takes one edge.
-        for _ in 0..4 {
+        // At most half a cycle per sample, one pass takes both edges a
+        // sample can hold, and the second finds none left.
+        for _ in 0..2 {
             if reset && !transition_during_reset {
                 break;
             }

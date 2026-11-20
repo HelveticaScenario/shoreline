@@ -30,11 +30,13 @@ fn render(
 }
 
 /// Replays `chiptune.f32`: Plaits' chord bank, arpeggiator, super square
-/// voices and NES triangle driven a sample at a time. It holds chords swept,
-/// the voicing and the shape swept, arpeggios up, up and down and at random,
-/// with and without the bass decaying, patterns and chords changing between
+/// voices and NES triangle driven a sample at a time, with the unclocked
+/// chord two octaves above Plaits' as the port plays it; the driver checks
+/// its arpeggios against the engine's own Render. It holds chords swept, the
+/// voicing and the shape swept, arpeggios up, up and down and at random, with
+/// and without the bass decaying, patterns and chords changing between
 /// triggers, high pitches at the voices' limit and a fast four-octave
-/// arpeggio.
+/// arpeggio. The port matches it exactly.
 #[test]
 fn matches_plaits() {
     let state = MiChiptuneState::new(48000.0);
@@ -61,7 +63,7 @@ fn matches_plaits() {
         ("bass", &actual.1, &expected.1),
     ] {
         let (error, at) = max_error(actual, expected);
-        assert!(error < 1e-5, "{name}: max error {error} at sample {at}");
+        assert!(error == 0.0, "{name}: max error {error} at sample {at}");
     }
 }
 
@@ -69,10 +71,10 @@ fn matches_plaits() {
 /// at 48 kHz.
 #[test]
 fn sounds_the_same_at_any_rate() {
-    // The octave chord, lowest voicing: its notes sit on the harmonics of
-    // two octaves below `freq`.
+    // The octave chord in close position: its notes sit on the harmonics of
+    // `freq`.
     for shape in [1.0, 2.5, 4.0] {
-        let hz = voct_to_hz(0.0);
+        let hz = voct_to_hz(-1.0);
         assert_rate_independent(
             |sample_rate| {
                 render(sample_rate, hz, [0.0, 0.0, 0.0, shape, 5.0], None, 0.5)
@@ -80,7 +82,7 @@ fn sounds_the_same_at_any_rate() {
                     .map(|(chord, _)| chord)
                     .collect()
             },
-            hz * 0.25,
+            hz,
             0.02,
         );
     }

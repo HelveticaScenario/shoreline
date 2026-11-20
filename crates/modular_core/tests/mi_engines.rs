@@ -94,10 +94,14 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             let chord = (h * 1.02 * 11.0 - 0.075).floor();
             let pattern = (t * 12.0 - 0.075).floor();
             let knobs = json!({ "chord": chord, "inversion": 5.0 * t, "pattern": pattern, "shape": 5.0 * m });
-            [
-                port("$mi.chiptune", knobs.clone(), "chord"),
-                port("$mi.chiptune", knobs, "bass"),
-            ]
+            let mut chord = port("$mi.chiptune", knobs.clone(), "chord");
+            // Unclocked, the module's chord stands on `freq`, two octaves
+            // above Plaits' voicing of the same note; its bass keeps Plaits'
+            // pitch.
+            if trigger_period.is_none() {
+                chord.params["freq"] = json!(freq - 2.0);
+            }
+            [chord, port("$mi.chiptune", knobs, "bass")]
         }
         8 => {
             let knobs = json!({ "detune": 5.0 * h, "square": 5.0 * t, "shape": 5.0 * m });
