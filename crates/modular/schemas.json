@@ -2139,6 +2139,182 @@
     "stereo": "stereo"
   },
   {
+    "name": "$stereoFold",
+    "docs": {
+      "summary": "Spread unison copies in stereo",
+      "description": "Mixes each note's `$unison` copies down to one stereo lane, fanning them across the field the way `$supersaw` spreads its saws, so any oscillator can make a wide unison stack.",
+      "categories": [
+        "mixer"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Wide seven-voice saw",
+          "code": "lead: $saw($unison('c3', 7, 3)).stereoFold(7)"
+        },
+        {
+          "title": "Chord whose width breathes",
+          "code": "pad: $sine($unison($chord('C3[m9]'), 4, 2)).stereoFold(\n  4,\n  $sine('0.1hz').range(1, 5),\n)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "StereoFoldParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the unison copies to fold, laid out as `$unison` makes them",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "voices": {
+          "description": "copies per note, the same as `$unison`'s count",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 1,
+          "maximum": 64,
+          "default": 1
+        },
+        "width": {
+          "description": "how far the copies fan out: 0 all centred, 5 the outer copies hard left and right",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 5.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "one stereo lane per note",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the unison copies to fold, laid out as `$unison` makes them",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": true
+      },
+      {
+        "name": "width",
+        "description": "how far the copies fan out: 0 all centred, 5 the outer copies hard left and right",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "voices"
+      },
+      {
+        "name": "width"
+      }
+    ],
+    "experimental": false,
+    "stereo": "stereo"
+  },
+  {
     "name": "_clock",
     "docs": {
       "summary": "Transport clock",

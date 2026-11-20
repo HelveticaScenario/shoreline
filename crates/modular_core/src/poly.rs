@@ -1001,6 +1001,12 @@ pub trait PolySignalExt {
 
     /// The [`GlideMark`] for the given lane, or [`GlideMark::ABSENT`] if disconnected.
     fn glide_mark(&self, lane: usize) -> GlideMark;
+
+    /// Lane `lane` of a stereo module's `fold` input, its two sides averaged,
+    /// or `default` if disconnected.
+    fn folded_or(&self, lane: usize, default: f32) -> f32 {
+        0.5 * (self.value_or(lane * 2, default) + self.value_or(lane * 2 + 1, default))
+    }
 }
 
 impl PolySignalExt for Option<PolySignal> {

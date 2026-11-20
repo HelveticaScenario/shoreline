@@ -4,6 +4,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::sanitize;
+use crate::dsp::utils::unison_voices::centred_position;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput, PolySignal, PolySignalExt};
@@ -112,17 +113,13 @@ impl Pan {
         let lanes = self.lane_count() / 2;
         for (lane, glide) in self.lane_state.iter_mut().enumerate().take(lanes) {
             // A stereo pan control places each lane at its sides' average.
-            let base = 0.5 * (p.pan.value_or_zero(lane * 2) + p.pan.value_or_zero(lane * 2 + 1));
+            let base = p.pan.folded_or(lane, 0.0);
             let base = glide.follow(
                 base.clamp(-5.0, 5.0),
                 p.pan.glide_mark(lane * 2),
                 sample_rate,
             );
-            let offset = if lanes > 1 {
-                (lane as f32 / (lanes - 1) as f32 - 0.5) * 2.0 * spread
-            } else {
-                0.0
-            };
+            let offset = centred_position(lane, lanes) * spread;
             let pair = [p.input.get_value(lane, 0), p.input.get_value(lane, 1)];
             let [left, right] = pan_pair(pair, (base + offset) / 5.0);
             self.outputs.sample.set(lane * 2, sanitize(left));
