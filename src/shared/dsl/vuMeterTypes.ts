@@ -7,16 +7,16 @@ export interface ControlTap {
 
 /**
  * A mixer control on a track: its fader, pan knob or a send dial. A number
- * within the control's range is lifted into a `_smoothControl` the panel
- * drives live; anything else stays wired as written, and the control locks.
+ * is lifted into a `_smoothControl` the panel drives live; a signal stays
+ * wired as written, and the control locks.
  */
 export interface VuControl {
-    /** The value the control shows; null when a signal drives it. */
+    /** The value the control shows; null when it is locked. */
     value: number | null;
     /** `_smoothControl` the panel drives; null when locked. */
     moduleId: string | null;
-    /** True when the control takes no input: a signal drives it, its
-     *  number lies past the control's range, or a send names its bus twice. */
+    /** True when the control takes no input: a signal drives it, or a send
+     *  names its bus twice. */
     locked: boolean;
     /** Index of its live tap in the meter's `controlSources`, for a control a
      *  signal drives. */

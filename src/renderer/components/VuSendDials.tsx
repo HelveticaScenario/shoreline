@@ -23,12 +23,9 @@ export interface SendBus {
 
 /** A send dial's tooltip. */
 function sendTitle(bus: string, send: VuSendDef): string {
-    if (!send.locked) {
-        return `Send to ${bus}: ${send.value} (drag; ⌃/⌘ drag: edit code only; right-click: off; ⌃/⌘ right-click: revert)`;
-    }
-    return send.value === null
-        ? `Send to ${bus} (signal-controlled)`
-        : `Send to ${bus}: ${send.value}, set in code`;
+    return send.locked
+        ? `Send to ${bus} (set in code)`
+        : `Send to ${bus}: ${send.value} (drag; ⌃/⌘ drag: edit code only; right-click: off; ⌃/⌘ right-click: revert)`;
 }
 
 /**
