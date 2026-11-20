@@ -1,4 +1,4 @@
-//! Ports of `stmlib::OnePole` and `stmlib::Svf`.
+//! Ports of `stmlib::OnePole`, `stmlib::Svf` and `stmlib::NaiveSvf`.
 
 use std::f64::consts::PI;
 
@@ -125,5 +125,34 @@ impl Svf {
         let lp = self.g * bp + self.state_2;
         self.state_2 = self.g * bp + lp;
         (hp, bp, lp)
+    }
+}
+
+/// `stmlib::NaiveSvf`: the explicit Chamberlin state-variable filter, its
+/// frequency coefficient the dirty approximation `2π f`.
+#[derive(Clone, Copy, Default)]
+pub struct NaiveSvf {
+    f: f32,
+    damp: f32,
+    lp: f32,
+    bp: f32,
+}
+
+impl NaiveSvf {
+    /// `set_f_q<FREQUENCY_DIRTY>`: `f` in cycles per sample, held at or below
+    /// 0.158 where the approximation and the filter stay stable.
+    #[inline(always)]
+    pub fn set_f_q(&mut self, f: f32, resonance: f32) {
+        self.f = 2.0 * std::f32::consts::PI * f.min(0.158);
+        self.damp = 1.0 / resonance;
+    }
+
+    #[inline(always)]
+    pub fn low_pass(&mut self, x: f32) -> f32 {
+        let notch = x - self.bp * self.damp;
+        self.lp += self.f * self.bp;
+        let hp = notch - self.lp;
+        self.bp += self.f * hp;
+        self.lp
     }
 }

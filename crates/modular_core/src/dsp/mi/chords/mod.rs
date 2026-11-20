@@ -98,32 +98,36 @@ struct MiChordsOutputs {
     root: PolyOutput,
 }
 
+/// The table of chords `chord` picks from, shared by the modules that play
+/// Plaits' chords.
+pub const CHORDS_SECTION: DocSection = DocSection {
+    title: "Chords",
+    body: "`chord` picks one of eleven chords by number.",
+    table: Some(DocTable {
+        columns: &["chord", "Name"],
+        rows: &[
+            &["0", "octave"],
+            &["1", "fifth"],
+            &["2", "sus4"],
+            &["3", "minor"],
+            &["4", "minor 7th"],
+            &["5", "minor 9th"],
+            &["6", "minor 11th"],
+            &["7", "6/9"],
+            &["8", "major 9th"],
+            &["9", "major 7th"],
+            &["10", "major"],
+        ],
+    }),
+    examples: &[],
+};
+
 const MI_CHORDS_DOCS: ModuleDocs = ModuleDocs {
     summary: "Organ and wavetable chords",
     description: "Mutable Instruments Plaits' chord engine: four-note chords \
                   played on divide-down organ voices or on wavetable voices.",
     categories: &[ModuleCategory::Oscillator],
-    sections: &[DocSection {
-        title: "Chords",
-        body: "`chord` picks one of eleven chords by number.",
-        table: Some(DocTable {
-            columns: &["chord", "Name"],
-            rows: &[
-                &["0", "octave"],
-                &["1", "fifth"],
-                &["2", "sus4"],
-                &["3", "minor"],
-                &["4", "minor 7th"],
-                &["5", "minor 9th"],
-                &["6", "minor 11th"],
-                &["7", "6/9"],
-                &["8", "major 9th"],
-                &["9", "major 7th"],
-                &["10", "major"],
-            ],
-        }),
-        examples: &[],
-    }],
+    sections: &[CHORDS_SECTION],
     examples: &[
         DocExample {
             title: "Minor 7th organ",

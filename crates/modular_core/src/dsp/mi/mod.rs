@@ -23,6 +23,7 @@ pub mod six_op;
 pub mod snare;
 pub mod speak;
 pub mod string;
+pub mod string_machine;
 pub mod swarm;
 pub mod two_op;
 pub mod va;
@@ -50,6 +51,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     snare::MiSynthSnare::install_constructor(map);
     speak::Speak::install_constructor(map);
     string::MiString::install_constructor(map);
+    string_machine::StringMachine::install_constructor(map);
     swarm::Swarm::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
     va::VirtualAnalog::install_constructor(map);
@@ -80,6 +82,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     snare::MiSynthSnare::install_params_deserializer(map);
     speak::Speak::install_params_deserializer(map);
     string::MiString::install_params_deserializer(map);
+    string_machine::StringMachine::install_params_deserializer(map);
     swarm::Swarm::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
     va::VirtualAnalog::install_params_deserializer(map);
@@ -111,6 +114,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         snare::MiSynthSnare::get_schema(),
         speak::Speak::get_schema(),
         string::MiString::get_schema(),
+        string_machine::StringMachine::get_schema(),
         swarm::Swarm::get_schema(),
         two_op::TwoOp::get_schema(),
         va::VirtualAnalog::get_schema(),

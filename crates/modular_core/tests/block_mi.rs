@@ -77,6 +77,7 @@ fn allocation_free() {
         "$mi.snare",
         "$mi.speak",
         "$mi.string",
+        "$mi.stringMachine",
         "$mi.swarm",
         "$mi.synthKick",
         "$mi.synthSnare",

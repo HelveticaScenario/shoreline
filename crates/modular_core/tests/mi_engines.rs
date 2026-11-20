@@ -31,6 +31,8 @@ struct Port {
     module: &'static str,
     params: Value,
     port: &'static str,
+    /// The lane read: a stereo module's left side is lane 0, its right 1.
+    lane: usize,
     /// Samples between strikes, for a module whose `trigger` is patched.
     trigger_period: Option<f32>,
 }
@@ -46,6 +48,7 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             module,
             params,
             port,
+            lane: 0,
             trigger_period,
         }
     };
@@ -85,6 +88,16 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
                 port("$mi.waveTerrain", knobs.clone(), "height"),
                 port("$mi.waveTerrain", knobs, "pm"),
             ]
+        }
+        6 => {
+            // Plaits' quantiser picks chord `floor(11.22 h - 0.075)` from
+            // `harmonics`, rising from its initial 0; `out` and `aux` are the
+            // module's left and right sides.
+            let chord = (h * 1.02 * 11.0 - 0.075).floor();
+            let knobs = json!({ "chord": chord, "registration": 5.0 * m, "tone": 5.0 * t });
+            let mut right = port("$mi.stringMachine", knobs.clone(), "output");
+            right.lane = 1;
+            [port("$mi.stringMachine", knobs, "output"), right]
         }
         8 => {
             let knobs = json!({ "detune": 5.0 * h, "square": 5.0 * t, "shape": 5.0 * m });
@@ -298,7 +311,7 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
         let dut = &patch.sampleables["dut"];
         dut.ensure_processed_to(BLOCK);
         for index in 0..BLOCK {
-            out.push(dut.get_value_at(port.port, 0, index));
+            out.push(dut.get_value_at(port.port, port.lane, index));
         }
     }
     out.truncate(samples);

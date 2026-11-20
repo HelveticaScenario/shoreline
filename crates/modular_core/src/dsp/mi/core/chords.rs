@@ -80,6 +80,12 @@ impl ChordBank {
         self.index
     }
 
+    /// The frequency ratio of the chord's `note` (0–3) to its root.
+    #[inline(always)]
+    pub fn ratio(&self, note: usize) -> f32 {
+        self.ratios[note]
+    }
+
     /// `ComputeChordInversion`: the chord's notes over five voices at
     /// `inversion` (0–1). Each fifth of the range rotates the chord once,
     /// lifting its lowest note an octave at a time in four crossfades.
