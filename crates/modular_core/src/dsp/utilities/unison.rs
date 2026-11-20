@@ -56,6 +56,21 @@ struct UnisonOutputs {
         default
     )]
     sample: PolyOutput,
+    #[output(
+        "phase",
+        "a starting phase per copy: feed it to an oscillator's phaseOffset so the copies never line up",
+        type = cv,
+        range = (0.0, 1.0)
+    )]
+    phase: PolyOutput,
+}
+
+/// Phase offset of copy `voice`, in cycles. Stepping by the golden ratio keeps
+/// every copy apart without the even spacing that would cancel the copies into
+/// a higher harmonic, and gives each copy the same phase whatever `count` is.
+fn voice_phase(voice: usize) -> f32 {
+    const GOLDEN_RATIO_CONJUGATE: f64 = 0.618_033_988_749_894_9;
+    (voice as f64 * GOLDEN_RATIO_CONJUGATE).fract() as f32
 }
 
 const UNISON_DOCS: ModuleDocs = ModuleDocs {
@@ -69,6 +84,13 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Thick seven-voice saw",
             code: r#"melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"#,
+        },
+        DocExample {
+            title: "Copies that start apart",
+            code: r#"
+                const voices = $unison('c3', 7, 1)
+                melody: $saw(voices, { phaseOffset: voices._phase })
+            "#,
         },
         DocExample {
             title: "Chord with breathing detune",
@@ -125,6 +147,7 @@ impl Unison {
                     };
 
                     self.outputs.sample.set(out_ch, input_val + offset);
+                    self.outputs.phase.set(out_ch, voice_phase(voice));
                 }
             }
         }
@@ -360,6 +383,36 @@ mod tests {
         let expected = [1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0];
         for (lane, want) in expected.iter().enumerate() {
             assert_eq!(u.outputs.sample.get(lane), *want, "lane {lane}");
+        }
+    }
+
+    #[test]
+    fn test_phase_is_one_offset_per_copy() {
+        // 2-lane input, count=4: every input lane of a copy shares
+        // that copy's phase, and `phase` has the same lanes as `output`.
+        let mut u = make_unison(UnisonParams {
+            input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0)]),
+            count: 4,
+            spread: None,
+        });
+        u.update(48000.0);
+        assert_eq!(u.outputs.phase.lanes(), u.outputs.sample.lanes());
+        assert_eq!(u.outputs.phase.get(0), 0.0);
+        for voice in 0..4 {
+            for lane in 0..2 {
+                assert_eq!(u.outputs.phase.get(voice * 2 + lane), voice_phase(voice));
+            }
+        }
+    }
+
+    #[test]
+    fn test_voice_phases_are_distinct_and_in_range() {
+        let phases: Vec<f32> = (0..PORT_MAX_LANES).map(voice_phase).collect();
+        for (i, a) in phases.iter().enumerate() {
+            assert!((0.0..1.0).contains(a), "voice {i}: {a}");
+            for (j, b) in phases.iter().enumerate().skip(i + 1) {
+                assert!((a - b).abs() > 1e-3, "voices {i} and {j} share phase {a}");
+            }
         }
     }
 

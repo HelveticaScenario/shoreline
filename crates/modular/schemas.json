@@ -31751,6 +31751,10 @@
           "code": "melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"
         },
         {
+          "title": "Copies that start apart",
+          "code": "const voices = $unison('c3', 7, 1)\nmelody: $saw(voices, { phaseOffset: voices._phase })"
+        },
+        {
           "title": "Chord with breathing detune",
           "code": "melody: $saw(\n  $unison($chord('C3[m9]'), 3, $sine('0.1hz').range(0, 4)),\n)"
         }
@@ -31868,6 +31872,18 @@
         "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
+      },
+      {
+        "name": "phase",
+        "description": "a starting phase per copy: feed it to an oscillator's phaseOffset so the copies never line up",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": 0.0,
+        "maxValue": 1.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
       }
     ],
     "bufferOutputs": [],
