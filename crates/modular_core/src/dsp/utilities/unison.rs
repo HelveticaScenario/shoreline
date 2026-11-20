@@ -65,12 +65,47 @@ struct UnisonOutputs {
     phase: PolyOutput,
 }
 
-/// Phase offset of copy `voice`, in cycles. Stepping by the golden ratio keeps
-/// every copy apart without the even spacing that would cancel the copies into
-/// a higher harmonic, and gives each copy the same phase whatever `count` is.
-fn voice_phase(voice: usize) -> f32 {
-    const GOLDEN_RATIO_CONJUGATE: f64 = 0.618_033_988_749_894_9;
-    (voice as f64 * GOLDEN_RATIO_CONJUGATE).fract() as f32
+/// Phase offset of copy `voice` of `count`, in cycles. Schroeder's quadratic
+/// phases keep the copies from all lining up at once as their evenly spaced
+/// detune drifts them against each other, so the stack holds a steady level.
+fn voice_phase(voice: usize, count: usize) -> f32 {
+    let voice = voice as u64;
+    let count = count as u64;
+    // `voice² / 2·count` mod 1, reduced in integers so it stays exact.
+    ((voice * voice) % (2 * count)) as f32 / (2 * count) as f32
+}
+
+/// How fast `phase` slides to a new target when `count` changes, in cycles
+/// per second. A phase slide is a brief pitch shift of this many Hz, small
+/// enough to hide in the detune.
+const PHASE_GLIDE_HZ: f32 = 2.0;
+
+/// Steps `current` toward `target` by at most `max_step`, the short way
+/// around the cycle. Both are phases in `[0, 1)`.
+fn glide_phase(current: f32, target: f32, max_step: f32) -> f32 {
+    let delta = (target - current + 0.5).rem_euclid(1.0) - 0.5;
+    if delta.abs() <= max_step {
+        target
+    } else {
+        (current + max_step.copysign(delta)).rem_euclid(1.0)
+    }
+}
+
+struct UnisonState {
+    /// The `phase` output's value per output lane.
+    phase: [f32; PORT_MAX_LANES],
+    /// Lanes holding a phase this module, or the one it took state from,
+    /// has written. Lanes at or past it start on their target.
+    phase_lanes: usize,
+}
+
+impl Default for UnisonState {
+    fn default() -> Self {
+        Self {
+            phase: [0.0; PORT_MAX_LANES],
+            phase_lanes: 0,
+        }
+    }
 }
 
 const UNISON_DOCS: ModuleDocs = ModuleDocs {
@@ -107,10 +142,11 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
+    state: UnisonState,
 }
 
 impl Unison {
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let count = self.params.count.clamp(1, PORT_MAX_LANES);
         let input = &self.params.input;
         let spread = &self.params.spread;
@@ -120,6 +156,8 @@ impl Unison {
         let channels = self.channels();
         let poly_lanes = unison_poly_lanes(input, spread) / channels;
         let output_lanes = self.lane_count();
+        let max_phase_step = PHASE_GLIDE_HZ / sample_rate;
+        let glided_lanes = self.state.phase_lanes;
 
         for poly_ch in 0..poly_lanes {
             for side in 0..channels {
@@ -147,10 +185,18 @@ impl Unison {
                     };
 
                     self.outputs.sample.set(out_ch, input_val + offset);
-                    self.outputs.phase.set(out_ch, voice_phase(voice));
+                    let target = voice_phase(voice, count);
+                    let phase = &mut self.state.phase[out_ch];
+                    *phase = if out_ch < glided_lanes {
+                        glide_phase(*phase, target, max_phase_step)
+                    } else {
+                        target
+                    };
+                    self.outputs.phase.set(out_ch, *phase);
                 }
             }
         }
+        self.state.phase_lanes = output_lanes;
     }
 }
 
@@ -169,6 +215,7 @@ mod tests {
         Unison {
             params,
             outputs,
+            state: UnisonState::default(),
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
@@ -397,22 +444,74 @@ mod tests {
         });
         u.update(48000.0);
         assert_eq!(u.outputs.phase.lanes(), u.outputs.sample.lanes());
-        assert_eq!(u.outputs.phase.get(0), 0.0);
-        for voice in 0..4 {
+        let expected = [0.0, 0.125, 0.5, 0.125];
+        for (voice, want) in expected.iter().enumerate() {
             for lane in 0..2 {
-                assert_eq!(u.outputs.phase.get(voice * 2 + lane), voice_phase(voice));
+                assert_eq!(u.outputs.phase.get(voice * 2 + lane), *want);
             }
         }
     }
 
     #[test]
-    fn test_voice_phases_are_distinct_and_in_range() {
-        let phases: Vec<f32> = (0..PORT_MAX_LANES).map(voice_phase).collect();
-        for (i, a) in phases.iter().enumerate() {
-            assert!((0.0..1.0).contains(a), "voice {i}: {a}");
-            for (j, b) in phases.iter().enumerate().skip(i + 1) {
-                assert!((a - b).abs() > 1e-3, "voices {i} and {j} share phase {a}");
+    fn test_voice_phases_are_schroeder_phases() {
+        for count in 1..=PORT_MAX_LANES {
+            for voice in 0..count {
+                let phase = voice_phase(voice, count);
+                let want = ((voice * voice) as f64 / (2 * count) as f64).fract() as f32;
+                assert!((0.0..1.0).contains(&phase), "{voice}/{count}: {phase}");
+                assert!(
+                    (phase - want).abs() < 1e-6,
+                    "{voice}/{count}: {phase} != {want}"
+                );
             }
+        }
+    }
+
+    #[test]
+    fn test_phase_glides_the_short_way() {
+        assert!((glide_phase(0.9, 0.1, 0.05) - 0.95).abs() < 1e-6);
+        assert!((glide_phase(0.1, 0.9, 0.05) - 0.05).abs() < 1e-6);
+        assert_eq!(glide_phase(0.5, 0.52, 0.05), 0.52);
+    }
+
+    #[test]
+    fn test_count_change_glides_phase_without_jumps() {
+        // A patch update from count 3 to 4 carries the phases over: copies
+        // that existed slide to their new phase at PHASE_GLIDE_HZ, and the
+        // added copy starts on its target.
+        let sample_rate = 48000.0;
+        let max_step = PHASE_GLIDE_HZ / sample_rate;
+        let params = |count| UnisonParams {
+            input: PolySignal::mono(Signal::Volts(0.0)),
+            count,
+            spread: None,
+        };
+        let mut old = make_unison(params(3));
+        old.update(sample_rate);
+        let mut new = make_unison(params(4));
+        std::mem::swap(&mut new.state, &mut old.state);
+
+        let mut prev: Vec<f32> = (0..3).map(|v| voice_phase(v, 3)).collect();
+        new.update(sample_rate);
+        assert_eq!(new.outputs.phase.get(3), voice_phase(3, 4));
+        for _ in 0..sample_rate as usize {
+            for (voice, last) in prev.iter_mut().enumerate() {
+                let now = new.outputs.phase.get(voice);
+                let moved = (now - *last + 0.5).rem_euclid(1.0) - 0.5;
+                assert!(
+                    moved.abs() <= max_step + 1e-6,
+                    "voice {voice} jumped {moved}"
+                );
+                *last = now;
+            }
+            new.update(sample_rate);
+        }
+        for voice in 0..4 {
+            assert_eq!(
+                new.outputs.phase.get(voice),
+                voice_phase(voice, 4),
+                "voice {voice}"
+            );
         }
     }
 

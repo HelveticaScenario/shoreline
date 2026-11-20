@@ -538,6 +538,12 @@ fn unison_copies_each_side_of_a_stereo_lane() {
     ])
     .unwrap();
     assert_eq!(step(&patch, "u"), [0.0, 1.0, 0.0, 1.0]);
+    // Both sides of a copy share its phase.
+    let u = &patch.sampleables["u"];
+    let phase: Vec<f32> = (0..u.port_lanes("phase"))
+        .map(|lane| u.get_value_at("phase", lane, 0))
+        .collect();
+    assert_eq!(phase, [0.0, 0.0, 0.25, 0.25]);
 }
 
 #[test]
