@@ -39,6 +39,7 @@ import {
     type ChainHost,
 } from './chainModules';
 import { captureSourceLocation } from './captureSourceLocation';
+import { type FeedbackTrack, findBusFeedback } from './busFeedback';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import {
     markRoot,
@@ -304,6 +305,13 @@ export class Bus {
 
     addSend(outputs: ModuleOutput[], level: PolySignal): void {
         this.sendGroups.push({ level, outputs });
+    }
+
+    /** The module mixing the sends, once finalized; null with none. */
+    mixModuleId(): string | null {
+        return this.sendGroups.length === 0
+            ? null
+            : (this.mix.resolve()?.moduleId ?? null);
     }
 
     /** Build the mix of the sends and point the bus's signal at it. */
@@ -1319,6 +1327,9 @@ export class GraphBuilder implements ChainHost {
         // Each locked send's live tap, resolved once every deferred is set.
         const sendTaps = new Map<VuSendDef, ControlTap>();
 
+        // Each track's tap, for the check that no track reads a bus.
+        const feedbackTracks: FeedbackTrack[] = [];
+
         // Each track's signals, by name, for `$trackTap` taps.
         const outsByLabel = new Map<
             string,
@@ -1442,6 +1453,12 @@ export class GraphBuilder implements ChainHost {
                         type: group.type,
                     };
                     const tapOutputs = gainStage(group.outputs, levels, tapId);
+                    feedbackTracks.push({
+                        isBus: group.isBus,
+                        label: group.label,
+                        sourceLocation: group.sourceLocation,
+                        tapId,
+                    });
 
                     // Mute/solo gate stage. The gate $signal holds 5 (unity
                     // for `$amp`) or 0 (silence); the VU panel
@@ -1762,7 +1779,7 @@ export class GraphBuilder implements ChainHost {
                     : '';
                 tap.resolveControls(
                     sources,
-                    `bus ${label} has no audio to read${at}: a bus's name only names it in other tracks' sends`,
+                    `${label} is a bus, so its audio can't be used here${at}. A bus's audio is processed only on its own track: chain the effect onto ${label}'s $bus() instead. Its name still works in sends, and .active, .level and .panning read its mixer controls.`,
                 );
             } else {
                 tap.resolve(sources);
@@ -1869,6 +1886,23 @@ export class GraphBuilder implements ChainHost {
             // null-based VuMeterDef satisfies VuMeterSpec's optional fields.
             vuMeters: vuMeters as unknown as PatchGraph['vuMeters'],
         };
+
+        const feedback = findBusFeedback(
+            ret.modules,
+            feedbackTracks,
+            this.busses.flatMap((bus) => {
+                const mixId = bus.mixModuleId();
+                return bus.trackName !== undefined && mixId !== null
+                    ? [{ mixId, name: bus.trackName }]
+                    : [];
+            }),
+        );
+        if (feedback) {
+            const loc = feedback.track.sourceLocation;
+            throw new Error(
+                `track ${feedback.track.label} uses the audio of bus ${feedback.bus}${loc ? ` (line ${loc.line})` : ''}. A bus's audio is processed only on its own track: chain the effect onto ${feedback.bus}'s $bus() instead.`,
+            );
+        }
 
         if (
             process.env.MODULAR_DEBUG_LOG === '1' ||

@@ -1427,8 +1427,8 @@ type BusRooted = BusSignal | RangedBusSignal;
 
 /**
  * A bus track, as its label's name reads: what the \`sends\` option of other
- * tracks takes, with the bus's mixer controls. It plays no audio, so no track
- * can feed a bus back into itself.
+ * tracks takes, with the bus's mixer controls. It has no audio: a bus's audio
+ * is processed only on its own track, by chaining onto its \`$bus()\`.
  */
 class BusTap {
   private constructor();
@@ -1541,8 +1541,8 @@ function $bus(): BusSignal;
  * signals. Follows live mixer changes. A track's label already binds its
  * name to the same tap, so this is for a name held in a string. Spaces and
  * underscores match alike; a name no track has is an error. A bus's tap has
- * its controls but no audio: reading it is an error, as every track sends to
- * every bus.
+ * its controls but no audio, as a bus's audio is processed only on its own
+ * track.
  *
  * @param name Name of the track to follow
  * @returns A {@link TrackTap}

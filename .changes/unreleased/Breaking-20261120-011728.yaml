@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    A bus track's name no longer plays the bus's audio: every track now feeds every bus (at 0 until you turn its send up), so reading a bus from another track would loop it back into itself. The name still works in `sends`, and `.active`, `.level` and `.panning` still read the bus's mixer controls. To process a bus further, chain onto the bus track itself:
+    A bus's audio can now be used only on the bus's own track, so any track can send to any bus from the mixer. Reading a bus anywhere else, by its name or through a `$bus()` kept in a `const`, is an error. The name still works in `sends`, and `.active`, `.level` and `.panning` still read the bus's mixer controls. To process a bus further, chain onto the bus track itself:
 
     ```js
     // before
