@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { addFix, apply, fixesAt, wrapFix } from './controlQuickFixHarness';
+import { API, addFix, apply, fixesAt, wrapFix } from './controlQuickFixHarness';
 
 /** The fixed source of the one wrap offered at the cursor. */
 function wrapped(text: string): string {
@@ -108,11 +108,33 @@ describe('computeControlQuickFixes — required API params', () => {
         );
     });
 
+    test('every $phase warp offers a slider for its amount', () => {
+        const warps = [...API.index.functions.keys()].filter((name) =>
+            name.startsWith('$phase.'),
+        );
+        expect(warps.length).toBeGreaterThan(20);
+        for (const warp of warps) {
+            const [param] = API.index.functions.get(warp)!;
+            const { source, fixes } = fixesAt(`${warp}(|)`);
+            const fixed = apply(source, addFix(fixes, param.name));
+            expect(fixed.startsWith(`${warp}($slider('${param.name}', `)).toBe(
+                true,
+            );
+            expect(fixed.endsWith(', 5))')).toBe(true);
+        }
+    });
+
     test('a missing required knob starts at its stated default', () => {
         const { source, fixes } = fixesAt(`$phase.pwm(|)`);
         expect(apply(source, addFix(fixes, 'width'))).toBe(
             `$phase.pwm($slider('width', 2.5, 0, 5))`,
         );
+        for (const warp of ['asym', 'bendmp']) {
+            const neutral = fixesAt(`$phase.${warp}(|)`);
+            expect(apply(neutral.source, addFix(neutral.fixes, 'amount'))).toBe(
+                `$phase.${warp}($slider('amount', 2.5, 0, 5))`,
+            );
+        }
     });
 
     test('a missing required signal with no stated range is never added', () => {

@@ -1663,7 +1663,7 @@ function $cross(
  * $phase.mirror(2.5).pipe(addBend)
  */
 declare const $phase: {
-    /** Move the wave's midpoint along the cycle, from the start (0) to the end (5). */
+    /** Move the wave's midpoint along the cycle (0–5): the start at 0, the end at 5, even at 2.5. */
     asym(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Play the wave forward, then back, turning where \`asym\` puts the midpoint (0–5). */
     mirror(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
@@ -1677,7 +1677,7 @@ declare const $phase: {
     bendmp(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Hard-sync: run the phase 1× to 16× faster, restarting each cycle (0–5). */
     sync(ratio: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
-    /** Step the phase, from 4096 steps per cycle at 0 down to 4 at 5: lo-fi stairs. */
+    /** Step the phase for lo-fi stairs (0–5): 4096 steps per cycle at 0, down to 4 at 5. */
     quant(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Fold the wave back and forth, 2 to 8 times per cycle (0–5). */
     fold(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
@@ -1689,9 +1689,9 @@ declare const $phase: {
     spin(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Blend the phase toward a chaotic logistic-map curve (0–5). */
     chaos(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
-    /** Step the phase a prime number of times per cycle, from 4099 at 0 down to 11 at 5. */
+    /** Step the phase a prime number of times per cycle (0–5): 4099 at 0, down to 11 at 5. */
     primes(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
-    /** Read the cycle's steps in bit-reversed order, 12 bits at 0 down to 3 at 5: glitchy and scrambled. */
+    /** Read the cycle's steps in bit-reversed order, glitchy and scrambled (0–5): 12 bits at 0, down to 3 at 5. */
     binary(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Jitter the phase with smooth noise that repeats every cycle (0–5). */
     brownian(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
