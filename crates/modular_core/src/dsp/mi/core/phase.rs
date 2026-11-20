@@ -4,6 +4,16 @@ pub fn wrap_below(phase: f32) -> f32 {
     if phase < 0.0 { phase + 1.0 } else { phase }
 }
 
+/// The largest `f32` below 1.
+pub const BELOW_ONE: f32 = 1.0 - f32::EPSILON / 2.0;
+
+/// `phase` brought into `[0, 1)` by whole cycles. A hair below 0 rounds up to
+/// 1, and lands just below it instead, at the top of the cycle it is in.
+#[inline(always)]
+pub fn wrap(phase: f32) -> f32 {
+    (phase - phase.floor()).min(BELOW_ONE)
+}
+
 /// The fractional part of a cycle count; 0 from 2^24 cycles on, where an `f32`
 /// holds no fraction, and for an infinite count.
 #[inline(always)]
