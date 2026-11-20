@@ -735,9 +735,9 @@ type WavMeta = {
 
 /**
  * A send to a bus, named by its track's name: the name alone sends at full
- * level, a \`[name, gain]\` pair at \`gain\`.
+ * level, a \`[name, level]\` pair at a linear \`level\` (5 = full, 0 = none).
  */
-type Send = BusTap | [bus: BusTap, gain: SendLevel];
+type Send = BusTap | [bus: BusTap, level: SendLevel];
 
 /**
  * A send's level: any signal but a track's name, which in a send is always
