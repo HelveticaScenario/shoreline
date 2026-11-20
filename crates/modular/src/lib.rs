@@ -368,7 +368,8 @@ impl WavCache {
 
     fn set_workspace_path(&mut self, path: PathBuf) {
         if self.workspace_path != path {
-            self.entries.clear();
+            self.entries
+                .retain(|key, _| key.starts_with(BUILTIN_PREFIX));
             self.workspace_path = path;
         }
     }
@@ -498,14 +499,13 @@ impl WavCache {
     }
 
     /// Load a WAV file, returning cached data if mtime hasn't changed.
-    /// `path` starts with `/`, which is the workspace root, and is also the
-    /// cache key a `Wav` parameter uses to find the decoded audio.
+    /// `path` is a workspace or built-in path (see `asset_file`), and is also
+    /// the cache key a `Wav` parameter uses to find the decoded audio.
     fn load(&mut self, path: &str) -> Result<WavLoadInfo> {
         let full_path = self.asset_file(path)?;
 
-        let metadata = std::fs::metadata(&full_path).map_err(|e| {
-            napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
-        })?;
+        let metadata = std::fs::metadata(&full_path)
+            .map_err(|e| napi::Error::from_reason(format!("cannot read {path} ({e})")))?;
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Cache hit — mtime matches

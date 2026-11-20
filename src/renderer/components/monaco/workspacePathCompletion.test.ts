@@ -351,20 +351,9 @@ describe('workspace path completion', () => {
         ).toBe(false);
     });
 
-    test('an empty literal offers workspace files, then bundled ones', async () => {
-        const list = await complete("$sampler('', 5)", 11);
-        expect(list?.suggestions.map((s) => s.label)).toEqual([
-            '/wavs/kick.wav',
-            "/wavs/don't.wav",
-            '/wavs/pads/warm.wav',
-            '/pictures/photo.png',
-            '/clips/loop.mp4',
-            ...BUILTIN_WAVETABLES.map((a) => a.path),
-        ]);
-    });
-
-    test('offers nothing in a literal starting with anything else', async () => {
+    test('offers nothing in an empty literal or one starting with anything else', async () => {
         expect(await complete("$sine('c4')", 9)).toBeUndefined();
+        expect(await complete("$sampler('', 5)", 11)).toBeUndefined();
     });
 
     test('offers nothing outside a literal', async () => {

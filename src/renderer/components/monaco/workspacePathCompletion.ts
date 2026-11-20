@@ -183,7 +183,7 @@ async function workspaceSuggestions(
 /**
  * Registers completion of asset paths inside string literals: workspace files
  * when the literal starts with `/`, bundled files when it starts with
- * `builtin/` or part of it, and both in an empty literal. `listFiles` is read
+ * `builtin/` or part of it. `listFiles` is read
  * on every request, so files added since the editor opened are offered.
  */
 export function registerWorkspacePathCompletionProvider(
@@ -200,10 +200,11 @@ export function registerWorkspacePathCompletionProvider(
                 span.contentStart - 1,
                 position.column - 1,
             );
-            const workspace = typed === '' || typed.startsWith('/');
+            const workspace = typed.startsWith('/');
             const builtin =
-                BUILTIN_PREFIX.startsWith(typed) ||
-                typed.startsWith(BUILTIN_PREFIX);
+                typed !== '' &&
+                (BUILTIN_PREFIX.startsWith(typed) ||
+                    typed.startsWith(BUILTIN_PREFIX));
             if (!workspace && !builtin) return undefined;
             const offered = [
                 ...(workspace ? await workspaceSuggestions(listFiles) : []),
