@@ -1,5 +1,7 @@
 /target
 *.wav
+!/assets/builtin/**/*.wav
+__pycache__/
 .DS_Store
 
 node_modules
