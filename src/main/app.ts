@@ -24,7 +24,7 @@ import type {
     FileTreeEntry,
     ContextMenuOptions,
     EditorContextMenuOptions,
-    DeviceSwitchNotice,
+    OutputDeviceNotice,
     DSLExecuteResult,
     KeybindingOverride,
     MainLogLevel,
@@ -46,10 +46,10 @@ import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
 import {
-    deviceSwitchNotice,
-    followSystemDefaultOutput,
-    SYSTEM_DEFAULT_POLL_MS,
-} from './systemDefaultOutput';
+    outputDeviceNotice,
+    followOutputDevice,
+    OUTPUT_DEVICE_POLL_MS,
+} from './outputDeviceFollow';
 import { bundledChangelog, fetchPublishedReleases } from './releaseNotesSource';
 import {
     isNewerVersion,
@@ -680,35 +680,37 @@ setInterval(() => {
 }, 10000);
 
 // A notice raised before the main window loads, delivered once it does.
-let pendingSwitchNotice: DeviceSwitchNotice | null = null;
+let pendingOutputNotice: OutputDeviceNotice | null = null;
 
-function sendSwitchNotice(notice: DeviceSwitchNotice) {
+function sendOutputNotice(notice: OutputDeviceNotice) {
     if (
         mainWindow &&
         !mainWindow.isDestroyed() &&
         !mainWindow.webContents.isLoading()
     ) {
-        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED, notice);
+        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE, notice);
     } else {
-        pendingSwitchNotice = notice;
+        pendingOutputNotice = notice;
     }
 }
 
-// The saved config is left alone: it holds the settings asked for, which a
-// later move returns to when its device allows them.
+// The saved config is left alone: it holds the settings asked for, which the
+// next launch opens and a move falls back to where its device allows them.
 setInterval(() => {
-    const followed = followSystemDefaultOutput(synth, appliedPatch);
+    const followed = followOutputDevice(synth, appliedPatch);
     if (!followed) {
         return;
     }
-    cvSent.values.clear();
-    const notice = deviceSwitchNotice(
+    if (followed.engineReset) {
+        cvSent.values.clear();
+    }
+    const notice = outputDeviceNotice(
         followed.report,
         followed.stoppedPlayback,
     );
-    console.log('System default output changed:', notice.message);
-    sendSwitchNotice(notice);
-}, SYSTEM_DEFAULT_POLL_MS);
+    console.log('Output device:', notice.message);
+    sendOutputNotice(notice);
+}, OUTPUT_DEVICE_POLL_MS);
 
 // Workspace root state
 let currentWorkspaceRoot: string | null = null;
@@ -1329,16 +1331,22 @@ registerIPCHandler(
         inputDeviceId: string | null,
         hostId: string | null,
     ) => {
-        synth.recreateStreams(
+        const engineKept = synth.recreateStreams(
             outputDeviceId ?? undefined,
             sampleRate,
             bufferSize ?? undefined,
             inputDeviceId ?? undefined,
             hostId ?? undefined,
         );
-        cvSent.values.clear();
+        // A new sample rate starts an empty engine; at the same rate the
+        // patch plays on with everything already sent to it.
+        if (!engineKept) {
+            appliedPatch.clear();
+            cvSent.values.clear();
+        }
         fallbackWarnings.report(synth.getCurrentAudioState().fallbackWarning);
         saveAudioConfig();
+        return engineKept;
     },
 );
 
@@ -2144,10 +2152,10 @@ const createWindow = (): void => {
     // ready — anything sent earlier would be dropped by the loading page.
     mainWindow.webContents.on('did-finish-load', () => {
         flushPendingLogs();
-        if (pendingSwitchNotice) {
-            const notice = pendingSwitchNotice;
-            pendingSwitchNotice = null;
-            sendSwitchNotice(notice);
+        if (pendingOutputNotice) {
+            const notice = pendingOutputNotice;
+            pendingOutputNotice = null;
+            sendOutputNotice(notice);
         }
         fallbackWarnings.attach((warning) => {
             if (mainWindow && !mainWindow.isDestroyed()) {

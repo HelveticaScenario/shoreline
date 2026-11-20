@@ -19,7 +19,7 @@ import {
     UpdateAvailableInfo,
 } from '../shared/ipcTypes';
 import type {
-    DeviceSwitchNotice,
+    OutputDeviceNotice,
     FileChange,
     QueuedTrigger,
 } from '../shared/ipcTypes';
@@ -140,8 +140,8 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_RECREATE_STREAMS]
         >;
         onFallbackWarning: (callback: (warning: string) => void) => () => void;
-        onOutputSwitched: (
-            callback: (notice: DeviceSwitchNotice) => void,
+        onOutputNotice: (
+            callback: (notice: OutputDeviceNotice) => void,
         ) => () => void;
         // Legacy (kept for backward compatibility)
         refreshDeviceList: Promisify<
@@ -408,7 +408,7 @@ const electronAPI: ElectronAPI = {
             IPC_CHANNELS.AUDIO_FALLBACK_WARNING,
         ),
 
-        onOutputSwitched: menuEventHandler(IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED),
+        onOutputNotice: menuEventHandler(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE),
 
         // Legacy (kept for backward compatibility)
         refreshDeviceList: (...args) =>

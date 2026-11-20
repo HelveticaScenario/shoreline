@@ -128,7 +128,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         return hostData?.inputDevices ?? [];
     }, [deviceCache, selectedHostId]);
 
-    const systemDefaultOutputDevice = useMemo(
+    const outputDeviceFollowDevice = useMemo(
         () => outputDevicesForHost.find((d) => d.isDefault) ?? null,
         [outputDevicesForHost],
     );
@@ -137,14 +137,14 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
     const selectedOutputDevice = useMemo(
         () =>
             selectedOutputDeviceId === null
-                ? systemDefaultOutputDevice
+                ? outputDeviceFollowDevice
                 : (outputDevicesForHost.find(
                       (d) => d.id === selectedOutputDeviceId,
                   ) ?? null),
         [
             outputDevicesForHost,
             selectedOutputDeviceId,
-            systemDefaultOutputDevice,
+            outputDeviceFollowDevice,
         ],
     );
 
@@ -336,7 +336,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
     // with now.
     useEffect(
         () =>
-            electronAPI.audio.onOutputSwitched(() => {
+            electronAPI.audio.onOutputNotice(() => {
                 void loadData();
             }),
         [loadData],
@@ -463,8 +463,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                         >
                             <option value="">
                                 System Default
-                                {systemDefaultOutputDevice
-                                    ? ` (${systemDefaultOutputDevice.name})`
+                                {outputDeviceFollowDevice
+                                    ? ` (${outputDeviceFollowDevice.name})`
                                     : ''}
                             </option>
                             <optgroup label="Devices">

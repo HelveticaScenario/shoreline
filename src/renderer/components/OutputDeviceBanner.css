@@ -1,4 +1,4 @@
-.device-switch-banner {
+.output-device-banner {
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -12,16 +12,16 @@
     color: var(--text-primary, #cccccc);
 }
 
-.device-switch-banner--stopped {
+.output-device-banner--stopped {
     border-bottom-color: var(--color-warning, #d4a855);
 }
 
-.device-switch-banner__message {
+.output-device-banner__message {
     flex: 1;
     min-width: 0;
 }
 
-.device-switch-banner__dismiss {
+.output-device-banner__dismiss {
     flex-shrink: 0;
     padding: 3px 10px;
     border-radius: 4px;
@@ -33,6 +33,6 @@
     border: 1px solid var(--border-default, #2a2a2a);
 }
 
-.device-switch-banner__dismiss:hover {
+.output-device-banner__dismiss:hover {
     background: var(--bg-hover, #1a1a1a);
 }

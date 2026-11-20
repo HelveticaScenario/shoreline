@@ -7,6 +7,8 @@ mod commands;
 mod coreaudio_devices;
 mod denormals;
 mod device_follow;
+#[cfg(all(test, target_os = "macos"))]
+mod device_loss_tests;
 use device_follow::DeviceFollowReport;
 mod graph_analysis;
 mod link;
@@ -15,6 +17,7 @@ mod midi;
 mod panic_log;
 mod params_cache;
 mod recording;
+mod stream_health;
 mod tap;
 mod validation;
 #[cfg(target_os = "windows")]
@@ -44,17 +47,19 @@ use napi_derive::napi;
 
 use crate::audio::{
     ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioDeviceInfo, AudioState,
-    AudioThreadEndpoints, CurrentAudioState, DeviceCacheSnapshot, HostDeviceInfo, HostInfo,
+    CurrentAudioState, DeviceCacheSnapshot, Engine, EngineSlot, HostDeviceInfo, HostInfo,
     InputBufferWriter, PatchSubmission, TransportSnapshot, create_audio_channels,
     create_input_ring_buffer, find_input_device_in_host, find_output_device_in_host,
     get_host_by_preference, make_input_stream, make_stream, preferred_default_sample_rate,
 };
 use crate::commands::{GraphCommand, QueuedTrigger, TransportMeta};
 use crate::midi::MidiInputManager;
+use crate::stream_health::{StreamHealth, StreamWatchdog};
+use parking_lot::Mutex;
 
 use modular_core::dsp::utilities::video_tap;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::time::{Instant, SystemTime};
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -670,8 +675,15 @@ pub struct AudioConfigOptions {
 #[napi(js_name = "Synthesizer")]
 pub struct Synthesizer {
     state: Arc<AudioState>,
+    /// Where the output stream's callback finds the engine, and where the
+    /// engine goes back when that stream is dropped.
+    engine_slot: EngineSlot,
     _output_stream: cpal::Stream,
     _input_stream: Option<cpal::Stream>,
+    stream_health: Arc<StreamHealth>,
+    stream_watchdog: StreamWatchdog,
+    /// The output stream stopped and the device is not back yet.
+    output_disconnected: bool,
     midi_manager: Arc<MidiInputManager>,
     sample_rate: f32,
     buffer_size: Option<u32>,
@@ -853,14 +865,13 @@ fn build_output_stream(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     sample_format: cpal::SampleFormat,
-    endpoints: AudioThreadEndpoints,
-    block_size: usize,
+    endpoints: audio::AudioThreadEndpoints,
 ) -> Result<cpal::Stream> {
     match sample_format {
-        cpal::SampleFormat::I8 => make_stream::<i8>(device, config, endpoints, block_size),
-        cpal::SampleFormat::I16 => make_stream::<i16>(device, config, endpoints, block_size),
-        cpal::SampleFormat::I32 => make_stream::<i32>(device, config, endpoints, block_size),
-        cpal::SampleFormat::F32 => make_stream::<f32>(device, config, endpoints, block_size),
+        cpal::SampleFormat::I8 => make_stream::<i8>(device, config, endpoints),
+        cpal::SampleFormat::I16 => make_stream::<i16>(device, config, endpoints),
+        cpal::SampleFormat::I32 => make_stream::<i32>(device, config, endpoints),
+        cpal::SampleFormat::F32 => make_stream::<f32>(device, config, endpoints),
         _ => Err(napi::Error::from_reason(format!(
             "Unsupported output sample format: {:?}",
             sample_format
@@ -887,11 +898,19 @@ fn build_input_stream(
     }
 }
 
+/// What replacing the streams did to the engine.
+struct OpenedStreams {
+    /// The engine moved to the new streams with its patch and state.
+    engine_kept: bool,
+    /// The file of a recording that ended with the old engine.
+    recording_path: Option<String>,
+}
+
 /// Result of setting up audio streams
 struct StreamSetupResult {
     output_stream: cpal::Stream,
     input_stream: Option<cpal::Stream>,
-    state: Arc<AudioState>,
+    health: Arc<StreamHealth>,
     sample_rate: f32,
     channels: u16,
     input_channels: u16,
@@ -906,8 +925,6 @@ struct StreamSetupParams<'a> {
     buffer_size: Option<u32>,
     /// Input device with its config, or None for no input
     input: Option<(&'a cpal::Device, cpal::SupportedStreamConfig, String)>,
-    /// MIDI input manager (shared with audio thread)
-    midi_manager: Arc<MidiInputManager>,
 }
 
 /// Fewest frames per internal block: below this, each module's per-block work
@@ -929,12 +946,46 @@ fn block_size_for(buffer_size: Option<u32>) -> usize {
         .clamp(MIN_BLOCK_SIZE, MAX_BLOCK_SIZE)
 }
 
-/// Set up output and input streams with the given parameters.
-/// This is the shared core logic between `new` and `recreate_streams`.
-fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
+/// A new engine at `sample_rate`, waiting in its slot for a stream, and the
+/// state the main thread drives it through.
+fn new_engine(
+    sample_rate: u32,
+    buffer_size: Option<u32>,
+    channels: u16,
+    midi_manager: Arc<MidiInputManager>,
+) -> (Arc<AudioState>, EngineSlot) {
+    let (command_tx, command_rx, error_tx, error_rx, garbage_tx, garbage_rx) =
+        create_audio_channels();
+    let block_size = block_size_for(buffer_size);
+    let state = Arc::new(AudioState::new_with_channels(
+        command_tx,
+        error_rx,
+        garbage_rx,
+        sample_rate as f32,
+        channels,
+        midi_manager,
+        block_size,
+    ));
+    let engine = Engine::new(
+        command_rx,
+        error_tx,
+        garbage_tx,
+        state.get_shared_state(),
+        sample_rate as f32,
+        block_size,
+    );
+    (state, Arc::new(Mutex::new(Some(Box::new(engine)))))
+}
+
+/// Open and start output and input streams that play the engine `state`
+/// drives, which the output callback takes from `engine` once it is there.
+fn setup_streams(
+    params: StreamSetupParams,
+    state: &AudioState,
+    engine: EngineSlot,
+) -> Result<StreamSetupResult> {
     let channels = params.output_config.channels();
 
-    // Build stream config
     let stream_buffer_size = params
         .buffer_size
         .map(cpal::BufferSize::Fixed)
@@ -946,25 +997,6 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
         buffer_size: stream_buffer_size,
     };
 
-    // Create command, error, and garbage queues for audio thread communication
-    let (command_tx, command_rx, error_tx, error_rx, garbage_tx, garbage_rx) =
-        create_audio_channels();
-
-    let block_size = block_size_for(params.buffer_size);
-
-    let state = Arc::new(AudioState::new_with_channels(
-        command_tx,
-        error_rx,
-        garbage_rx,
-        params.sample_rate as f32,
-        channels,
-        params.midi_manager.clone(),
-        block_size,
-    ));
-
-    // Get shared state for audio processor
-    let shared = state.get_shared_state();
-
     // Get input channel count before creating ring buffer
     let input_channels = params
         .input
@@ -974,20 +1006,14 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
 
     // Create ring buffer
     let (input_writer, input_reader) = create_input_ring_buffer(input_channels);
+    let health = Arc::new(StreamHealth::default());
 
     // Create and start output stream
     let output_stream = build_output_stream(
         params.output_device,
         &stream_config,
         params.output_config.sample_format(),
-        AudioThreadEndpoints {
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-        },
-        block_size,
+        state.stream_endpoints(engine, input_reader, health.clone()),
     )?;
 
     output_stream
@@ -1034,7 +1060,7 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
     Ok(StreamSetupResult {
         output_stream,
         input_stream,
-        state,
+        health,
         sample_rate: params.sample_rate as f32,
         channels,
         input_channels: final_input_channels,
@@ -1132,22 +1158,34 @@ impl Synthesizer {
         // Create MIDI manager first so it can be shared with audio thread
         let midi_manager = Arc::new(MidiInputManager::new());
 
-        // Set up streams using shared helper
-        let setup_result = setup_streams(StreamSetupParams {
-            output_device: &output_device,
-            output_config: &output_config,
+        let (state, engine_slot) = new_engine(
             sample_rate,
-            buffer_size: config.buffer_size,
-            input: input_setup,
-            midi_manager: midi_manager.clone(),
-        })?;
+            config.buffer_size,
+            output_config.channels(),
+            midi_manager.clone(),
+        );
+        let setup_result = setup_streams(
+            StreamSetupParams {
+                output_device: &output_device,
+                output_config: &output_config,
+                sample_rate,
+                buffer_size: config.buffer_size,
+                input: input_setup,
+            },
+            &state,
+            engine_slot.clone(),
+        )?;
 
         println!("Audio output stream started.");
 
         Ok(Self {
-            state: setup_result.state,
+            state,
+            engine_slot,
             _output_stream: setup_result.output_stream,
             _input_stream: setup_result.input_stream,
+            stream_health: setup_result.health,
+            stream_watchdog: StreamWatchdog::new(Instant::now()),
+            output_disconnected: false,
             midi_manager,
             sample_rate: setup_result.sample_rate,
             buffer_size: config.buffer_size,
@@ -1666,7 +1704,9 @@ impl Synthesizer {
     /// This is the primary way to change audio devices after initialization.
     /// An `output_device_id` of `None` opens the system default output of
     /// `host_id` (the current host when `None`) and keeps following it (see
-    /// `follow_system_default_output`).
+    /// `follow_system_default_output`). Returns whether the engine carried
+    /// on, which it does when the sample rate stays the same; otherwise the
+    /// new engine starts stopped and empty.
     #[napi]
     pub fn recreate_streams(
         &mut self,
@@ -1675,8 +1715,8 @@ impl Synthesizer {
         buffer_size: Option<u32>,
         input_device_id: Option<String>,
         host_id: Option<String>,
-    ) -> Result<()> {
-        self.reopen_streams(
+    ) -> Result<bool> {
+        let opened = self.reopen_streams(
             output_device_id,
             sample_rate,
             buffer_size,
@@ -1687,7 +1727,7 @@ impl Synthesizer {
         self.preferred_buffer_size = buffer_size;
         self.preferred_input_device_id =
             input_device_id.filter(|id| !id.is_empty() && id != "none");
-        Ok(())
+        Ok(opened.engine_kept)
     }
 
     /// `recreate_streams` without making these settings the preferred ones.
@@ -1698,7 +1738,7 @@ impl Synthesizer {
         buffer_size: Option<u32>,
         input_device_id: Option<String>,
         host_id: Option<String>,
-    ) -> Result<()> {
+    ) -> Result<OpenedStreams> {
         let follows_output = output_device_id.is_none();
         let output_device_id = match output_device_id {
             Some(id) => id,
@@ -1712,24 +1752,27 @@ impl Synthesizer {
                 })?
             }
         };
-        self.open_streams(output_device_id, sample_rate, buffer_size, input_device_id)?;
+        let opened =
+            self.open_streams(output_device_id, sample_rate, buffer_size, input_device_id)?;
         self.follows_system_default_output = follows_output;
         self.seen_default_output = follows_output
             .then(|| self.output_device_id.clone())
             .flatten();
-        Ok(())
+        Ok(opened)
     }
 
     /// Open streams on exactly these devices, replacing the running ones.
-    /// The fresh engine starts stopped and empty, with Link as it was. A
-    /// recording in progress ends with the old streams; returns its file.
+    /// At the engine's sample rate the engine moves to the new streams with
+    /// its patch, playback, recording and Link. At any other rate a fresh
+    /// engine starts stopped and empty, with Link as it was, and a recording
+    /// in progress ends with the old streams.
     fn open_streams(
         &mut self,
         output_device_id: String,
         sample_rate: u32,
         buffer_size: Option<u32>,
         input_device_id: Option<String>,
-    ) -> Result<Option<String>> {
+    ) -> Result<OpenedStreams> {
         // Find the host for the output device
         let output_device_info = self
             .device_cache
@@ -1822,27 +1865,40 @@ impl Synthesizer {
             None
         };
 
-        // Set up streams using shared helper (reuse existing midi_manager)
-        let setup_result = setup_streams(StreamSetupParams {
-            output_device: &output_device,
-            output_config: &output_config,
-            sample_rate,
-            buffer_size,
-            input: input_setup
-                .as_ref()
-                .map(|(d, c, id)| (d, c.clone(), id.clone())),
-            midi_manager: self.midi_manager.clone(),
-        })?;
+        // An engine at this sample rate keeps playing on the new streams.
+        let keep_engine =
+            sample_rate == self.sample_rate as u32 && !self.state.is_audio_thread_panicked();
+        let (state, engine_slot) = if keep_engine {
+            (self.state.clone(), Arc::new(Mutex::new(None)))
+        } else {
+            new_engine(
+                sample_rate,
+                buffer_size,
+                output_config.channels(),
+                self.midi_manager.clone(),
+            )
+        };
+        let setup_result = setup_streams(
+            StreamSetupParams {
+                output_device: &output_device,
+                output_config: &output_config,
+                sample_rate,
+                buffer_size,
+                input: input_setup
+                    .as_ref()
+                    .map(|(d, c, id)| (d, c.clone(), id.clone())),
+            },
+            &state,
+            engine_slot.clone(),
+        )?;
 
-        // Update self with new streams and state
+        // Dropping the old output stream puts its engine back in its slot.
         self._output_stream = setup_result.output_stream;
         self._input_stream = setup_result.input_stream;
-        let previous_state = std::mem::replace(&mut self.state, setup_result.state);
-        // The fresh AudioState starts with a zero profiling refcount, so reset
-        // the process-global profiling flag to match. Otherwise switching audio
-        // devices while profiling is enabled leaves the global stuck on with no
-        // refcount able to clear it; the UI panel re-enables on its next open.
-        modular_core::profiling::set_enabled(false);
+        self.stream_health = setup_result.health;
+        self.stream_watchdog = StreamWatchdog::new(Instant::now());
+        self.output_disconnected = false;
+        let previous_slot = std::mem::replace(&mut self.engine_slot, engine_slot);
         self.sample_rate = setup_result.sample_rate;
         self.buffer_size = buffer_size;
         self.channels = setup_result.channels;
@@ -1851,11 +1907,32 @@ impl Synthesizer {
         self.output_device_id = Some(output_device_id.clone());
         self.input_device_id = setup_result.input_device_id;
         self.fallback_warning = None; // Clear any previous fallback warning
+        self.state.set_channels(setup_result.channels);
 
         println!(
             "Audio streams recreated: output={} input={:?} {}Hz {}ch host={}",
             output_device_id, self.input_device_id, sample_rate, setup_result.channels, host_id
         );
+
+        if keep_engine {
+            let mut engine = previous_slot
+                .lock()
+                .take()
+                .expect("a dropped output stream returns its engine");
+            engine.resume_on_new_stream();
+            *self.engine_slot.lock() = Some(engine);
+            return Ok(OpenedStreams {
+                engine_kept: true,
+                recording_path: None,
+            });
+        }
+
+        let previous_state = std::mem::replace(&mut self.state, state);
+        // The fresh AudioState starts with a zero profiling refcount, so reset
+        // the process-global profiling flag to match. Otherwise switching audio
+        // devices while profiling is enabled leaves the global stuck on with no
+        // refcount able to clear it; the UI panel re-enables on its next open.
+        modular_core::profiling::set_enabled(false);
 
         if previous_state.transport_meter.read_link_enabled()
             && let Err(error) = self.enable_link(true)
@@ -1863,16 +1940,21 @@ impl Synthesizer {
             eprintln!("Link did not rejoin on the new streams: {}", error);
         }
 
-        if !std::mem::take(&mut self.is_recording) {
-            return Ok(None);
-        }
-        match previous_state.stop_recording() {
-            Ok(finished) => Ok(finished.map(|f| f.path.to_string_lossy().to_string())),
-            Err(error) => {
-                eprintln!("Recording did not finish cleanly: {}", error);
-                Ok(None)
+        let recording_path = if std::mem::take(&mut self.is_recording) {
+            match previous_state.stop_recording() {
+                Ok(finished) => finished.map(|f| f.path.to_string_lossy().to_string()),
+                Err(error) => {
+                    eprintln!("Recording did not finish cleanly: {}", error);
+                    None
+                }
             }
-        }
+        } else {
+            None
+        };
+        Ok(OpenedStreams {
+            engine_kept: false,
+            recording_path,
+        })
     }
 
     // Legacy API compatibility methods (now use cache)
@@ -1914,12 +1996,9 @@ impl Synthesizer {
     }
 
     /// Restart the audio streams using the current device/sample-rate/buffer-size
-    /// settings. `recreate_streams` replaces `self.state` with a fresh
-    /// `AudioState`, so the new stream's callback captures a fresh
-    /// `audio_thread_panicked` flag (initially false). The old (poisoned) flag
-    /// stays set on the old `AudioState` so the old callback continues to emit
-    /// silence until cpal drops the old stream. Call this after
-    /// `is_audio_thread_panicked()` returns true to recover.
+    /// settings. A panicked engine never moves to new streams, so this builds
+    /// a fresh `AudioState` whose `audio_thread_panicked` flag starts false.
+    /// Call this after `is_audio_thread_panicked()` returns true to recover.
     #[napi]
     pub fn restart_audio(&mut self) -> Result<()> {
         let output_device_id = self.chosen_output_device_id()?;
@@ -1930,6 +2009,7 @@ impl Synthesizer {
             self.input_device_id.clone(),
             None,
         )
+        .map(|_| ())
     }
 
     /// The output this synthesizer was asked for: `None` while it follows
@@ -1944,14 +2024,14 @@ impl Synthesizer {
             .ok_or_else(|| napi::Error::from_reason("No output device configured"))
     }
 
-    /// While following the system default output, move the streams to the
-    /// device the system now makes its default, keeping the sample rate,
-    /// buffer size and input where the new device allows them. Returns what
-    /// changed, or `None` when nothing did; moving leaves the engine stopped and
-    /// empty like any stream recreation. Cheap enough to poll: on hosts whose
-    /// default cannot change under a running stream it reads nothing.
+    /// Keep the output on a device that can play: while following the system
+    /// default, move to the device the system now makes its default; when the
+    /// output's stream has stopped (its device unplugged or reset), reopen it
+    /// once the device is back. The engine keeps playing wherever the device
+    /// runs at its sample rate. Returns what changed, or `None` when nothing
+    /// did. Cheap enough to poll every second.
     #[napi]
-    pub fn follow_system_default_output(&mut self) -> Option<DeviceFollowReport> {
+    pub fn follow_output_device(&mut self) -> Option<DeviceFollowReport> {
         device_follow::follow(self)
     }
 
@@ -1976,6 +2056,7 @@ impl Synthesizer {
             self.input_device_id.clone(),
             None,
         )
+        .map(|_| ())
     }
 
     /// Set the audio input device (legacy - use recreate_streams instead)
@@ -1990,6 +2071,7 @@ impl Synthesizer {
             device_id,
             None,
         )
+        .map(|_| ())
     }
 
     // =========================================================================

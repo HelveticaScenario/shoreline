@@ -117,9 +117,11 @@ export declare class Synthesizer {
    * This is the primary way to change audio devices after initialization.
    * An `output_device_id` of `None` opens the system default output of
    * `host_id` (the current host when `None`) and keeps following it (see
-   * `follow_system_default_output`).
+   * `follow_system_default_output`). Returns whether the engine carried
+   * on, which it does when the sample rate stays the same; otherwise the
+   * new engine starts stopped and empty.
    */
-  recreateStreams(outputDeviceId: string | undefined | null, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null, hostId?: string | undefined | null): void
+  recreateStreams(outputDeviceId: string | undefined | null, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null, hostId?: string | undefined | null): boolean
   /** Force refresh the device cache (legacy - same as refresh_device_cache) */
   refreshDeviceList(): void
   /** List all available audio hosts (from cache) */
@@ -134,23 +136,20 @@ export declare class Synthesizer {
   getInputDeviceId(): string | null
   /**
    * Restart the audio streams using the current device/sample-rate/buffer-size
-   * settings. `recreate_streams` replaces `self.state` with a fresh
-   * `AudioState`, so the new stream's callback captures a fresh
-   * `audio_thread_panicked` flag (initially false). The old (poisoned) flag
-   * stays set on the old `AudioState` so the old callback continues to emit
-   * silence until cpal drops the old stream. Call this after
-   * `is_audio_thread_panicked()` returns true to recover.
+   * settings. A panicked engine never moves to new streams, so this builds
+   * a fresh `AudioState` whose `audio_thread_panicked` flag starts false.
+   * Call this after `is_audio_thread_panicked()` returns true to recover.
    */
   restartAudio(): void
   /**
-   * While following the system default output, move the streams to the
-   * device the system now makes its default, keeping the sample rate,
-   * buffer size and input where the new device allows them. Returns what
-   * changed, or `None` when nothing did; moving leaves the engine stopped and
-   * empty like any stream recreation. Cheap enough to poll: on hosts whose
-   * default cannot change under a running stream it reads nothing.
+   * Keep the output on a device that can play: while following the system
+   * default, move to the device the system now makes its default; when the
+   * output's stream has stopped (its device unplugged or reset), reopen it
+   * once the device is back. The engine keeps playing wherever the device
+   * runs at its sample rate. Returns what changed, or `None` when nothing
+   * did. Cheap enough to poll every second.
    */
-  followSystemDefaultOutput(): DeviceFollowReport | null
+  followOutputDevice(): DeviceFollowReport | null
   /**
    * Set the audio output device (legacy - use recreate_streams instead)
    * This uses device default sample rate and buffer size
@@ -292,9 +291,13 @@ export interface DeviceCacheSnapshot {
   hosts: Array<HostDeviceInfo>
 }
 
-/** What changed when the output followed a new system default device. */
+/**
+ * What changed when the output followed a new system default device or
+ * lost and regained its own.
+ */
 export interface DeviceFollowReport {
-  /** The new default output, when Shoreline lists it. */
+  event: OutputEvent
+  /** The output device, when Shoreline lists it. */
   outputDeviceName?: string
   /**
    * The preferred input could not open at the sample rate the new output
@@ -302,12 +305,13 @@ export interface DeviceFollowReport {
    */
   unopenedInputDeviceName?: string
   previousSampleRate: number
-  sampleRate: number
   /**
-   * The rate last asked for, which `sample_rate` differs from when the
-   * new output cannot run at it.
+   * Differs from `previous_sample_rate` only when the new output cannot
+   * run at that rate.
    */
-  preferredSampleRate: number
+  sampleRate: number
+  /** The patch kept playing through the move, with its state. */
+  engineKept: boolean
   /** The file of the recording the move ended. */
   recordingPath?: string
   /** Why the streams could not be opened on the new device. */
@@ -373,6 +377,17 @@ export interface ModuleProfileSample {
    */
   mode: string
 }
+
+/** What happened to the output device. */
+export type OutputEvent = /** The output moved to a new system default device. */
+'Moved'|
+/**
+ * The output's stream stopped and its device is not back yet. The
+ * engine waits| frozen| for it.
+ */
+'Disconnected'|
+/** The output's device is back and its streams reopened. */
+'Reconnected';
 
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {

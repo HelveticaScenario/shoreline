@@ -1,3 +1,3 @@
 kind: Fixed
-body: Changing the audio device while recording finishes the recording instead of losing it, and Ableton Link stays on.
+body: Changing the audio device or buffer size keeps the patch playing, along with any recording and Ableton Link, unless the sample rate changes too. Unplugging the output device you picked pauses the patch, and it picks up where it left off when you plug the device back in.
 time: 2026-11-19T19:38:54.650435-05:00
