@@ -9,6 +9,8 @@
  * happens here so the audio thread stays maths-only.
  */
 
+import type { VuMeterColors } from './vuMeterColors';
+
 export const VU_FLOOR_DB = -60;
 export const VU_CEIL_DB = 6;
 
@@ -31,12 +33,14 @@ export function voltsToDb(v: number): number {
     return 20 * Math.log10(Math.max(v, 1e-6) / 20);
 }
 
-/** Readout-pill text: "-∞" at the floor, else a signed dB value. */
+/** Readout-pill text: "-∞" at the floor, else a signed dB value. A level
+ *  above 0 dB rounds up, so a clipping peak never reads as 0. */
 export function formatDb(db: number): string {
     if (db <= VU_FLOOR_DB + 0.5) {
         return '-∞';
     }
-    const rounded = Math.round(db * 10) / 10;
+    const rounded =
+        db > 0 ? Math.ceil(db * 10) / 10 : Math.round(db * 10) / 10 || 0;
     return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
@@ -106,105 +110,6 @@ export function updateBallistics(
     if (b.displayPeakDb < VU_FLOOR_DB) {
         b.displayPeakDb = VU_FLOOR_DB;
     }
-}
-
-export interface VuMeterColors {
-    bg: string;
-    track: string;
-    border: string;
-    muted: string;
-    low: string;
-    mid: string;
-    hot: string;
-    /** Externally-controlled (signal-driven, locked) control accents. */
-    external: string;
-    /** A clipping bar's zones and peak dash, darkest to lightest red, all
-     *  shades of `hot`. */
-    clipLow: string;
-    clipMid: string;
-    clipHot: string;
-    clipPeak: string;
-    /** Font family for the dB scale labels (the `--font-mono` CSS var). */
-    fontMono: string;
-}
-
-let parseCtx: CanvasRenderingContext2D | null = null;
-
-/** Any CSS colour as [r, g, b], via the canvas's own colour parser, which
- *  normalizes an opaque colour to `#rrggbb` and a translucent one to
- *  `rgba(r, g, b, a)`. */
-function parseRgb(color: string): [number, number, number] {
-    parseCtx ??= document.createElement('canvas').getContext('2d');
-    if (!parseCtx) {
-        return [0, 0, 0];
-    }
-    parseCtx.fillStyle = '#000000';
-    parseCtx.fillStyle = color;
-    const normalized = String(parseCtx.fillStyle);
-    if (normalized.startsWith('#')) {
-        const n = parseInt(normalized.slice(1), 16);
-        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-    }
-    const [r = 0, g = 0, b = 0] = normalized
-        .slice(normalized.indexOf('(') + 1)
-        .split(',')
-        .map((part) => Number(part));
-    return [r, g, b];
-}
-
-/** `color` moved `amount` (0–1) of the way to `target`. */
-function mixRgb(
-    color: [number, number, number],
-    target: [number, number, number],
-    amount: number,
-): string {
-    const channel = (i: number) =>
-        Math.round(color[i] + (target[i] - color[i]) * amount);
-    return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
-}
-
-let clipShades: {
-    hot: string;
-    low: string;
-    mid: string;
-    peak: string;
-} | null = null;
-
-/** The clip reds for the theme's error colour, recomputed only when the
- *  theme changes it. */
-function clipShadesFor(hot: string): NonNullable<typeof clipShades> {
-    if (clipShades?.hot !== hot) {
-        const rgb = parseRgb(hot);
-        clipShades = {
-            hot,
-            low: mixRgb(rgb, [0, 0, 0], 0.45),
-            mid: mixRgb(rgb, [0, 0, 0], 0.2),
-            peak: mixRgb(rgb, [255, 255, 255], 0.55),
-        };
-    }
-    return clipShades;
-}
-
-export function readVuMeterColors(): VuMeterColors {
-    const styles = getComputedStyle(document.documentElement);
-    const hot = styles.getPropertyValue('--color-error').trim() || '#e05561';
-    const clip = clipShadesFor(hot);
-    return {
-        bg: styles.getPropertyValue('--bg-primary').trim() || '#0a0a0a',
-        track: '#141414',
-        border: styles.getPropertyValue('--border-subtle').trim() || '#222222',
-        muted: styles.getPropertyValue('--text-muted').trim() || '#8a8a8a',
-        low: styles.getPropertyValue('--color-success').trim() || '#9fd94f',
-        mid: styles.getPropertyValue('--color-warning').trim() || '#d7ba4a',
-        hot,
-        external:
-            styles.getPropertyValue('--accent-primary').trim() || '#4ec9b0',
-        clipLow: clip.low,
-        clipMid: clip.mid,
-        clipHot: clip.hot,
-        clipPeak: clip.peak,
-        fontMono: styles.getPropertyValue('--font-mono').trim() || 'monospace',
-    };
 }
 
 /** CSS padding above/below the meter scale inside the canvas. */
@@ -381,7 +286,7 @@ export function drawVuMeter(
             ctx.fillStyle = clipping ? colors.clipMid : colors.mid;
             ctx.fillRect(x, midTop, barW, yMid - midTop);
             if (yTop < yZero) {
-                ctx.fillStyle = clipping ? colors.clipHot : colors.hot;
+                ctx.fillStyle = colors.hot;
                 ctx.fillRect(x, yTop, barW, yZero - yTop);
             }
         }

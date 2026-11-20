@@ -86,10 +86,10 @@ import {
     formatDb,
     isClipping,
     newBallistics,
-    readVuMeterColors,
     updateBallistics,
     voltsToDb,
 } from './app/vuMeter';
+import { readVuMeterColors } from './app/vuMeterColors';
 import type { ScopeView } from './types/editor';
 import { EqPanelController } from './eq/eqPanelController';
 import { type EqPanelSetup, disposeEqPanelSetup } from './eq/eqPanelSetup';
@@ -123,6 +123,12 @@ type ReleaseNotesView =
     | { kind: 'update' }
     | { kind: 'whatsNew'; currentVersion: string; releases: ReleaseNotes[] }
     | { kind: 'changelog'; info: ChangelogInfo };
+
+/** Show a meter's highest peak on its readout pill, red above 0 dB. */
+function showVuPeak(readout: HTMLElement, peakDb: number): void {
+    readout.textContent = formatDb(peakDb);
+    readout.dataset.clipped = String(isClipping(peakDb));
+}
 
 function App() {
     const {
@@ -276,7 +282,9 @@ function App() {
     /** Per-meter, per-channel peak-marker state keyed by meter key. */
     const vuBallisticsRef = useRef(new Map<string, VuBallistics[]>());
     /** Highest peak per meter since its readout was last reset, in dB. The
-     *  readout shows it and is red while it is above 0 dB. */
+     *  readout shows it and is red while it is above 0 dB. It outlives the
+     *  meter's strip, so a clip stays flagged across folds and tab switches
+     *  until the readout is clicked. */
     const vuPeakMaxRef = useRef(new Map<string, number>());
     /** Last drawn channel levels per meter, for redraws outside the RAF
      *  loop (canvas resizes and fader drags while the clock is stopped). */
@@ -1280,7 +1288,6 @@ function App() {
         vuCanvasMapRef.current.delete(key);
         vuBallisticsRef.current.delete(key);
         vuLastChannelsRef.current.delete(key);
-        vuPeakMaxRef.current.delete(key);
     }, []);
 
     /**
@@ -1329,6 +1336,19 @@ function App() {
         },
         [redrawVuMeter],
     );
+
+    // A stopped engine makes no sound, so its meters fall to silence; the
+    // readouts keep their highest peaks.
+    useEffect(() => {
+        if (isClockRunning) {
+            return;
+        }
+        vuBallisticsRef.current.clear();
+        vuLastChannelsRef.current.clear();
+        for (const key of vuCanvasMapRef.current.keys()) {
+            redrawVuMeter(key);
+        }
+    }, [isClockRunning, redrawVuMeter]);
 
     /** Write `gain` into the source — the track's `gain` option, or
      *  $setMainGain for the master. */
@@ -1535,9 +1555,7 @@ function App() {
 
     const registerVuReadout = useCallback((key: string, el: HTMLElement) => {
         vuReadoutMapRef.current.set(key, el);
-        const peakMax = vuPeakMaxRef.current.get(key) ?? -Infinity;
-        el.textContent = formatDb(peakMax);
-        el.dataset.clipped = String(isClipping(peakMax));
+        showVuPeak(el, vuPeakMaxRef.current.get(key) ?? -Infinity);
     }, []);
 
     const unregisterVuReadout = useCallback((key: string) => {
@@ -1561,8 +1579,7 @@ function App() {
         vuPeakMaxRef.current.delete(key);
         const readout = vuReadoutMapRef.current.get(key);
         if (readout) {
-            readout.textContent = '-∞';
-            readout.dataset.clipped = 'false';
+            showVuPeak(readout, -Infinity);
         }
     }, []);
 
@@ -1767,17 +1784,18 @@ function App() {
                                     `rotate(${(Math.max(-5, Math.min(5, frame.pan)) / 5) * 135} 13 17)`,
                                 );
                             }
+                            const prevMax =
+                                vuPeakMaxRef.current.get(key) ?? -Infinity;
                             const peakMax = Math.max(
-                                vuPeakMaxRef.current.get(key) ?? -Infinity,
+                                prevMax,
                                 ...channels.map((c) => c.peakDb),
                             );
-                            vuPeakMaxRef.current.set(key, peakMax);
                             const readout = vuReadoutMapRef.current.get(key);
-                            if (readout) {
-                                readout.textContent = formatDb(peakMax);
-                                readout.dataset.clipped = String(
-                                    isClipping(peakMax),
-                                );
+                            if (peakMax !== prevMax) {
+                                vuPeakMaxRef.current.set(key, peakMax);
+                                if (readout) {
+                                    showVuPeak(readout, peakMax);
+                                }
                             }
                         }
                     }
