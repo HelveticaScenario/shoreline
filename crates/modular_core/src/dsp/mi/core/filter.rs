@@ -120,6 +120,13 @@ impl Svf {
         hp_gain * hp + bp_gain * bp + lp_gain * lp
     }
 
+    /// One sample: the low-pass and high-pass outputs.
+    #[inline(always)]
+    pub fn low_and_high_pass(&mut self, x: f32) -> (f32, f32) {
+        let (hp, _, lp) = self.process_all(x);
+        (lp, hp)
+    }
+
     /// One sample: the high-pass, band-pass and low-pass outputs.
     #[inline(always)]
     fn process_all(&mut self, x: f32) -> (f32, f32, f32) {

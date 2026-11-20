@@ -51,6 +51,18 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
         }
     };
     match engine {
+        0 => {
+            // Plaits' `harmonics` sets resonance, which rises either side of
+            // its centre, and slope, which crossfades from 4-pole below 0.4
+            // to 2-pole above 0.65.
+            let resonance = 2.667 * ((h - 0.5).abs() - 0.125).max(0.0);
+            let slope = ((h - 0.4) * 4.0).clamp(0.0, 1.0);
+            let knobs = json!({ "cutoff": 5.0 * t, "resonance": 5.0 * resonance, "slope": 5.0 * slope, "shape": 5.0 * m });
+            [
+                port("$mi.vcf", knobs.clone(), "lowpass"),
+                port("$mi.vcf", knobs, "highpass"),
+            ]
+        }
         1 => {
             let knobs = |sync| json!({ "ratio": 5.0 * h, "amount": 5.0 * t, "asymmetry": 5.0 * m, "sync": sync });
             [
