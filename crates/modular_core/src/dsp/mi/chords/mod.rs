@@ -65,7 +65,7 @@ struct MiChordsParams {
     #[deserr(default)]
     inversion: Option<PolySignal>,
     #[input(
-        "the tone: organ registrations from a bright mixture (0) to a hollow square (2.3), then wavetable waves from 2.7",
+        "the tone: organ registrations from a bright mixture (0) to a hollow square (2.3), then wavetable waves, which take over a voice at a time from 2.35 to 2.85",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
@@ -91,7 +91,7 @@ struct MiChordsOutputs {
     chord: PolyOutput,
     #[output(
         "root",
-        "the root alone, in each octave the voicing plays it, louder: for a bass line or an effect of its own",
+        "the root alone, in each octave the voicing plays it, louder: to double it or give it an effect of its own",
         type = cv,
         range = (-5.0, 5.0),
     )]
@@ -101,16 +101,13 @@ struct MiChordsOutputs {
 const MI_CHORDS_DOCS: ModuleDocs = ModuleDocs {
     summary: "Organ and wavetable chords",
     description: "Mutable Instruments Plaits' chord engine: four-note chords \
-                  on divide-down organ voices that hand over, a note at a \
-                  time, to wavetable voices as `waveform` rises. `inversion` \
-                  revoices the chord upward, gliding each note into the next \
-                  octave.",
+                  played on divide-down organ voices or on wavetable voices.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[DocSection {
         title: "Chords",
         body: "`chord` picks one of eleven chords by number.",
         table: Some(DocTable {
-            columns: &["chord", "Chord"],
+            columns: &["chord", "Name"],
             rows: &[
                 &["0", "octave"],
                 &["1", "fifth"],
@@ -140,11 +137,11 @@ const MI_CHORDS_DOCS: ModuleDocs = ModuleDocs {
             "#,
         },
         DocExample {
-            title: "Wavetable chords over their root",
+            title: "Wavetable chords and their root",
             code: r#"
                 const keys = $mi.chords('e3', { chord: 9, waveform: 4 })
                 chords: keys
-                bass: keys._root
+                root: keys._root
             "#,
         },
     ],
@@ -173,7 +170,9 @@ impl MiChordsState {
         Self {
             inv_sample_rate: 1.0 / sample_rate,
             to_48k: sample_rate / 48000.0,
-            max_frequency: max_frequency(sample_rate),
+            // Half a cycle per sample also keeps one wrap enough for the
+            // wavetable's phase at rates below Plaits' 24 kHz.
+            max_frequency: max_frequency(sample_rate).min(0.5),
             smoothing: (1.0 - 0.9f64.powf(1.0 / 12.0 * 48000.0 / f64::from(sample_rate))) as f32,
         }
     }
@@ -194,7 +193,7 @@ struct Lane {
     inversion_key: Option<(usize, u32)>,
     /// The partial amplitudes of the organ registration.
     registration: [f32; 7],
-    /// The smoothed waveform `registration` was computed for, as bits.
+    /// The registration (0–1) `registration` was computed for, as bits.
     registration_key: Option<u32>,
     divide_down: [DivideDownVoice; NUM_VOICES],
     wavetable: [WavetableVoice; NUM_VOICES],
@@ -227,9 +226,9 @@ fn knob(volts: f32) -> f32 {
 
 impl Lane {
     /// Smooths the knobs and rederives the voicing and registration when
-    /// they move.
+    /// they move; returns the registration's key.
     #[inline(always)]
-    fn control(&mut self, knobs: [f32; 3], state: &MiChordsState) {
+    fn control(&mut self, knobs: [f32; 3], state: &MiChordsState) -> u32 {
         for (held, value) in self.held.iter_mut().zip(knobs) {
             if value.is_finite() {
                 *held = value;
@@ -257,22 +256,24 @@ impl Lane {
             self.inversion = self.bank.inversion(inversion);
             self.inversion_key = Some(key);
         }
-        let key = waveform.to_bits();
+        let position = (1.0 - waveform * 2.15).max(0.0);
+        let key = position.to_bits();
         if self.registration_key != Some(key) {
-            self.registration = registration(&REGISTRATIONS, (1.0 - waveform * 2.15).max(0.0));
+            self.registration = registration(&REGISTRATIONS, position);
             self.registration_key = Some(key);
         }
+        key
     }
 
-    /// One sample of the chord and of its root alone, at `f0` cycles per
-    /// sample, before the output gain.
+    /// One sample of the chord and of its root alone, with the root at `f0`
+    /// cycles per sample at no inversion, before the output gain.
     #[inline(always)]
     fn step(&mut self, f0: f32, knobs: [f32; 3], state: &MiChordsState) -> (f32, f32) {
-        self.control(knobs, state);
+        let registration_key = self.control(knobs, state);
         let [_, waveform] = self.smoothed;
-        let f0 = limit_frequency(f0, 0.5) * 0.998;
+        // Plaits' chords sound two octaves below its note at no inversion.
+        let f0 = limit_frequency(f0 * 4.0, 2.0) * 0.998;
         let scan = ((waveform - 0.535) * 2.15).clamp(0.0, 1.0);
-        let registration_key = self.registration_key.unwrap_or_default();
         let mut out = 0.0;
         let mut root = 0.0;
         for (voice, (divide_down, wavetable)) in self

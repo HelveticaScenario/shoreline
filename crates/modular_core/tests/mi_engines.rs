@@ -113,10 +113,15 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             // `harmonics`, rising from its initial 0.
             let chord = (h * 1.02 * 11.0 - 0.075).floor();
             let knobs = json!({ "chord": chord, "inversion": 5.0 * t, "waveform": 5.0 * m });
+            // The module's `freq` is the root, two octaves below Plaits' note.
             [
                 port("$mi.chords", knobs.clone(), "chord"),
                 port("$mi.chords", knobs, "root"),
             ]
+            .map(|mut p| {
+                p.params["freq"] = json!(freq - 2.0);
+                p
+            })
         }
         15 if h < 0.4 => {
             // The vowel path, where harmonics sounds one synth alone: the

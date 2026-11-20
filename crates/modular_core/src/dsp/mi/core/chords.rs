@@ -39,9 +39,24 @@ pub struct Inversion {
     pub root_mask: u8,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct ChordBank {
     index: usize,
+    /// The frequency ratio of each of the chord's notes to its root.
+    ratios: [f32; NUM_NOTES],
+}
+
+fn ratios(index: usize) -> [f32; NUM_NOTES] {
+    CHORDS[index].map(semitones_to_ratio)
+}
+
+impl Default for ChordBank {
+    fn default() -> Self {
+        Self {
+            index: 0,
+            ratios: ratios(0),
+        }
+    }
 }
 
 impl ChordBank {
@@ -53,8 +68,12 @@ impl ChordBank {
             return;
         }
         let sign = if index > self.index as f32 { -1.0 } else { 1.0 };
-        self.index =
+        let index =
             ((index + sign * HYSTERESIS + 0.5) as i32).clamp(0, NUM_CHORDS as i32 - 1) as usize;
+        if index != self.index {
+            self.index = index;
+            self.ratios = ratios(index);
+        }
     }
 
     pub fn chord_index(&self) -> usize {
@@ -75,9 +94,8 @@ impl ChordBank {
         let rotated_note = integral % notes;
 
         let mut result = Inversion::default();
-        for (i, &semitones) in CHORDS[self.index].iter().enumerate() {
+        for (i, &ratio) in self.ratios.iter().enumerate() {
             let i = i as i32;
-            let ratio = semitones_to_ratio(semitones);
             let transposition = 0.25 * (1 << ((notes - 1 + integral - i) / notes)) as f32;
             let target = ((i - rotations + voices) % voices) as usize;
             let previous = ((target as i32 - 1 + voices) % voices) as usize;

@@ -37,17 +37,17 @@ pub fn fade(f0: f32, to_48k: f32) -> f32 {
     (4.0 - speed(limit_frequency(f0, 0.5), to_48k) * 32.0).clamp(0.0, 1.0)
 }
 
-/// Saw levels for 8′, 4′, 2′ and 1′ (the saws at 1, 2, 4 and 8 times the
-/// lowest pitch), from a registration of seven amplitudes (saw and square
-/// partials) shifted up by `shift` octave pairs.
-fn saw_gains(registration: &[f32; 7], shift: usize, gain: f32) -> [f32; 4] {
+/// Saw levels at unit gain for 8′, 4′, 2′ and 1′ (the saws at 1, 2, 4 and 8
+/// times the lowest pitch), from a registration of seven amplitudes (saw and
+/// square partials) shifted up by `shift` octave pairs.
+fn saw_levels(registration: &[f32; 7], shift: usize) -> [f32; 4] {
     let mut r = [0.0; 7];
     r[shift..].copy_from_slice(&registration[..7 - shift]);
     [
-        (r[0] + 2.0 * r[1]) * gain,
-        (r[2] - r[1] + 2.0 * r[3]) * gain,
-        (r[4] - r[3] + 2.0 * r[5]) * gain,
-        (r[6] - r[5]) * gain,
+        r[0] + 2.0 * r[1],
+        r[2] - r[1] + 2.0 * r[3],
+        r[4] - r[3] + 2.0 * r[5],
+        r[6] - r[5],
     ]
 }
 
@@ -164,11 +164,14 @@ impl DivideDownOscillator {
 #[derive(Clone, Copy, Default)]
 pub struct DivideDownVoice {
     oscillator: DivideDownOscillator,
-    /// The saw levels the oscillator last drew with.
+    /// The saw levels at unit gain, and the registration key and octave
+    /// shift they were computed for; `None` before the first sample.
+    levels: [f32; 4],
+    levels_key: Option<(u32, usize)>,
+    /// The saw levels the oscillator last drew with, and the gain `levels`
+    /// were scaled by, as bits.
     gains: [f32; 4],
-    /// The registration key, octave shift and gain `gains` were computed
-    /// for, as bits; `None` before the first sample.
-    gains_key: Option<(u32, usize, u32)>,
+    gain: u32,
 }
 
 impl DivideDownVoice {
@@ -188,17 +191,22 @@ impl DivideDownVoice {
         let Some((frequency, shift)) = shift_down(f0 * 8.0, speed(f0, to_48k) * 8.0) else {
             return 0.0;
         };
-        let key = (registration_key, shift, gain.to_bits());
-        if self.gains_key != Some(key) {
-            let gains = saw_gains(registration, shift, gain);
+        let key = (registration_key, shift);
+        let levels_moved = self.levels_key != Some(key);
+        if levels_moved || self.gain != gain.to_bits() {
+            if levels_moved {
+                self.levels = saw_levels(registration, shift);
+            }
+            let gains = self.levels.map(|level| level * gain);
             if self
-                .gains_key
-                .is_some_and(|(_, last_shift, _)| last_shift != shift)
+                .levels_key
+                .is_some_and(|(_, last_shift)| last_shift != shift)
             {
                 self.oscillator.redraw(gains);
             }
+            self.levels_key = Some(key);
             self.gains = gains;
-            self.gains_key = Some(key);
+            self.gain = gain.to_bits();
         }
         self.oscillator.step(frequency, self.gains)
     }

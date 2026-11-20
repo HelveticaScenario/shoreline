@@ -11,10 +11,11 @@
 // port scales each wavetable difference by the pitch that made it, where
 // Plaits scales the filtered differences by the current pitch; when a
 // wavetable voice's pitch moves, its filters' state is rescaled by the new
-// pitch over the old, which makes the two the same. Each
-// record is one sample's inputs (pitch in cycles per sample, chord,
-// inversion and waveform in volts) then the chord and root samples, before
-// the output gain.
+// pitch over the old, which makes the two the same. A wavetable voice's
+// first sample takes no difference, as the port's does: its previous sample
+// is set to the one it is about to read. Each record is one sample's inputs
+// (Plaits' note in cycles per sample, chord, inversion and waveform in volts)
+// then the chord and root samples, before the output gain.
 // build: plaits/dsp/chords/chord_bank.cc stmlib/dsp/units.cc
 
 #include <cmath>
@@ -146,7 +147,18 @@ int main(int argc, char** argv) {
       divide_down_amount *= divide_down_gain;
       if (wavetable_amount) {
         const float frequency = Constrain(note_f0 * 1.004f, 0.0000001f, kMaxFrequency);
-        if (last_frequency[v] != 0.0f && frequency != last_frequency[v]) {
+        if (last_frequency[v] == 0.0f) {
+          WavetableOscillator<128, 15>& o = wavetable_voice[v];
+          float phase = o.phase_ + frequency;
+          if (phase >= 1.0f) phase -= 1.0f;
+          float w = scan * float(15 - 1.0001f);
+          MAKE_INTEGRAL_FRACTIONAL(w);
+          float p = phase * 128.0f;
+          MAKE_INTEGRAL_FRACTIONAL(p);
+          const float x0 = InterpolateWave(wavetable[w_integral], p_integral, p_fractional);
+          const float x1 = InterpolateWave(wavetable[w_integral + 1], p_integral, p_fractional);
+          o.differentiator_.previous_ = x0 + (x1 - x0) * w_fractional;
+        } else if (frequency != last_frequency[v]) {
           const float ratio = frequency / last_frequency[v];
           wavetable_voice[v].lp_ *= ratio;
           wavetable_voice[v].differentiator_.lp_ *= ratio;

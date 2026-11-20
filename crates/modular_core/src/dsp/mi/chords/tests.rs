@@ -19,10 +19,13 @@ fn chord(sample_rate: f32, hz: f32, knobs: [f32; 3], seconds: f32) -> Vec<f32> {
         .collect()
 }
 
-/// Replays `chords.f32` (Plaits' chord engine rebuilt from its unmodified
-/// parts, a sample at a time): chords swept both ways, inversions and the
-/// waveform swept, pitch steps and sweeps on the organ and the wavetable, a
-/// pitch high enough to shift octaves and fade, and waveform jumps.
+/// Replays `chords.f32`: Plaits' chord bank, divide-down and wavetable
+/// oscillators driven a sample at a time, with the port's per-sample knob
+/// smoothing and its order of scaling the wavetable by pitch. It holds chords
+/// swept both ways, inversions and the waveform swept, pitch steps and sweeps
+/// on the organ and the wavetable, a pitch high enough to shift octaves and
+/// fade, and waveform jumps. The fixture's pitch is Plaits' note, two octaves
+/// above the root `freq` sets.
 #[test]
 fn matches_plaits() {
     let state = MiChordsState::new(48000.0);
@@ -30,7 +33,7 @@ fn matches_plaits() {
     let mut actual = (Vec::new(), Vec::new());
     let mut expected = (Vec::new(), Vec::new());
     for record in records("chords", 4 + 2) {
-        let (chord, root) = lane.step(record[0], [record[1], record[2], record[3]], &state);
+        let (chord, root) = lane.step(record[0] * 0.25, [record[1], record[2], record[3]], &state);
         actual.0.push(chord);
         actual.1.push(root);
         expected.0.push(record[4]);
@@ -48,19 +51,19 @@ fn matches_plaits() {
     }
 }
 
-/// The pitch the octave chord with no inversion sounds at `hz`: its root two
-/// octaves down, slightly flat, and a touch sharper on the wavetable, with
-/// its other notes on that root's harmonics.
+/// The pitch the octave chord with no inversion sounds at `hz`: its root,
+/// slightly flat, and a touch sharper on the wavetable, with its other notes
+/// on that root's harmonics.
 fn octave_chord_hz(hz: f32, waveform: f32) -> f32 {
     let wavetable = if knob(waveform) > 0.6 { 1.004 } else { 1.0 };
-    hz * 0.25 * 0.998 * wavetable
+    hz * 0.998 * wavetable
 }
 
 /// A steady chord has the same harmonics at 44.1 and 96 kHz as at 48 kHz, on
 /// the organ and on the wavetable.
 #[test]
 fn sounds_the_same_at_any_rate() {
-    for (pitch, waveform) in [(1.0, 0.0), (0.0, 1.5), (1.0, 4.0), (2.0, 5.0)] {
+    for (pitch, waveform) in [(-1.0, 0.0), (-2.0, 1.5), (-1.0, 4.0), (0.0, 5.0)] {
         let hz = voct_to_hz(pitch);
         assert_rate_independent(
             |sample_rate| chord(sample_rate, hz, [0.0, 0.0, waveform], 0.5),
@@ -91,7 +94,7 @@ fn assert_same_harmonics(name: &str, forward: &[f32], backward: &[f32], hz: f32)
 /// backward; each wavetable voice on its own sounds the same.
 #[test]
 fn runs_backward() {
-    let hz = 800.0;
+    let hz = 200.0;
     for waveform in [0.0, 1.5] {
         let knobs = [0.0, 0.0, waveform];
         assert_same_harmonics(
@@ -116,7 +119,7 @@ fn runs_backward() {
 fn root_is_the_chord_root() {
     for inversion in [0.0, 1.2, 2.5, 4.9] {
         let knobs = [10.0, inversion, 1.0];
-        let hz = voct_to_hz(0.0);
+        let hz = voct_to_hz(-2.0);
         let rendered = render(48000.0, hz, knobs, 0.5);
         let root: Vec<f32> = rendered.iter().map(|&(_, root)| root).collect();
         let lane = {
@@ -129,8 +132,9 @@ fn root_is_the_chord_root() {
             .map(|v| lane.inversion.ratios[v])
             .fold(f32::INFINITY, f32::min);
         // The root's own pitch carries its level, not the chord's other notes.
-        let at_root = harmonics(&root, hz * 0.998 * lowest, 48000.0, 1)[0];
-        let at_third = harmonics(&root, hz * 0.998 * lowest * 1.259_921, 48000.0, 1)[0];
+        // The voicing's ratios are to Plaits' note, four times the root.
+        let at_root = harmonics(&root, hz * 4.0 * 0.998 * lowest, 48000.0, 1)[0];
+        let at_third = harmonics(&root, hz * 4.0 * 0.998 * lowest * 1.259_921, 48000.0, 1)[0];
         assert!(
             at_root > 20.0 * at_third,
             "inversion {inversion}: root {at_root} vs third {at_third}"
@@ -188,6 +192,41 @@ fn stays_finite_and_bounded() {
                     out.is_finite() && (OUTPUT_GAIN * out).abs() <= 5.5,
                     "{sample_rate} Hz, sample {n}: {out}"
                 );
+            }
+        }
+    }
+}
+
+/// A patch starting on the wavetable starts within a tenth of its steady
+/// peak, with no pulse from the wave's first difference.
+#[test]
+fn starts_without_a_click() {
+    for hz in [55.0, 110.0, 220.0] {
+        let out = chord(48000.0, hz, [4.0, 1.0, 4.0], 0.5);
+        let steady = out[out.len() / 2..]
+            .iter()
+            .fold(0.0f32, |m, v| m.max(v.abs()));
+        let start = out[..100].iter().fold(0.0f32, |m, v| m.max(v.abs()));
+        assert!(
+            start <= 1.1 * steady,
+            "{hz} Hz: start {start} vs steady {steady}"
+        );
+    }
+}
+
+/// At rates below Plaits' 24 kHz, the highest wavetable pitches stay within
+/// the wave and the output finite and within full scale.
+#[test]
+fn high_wavetable_pitches_at_low_rates() {
+    for sample_rate in [8000.0, 16000.0] {
+        for hz in [2000.0, 3900.0, 20000.0] {
+            for (chord, root) in render(sample_rate, hz, [10.0, 4.9, 5.0], 0.25) {
+                for out in [chord, root] {
+                    assert!(
+                        out.is_finite() && (OUTPUT_GAIN * out).abs() <= 5.5,
+                        "{sample_rate} Hz, {hz} Hz: {out}"
+                    );
+                }
             }
         }
     }

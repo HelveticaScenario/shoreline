@@ -47,14 +47,16 @@ fn read(start: usize, integral: usize, fractional: f32) -> f32 {
 #[derive(Clone, Copy, Default)]
 pub struct WavetableVoice {
     phase: f32,
-    previous: f32,
+    /// The last integrated sample; `None` before the first, which has no
+    /// difference to take.
+    previous: Option<f32>,
     differentiated: f32,
     lp: f32,
 }
 
 impl WavetableVoice {
-    /// One sample at `frequency` cycles per sample (limited to Plaits' 12 kHz
-    /// and at least 1e-7 either way; negative runs the wave backward) at
+    /// One sample at `frequency` cycles per sample (within ±0.5, and at
+    /// least 1e-7 either way; negative runs the wave backward) at
     /// `amplitude`, scanning the waves at `waveform` (0–1). `frequency_48k`
     /// is the same pitch in Plaits' 48 kHz terms.
     #[inline(always)]
@@ -92,12 +94,9 @@ impl WavetableVoice {
         let x0 = read(WAVES[wave], integral, fractional);
         let x1 = read(WAVES[wave + 1], integral, fractional);
         let s = x0 + (x1 - x0) * blend;
-        one_pole(
-            &mut self.differentiated,
-            (s - self.previous) * scale,
-            cutoff,
-        );
-        self.previous = s;
+        let previous = self.previous.unwrap_or(s);
+        one_pole(&mut self.differentiated, (s - previous) * scale, cutoff);
+        self.previous = Some(s);
         one_pole(&mut self.lp, self.differentiated, cutoff);
         amplitude * self.lp
     }
