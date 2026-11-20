@@ -156,6 +156,45 @@ fn stays_finite() {
     }
 }
 
+/// Deep through-zero FM, alone and with the knobs and pitch jumping, keeps
+/// both outputs within ±5 V.
+#[test]
+fn through_zero_fm_stays_in_range() {
+    let sample_rate = 48000.0;
+    let state = VirtualAnalogState::new(sample_rate);
+    let mut seed = 1u32;
+    let mut random = || {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        (seed >> 8) as f32 / (1u32 << 24) as f32
+    };
+    for (carrier, depth, jumps) in [
+        (3000.0, 4.0, false),
+        (440.0, 1.2, true),
+        (2000.0, 2.0, true),
+    ] {
+        let mut voice = Voice::default();
+        let (mut carrier, mut detune, mut square, mut shape) = (carrier, 2.5, 0.7, 4.8);
+        for n in 0..(sample_rate as usize * 4) {
+            if jumps && n % 3000 == 0 {
+                carrier = 50.0 + 3000.0 * random();
+                detune = 5.0 * random();
+                square = 5.0 * random();
+                shape = 5.0 * random();
+            }
+            let modulator = (std::f32::consts::TAU * 1000.0 * n as f32 / sample_rate).sin();
+            let f0 = carrier * (1.0 + depth * modulator) / sample_rate;
+            let (dual, sync) = voice.step(f0, knobs(detune, square, shape), &state);
+            for out in [dual, sync] {
+                assert!(
+                    (OUTPUT_GAIN * out).abs() <= 5.0,
+                    "{carrier} Hz, depth {depth}, sample {n}: {} V",
+                    OUTPUT_GAIN * out
+                );
+            }
+        }
+    }
+}
+
 /// Holding the frequency limit, which passes a whole cycle per sample below
 /// 12 kHz, leaves no phase behind: the tone after it matches a fresh one.
 #[test]

@@ -41991,7 +41991,7 @@
           }
         },
         "detune": {
-          "description": "the second oscillator's interval: unison in the middle, lingering on fifths and octaves out to two octaves down (0) or up (5)",
+          "description": "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42010,7 +42010,7 @@
           }
         },
         "square": {
-          "description": "on `dual`, the square from silent (0) through narrow pulses to hollow at the middle, then hard-synced above it; on `sync`, how far the synced oscillators sweep above the pitch",
+          "description": "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42029,7 +42029,7 @@
           }
         },
         "shape": {
-          "description": "on `dual`, the saw from a triangle (0) to a bright saw at the middle, then notched down to a thin spike; on `sync`, the waveform from triangle through saw and square to narrowing pulses",
+          "description": "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42189,7 +42189,7 @@
       },
       {
         "name": "detune",
-        "description": "the second oscillator's interval: unison in the middle, lingering on fifths and octaves out to two octaves down (0) or up (5)",
+        "description": "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
@@ -42203,7 +42203,7 @@
       },
       {
         "name": "square",
-        "description": "on `dual`, the square from silent (0) through narrow pulses to hollow at the middle, then hard-synced above it; on `sync`, how far the synced oscillators sweep above the pitch",
+        "description": "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
@@ -42217,7 +42217,7 @@
       },
       {
         "name": "shape",
-        "description": "on `dual`, the saw from a triangle (0) to a bright saw at the middle, then notched down to a thin spike; on `sync`, the waveform from triangle through saw and square to narrowing pulses",
+        "description": "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,

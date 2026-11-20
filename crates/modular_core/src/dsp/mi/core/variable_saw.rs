@@ -3,9 +3,10 @@
 //! to run backward, crossing its width and 0 going down.
 
 use super::control::Ramp;
+use super::phase::wrap;
 use super::polyblep::{
     edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
-    this_integrated_blep_sample,
+    this_integrated_blep_sample, within_sample,
 };
 
 /// How far past the saw's peak the notch holds, as a fraction of its height.
@@ -87,7 +88,7 @@ impl VariableSawOscillator {
         let slope_down = 1.0 / (1.0 - pw);
         let corner = (slope_up + slope_down) * frequency.abs() * triangle_amount;
         let notch = (NOTCH_DEPTH + 1.0 - pw) * notch_amount;
-        let wrap = (NOTCH_DEPTH + 1.0) * notch_amount;
+        let wrap_step = (NOTCH_DEPTH + 1.0) * notch_amount;
         let crossing = self.previous_pw - pw + frequency;
 
         self.phase += frequency;
@@ -95,16 +96,18 @@ impl VariableSawOscillator {
             if frequency >= 0.0 {
                 if !self.high && self.phase >= pw {
                     let t = edge_time(self.phase - pw, crossing);
-                    this_sample += notch * this_blep_sample(t);
-                    next_sample += notch * next_blep_sample(t);
-                    this_sample -= corner * this_integrated_blep_sample(t);
-                    next_sample -= corner * next_integrated_blep_sample(t);
+                    if within_sample(t) {
+                        this_sample += notch * this_blep_sample(t);
+                        next_sample += notch * next_blep_sample(t);
+                        this_sample -= corner * this_integrated_blep_sample(t);
+                        next_sample -= corner * next_integrated_blep_sample(t);
+                    }
                     self.high = true;
                 } else if self.phase >= 1.0 {
                     self.phase -= 1.0;
                     let t = edge_time(self.phase, frequency);
-                    this_sample -= wrap * this_blep_sample(t);
-                    next_sample -= wrap * next_blep_sample(t);
+                    this_sample -= wrap_step * this_blep_sample(t);
+                    next_sample -= wrap_step * next_blep_sample(t);
                     this_sample += corner * this_integrated_blep_sample(t);
                     next_sample += corner * next_integrated_blep_sample(t);
                     self.high = false;
@@ -113,22 +116,28 @@ impl VariableSawOscillator {
                 }
             } else if self.high && self.phase < pw {
                 let t = edge_time(self.phase - pw, crossing);
-                this_sample -= notch * this_blep_sample(t);
-                next_sample -= notch * next_blep_sample(t);
-                this_sample -= corner * this_integrated_blep_sample(t);
-                next_sample -= corner * next_integrated_blep_sample(t);
+                if within_sample(t) {
+                    this_sample -= notch * this_blep_sample(t);
+                    next_sample -= notch * next_blep_sample(t);
+                    this_sample -= corner * this_integrated_blep_sample(t);
+                    next_sample -= corner * next_integrated_blep_sample(t);
+                }
                 self.high = false;
             } else if self.phase < 0.0 {
                 let t = edge_time(self.phase, frequency);
                 self.phase += 1.0;
-                this_sample += wrap * this_blep_sample(t);
-                next_sample += wrap * next_blep_sample(t);
+                this_sample += wrap_step * this_blep_sample(t);
+                next_sample += wrap_step * next_blep_sample(t);
                 this_sample += corner * this_integrated_blep_sample(t);
                 next_sample += corner * next_integrated_blep_sample(t);
                 self.high = true;
             } else {
                 break;
             }
+        }
+        if !(0.0..1.0).contains(&self.phase) {
+            self.phase = wrap(self.phase);
+            self.high = self.phase >= pw;
         }
 
         let notch_saw = if self.phase < pw {

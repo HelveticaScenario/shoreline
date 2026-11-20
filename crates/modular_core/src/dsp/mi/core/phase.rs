@@ -4,6 +4,14 @@ pub fn wrap_below(phase: f32) -> f32 {
     if phase < 0.0 { phase + 1.0 } else { phase }
 }
 
+/// `phase` brought into `[0, 1)` by whole cycles; a hair below 0, which rounds
+/// up to 1, lands on 0.
+#[inline(always)]
+pub fn wrap(phase: f32) -> f32 {
+    let wrapped = phase - phase.floor();
+    if wrapped < 1.0 { wrapped } else { 0.0 }
+}
+
 /// The fractional part of a cycle count; 0 from 2^24 cycles on, where an `f32`
 /// holds no fraction, and for an infinite count.
 #[inline(always)]

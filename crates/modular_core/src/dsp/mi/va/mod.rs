@@ -28,7 +28,7 @@ struct VirtualAnalogParams {
     #[input("oscillator pitch", type = pitch)]
     freq: PolySignal,
     #[input(
-        "the second oscillator's interval: unison in the middle, lingering on fifths and octaves out to two octaves down (0) or up (5)",
+        "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -36,7 +36,7 @@ struct VirtualAnalogParams {
     #[deserr(default)]
     detune: Option<PolySignal>,
     #[input(
-        "on `dual`, the square from silent (0) through narrow pulses to hollow at the middle, then hard-synced above it; on `sync`, how far the synced oscillators sweep above the pitch",
+        "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -44,7 +44,7 @@ struct VirtualAnalogParams {
     #[deserr(default)]
     square: Option<PolySignal>,
     #[input(
-        "on `dual`, the saw from a triangle (0) to a bright saw at the middle, then notched down to a thin spike; on `sync`, the waveform from triangle through saw and square to narrowing pulses",
+        "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
         type = control,
         default = 2.5,
         range = (0.0, 5.0),
@@ -270,16 +270,20 @@ impl Voice {
 
         let max = state.max_frequency;
         let primary_f = limit_frequency(f0, max);
-        let auxiliary_f = primary_f * detune_ratio;
+        let auxiliary_f = limit_frequency(f0 * detune_ratio, max);
 
         let shape = (morph * 1.5).clamp(0.0, 1.0);
         let pw = (0.5 + (morph - 0.66) * 1.46).clamp(0.5, 0.995);
-        let primary = self
-            .primary
-            .step(primary_f, primary_f * square.sync_ratio, pw, shape, max);
-        let auxiliary =
-            self.auxiliary
-                .step(auxiliary_f, auxiliary_f * square.sync_ratio, pw, shape, max);
+        let primary =
+            self.primary
+                .step_synced(primary_f, primary_f * square.sync_ratio, pw, shape, max);
+        let auxiliary = self.auxiliary.step_synced(
+            auxiliary_f,
+            auxiliary_f * square.sync_ratio,
+            pw,
+            shape,
+            max,
+        );
         let sync = (auxiliary - primary) * 0.5;
 
         let square_pw = (1.3 * timbre - 0.15).clamp(0.005, 0.5);
@@ -293,7 +297,7 @@ impl Voice {
         let saw_shape = (10.0 - 21.0 * morph).clamp(0.0, 1.0);
         let saw_gain = (8.0 * (1.0 - morph)).clamp(0.02, 1.0);
         let norm = 1.0 / square_gain.max(saw_gain);
-        let square_wave = self.square.step(
+        let square_wave = self.square.step_synced(
             primary_f,
             primary_f * square.square_sync_ratio,
             square_pw,
