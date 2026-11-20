@@ -2,12 +2,45 @@
 //! down from one phase, as a string synth's divide-down organ derives its
 //! footages.
 
-use crate::dsp::mi::core::polyblep::{edge_time, next_blep_sample, this_blep_sample};
+use crate::dsp::mi::core::{
+    phase::limit_frequency,
+    polyblep::{edge_time, next_blep_sample, this_blep_sample},
+};
+
+/// Plaits' `ComputeRegistration`: the seven amplitudes (saw and square
+/// partials, interleaved) that `registration` (0–1) blends to across `table`;
+/// the seventh is always 0.
+pub fn registration(table: &[[f32; 6]], registration: f32) -> [f32; 7] {
+    let position = registration * (table.len() as f32 - 1.001);
+    let integral = position as usize;
+    let fractional = position - integral as f32;
+    let mut amplitudes = [0.0; 7];
+    for (i, amplitude) in amplitudes[..6].iter_mut().enumerate() {
+        let a = table[integral][i];
+        let b = table[integral + 1][i];
+        *amplitude = a + (b - a) * fractional;
+    }
+    amplitudes
+}
+
+/// Plaits' 48 kHz pitch of `f0` (cycles per sample at the rate whose ratio
+/// to 48 kHz is `to_48k`), or this rate's when that is nearer Nyquist.
+#[inline(always)]
+fn speed(f0: f32, to_48k: f32) -> f32 {
+    f0.abs().max(f0.abs() * to_48k)
+}
+
+/// The level that fades a voice at `f0` out toward Plaits' 6 kHz, and toward
+/// this rate's equivalent when that is lower.
+#[inline(always)]
+pub fn fade(f0: f32, to_48k: f32) -> f32 {
+    (4.0 - speed(limit_frequency(f0, 0.5), to_48k) * 32.0).clamp(0.0, 1.0)
+}
 
 /// Saw levels for 8′, 4′, 2′ and 1′ (the saws at 1, 2, 4 and 8 times the
 /// lowest pitch), from a registration of seven amplitudes (saw and square
 /// partials) shifted up by `shift` octave pairs.
-pub fn saw_gains(registration: &[f32; 7], shift: usize, gain: f32) -> [f32; 4] {
+fn saw_gains(registration: &[f32; 7], shift: usize, gain: f32) -> [f32; 4] {
     let mut r = [0.0; 7];
     r[shift..].copy_from_slice(&registration[..7 - shift]);
     [
@@ -23,7 +56,7 @@ pub fn saw_gains(registration: &[f32; 7], shift: usize, gain: f32) -> [f32; 4] {
 /// slots, for each halving that brings `speed` (the same pitch in Plaits'
 /// 48 kHz terms, or this rate's when nearer Nyquist) to at most 0.5. `None`
 /// when the pitch is out of reach.
-pub fn shift_down(frequency: f32, speed: f32) -> Option<(f32, usize)> {
+fn shift_down(frequency: f32, speed: f32) -> Option<(f32, usize)> {
     let mut frequency = frequency;
     let mut speed = speed;
     let mut shift = 0;
@@ -38,7 +71,7 @@ pub fn shift_down(frequency: f32, speed: f32) -> Option<(f32, usize)> {
 /// The phase runs across eight segments; each saw resets at the segments its
 /// period ends on.
 #[derive(Clone, Copy, Default)]
-pub struct DivideDownOscillator {
+struct DivideDownOscillator {
     phase: f32,
     next_sample: f32,
     segment: i32,
@@ -60,7 +93,7 @@ impl DivideDownOscillator {
     /// in the levels (an octave shift): the edge correction it carries
     /// belongs to the old levels' waveform, which the new one does not
     /// continue.
-    pub fn redraw(&mut self, gains: [f32; 4]) {
+    fn redraw(&mut self, gains: [f32; 4]) {
         self.next_sample = self.naive(gains);
     }
 
@@ -68,7 +101,7 @@ impl DivideDownOscillator {
     /// runs the saws backward, their edges mirrored) with the four saw
     /// levels `gains`.
     #[inline(always)]
-    pub fn step(&mut self, frequency: f32, gains: [f32; 4]) -> f32 {
+    fn step(&mut self, frequency: f32, gains: [f32; 4]) -> f32 {
         let [saw_8, saw_4, saw_2, saw_1] = gains;
         let mut this_sample = self.next_sample;
         let mut next_sample = 0.0;
@@ -122,5 +155,51 @@ impl DivideDownOscillator {
         next_sample += (self.phase - (segment & 7) as f32 - 0.5) * saw_1;
         self.next_sample = next_sample;
         2.0 * this_sample
+    }
+}
+
+/// A divide-down oscillator driven as `StringSynthOscillator::Render` drives
+/// it: shifted down octaves at very high pitches, its saw levels drawn from a
+/// registration and a gain.
+#[derive(Clone, Copy, Default)]
+pub struct DivideDownVoice {
+    oscillator: DivideDownOscillator,
+    /// The saw levels the oscillator last drew with.
+    gains: [f32; 4],
+    /// The registration key, octave shift and gain `gains` were computed
+    /// for, as bits; `None` before the first sample.
+    gains_key: Option<(u32, usize, u32)>,
+}
+
+impl DivideDownVoice {
+    /// One sample at `f0` cycles per sample (at the rate whose ratio to
+    /// 48 kHz is `to_48k`) with `registration`, which `registration_key`
+    /// identifies, at `gain`.
+    #[inline(always)]
+    pub fn step(
+        &mut self,
+        f0: f32,
+        to_48k: f32,
+        registration: &[f32; 7],
+        registration_key: u32,
+        gain: f32,
+    ) -> f32 {
+        let f0 = limit_frequency(f0, 0.5);
+        let Some((frequency, shift)) = shift_down(f0 * 8.0, speed(f0, to_48k) * 8.0) else {
+            return 0.0;
+        };
+        let key = (registration_key, shift, gain.to_bits());
+        if self.gains_key != Some(key) {
+            let gains = saw_gains(registration, shift, gain);
+            if self
+                .gains_key
+                .is_some_and(|(_, last_shift, _)| last_shift != shift)
+            {
+                self.oscillator.redraw(gains);
+            }
+            self.gains = gains;
+            self.gains_key = Some(key);
+        }
+        self.oscillator.step(frequency, self.gains)
     }
 }
