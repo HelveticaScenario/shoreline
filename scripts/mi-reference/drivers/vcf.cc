@@ -46,16 +46,22 @@ int main(int argc, char** argv) {
     float note = -2.5f + segment * 0.9f;
     if (segment == 2) note = -1.0f + 4.0f * t;
     const float f0 = kC4 * powf(2.0f, note) * (1.0f / 48000.0f);
-    float in[4] = {
+    float in[5] = {
         f0,
         2.5f + 2.6f * sinf(float(n) * 0.0011f),         // cutoff
-        5.2f * sinf(float(n) * 0.0023f + 1.0f),          // resonance
+        2.5f + 2.6f * sinf(float(n) * 0.0023f + 1.0f),  // resonance
+        2.5f + 2.6f * sinf(float(n) * 0.0029f + 3.0f),  // slope
         2.5f + 2.6f * sinf(float(n) * 0.0017f + 2.0f),  // shape
     };
     const float timbre = knob(in[1]);
-    float harmonics = in[2] * 0.1f + 0.5f;
-    harmonics = harmonics < 0.0f ? 0.0f : (harmonics > 1.0f ? 1.0f : harmonics);
-    const float morph = knob(in[3]);
+    const float resonance = knob(in[2]);
+    const float slope = knob(in[3]);
+    const float morph = knob(in[4]);
+    // Plaits' `harmonics` that gives this resonance on the steep and the
+    // gentle side, crossfaded by slope, sets the drive.
+    const float steep = 0.375f - resonance / 2.667f;
+    const float gentle = 0.625f + resonance / 2.667f;
+    const float harmonics = steep + (gentle - steep) * slope;
 
     float shape = (morph - 0.25f) * 2.0f + 0.5f;
     CONSTRAIN(shape, 0.5f, 1.0f);
@@ -72,10 +78,7 @@ int main(int argc, char** argv) {
 
     const float cutoff_target =
         f0 * float(exp2(double((timbre - 0.2f) * 120.0f) / 12.0));
-    float stage2_gain_target = 1.0f - (harmonics - 0.4f) * 4.0f;
-    CONSTRAIN(stage2_gain_target, 0.0f, 1.0f);
-    const float resonance =
-        2.667f * std::max(fabsf(harmonics - 0.5f) - 0.125f, 0.0f);
+    const float stage2_gain_target = 1.0f - slope;
     const float resonance_sqr = resonance * resonance;
     const float q_target = resonance_sqr * resonance_sqr * 48.0f;
     float gain_target = (harmonics - 0.7f) + 0.85f;
@@ -101,7 +104,7 @@ int main(int argc, char** argv) {
     lp += stage2_gain * (SoftClip(svf[1].Process<FILTER_MODE_LOW_PASS>(lp)) - lp);
     const float result[2] = {lp, SoftClip(hp * gain)};
 
-    fwrite(in, sizeof(float), 4, f);
+    fwrite(in, sizeof(float), 5, f);
     fwrite(result, sizeof(float), 2, f);
   }
   fclose(f);

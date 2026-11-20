@@ -3,6 +3,7 @@
 //! frequency runs the waveform backward, mirroring each band-limited step.
 
 use super::control::Ramp;
+use super::dsp::constrain;
 use super::polyblep::{
     edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
     this_integrated_blep_sample,
@@ -41,33 +42,23 @@ impl Default for VariableShapeOscillator {
     }
 }
 
-/// stmlib's `CONSTRAIN`: the low bound wins when the bounds cross.
-#[inline(always)]
-fn constrain(x: f32, low: f32, high: f32) -> f32 {
-    if x < low {
-        low
-    } else if x > high {
-        high
-    } else {
-        x
-    }
-}
+/// The largest `f32` below 1.
+const BELOW_ONE: f32 = 1.0 - f32::EPSILON / 2.0;
 
 impl VariableShapeOscillator {
     /// One sample, from −1 to 1, at `frequency` cycles per sample (finite and
-    /// within ±`max`, at most 0.25), `pw` the fraction of the cycle before
-    /// the square's edge or the triangle's peak, and `waveshape` from
+    /// within ±0.25, which the caller ensures), `pw` the fraction of the cycle
+    /// before the square's edge or the triangle's peak, and `waveshape` from
     /// triangle (0) through saw (0.5) to square (1).
     #[inline(always)]
-    pub fn step(&mut self, frequency: f32, pw: f32, waveshape: f32, max: f32) -> f32 {
-        let target = frequency.clamp(-max, max);
-        let speed = target.abs();
+    pub fn step(&mut self, frequency: f32, pw: f32, waveshape: f32) -> f32 {
+        let speed = frequency.abs();
         let pw = if speed >= 0.25 {
             0.5
         } else {
             constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
         };
-        self.frequency.set(target, Some(1.0));
+        self.frequency.set(frequency, Some(1.0));
         self.pw.set(pw, Some(1.0));
         self.waveshape.set(waveshape, Some(1.0));
         let frequency = self.frequency.next_value();
@@ -124,7 +115,9 @@ impl VariableShapeOscillator {
                     break;
                 }
                 let t = edge_time(self.phase, frequency);
-                self.phase += 1.0;
+                // A phase a hair below 0 rounds up to 1 here; the largest
+                // value below 1 keeps it within the cycle.
+                self.phase = (self.phase + 1.0).min(BELOW_ONE);
                 this_sample += (1.0 - triangle_amount) * this_blep_sample(t);
                 next_sample += (1.0 - triangle_amount) * next_blep_sample(t);
                 this_sample -= triangle_step * this_integrated_blep_sample(t);
@@ -194,7 +187,7 @@ mod tests {
             let tone = |f: f32| {
                 let mut oscillator = VariableShapeOscillator::default();
                 let out: Vec<f32> = (0..96000)
-                    .map(|_| oscillator.step(f, pw, waveshape, 0.25))
+                    .map(|_| oscillator.step(f, pw, waveshape))
                     .collect();
                 harmonics(&out, hz, sample_rate, 16)
             };
@@ -224,8 +217,22 @@ mod tests {
                 _ => 0.01 * (n as f32 * 0.002).sin(),
             };
             let shape = (n % 5) as f32 * 0.25;
-            let out = oscillator.step(f, 0.5 + 0.4 * (n as f32 * 0.01).sin(), shape, 0.25);
+            let out = oscillator.step(f, 0.5 + 0.4 * (n as f32 * 0.01).sin(), shape);
             assert!(out.is_finite() && out.abs() < 2.0, "sample {n}: {out}");
         }
+    }
+
+    /// A backward wrap from a hair below 0 lands within the cycle, high,
+    /// rather than at 1, where it would wrap again to the low half.
+    #[test]
+    fn backward_wrap_stays_below_one() {
+        let mut oscillator = VariableShapeOscillator::default();
+        oscillator.frequency.set(-1e-9, None);
+        oscillator.pw.set(0.5, None);
+        oscillator.waveshape.set(0.5, None);
+        let out = oscillator.step(-1e-9, 0.5, 0.5);
+        assert!(out.is_finite());
+        assert!(oscillator.phase < 1.0, "phase {}", oscillator.phase);
+        assert!(oscillator.high);
     }
 }

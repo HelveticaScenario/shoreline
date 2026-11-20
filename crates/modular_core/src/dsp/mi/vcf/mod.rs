@@ -13,6 +13,7 @@ use crate::{
             variable_shape::VariableShapeOscillator,
         },
         oscillators::{FmMode, apply_fm},
+        utils::voct_to_hz,
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
@@ -37,13 +38,21 @@ struct VcfParams {
     #[deserr(default)]
     cutoff: Option<PolySignal>,
     #[input(
-        "filter resonance, rising away from 0: below 0 a steep 4-pole filter, above about 1.5 a gentler 2-pole one that is driven harder",
+        "filter resonance, from none (0) to a sharp ringing peak (5)",
         type = control,
         default = 0.0,
-        range = (-5.0, 5.0),
+        range = (0.0, 5.0),
     )]
     #[deserr(default)]
     resonance: Option<PolySignal>,
+    #[input(
+        "filter slope, from a steep 4-pole filter (0) to a gentler 2-pole one driven harder (5)",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    slope: Option<PolySignal>,
     #[input(
         "the waveform: a saw with a sub-octave square (0), a saw, a square (2.5), a narrow pulse, then a square with the sub (5)",
         type = control,
@@ -82,9 +91,7 @@ const VCF_DOCS: ModuleDocs = ModuleDocs {
     summary: "Oscillator into a resonant filter",
     description: "Mutable Instruments Plaits' virtual analog VCF voice: a \
                   saw, square or narrow pulse, with a sub-octave square to \
-                  mix in, through a resonant filter that follows the pitch. \
-                  `resonance` is bipolar: its sign picks a steep or a gentle \
-                  filter, and resonance rises either side of 0.",
+                  mix in, through a resonant filter that follows the note.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[],
     examples: &[
@@ -92,7 +99,7 @@ const VCF_DOCS: ModuleDocs = ModuleDocs {
             title: "Resonant sweep",
             code: r#"
                 const sweep = $sine('0.25hz').range(1, 4)
-                bass: $mi.vcf('c2', { cutoff: sweep, resonance: -3 })
+                bass: $mi.vcf('c2', { cutoff: sweep, resonance: 3 })
             "#,
         },
         DocExample {
@@ -101,7 +108,7 @@ const VCF_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "High-pass buzz",
-            code: "buzz: $mi.vcf('c3', { cutoff: 3, resonance: 3 })._highpass",
+            code: "buzz: $mi.vcf('c3', { cutoff: 3, slope: 5 })._highpass",
         },
     ],
 };
@@ -119,8 +126,8 @@ struct VcfState {
     sample_rate: f32,
     inv_sample_rate: f32,
     /// Highest oscillator and cutoff frequency, in cycles per sample: Plaits'
-    /// 12 kHz, kept below the quarter rate where its `tan` approximation and
-    /// pulse widths hold.
+    /// 12 kHz, or a quarter of the rate if lower, where its `tan`
+    /// approximation and pulse widths hold.
     max_frequency: f32,
 }
 
@@ -154,14 +161,15 @@ struct Voice {
     svf: [Svf; 2],
     cutoff: SwapGlide,
     resonance: SwapGlide,
+    slope: SwapGlide,
     shape: SwapGlide,
     /// The last finite knobs, which a NaN or infinite knob holds.
-    held: [f32; 3],
+    held: [f32; 4],
     /// Cutoff over pitch for the cached cutoff knob; `NaN` = never computed.
     last_cutoff: f32,
     cutoff_ratio: f32,
-    /// Plaits' one-sample `ParameterInterpolator`s, kept so the voice matches
-    /// Plaits bit for bit.
+    /// Plaits' one-sample `ParameterInterpolator`s, which land a hair off
+    /// their target; kept so the voice matches Plaits bit for bit.
     ramps: [Ramp; 5],
 }
 
@@ -173,10 +181,12 @@ impl Default for Voice {
             svf: [Svf::default(); 2],
             cutoff: SwapGlide::default(),
             resonance: SwapGlide::default(),
+            slope: SwapGlide::default(),
             shape: SwapGlide::default(),
             held: [
                 VcfParams::CUTOFF_DEFAULT,
                 VcfParams::RESONANCE_DEFAULT,
+                VcfParams::SLOPE_DEFAULT,
                 VcfParams::SHAPE_DEFAULT,
             ],
             last_cutoff: f32::NAN,
@@ -190,6 +200,7 @@ impl Default for Voice {
 struct Knobs {
     cutoff: (f32, GlideMark),
     resonance: (f32, GlideMark),
+    slope: (f32, GlideMark),
     shape: (f32, GlideMark),
 }
 
@@ -200,13 +211,17 @@ fn knob(volts: f32) -> f32 {
 
 impl Voice {
     #[inline(always)]
-    fn control(&mut self, f0: f32, knobs: Knobs, state: &VcfState) -> Controls {
+    /// Controls at oscillator frequency `f0` (after `fm`) and note frequency
+    /// `note` (before it), both in cycles per sample. The cutoff follows the
+    /// note, so `fm` sweeps the oscillator under a steady filter.
+    fn control(&mut self, f0: f32, note: f32, knobs: Knobs, state: &VcfState) -> Controls {
         let sample_rate = state.sample_rate;
         let raw = [
             self.cutoff
                 .follow(knobs.cutoff.0, knobs.cutoff.1, sample_rate),
             self.resonance
                 .follow(knobs.resonance.0, knobs.resonance.1, sample_rate),
+            self.slope.follow(knobs.slope.0, knobs.slope.1, sample_rate),
             self.shape.follow(knobs.shape.0, knobs.shape.1, sample_rate),
         ];
         for (held, value) in self.held.iter_mut().zip(raw) {
@@ -215,8 +230,9 @@ impl Voice {
             }
         }
         let timbre = knob(self.held[0]);
-        let harmonics = (self.held[1] * 0.1 + 0.5).clamp(0.0, 1.0);
-        let morph = knob(self.held[2]);
+        let resonance = knob(self.held[1]);
+        let slope = knob(self.held[2]);
+        let morph = knob(self.held[3]);
         if self.held[0].to_bits() != self.last_cutoff.to_bits() {
             self.cutoff_ratio = (f64::from((timbre - 0.2) * 120.0) / 12.0).exp2() as f32;
             self.last_cutoff = self.held[0];
@@ -227,15 +243,21 @@ impl Voice {
         if morph > 0.75 {
             pw = 2.5 - morph * 2.0;
         }
-        let resonance = 2.667 * ((harmonics - 0.5).abs() - 0.125).max(0.0);
+        // Plaits sets slope, resonance and drive from one knob, `harmonics`,
+        // whose ends are the steep and the gentle filter at full resonance.
+        // The drive follows the `harmonics` that gives this resonance on each
+        // side, crossfaded by slope.
+        let steep = 0.375 - resonance / 2.667;
+        let gentle = 0.625 + resonance / 2.667;
+        let harmonics = steep + (gentle - steep) * slope;
         let resonance_sqr = resonance * resonance;
         Controls {
             f0,
             pw: pw.clamp(0.5, 0.98),
             shape: ((morph - 0.25) * 2.0 + 0.5).clamp(0.5, 1.0),
             sub_gain: ((morph - 0.5).abs() - 0.3).max(0.0) * 5.0,
-            cutoff: f0.abs() * self.cutoff_ratio,
-            stage2_gain: (1.0 - (harmonics - 0.4) * 4.0).clamp(0.0, 1.0),
+            cutoff: limit_frequency(note, state.max_frequency).abs() * self.cutoff_ratio,
+            stage2_gain: 1.0 - slope,
             q: resonance_sqr * resonance_sqr * 48.0,
             gain: ((harmonics - 0.7) + 0.85).clamp(0.7 - resonance_sqr * 0.3, 1.0),
         }
@@ -244,9 +266,8 @@ impl Voice {
     /// One sample's low-pass and high-pass outputs, before the output gain.
     #[inline(always)]
     fn step(&mut self, c: Controls, state: &VcfState) -> (f32, f32) {
-        let max = state.max_frequency;
-        let osc = self.oscillator.step(c.f0, c.pw, c.shape, max);
-        let sub = self.sub.step(c.f0 * 0.501, 0.5, 1.0, max);
+        let osc = self.oscillator.step(c.f0, c.pw, c.shape);
+        let sub = self.sub.step(c.f0 * 0.501, 0.5, 1.0);
 
         let [sub_gain, cutoff, stage2_gain, q, gain] = &mut self.ramps;
         for (ramp, target) in [
@@ -258,7 +279,7 @@ impl Voice {
         ] {
             ramp.set(target, Some(1.0));
         }
-        let cutoff = cutoff.next_value().min(max);
+        let cutoff = cutoff.next_value().min(state.max_frequency);
         let q = q.next_value();
         let stage2_gain = stage2_gain.next_value();
         let g = tan_fast(cutoff);
@@ -283,11 +304,10 @@ impl Vcf {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
-            let f0 = apply_fm(
-                p.freq.get_value(lane),
-                p.fm.value_or(lane, VcfParams::FM_DEFAULT),
-                p.fm_mode,
-            ) * self.state.inv_sample_rate;
+            let pitch = p.freq.get_value(lane);
+            let f0 = apply_fm(pitch, p.fm.value_or(lane, VcfParams::FM_DEFAULT), p.fm_mode)
+                * self.state.inv_sample_rate;
+            let note = voct_to_hz(pitch) * self.state.inv_sample_rate;
             let knobs = Knobs {
                 cutoff: (
                     p.cutoff.value_or(lane, VcfParams::CUTOFF_DEFAULT),
@@ -297,12 +317,16 @@ impl Vcf {
                     p.resonance.value_or(lane, VcfParams::RESONANCE_DEFAULT),
                     p.resonance.glide_mark(lane),
                 ),
+                slope: (
+                    p.slope.value_or(lane, VcfParams::SLOPE_DEFAULT),
+                    p.slope.glide_mark(lane),
+                ),
                 shape: (
                     p.shape.value_or(lane, VcfParams::SHAPE_DEFAULT),
                     p.shape.glide_mark(lane),
                 ),
             };
-            let controls = voice.control(f0, knobs, &self.state);
+            let controls = voice.control(f0, note, knobs, &self.state);
             let (lp, hp) = voice.step(controls, &self.state);
             self.outputs.lowpass.set(lane, OUTPUT_GAIN * lp);
             self.outputs.highpass.set(lane, OUTPUT_GAIN * hp);

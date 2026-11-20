@@ -41962,7 +41962,7 @@
     "name": "$mi.vcf",
     "docs": {
       "summary": "Oscillator into a resonant filter",
-      "description": "Mutable Instruments Plaits' virtual analog VCF voice: a saw, square or narrow pulse, with a sub-octave square to mix in, through a resonant filter that follows the pitch. `resonance` is bipolar: its sign picks a steep or a gentle filter, and resonance rises either side of 0.",
+      "description": "Mutable Instruments Plaits' virtual analog VCF voice: a saw, square or narrow pulse, with a sub-octave square to mix in, through a resonant filter that follows the note.",
       "categories": [
         "oscillator"
       ],
@@ -41970,7 +41970,7 @@
       "examples": [
         {
           "title": "Resonant sweep",
-          "code": "const sweep = $sine('0.25hz').range(1, 4)\nbass: $mi.vcf('c2', { cutoff: sweep, resonance: -3 })"
+          "code": "const sweep = $sine('0.25hz').range(1, 4)\nbass: $mi.vcf('c2', { cutoff: sweep, resonance: 3 })"
         },
         {
           "title": "Sub bass",
@@ -41978,7 +41978,7 @@
         },
         {
           "title": "High-pass buzz",
-          "code": "buzz: $mi.vcf('c3', { cutoff: 3, resonance: 3 })._highpass"
+          "code": "buzz: $mi.vcf('c3', { cutoff: 3, slope: 5 })._highpass"
         }
       ]
     },
@@ -42014,7 +42014,7 @@
           }
         },
         "resonance": {
-          "description": "filter resonance, rising away from 0: below 0 a steep 4-pole filter, above about 1.5 a gentler 2-pole one that is driven harder",
+          "description": "filter resonance, from none (0) to a sharp ringing peak (5)",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42026,9 +42026,28 @@
           "x-signal": {
             "paramType": "control",
             "defaultValue": 0.0,
-            "minValue": -5.0,
+            "minValue": 0.0,
             "maxValue": 5.0,
-            "controlMin": -5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "slope": {
+          "description": "filter slope, from a steep 4-pole filter (0) to a gentler 2-pole one driven harder (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
             "controlMax": 5.0
           }
         },
@@ -42207,12 +42226,26 @@
       },
       {
         "name": "resonance",
-        "description": "filter resonance, rising away from 0: below 0 a steep 4-pole filter, above about 1.5 a gentler 2-pole one that is driven harder",
+        "description": "filter resonance, from none (0) to a sharp ringing peak (5)",
         "paramType": "control",
         "defaultValue": 0.0,
-        "minValue": -5.0,
+        "minValue": 0.0,
         "maxValue": 5.0,
-        "controlMin": -5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "slope",
+        "description": "filter slope, from a steep 4-pole filter (0) to a gentler 2-pole one driven harder (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
         "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
