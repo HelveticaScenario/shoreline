@@ -23,7 +23,8 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, apply_fm, sync_blep, sync_edge_fraction, wavetable_prep::PreparedWavetable,
+            FmMode, apply_fm, sync_blep, sync_edge_fraction,
+            wavetable_prep::{MipmapRead, PreparedWavetable},
         },
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
         utils::{SchmittTrigger, sanitize},
@@ -101,15 +102,15 @@ struct LaneState {
     sync_prev: f32,
     /// PolyBLEP residual carried into the next sample from a sync reset.
     blep_carry: f32,
-    /// The pitch and FM inputs `freq` and `level` were derived from. Compared
+    /// The pitch and FM inputs `freq` and `mip` were derived from. Compared
     /// exactly, so the cached values are always the ones a fresh computation
     /// would give; `NaN` never matches, forcing the first computation.
     last_pitch: f32,
     last_fm: f32,
     /// Playback frequency in Hz.
     freq: f32,
-    /// Mipmap level for `freq`.
-    level: usize,
+    /// Mipmap levels read at `freq`.
+    mip: MipmapRead,
     /// State of the `phase` warp's feedback stages.
     warp: PhaseWarpState,
     /// Glides for the `phase` warp's signals.
@@ -126,7 +127,7 @@ impl Default for LaneState {
             last_pitch: f32::NAN,
             last_fm: f32::NAN,
             freq: 0.0,
-            level: 0,
+            mip: MipmapRead::default(),
             warp: PhaseWarpState::default(),
             warp_glides: PhaseWarpGlides::default(),
         }
@@ -136,13 +137,13 @@ impl Default for LaneState {
 /// Derive the lane count from the maximum of `pitch` and (optional)
 /// `position`. Clamped to `[1, PORT_MAX_LANES]`.
 impl LaneState {
-    /// Track `pitch` and `fm`, recomputing the frequency and mipmap level only
+    /// Track `pitch` and `fm`, recomputing the frequency and mipmap levels only
     /// when they change.
     #[inline(always)]
     fn tune(&mut self, prepared: &PreparedWavetable, pitch: f32, fm: f32, fm_mode: FmMode) {
         if pitch != self.last_pitch || fm != self.last_fm {
             self.freq = apply_fm(pitch, fm, fm_mode);
-            self.level = prepared.mipmap_level_for_freq(self.freq);
+            self.mip = prepared.mipmap_for_freq(self.freq);
             self.last_pitch = pitch;
             self.last_fm = fm;
         }
@@ -185,7 +186,7 @@ impl LaneState {
             Some((warp, resolved)) => warp.evaluate(raw_phase, resolved, freq_norm, &mut self.warp),
             None => raw_phase,
         };
-        let before = prepared.read_sample(self.level, frame_f, warped_phase);
+        let before = prepared.read(self.mip, frame_f, warped_phase);
 
         // Naive read plus any residual carried from a sync reset on the
         // previous sample.
@@ -223,7 +224,7 @@ impl LaneState {
                     }
                     None => read_offset,
                 };
-                let after = prepared.read_sample(self.level, frame_f, warped_zero);
+                let after = prepared.read(self.mip, frame_f, warped_zero);
                 let (now, carry) = sync_blep(after - before, frac);
                 sample += now;
                 self.blep_carry = carry;
@@ -412,7 +413,7 @@ impl WavetableOsc {
 
 impl crate::types::PatchUpdateHandler for WavetableOsc {
     fn on_patch_update(&mut self) {
-        // The cached frequency and level also depend on `fmMode` and the table,
+        // The cached frequency and levels also depend on `fmMode` and the table,
         // either of which a patch update can change.
         for state in self.lane_state.iter_mut() {
             state.last_pitch = f32::NAN;

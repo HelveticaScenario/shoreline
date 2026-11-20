@@ -1,3 +1,0 @@
-kind: Fixed
-body: '`$wavetable` no longer turns the highest harmonics of bright wavetables into harsh, out-of-tune tones (aliasing), most noticeable on high notes. Very bright tables lose a little of their top-end air in exchange.'
-time: 2026-11-20T03:00:04.982366-05:00
