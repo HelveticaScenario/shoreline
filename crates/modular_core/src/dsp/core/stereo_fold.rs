@@ -110,8 +110,10 @@ impl StereoFold {
             let mut sum = [0.0f32; 2];
             for slot in 0..present {
                 let lane = unison_lane(detune_of_slot(slot, present), note, notes);
-                let pair = [p.input.get_value(lane, 0), p.input.get_value(lane, 1)];
-                let [left, right] = pan_pair(pair, centred_position(slot, present) * width);
+                let [left, right] = pan_pair(
+                    p.input.get_pair(lane),
+                    centred_position(slot, present) * width,
+                );
                 sum[0] += left;
                 sum[1] += right;
             }

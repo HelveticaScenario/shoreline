@@ -1,7 +1,7 @@
 //! Where the voices of a unison stack sit: their lanes, their detune and
 //! their place in the stereo field. `$unison`, `$supersaw` and `$stereoFold`
 //! share these, so a stack built from `$unison` folds to the same image as a
-//! `$supersaw`.
+//! `$supersaw`; `$pan` spreads its lanes by [`centred_position`] too.
 
 /// The lane of copy `voice` of note `note` among `notes`: copies are laid out
 /// voice-major, each a full set of the notes.

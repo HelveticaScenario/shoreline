@@ -1255,3 +1255,47 @@ fn stereo_fold_gives_unison_one_stereo_lane_per_note() {
     let b = 3f32.sqrt();
     assert_close(&step(&patch, "f"), &[0.0, 0.0, b, b]);
 }
+
+#[test]
+fn stereo_fold_sets_each_notes_width_on_its_own() {
+    // Note 0 centred, note 1 at full width.
+    let patch = build(&[
+        ("in", "$signal", signal(json!([1.0, 10.0, 2.0, 20.0]))),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cables("in", 4), "voices": 2, "width": [0.0, 5.0] }),
+        ),
+    ])
+    .unwrap();
+    let a = 3.0 / 2f32.sqrt();
+    assert_close(&step(&patch, "f"), &[a, a, 10.0, 20.0]);
+}
+
+#[test]
+fn stereo_fold_reads_a_stereo_width_at_its_sides_average() {
+    // Width 2 on the left and 3 on the right reads as 2.5: the copies sit
+    // halfway out, at pan -0.5 and 0.5.
+    let patch = build(&[
+        ("in", "$signal", signal(json!([1.0, 2.0]))),
+        ("wl", "$signal", signal(json!(2.0))),
+        ("wr", "$signal", signal(json!(3.0))),
+        (
+            "w",
+            "$stereo",
+            json!({ "left": cable("wl", 0), "right": cable("wr", 0) }),
+        ),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cables("in", 2), "voices": 2, "width": cable("w", 0) }),
+        ),
+    ])
+    .unwrap();
+    let (near, far) = (1.5f32.sqrt(), 0.5f32.sqrt());
+    let g = 1.0 / 2f32.sqrt();
+    assert_close(
+        &step(&patch, "f"),
+        &[(near + 2.0 * far) * g, (far + 2.0 * near) * g],
+    );
+}

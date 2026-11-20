@@ -878,6 +878,12 @@ impl PairSignal {
         sums
     }
 
+    /// Both sides of lane `lane`, `[L, R]`, cycling lanes.
+    #[inline]
+    pub fn get_pair(&self, lane: usize) -> [f32; 2] {
+        [self.get_value(lane, 0), self.get_value(lane, 1)]
+    }
+
     /// Lane `lane` folded to mono, `(L + R) / 2`: a mono producer's value as
     /// it is.
     #[inline]

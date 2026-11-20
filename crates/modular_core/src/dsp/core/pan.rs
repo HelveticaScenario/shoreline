@@ -120,8 +120,7 @@ impl Pan {
                 sample_rate,
             );
             let offset = centred_position(lane, lanes) * spread;
-            let pair = [p.input.get_value(lane, 0), p.input.get_value(lane, 1)];
-            let [left, right] = pan_pair(pair, (base + offset) / 5.0);
+            let [left, right] = pan_pair(p.input.get_pair(lane), (base + offset) / 5.0);
             self.outputs.sample.set(lane * 2, sanitize(left));
             self.outputs.sample.set(lane * 2 + 1, sanitize(right));
         }
