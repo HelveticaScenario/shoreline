@@ -111,6 +111,16 @@
     color: var(--text-primary);
 }
 
+.vu-peak-readout[data-clipped='true'] {
+    background: var(--color-error);
+    border-color: color-mix(in srgb, var(--color-error) 70%, white);
+    color: var(--bg-primary);
+}
+
+.vu-peak-readout[data-clipped='true']:hover {
+    background: color-mix(in srgb, var(--color-error) 80%, white);
+}
+
 .vu-pan-knob {
     align-self: center;
     width: 26px;

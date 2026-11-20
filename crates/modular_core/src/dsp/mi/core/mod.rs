@@ -21,3 +21,5 @@ pub mod ratio;
 pub mod sine;
 pub mod tables;
 pub mod units;
+pub mod variable_saw;
+pub mod variable_shape;
