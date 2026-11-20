@@ -931,10 +931,13 @@ pub struct VuMeterState {
     /// controls can track them live.
     pub pan_source: Option<modular_core::types::ScopeLane>,
     pub gain_source: Option<modular_core::types::ScopeLane>,
+    pub send_sources: Vec<modular_core::types::ScopeLane>,
     levels: VuLevels,
-    /// Most recent samples of the control taps.
+    /// Most recent samples of the control taps; `send_values` is sized to
+    /// `send_sources` on construction.
     pan_value: f32,
     gain_value: f32,
+    send_values: Vec<f32>,
 }
 
 /// A VU meter's running levels, kept apart from its tap description so the
@@ -979,6 +982,7 @@ impl VuMeterState {
             channels: (spec.channels as usize).clamp(1, 2),
             pan_source: spec.pan_source.clone(),
             gain_source: spec.gain_source.clone(),
+            send_sources: spec.send_sources.clone().unwrap_or_default(),
             levels: VuLevels {
                 rms_sq: [0.0; 2],
                 window_peak: [0.0; 2],
@@ -986,6 +990,7 @@ impl VuMeterState {
             },
             pan_value: 0.0,
             gain_value: 0.0,
+            send_values: vec![0.0; spec.send_sources.as_ref().map_or(0, Vec::len)],
         }
     }
 
@@ -1018,6 +1023,8 @@ impl VuMeterState {
                 .collect(),
             pan: self.pan_source.as_ref().map(|_| self.pan_value as f64),
             gain: self.gain_source.as_ref().map(|_| self.gain_value as f64),
+            sends: (!self.send_sources.is_empty())
+                .then(|| self.send_values.iter().map(|&v| v as f64).collect()),
         };
         self.levels.window_peak = [0.0; 2];
         frame
@@ -1163,6 +1170,7 @@ mod vu_meter_state_tests {
             mute_module_id: Some("m".to_string()),
             pan_source: None,
             gain_source: None,
+            send_sources: None,
         };
         let mut state = VuMeterState::new(&spec, sample_rate);
         let amp = 5.0f32;
@@ -2593,23 +2601,26 @@ impl AudioProcessor {
                 // Signal-driven pan/gain are display-only and each write
                 // overwrites the last, so only the block's final slot is read.
                 let last = range.end - 1;
-                let sample = |src: &Option<modular_core::types::ScopeLane>| {
-                    src.as_ref().and_then(|src| {
-                        Tap::resolve(
-                            sampleables,
-                            &src.module_id,
-                            &src.port_name,
-                            src.lane as usize,
-                            src.side.unwrap_or(0) as usize,
-                        )
-                        .map(|tap| tap.get(last))
-                    })
+                let sample = |src: &modular_core::types::ScopeLane| {
+                    Tap::resolve(
+                        sampleables,
+                        &src.module_id,
+                        &src.port_name,
+                        src.lane as usize,
+                        src.side.unwrap_or(0) as usize,
+                    )
+                    .map(|tap| tap.get(last))
                 };
-                if let Some(v) = sample(&meter.pan_source) {
+                if let Some(v) = meter.pan_source.as_ref().and_then(sample) {
                     meter.set_pan_value(v);
                 }
-                if let Some(v) = sample(&meter.gain_source) {
+                if let Some(v) = meter.gain_source.as_ref().and_then(sample) {
                     meter.set_gain_value(v);
+                }
+                for (src, value) in meter.send_sources.iter().zip(&mut meter.send_values) {
+                    if let Some(v) = sample(src) {
+                        *value = v;
+                    }
                 }
             }
         }
@@ -5267,6 +5278,7 @@ mod tests {
                 side: None,
             }),
             gain_source: None,
+            send_sources: None,
         };
         *processor.vu_collection.lock() = vec![VuMeterState::new(&spec, SR)];
 

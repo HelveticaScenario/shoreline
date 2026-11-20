@@ -35,13 +35,13 @@ export interface TrackSourceEdit {
 }
 
 /** Whether `node` is a literal an option's value may be rewritten from. */
-type LiteralCheck = (node: ts.Node) => boolean;
+export type LiteralCheck = (node: ts.Node) => boolean;
 
-const isNumber: LiteralCheck = (node) => negatableNumber(node) !== null;
+export const isNumber: LiteralCheck = (node) => negatableNumber(node) !== null;
 
 /** The comma tokens on either side of `element` in the argument or
  *  property list holding it. */
-function commasAround(
+export function commasAround(
     element: ts.Node,
     file: ts.SourceFile,
 ): { before?: ts.Node; after?: ts.Node } {
@@ -69,7 +69,7 @@ function commasAround(
  * comment included, so its neighbours keep their comments and layout. An
  * inline element goes with the comma after it, or else the one before it.
  */
-function removalSpan(
+export function removalSpan(
     element: ts.Node,
     file: ts.SourceFile,
 ): { start: number; end: number } {
@@ -196,20 +196,28 @@ function chainable(e: ts.Expression): boolean {
     );
 }
 
+/** A mixer control's value as the source writes it. */
+export function formatControlValue(value: number): string {
+    return String(Number(value.toPrecision(4)));
+}
+
 /**
- * The edit that sets (`value` a number) or removes (`value` null) option
- * `prop` of track `name`: in the `.track(...)` its label's expression ends
- * with, or in one appended to that expression. `fromTrack` says the label's
- * value was a `.track(...)` made elsewhere, such as in a helper, which this
- * edits nothing of.
+ * The edit to the options of track `name`: `inCall` edits the `.track(...)`
+ * its label's expression ends with; without one, `appended` is the option
+ * text of a `.track(...)` appended to that expression, or null to edit
+ * nothing. `fromTrack` says the label's value was a `.track(...)` made
+ * elsewhere, such as in a helper, which this edits nothing of.
  */
-export function computeTrackOptionEdit(
+export function computeTrackOptionsEdit(
     source: string,
     anchor: number,
     name: string,
-    prop: 'gain' | 'pan',
-    value: number | null,
     fromTrack: boolean,
+    inCall: (
+        file: ts.SourceFile,
+        call: ts.CallExpression,
+    ) => TrackSourceEdit | null,
+    appended: string | null,
 ): TrackSourceEdit | null {
     const file = parseDsl(source);
     const statement = trackAt(file, anchor, name);
@@ -218,17 +226,15 @@ export function computeTrackOptionEdit(
     }
     const expression = (statement.statement as ts.ExpressionStatement)
         .expression;
-    const newText =
-        value === null ? null : String(Number(value.toPrecision(4)));
     const target = withoutScopes(expression);
     if (isTrackCall(target)) {
-        return trackOptionEdit(file, target, prop, newText);
+        return inCall(file, target);
     }
-    if (newText === null || fromTrack) {
+    if (appended === null || fromTrack) {
         return null;
     }
     // After any scopes, which keep drawing the signal they drew.
-    const call = `.track({ ${prop}: ${newText} })`;
+    const call = `.track({ ${appended} })`;
     if (chainable(expression)) {
         return {
             end: expression.getEnd(),
@@ -245,6 +251,29 @@ export function computeTrackOptionEdit(
 }
 
 /**
+ * The edit that sets (`value` a number) or removes (`value` null) option
+ * `prop` of track `name`, as `computeTrackOptionsEdit` places it.
+ */
+export function computeTrackOptionEdit(
+    source: string,
+    anchor: number,
+    name: string,
+    prop: 'gain' | 'pan',
+    value: number | null,
+    fromTrack: boolean,
+): TrackSourceEdit | null {
+    const newText = value === null ? null : formatControlValue(value);
+    return computeTrackOptionsEdit(
+        source,
+        anchor,
+        name,
+        fromTrack,
+        (file, call) => trackOptionEdit(file, call, prop, newText, isNumber),
+        newText === null ? null : `${prop}: ${newText}`,
+    );
+}
+
+/**
  * Compute the text edit that sets the main gain: updates the numeric
  * literal in the last `$setMainGain(...)` outside any function,
  * or appends a new call at the end of the source. A call inside a function
@@ -258,7 +287,7 @@ export function computeSetMainGainEdit(
     source: string,
     value: number,
 ): TrackSourceEdit | null {
-    const newText = String(Number(value.toPrecision(4)));
+    const newText = formatControlValue(value);
     const file = parseDsl(source);
     let last: ts.CallExpression | undefined;
     forEachDescendant(file, (node) => {
@@ -294,12 +323,17 @@ export function computeSetMainGainEdit(
     };
 }
 
-/** The edit to option `prop` of the `.track(...)` call `call`. */
-function trackOptionEdit(
+/**
+ * The edit to option `prop` of the `.track(...)` call `call`: `newText` its
+ * new value, or null to remove it. An existing value is rewritten or removed
+ * only when `editable` accepts it.
+ */
+export function trackOptionEdit(
     file: ts.SourceFile,
     call: ts.CallExpression,
     prop: string,
     newText: string | null,
+    editable: LiteralCheck,
 ): TrackSourceEdit | null {
     const source = file.text;
     const bounds = callParens(call, file);
@@ -329,7 +363,7 @@ function trackOptionEdit(
         if (existing) {
             if (
                 !ts.isPropertyAssignment(existing) ||
-                !isNumber(existing.initializer)
+                !editable(existing.initializer)
             ) {
                 return null;
             }
@@ -373,7 +407,7 @@ function trackOptionEdit(
         objClose === null ||
         !existing ||
         !ts.isPropertyAssignment(existing) ||
-        !isNumber(existing.initializer)
+        !editable(existing.initializer)
     ) {
         return null;
     }
@@ -408,7 +442,7 @@ function trackOptionEdit(
 }
 
 /** The member of `obj` that sets `prop`. */
-function findProperty(
+export function findProperty(
     obj: ts.ObjectLiteralExpression,
     prop: string,
 ): ts.ObjectLiteralElementLike | null {

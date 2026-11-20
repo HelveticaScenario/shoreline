@@ -281,3 +281,65 @@
 .vu-group-fold:hover {
     color: var(--text-primary);
 }
+
+/* A strip's send dials, three to a row, above its controls. Strips without
+   sends keep the space so every meter lines up. */
+.vu-sends {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: 32px;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+}
+
+.vu-send {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #b5b5b5;
+    cursor: ns-resize;
+    touch-action: none;
+}
+
+.vu-send:hover {
+    color: var(--text-primary, #e8e8e8);
+}
+
+.vu-send-letter {
+    font-size: 9px;
+    line-height: 10px;
+}
+
+.vu-send svg {
+    display: block;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke-linecap: round;
+}
+
+.vu-send-track {
+    stroke: #3a3a3a;
+    stroke-width: 2.5;
+}
+
+.vu-send-value {
+    stroke: currentColor;
+    stroke-width: 2.5;
+}
+
+.vu-send-ghost {
+    stroke: currentColor;
+    stroke-width: 1.6;
+    opacity: 0.35;
+}
+
+.vu-send-pointer {
+    stroke: currentColor;
+    stroke-width: 1.6;
+}
+
+.vu-send--locked {
+    color: var(--accent-primary, #4ec9b0);
+    cursor: default;
+}

@@ -9,6 +9,12 @@ import React, {
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
 import { trackGates } from '../../shared/dsl/trackGates';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
+import {
+    type SendBus,
+    SEND_ROW_HEIGHT,
+    SENDS_PER_ROW,
+    VuSendDials,
+} from './VuSendDials';
 import './VuMeterPanel.css';
 
 /**
@@ -27,6 +33,10 @@ const MS_BUTTON_HINT = '⌃/⌘-click: edit code only';
 const PAN_MIN_HEIGHT = 150;
 /** Strip height at which the peak-readout pill appears. */
 const READOUT_MIN_HEIGHT = 180;
+/** Panel height left for a strip's pan, mute and solo once its send dials
+ *  are shown; each row of dials needs this plus a row's height, so the
+ *  sends give way before the pan knob does. */
+const SENDS_MIN_HEIGHT = 140;
 /** Pan change per vertical drag pixel (full ±5 range over 100px). */
 const PAN_PER_PIXEL = 0.1;
 
@@ -58,6 +68,24 @@ interface VuMeterPanelProps {
     /** Locked pan knobs register their pointer line for live rotation. */
     registerPanPointer: (key: string, el: SVGLineElement) => void;
     unregisterPanPointer: (key: string) => void;
+    /** Live send dial drag. `codeOnly` gestures edit the source only. */
+    onSendChange: (
+        key: string,
+        bus: string,
+        level: number,
+        codeOnly: boolean,
+    ) => void;
+    /** Send dial released, or right-clicked to 0: write the level into the
+     *  source, removing the send at 0. */
+    onSendCommit: (
+        key: string,
+        bus: string,
+        level: number,
+        codeOnly: boolean,
+    ) => void;
+    /** Locked send dials register their SVG for live painting. */
+    registerSendDial: (key: string, bus: string, el: SVGSVGElement) => void;
+    unregisterSendDial: (key: string, bus: string) => void;
 }
 
 /**
@@ -254,6 +282,8 @@ interface VuMeterProps {
     fold?: { folded: boolean; onToggle: () => void };
     showReadout: boolean;
     showPan: boolean;
+    /** The buses every track's send dials follow, or null to show none. */
+    sendBuses: SendBus[] | null;
     onToggleMute: (key: string, codeOnly: boolean) => void;
     onToggleSolo: (key: string, codeOnly: boolean) => void;
     onPanChange: (key: string, pan: number, codeOnly: boolean) => void;
@@ -270,6 +300,20 @@ interface VuMeterProps {
     unregisterReadout: (key: string) => void;
     registerPanPointer: (key: string, el: SVGLineElement) => void;
     unregisterPanPointer: (key: string) => void;
+    onSendChange: (
+        key: string,
+        bus: string,
+        level: number,
+        codeOnly: boolean,
+    ) => void;
+    onSendCommit: (
+        key: string,
+        bus: string,
+        level: number,
+        codeOnly: boolean,
+    ) => void;
+    registerSendDial: (key: string, bus: string, el: SVGSVGElement) => void;
+    unregisterSendDial: (key: string, bus: string) => void;
 }
 
 function VuMeter({
@@ -280,6 +324,7 @@ function VuMeter({
     fold,
     showReadout,
     showPan,
+    sendBuses,
     onToggleMute,
     onToggleSolo,
     onPanChange,
@@ -296,6 +341,10 @@ function VuMeter({
     unregisterReadout,
     registerPanPointer,
     unregisterPanPointer,
+    onSendChange,
+    onSendCommit,
+    registerSendDial,
+    unregisterSendDial,
 }: VuMeterProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     /** Non-null while a fader drag is live; the modifier state is sampled
@@ -450,6 +499,18 @@ function VuMeter({
                     {output.label ?? output.key}
                 </span>
             </div>
+            {sendBuses && (
+                <VuSendDials
+                    trackKey={output.key}
+                    buses={sendBuses}
+                    sends={output.sends}
+                    ghosts={ghost?.sends}
+                    onSendChange={onSendChange}
+                    onSendCommit={onSendCommit}
+                    registerSendDial={registerSendDial}
+                    unregisterSendDial={unregisterSendDial}
+                />
+            )}
             <div className="vu-meter-body">
                 <div className="vu-meter-controls">
                     {showReadout && (
@@ -591,6 +652,10 @@ export function VuMeterPanel({
     unregisterReadout,
     registerPanPointer,
     unregisterPanPointer,
+    onSendChange,
+    onSendCommit,
+    registerSendDial,
+    unregisterSendDial,
 }: VuMeterPanelProps) {
     const channelOutputs = outputs.filter((o) => !o.main);
     const trackOutputs = channelOutputs.filter((o) => !o.isBus);
@@ -628,6 +693,8 @@ export function VuMeterPanel({
     // A resize re-renders the strips only when it crosses a threshold.
     const [showPan, setShowPan] = useState(false);
     const [showReadout, setShowReadout] = useState(false);
+    /** How many rows of send dials fit above a strip that shows its pan. */
+    const [sendRowsFit, setSendRowsFit] = useState(0);
     // Measured before the first paint, so the strips open with their knobs.
     useLayoutEffect(() => {
         const panel = panelRef.current;
@@ -635,6 +702,12 @@ export function VuMeterPanel({
         const fit = (height: number) => {
             setShowPan(height >= PAN_MIN_HEIGHT);
             setShowReadout(height >= READOUT_MIN_HEIGHT);
+            setSendRowsFit(
+                Math.max(
+                    0,
+                    Math.floor((height - SENDS_MIN_HEIGHT) / SEND_ROW_HEIGHT),
+                ),
+            );
         };
         fit(panel.getBoundingClientRect().height);
         const observer = new ResizeObserver(([entry]) =>
@@ -643,6 +716,18 @@ export function VuMeterPanel({
         observer.observe(panel);
         return () => observer.disconnect();
     }, []);
+
+    // The sends show whole or not at all, like a DAW mixer's send section.
+    const allSendBuses = busOutputs.map((o, i) => ({
+        key: o.key,
+        label: o.label ?? o.key,
+        letter: busLetter(i),
+    }));
+    const sendBuses =
+        allSendBuses.length > 0 &&
+        Math.ceil(allSendBuses.length / SENDS_PER_ROW) <= sendRowsFit
+            ? allSendBuses
+            : null;
 
     const meterProps = {
         onCanvasResized,
@@ -653,16 +738,21 @@ export function VuMeterPanel({
         onPanChange,
         onPanCommit,
         onPeakReset,
+        onSendChange,
+        onSendCommit,
         onToggleMute,
         onToggleSolo,
         registerCanvas,
         registerPanPointer,
         registerReadout,
+        registerSendDial,
+        sendBuses,
         showPan,
         showReadout,
         unregisterCanvas,
         unregisterPanPointer,
         unregisterReadout,
+        unregisterSendDial,
     };
 
     const renderTrack = (output: VuMeterDef): React.ReactNode => {

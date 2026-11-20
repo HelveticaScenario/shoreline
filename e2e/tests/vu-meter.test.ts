@@ -25,22 +25,43 @@ async function rmsFor(
     }, tapModuleId);
 }
 
+/**
+ * Play `lines` in a new buffer with the mixer showing, until the mixer shows
+ * track `key`: a run that starts before the buffer holds the patch plays
+ * what the buffer held, so the patch runs again until it is the one playing.
+ */
+async function playPatch(
+    window: import('playwright').Page,
+    lines: string[],
+    key: string,
+) {
+    await openUntitledBuffer(window);
+    await window.evaluate((patch) => {
+        window.__TEST_API__!.setEditorValue(patch);
+        window.__TEST_API__!.setMixerVisible(true);
+    }, lines.join('\n'));
+    await expect
+        .poll(
+            async () => {
+                await window.evaluate(() =>
+                    window.__TEST_API__!.executePatch(),
+                );
+                return window
+                    .locator(`.vu-meter[data-vu-key="${key}"]`)
+                    .count();
+            },
+            { timeout: 15_000 },
+        )
+        .toBeGreaterThan(0);
+}
+
 async function setupTwoOutPatch(window: import('playwright').Page) {
     await window.waitForTimeout(3000);
     const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
     test.skip(!hasTestAPI, '__TEST_API__ not available');
 
-    await openUntitledBuffer(window);
-    await window.evaluate((patch) => {
-        window.__TEST_API__!.setEditorValue(patch);
-    }, TWO_OUT_PATCH);
-    await window.evaluate(() => window.__TEST_API__!.executePatch());
+    await playPatch(window, TWO_OUT_PATCH.split('\n'), 'bass');
     await window.waitForTimeout(2000);
-
-    await window.evaluate(() => {
-        window.__TEST_API__!.setMixerVisible(true);
-    });
-    await window.waitForTimeout(500);
 }
 
 test.describe('vu meter panel', () => {
@@ -429,6 +450,136 @@ test.describe('vu meter panel', () => {
         await expect
             .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 15_000 })
             .toBeGreaterThan(0.01);
+    });
+
+    test('send dials add, set and remove a send to a bus', async ({
+        window,
+    }, testInfo) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await playPatch(
+            window,
+            [
+                `lead: $sine($hz(440))`,
+                `pad: $saw($hz(220)).track({ sends: [verb, $sine(1).range(0, 5)] })`,
+                `fx$2: $bus().lpf('c8')`,
+                `verb$4: $bus()`,
+            ],
+            'verb',
+        );
+
+        // One dial per bus on each track, lettered like the buses; none on
+        // the buses or the main.
+        const lead = window.locator('.vu-meter[data-vu-key="lead"]');
+        await expect(lead.locator('.vu-send')).toHaveCount(2);
+        await expect(lead.locator('.vu-send-letter')).toHaveText(['A', 'B']);
+        await expect(
+            window.locator('.vu-meter[data-vu-key="fx"] .vu-send'),
+        ).toHaveCount(0);
+        await expect(window.locator('.vu-meter--main .vu-send')).toHaveCount(0);
+        // A signal-driven send is locked.
+        await expect(
+            window.locator('.vu-meter[data-vu-key="pad"] .vu-send').nth(1),
+        ).toHaveClass(/vu-send--locked/);
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'))
+            .toBeLessThan(0.001);
+
+        // Dragging up adds the send and plays it at once.
+        const dial = lead.locator('.vu-send').first();
+        const box = (await dial.boundingBox())!;
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        const source = () =>
+            window.evaluate(() => window.__TEST_API__!.getEditorValue());
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x, y - 20, { steps: 5 });
+        await window.mouse.move(x, y - 40, { steps: 5 });
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 10_000 })
+            .toBeGreaterThan(0.01);
+        await window.mouse.up();
+        await expect
+            .poll(source)
+            .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
+        await window.screenshot({ path: testInfo.outputPath('sends.png') });
+
+        // Released at 0, the send and then the `.track()` go.
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x, y + 60, { steps: 5 });
+        await window.mouse.up();
+        await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 10_000 })
+            .toBeLessThan(0.001);
+    });
+
+    test('cmd-drag on a send dial edits the code only until reverted', async ({
+        window,
+    }) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        await playPatch(
+            window,
+            [`lead: $sine($hz(440))`, `fx$2: $bus()`],
+            'fx',
+        );
+        const dial = window
+            .locator('.vu-meter[data-vu-key="lead"] .vu-send')
+            .first();
+        await expect(dial).toBeVisible();
+        const box = (await dial.boundingBox())!;
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        const source = () =>
+            window.evaluate(() => window.__TEST_API__!.getEditorValue());
+
+        await window.keyboard.down('Meta');
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x, y - 40, { steps: 10 });
+        await window.mouse.up();
+        await window.keyboard.up('Meta');
+
+        // The code gains the send; the audio keeps sending nothing, and the
+        // dial shows the code-side level as a ghost.
+        await expect
+            .poll(source)
+            .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
+        await expect(dial.locator('.vu-send-ghost')).toHaveCount(1);
+        await window.waitForTimeout(1000);
+        expect(await rmsFor(window, '__vuTap_fx')).toBeLessThan(0.001);
+
+        // Cmd-right-click puts the code back to what is playing.
+        await dial.click({ button: 'right', modifiers: ['Meta'] });
+        await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
+        await expect(dial.locator('.vu-send-ghost')).toHaveCount(0);
+    });
+
+    test('the sends hide together when the mixer is too short', async ({
+        window,
+    }) => {
+        await window.waitForTimeout(3000);
+        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
+        test.skip(!hasTestAPI, '__TEST_API__ not available');
+
+        const buses = 'abcdefghijkl'.split('');
+        await playPatch(
+            window,
+            [
+                `lead: $sine($hz(440))`,
+                ...buses.map((n, i) => `${n}$${2 + 2 * i}: $bus()`),
+            ],
+            'l',
+        );
+        // Four rows of dials need more height than the panel has: none show.
+        await expect(window.locator('.vu-sends')).toHaveCount(0);
     });
 
     test('a group shows its tracks beside it and folds them away', async ({

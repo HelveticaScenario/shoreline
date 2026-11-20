@@ -76,6 +76,7 @@ import {
 import { trackGates } from '../shared/dsl/trackGates';
 import type { TrackState } from '../shared/dsl/trackLabels';
 import { VuMeterPanel } from './components/VuMeterPanel';
+import { useVuSendControls } from './app/hooks/useVuSendControls';
 import { BottomBar } from './components/BottomBar';
 import { BottomPanel } from './components/BottomPanel';
 import { useBottomPanel } from './hooks/useBottomPanel';
@@ -994,6 +995,22 @@ function App() {
         [cancelVuEdit, writeVuPanEdit],
     );
 
+    const {
+        handleSendChange: handleVuSendChange,
+        handleSendCommit: handleVuSendCommit,
+        registerSendDial: registerVuSendDial,
+        paintSendFrame: paintVuSendFrame,
+        unregisterSendDial: unregisterVuSendDial,
+    } = useVuSendControls({
+        applyVuSourceEdit,
+        cancelVuEdit,
+        scheduleVuEdit,
+        setVuGhostProp,
+        setVuOutputs,
+        vuGhostsRef,
+        vuOutputsRef,
+    });
+
     const handleVuToggleMute = useCallback(
         (key: string, codeOnly: boolean) =>
             handleVuToggle(key, 'mute', codeOnly),
@@ -1757,6 +1774,9 @@ function App() {
                                     `rotate(${(Math.max(-5, Math.min(5, frame.pan)) / 5) * 135} 13 17)`,
                                 );
                             }
+                            if (frame.sends && output) {
+                                paintVuSendFrame(output, frame.sends);
+                            }
                             const readout = vuReadoutMapRef.current.get(key);
                             if (readout) {
                                 readout.textContent = formatDb(
@@ -1836,6 +1856,7 @@ function App() {
         commitControlAnchors,
         commitVideoPreviews,
         eqController,
+        paintVuSendFrame,
     ]);
 
     // Keep Link phase indicator live while Link is enabled but Shoreline is stopped.
@@ -2719,6 +2740,10 @@ function App() {
                                 unregisterReadout={unregisterVuReadout}
                                 registerPanPointer={registerVuPanPointer}
                                 unregisterPanPointer={unregisterVuPanPointer}
+                                onSendChange={handleVuSendChange}
+                                onSendCommit={handleVuSendCommit}
+                                registerSendDial={registerVuSendDial}
+                                unregisterSendDial={unregisterVuSendDial}
                             />
                         }
                     />

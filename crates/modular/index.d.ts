@@ -821,6 +821,11 @@ export interface VuMeterFrame {
   pan?: number
   /** Live value of the signal-driven gain, when `gain_source` is set. */
   gain?: number
+  /**
+   * Live values of the signal-driven send levels, one per `send_sources`
+   * entry, when it is set.
+   */
+  sends?: Array<number>
 }
 
 /**
@@ -850,4 +855,9 @@ export interface VuMeterSpec {
    * gain units, pre-curve) so the panel's locked fader can track it live.
    */
   gainSource?: ScopeLane
+  /**
+   * The outputs driving the track's signal-driven send levels, sampled so
+   * the panel's locked send dials can track them live.
+   */
+  sendSources?: Array<ScopeLane>
 }

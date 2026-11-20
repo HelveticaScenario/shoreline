@@ -310,13 +310,18 @@ pub fn validate_patch(
         }
 
         // Control-signal taps, when present, must point at real outputs.
-        for (name, source) in [
+        let sends = vu
+            .send_sources
+            .iter()
+            .flatten()
+            .map(|src| ("sendSources", src));
+        let controls = [
             ("panSource", &vu.pan_source),
             ("gainSource", &vu.gain_source),
-        ] {
-            let Some(src) = source else {
-                continue;
-            };
+        ]
+        .into_iter()
+        .filter_map(|(name, source)| source.as_ref().map(|src| (name, src)));
+        for (name, src) in controls.chain(sends) {
             let Some(module) = module_by_id.get(src.module_id.as_str()).copied() else {
                 errors.push(ValidationError {
                     field: "vuMeters".to_string(),

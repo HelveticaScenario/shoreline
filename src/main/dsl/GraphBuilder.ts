@@ -14,8 +14,13 @@ import {
     GATE_RANGE,
     OUT_GAIN_RANGE,
     OUT_PAN_RANGE,
+    SEND_LEVEL_RANGE,
 } from '../../shared/dsl/controlRanges';
-import type { VuMeterDef } from '../../shared/dsl/vuMeterTypes';
+import type {
+    ControlTap,
+    VuMeterDef,
+    VuSendDef,
+} from '../../shared/dsl/vuMeterTypes';
 import {
     EQ_MODULE_TYPE,
     EQ_SPECTRUM_MS_PER_FRAME,
@@ -169,6 +174,9 @@ export interface TrackOptions {
 
 const TRACK_OPTION_NAMES = new Set(['gain', 'pan', 'spread', 'sends']);
 
+/** The level of a send that names its bus alone. */
+const SEND_FULL_LEVEL = 5;
+
 /** A track as its label declares it. */
 export interface TrackDeclaration {
     name: string;
@@ -247,7 +255,7 @@ function trackBindingName(value: unknown): string | undefined {
  */
 function controlSourceTap(
     value: PolySignal | undefined,
-): { moduleId: string; portName: string; lane: number } | undefined {
+): ControlTap | undefined {
     if (
         value == null ||
         typeof value === 'number' ||
@@ -270,7 +278,7 @@ export type OutGroup = StereoOutGroup | MonoOutGroup;
 
 interface SendGroup {
     outputs: ModuleOutput[];
-    level?: PolySignal;
+    level: PolySignal;
 }
 
 /**
@@ -294,7 +302,7 @@ export class Bus {
         builder.addBus(this);
     }
 
-    addSend(outputs: ModuleOutput[], level?: PolySignal): void {
+    addSend(outputs: ModuleOutput[], level: PolySignal): void {
         this.sendGroups.push({ level, outputs });
     }
 
@@ -305,12 +313,12 @@ export class Bus {
             return;
         }
         const mixed = this.builder.getFactory('$mix')(
-            this.sendGroups.map((e) => {
-                const coll = this.builder.$c(e.outputs);
-                return e.level === undefined
-                    ? coll
-                    : this.builder.getFactory('$amp')(coll, e.level);
-            }),
+            this.sendGroups.map((e) =>
+                this.builder.getFactory('$amp')(
+                    this.builder.$c(e.outputs),
+                    e.level,
+                ),
+            ),
         );
         this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
     }
@@ -1302,7 +1310,14 @@ export class GraphBuilder implements ChainHost {
             string,
             { stage: MixStage; group: string | null }
         >();
-        const sending: { label: string; outputs: ModuleOutput[] }[] = [];
+        const sending: {
+            label: string;
+            sk: string;
+            outputs: ModuleOutput[];
+            meter: VuMeterDef;
+        }[] = [];
+        // Each locked send's live tap, resolved once every deferred is set.
+        const sendTaps = new Map<VuSendDef, ControlTap>();
 
         // Each track's signals, by name, for `$trackTap` taps.
         const outsByLabel = new Map<
@@ -1345,6 +1360,7 @@ export class GraphBuilder implements ChainHost {
             // are unique too — 'main' is reserved for the main gain stage,
             // and names that sanitize alike get a numeric disambiguator.
             const skByOrdinal = new Map<number, string>();
+            const skByLabel = new Map<string, string>();
             const usedSk = new Set<string>(['main']);
             for (const group of allGroups) {
                 const skBase = group.label.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -1354,6 +1370,7 @@ export class GraphBuilder implements ChainHost {
                 }
                 usedSk.add(sk);
                 skByOrdinal.set(group.ordinal, sk);
+                skByLabel.set(group.label, sk);
             }
 
             for (const baseChannel of sortedChannels) {
@@ -1456,13 +1473,6 @@ export class GraphBuilder implements ChainHost {
                         stage,
                     });
 
-                    if (sendsByTrack.has(group.label)) {
-                        sending.push({
-                            label: group.label,
-                            outputs: outputSignals,
-                        });
-                    }
-
                     outsByLabel.set(group.label, {
                         active: muteSig.items[0],
                         audio: outputSignals,
@@ -1476,7 +1486,7 @@ export class GraphBuilder implements ChainHost {
                         this.addScope(tapOutputs, config, sourceLocation);
                     }
 
-                    vuMeters.push({
+                    const meter: VuMeterDef & { ordinal: number } = {
                         baseChannel,
                         channels: group.type === 'stereo' ? 2 : 1,
                         fromTrack: group.fromTrack,
@@ -1506,7 +1516,16 @@ export class GraphBuilder implements ChainHost {
                         portName: 'output',
                         solo: group.solo,
                         sourceLocation: group.sourceLocation,
-                    });
+                    };
+                    vuMeters.push(meter);
+                    if (!group.isBus) {
+                        sending.push({
+                            label: group.label,
+                            meter,
+                            outputs: outputSignals,
+                            sk,
+                        });
+                    }
 
                     // A track with a group plays into it and nowhere else.
                     if (group.group !== null) {
@@ -1545,7 +1564,16 @@ export class GraphBuilder implements ChainHost {
             for (const group of this.groups) {
                 group.finalize();
             }
-            for (const { label, outputs } of sending) {
+            // Every track sends to every bus, at 0 where its source names
+            // none, so the mixer's send dial plays from its first move. A
+            // numeric level is lifted into a _smoothControl the dial drives.
+            const sendBuses = this.busses.filter(
+                (b) => b.trackName !== undefined,
+            );
+            const sendIds = new Set<string>();
+            for (const { label, outputs, sk, meter } of sendBuses.length > 0
+                ? sending
+                : []) {
                 let sent = outputs;
                 for (
                     let parent = stagesByLabel.get(label)!.group;
@@ -1555,9 +1583,52 @@ export class GraphBuilder implements ChainHost {
                     const { stage } = stagesByLabel.get(parent)!;
                     sent = gated(gainStage(sent, stage), stage.gate);
                 }
-                for (const [bus, level] of sendsByTrack.get(label)!) {
-                    bus.addSend(sent, level);
-                }
+                const named = sendsByTrack.get(label) ?? [];
+                meter.sends = sendBuses.map((bus): VuSendDef => {
+                    const busName = bus.trackName!;
+                    const levels = named
+                        .filter(([target]) => target === bus)
+                        .map(([, level]) => level ?? SEND_FULL_LEVEL);
+                    const level = levels.length === 0 ? 0 : levels[0];
+                    if (levels.length <= 1 && typeof level === 'number') {
+                        const idBase = `__vuSend_${sk}_${skByLabel.get(busName)}`;
+                        let id = idBase;
+                        for (let n = 2; sendIds.has(id); n++) {
+                            id = `${idBase}_${n}`;
+                        }
+                        sendIds.add(id);
+                        bus.addSend(
+                            sent,
+                            smoothControlFactory(level, {
+                                ...SEND_LEVEL_RANGE,
+                                id,
+                            }),
+                        );
+                        return {
+                            bus: busName,
+                            level,
+                            locked: false,
+                            moduleId: id,
+                        };
+                    }
+                    for (const each of levels) {
+                        bus.addSend(sent, each);
+                    }
+                    const send: VuSendDef = {
+                        bus: busName,
+                        level: null,
+                        locked: true,
+                        moduleId: null,
+                    };
+                    const tap =
+                        levels.length === 1
+                            ? controlSourceTap(level)
+                            : undefined;
+                    if (tap) {
+                        sendTaps.set(send, tap);
+                    }
+                    return send;
+                });
             }
             for (const bus of this.busses) {
                 bus.finalize();
@@ -1677,6 +1748,16 @@ export class GraphBuilder implements ChainHost {
         for (const meter of vuMeters) {
             meter.panSource = this.resolveControlTap(meter.panSource);
             meter.gainSource = this.resolveControlTap(meter.gainSource);
+            const sources: ControlTap[] = [];
+            for (const send of meter.sends ?? []) {
+                const tap = this.resolveControlTap(sendTaps.get(send));
+                if (tap) {
+                    send.sourceIndex = sources.push(tap) - 1;
+                }
+            }
+            if (sources.length > 0) {
+                meter.sendSources = sources;
+            }
         }
 
         // The VU panel lists meters in source order, not channel order.

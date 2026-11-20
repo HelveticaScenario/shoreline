@@ -3616,6 +3616,9 @@ pub struct VuMeterFrame {
     pub pan: Option<f64>,
     /// Live value of the signal-driven gain, when `gain_source` is set.
     pub gain: Option<f64>,
+    /// Live values of the signal-driven send levels, one per `send_sources`
+    /// entry, when it is set.
+    pub sends: Option<Vec<f64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3668,6 +3671,10 @@ pub struct VuMeterSpec {
     /// When the out's gain is signal-driven, the output to sample (in DSL
     /// gain units, pre-curve) so the panel's locked fader can track it live.
     pub gain_source: Option<ScopeLane>,
+    /// The outputs driving the track's signal-driven send levels, sampled so
+    /// the panel's locked send dials can track them live.
+    #[serde(default)]
+    pub send_sources: Option<Vec<ScopeLane>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

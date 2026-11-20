@@ -1,3 +1,28 @@
+/** A lane the engine samples so a locked control can track its signal. */
+export interface ControlTap {
+    moduleId: string;
+    portName: string;
+    lane: number;
+}
+
+/** A track's send to one bus, as the mixer's send dial shows it. */
+export interface VuSendDef {
+    /** The bus's track name: the key of its meter. */
+    bus: string;
+    /**
+     * Linear level (5 = full) when the dial controls it: a numeric level, a
+     * bare bus name (5) or no send at all (0). Null when signal-driven.
+     */
+    level: number | null;
+    /** `_smoothControl` driving the send's level; null when locked. */
+    moduleId: string | null;
+    /** True when the level is signal-driven, or the track sends to the bus
+     *  more than once: the dial takes no input. */
+    locked: boolean;
+    /** Index of this send's live tap in the meter's `sendSources`. */
+    sourceIndex?: number;
+}
+
 /**
  * One track's VU meter entry, emitted by the GraphBuilder on
  * `PatchGraph.vuMeters`. Rust reads the metering fields (moduleId / portName /
@@ -53,8 +78,16 @@ export interface VuMeterDef {
      * Live-display taps for locked controls (Rust samples them into the
      * meter frames). Absent when the control is editable or untappable.
      */
-    panSource?: { moduleId: string; portName: string; lane: number };
-    gainSource?: { moduleId: string; portName: string; lane: number };
+    panSource?: ControlTap;
+    gainSource?: ControlTap;
+    /**
+     * One send per bus for a track or group, in no particular order; absent
+     * on buses and the main strip. A track gets a send to every bus, at 0
+     * when its source names none, so a dial is live from its first move.
+     */
+    sends?: VuSendDef[];
+    /** Live taps of locked sends, sampled into the meter frames' `sends`. */
+    sendSources?: ControlTap[];
     /** True for the end-of-chain master meter pinned to the panel's right. */
     main?: boolean;
     /** The group track this track plays into, by key; null for none. */
@@ -89,6 +122,8 @@ export interface VuMeterGhost {
     pan?: number;
     /** Out gain in the source (DSL units, 0…10). */
     gain?: number;
+    /** Send levels in the source by bus key, 0 where the source has none. */
+    sends?: Record<string, number>;
 }
 
 /** Out gain value producing unity amplitude. */

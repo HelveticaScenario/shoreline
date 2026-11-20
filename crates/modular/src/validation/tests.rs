@@ -70,6 +70,7 @@ fn vu_spec() -> modular_core::types::VuMeterSpec {
         mute_module_id: Some("mute-1".to_string()),
         pan_source: None,
         gain_source: None,
+        send_sources: None,
     }
 }
 
