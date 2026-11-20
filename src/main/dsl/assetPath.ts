@@ -1,4 +1,12 @@
 import { ASSET_EXTENSIONS, type AssetKind } from '../../shared/assetFiles';
+import { BUILTIN_PREFIX, BUILTIN_WAVETABLES } from '../../shared/builtinAssets';
+
+/** The bundled files of each kind, by path. */
+const BUILTIN_PATHS: Record<AssetKind, ReadonlySet<string>> = {
+    wav: new Set(BUILTIN_WAVETABLES.map((asset) => asset.path)),
+    image: new Set(),
+    video: new Set(),
+};
 
 const EXAMPLE_PATHS: Record<AssetKind, string> = {
     wav: '/wavs/kick.wav',
@@ -7,11 +15,17 @@ const EXAMPLE_PATHS: Record<AssetKind, string> = {
 };
 
 /**
- * Returns `path` as written when it starts with `/` (the workspace folder),
- * continues with plain `/`-separated names and ends in an extension of `kind`;
- * otherwise throws an error naming `fn`.
+ * Returns `path` as written when it names a bundled file of `kind`, or when it
+ * starts with `/` (the workspace folder), continues with plain `/`-separated
+ * names and ends in an extension of `kind`; otherwise throws an error naming
+ * `fn`.
  */
 export function assetPath(fn: string, path: unknown, kind: AssetKind): string {
+    const builtins = BUILTIN_PATHS[kind];
+    if (typeof path === 'string' && path.startsWith(BUILTIN_PREFIX)) {
+        if (builtins.has(path)) return path;
+        throw new Error(`${fn}: no built-in file ${JSON.stringify(path)}`);
+    }
     if (typeof path !== 'string' || !path.startsWith('/')) {
         const scheme =
             typeof path === 'string'
@@ -22,8 +36,12 @@ export function assetPath(fn: string, path: unknown, kind: AssetKind): string {
                 `${fn}: ${scheme[1]}:// addresses cannot be loaded; use a file in the workspace folder`,
             );
         }
+        const builtin =
+            builtins.size > 0
+                ? `, or a built-in file like '${builtins.values().next().value}'`
+                : '';
         throw new Error(
-            `${fn}: a file is a path starting with "/" (the workspace folder), like '${EXAMPLE_PATHS[kind]}', got ${JSON.stringify(path)}`,
+            `${fn}: a file is a path starting with "/" (the workspace folder), like '${EXAMPLE_PATHS[kind]}'${builtin}, got ${JSON.stringify(path)}`,
         );
     }
     const segments = path.slice(1).split('/');

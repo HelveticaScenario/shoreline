@@ -8,6 +8,7 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
 mod accent;
 pub mod additive;
+pub mod chords;
 pub mod chorus;
 pub mod core;
 pub mod divide_down;
@@ -34,6 +35,7 @@ pub mod z_osc;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     additive::Additive::install_constructor(map);
+    chords::MiChords::install_constructor(map);
     chorus::Chorus::install_constructor(map);
     divide_down::DivideDown::install_constructor(map);
     formant::Formant::install_constructor(map);
@@ -64,6 +66,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     additive::Additive::install_params_deserializer(map);
+    chords::MiChords::install_params_deserializer(map);
     chorus::Chorus::install_params_deserializer(map);
     divide_down::DivideDown::install_params_deserializer(map);
     formant::Formant::install_params_deserializer(map);
@@ -95,6 +98,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         additive::Additive::get_schema(),
+        chords::MiChords::get_schema(),
         chorus::Chorus::get_schema(),
         divide_down::DivideDown::get_schema(),
         formant::Formant::get_schema(),

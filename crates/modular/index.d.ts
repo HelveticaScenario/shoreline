@@ -77,6 +77,11 @@ export declare class Synthesizer {
   loadMediaAudio(path: string): WavLoadInfo | null
   /** Set the workspace root directory for WAV file loading. */
   setWavWorkspace(workspacePath: string): void
+  /**
+   * Set the folder holding the assets bundled with the app, which
+   * `builtin/...` paths name.
+   */
+  setBuiltinAssets(builtinPath: string): void
   /** Get the list of currently cached WAV file paths. */
   getWavCacheSnapshot(): Array<string>
   /**
