@@ -38963,7 +38963,7 @@
         },
         {
           "title": "Stepped noise",
-          "code": "const beat = $clock._beatTrigger\nbits: $mi.noise('c3', { trigger: beat, rate: 1.5 })"
+          "code": "const beat = $clock._beatTrigger\nbits: $mi.noise('c3', { trigger: beat, rate: 0 })"
         }
       ]
     },

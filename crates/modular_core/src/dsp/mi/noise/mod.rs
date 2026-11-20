@@ -122,7 +122,7 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
             title: "Stepped noise",
             code: r#"
                 const beat = $clock._beatTrigger
-                bits: $mi.noise('c3', { trigger: beat, rate: 1.5 })
+                bits: $mi.noise('c3', { trigger: beat, rate: 0 })
             "#,
         },
     ],
@@ -160,9 +160,9 @@ impl NoiseState {
 /// The controls derived from a sample's pitch and knobs.
 #[derive(Clone, Copy, Default)]
 struct Controls {
-    /// Each noise clock in cycles per sample, and how much white noise
-    /// replaces its held steps.
+    /// Each noise clock in cycles per sample.
     clock: [f32; 2],
+    /// How much white noise replaces each clock's held steps.
     raw_amount: [f32; 2],
     gain: f32,
     mode: f32,
@@ -236,8 +236,8 @@ fn note_to_frequency(note: f32) -> f32 {
 
 impl Lane {
     /// Retunes the clocks and filters when the pitch, a knob or whether the
-    /// trigger is patched has changed. `knobs` are `rate`, `mode` and
-    /// `resonance` in volts.
+    /// trigger is patched has changed. `f0` is in cycles per sample, from 1 Hz
+    /// to `MAX_FILTER`; `knobs` are `rate`, `mode` and `resonance` in volts.
     #[inline(always)]
     fn control(&mut self, f0: f32, knobs: [f32; 3], patched: bool, state: &NoiseState) {
         for (held, value) in self.held.iter_mut().zip(knobs) {
@@ -266,7 +266,7 @@ impl Lane {
         let c = &mut self.controls;
         for (i, clock_48k) in clocks.into_iter().enumerate() {
             c.clock[i] = (clock_48k / to_48k).clamp(0.0, 1.0);
-            c.raw_amount[i] = (4.0 * (c.clock[i] * to_48k - 0.25)).clamp(0.0, 1.0);
+            c.raw_amount[i] = (4.0 * (clock_48k - 0.25)).clamp(0.0, 1.0);
         }
         // Normalised in 48 kHz terms, so the held noise, whose level per
         // hertz follows its clock, sounds alike at any rate.
@@ -278,9 +278,8 @@ impl Lane {
         self.bp[1].set_g_q(tan_accurate(f1.min(MAX_FILTER)), q);
     }
 
-    /// One sample at `f0` cycles per sample (1 Hz to `MAX_FILTER`), synced
-    /// when `sync` rises: `filtered` and `bands` after the limiters, before
-    /// the output gain.
+    /// One sample, synced when `sync` rises: `filtered` and `bands` after the
+    /// limiters, before the output gain.
     #[inline(always)]
     fn step(&mut self, sync: bool, state: &NoiseState) -> (f32, f32) {
         let c = self.controls;
