@@ -104,15 +104,6 @@ pub enum PhaseWarp {
     Bend {
         amount: PolySignal,
     },
-    Bendp {
-        amount: PolySignal,
-    },
-    Bendm {
-        amount: PolySignal,
-    },
-    Bendmp {
-        amount: PolySignal,
-    },
     Sync {
         ratio: PolySignal,
     },
@@ -144,9 +135,6 @@ pub enum PhaseWarp {
         amount: PolySignal,
     },
     Reciprocal {
-        amount: PolySignal,
-    },
-    Wormhole {
         amount: PolySignal,
     },
     Logistic {
@@ -260,9 +248,6 @@ phase_warp_stages! {
     Asym { amount } = "asym" => StageKind::Strudel(Mode::Asym),
     Mirror { amount } = "mirror" => StageKind::Strudel(Mode::Mirror),
     Bend { amount } = "bend" => StageKind::Bend,
-    Bendp { amount } = "bendp" => StageKind::Strudel(Mode::Bendp),
-    Bendm { amount } = "bendm" => StageKind::Strudel(Mode::Bendm),
-    Bendmp { amount } = "bendmp" => StageKind::Strudel(Mode::Bendmp),
     Sync { ratio } = "sync" => StageKind::Strudel(Mode::Sync),
     Quant { amount } = "quant" => StageKind::Strudel(Mode::Quant),
     Fold { amount } = "fold" => StageKind::Strudel(Mode::Fold),
@@ -274,7 +259,6 @@ phase_warp_stages! {
     Binary { amount } = "binary" => StageKind::Strudel(Mode::Binary),
     Brownian { amount } = "brownian" => StageKind::Strudel(Mode::Brownian),
     Reciprocal { amount } = "reciprocal" => StageKind::Strudel(Mode::Reciprocal),
-    Wormhole { amount } = "wormhole" => StageKind::Strudel(Mode::Wormhole),
     Logistic { amount } = "logistic" => StageKind::Strudel(Mode::Logistic),
     Sigmoid { amount } = "sigmoid" => StageKind::Strudel(Mode::Sigmoid),
     Fractal { amount } = "fractal" => StageKind::Strudel(Mode::Fractal),

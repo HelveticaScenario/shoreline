@@ -4,8 +4,9 @@
 //! <https://codeberg.org/uzu/strudel>), by the Strudel contributors. Used under the
 //! GNU AGPL v3.
 //!
-//! Each mode takes Strudel's warp amount `amt` in `[0, 1]`, a 0–5 knob over five.
-//! [`prepare`] turns it into the mode's constants once per lane and sample, and
+//! Each mode takes Strudel's warp amount `amt` in `[0, 1]`: a 0–5 knob over five,
+//! or, for the modes with a neutral middle ([`Mode::is_bipolar`]), a -5..5 knob
+//! with 0 at that middle. [`prepare`] turns it into the mode's constants once per lane and sample, and
 //! [`warp`] reshapes each phase with them. Like Strudel's, none of these is
 //! antialiased.
 //!
@@ -14,15 +15,13 @@
 use std::f32::consts::TAU;
 
 use super::shapes::knob;
+use crate::dsp::utils::sanitize;
 
 /// The Strudel modes. `Flip` keeps the phase and inverts the wave read with it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Asym,
     Mirror,
-    Bendp,
-    Bendm,
-    Bendmp,
     Sync,
     Quant,
     Fold,
@@ -34,11 +33,17 @@ pub enum Mode {
     Binary,
     Brownian,
     Reciprocal,
-    Wormhole,
     Logistic,
     Sigmoid,
     Fractal,
     Flip,
+}
+
+impl Mode {
+    /// Whether the amount bends the wave either way from a neutral middle.
+    pub fn is_bipolar(self) -> bool {
+        matches!(self, Mode::Asym | Mode::Pwm)
+    }
 }
 
 /// A mode's constants for one amount; what each field holds depends on the mode.
@@ -156,21 +161,19 @@ fn bit_reverse(mut i: u32, bits: u32) -> u32 {
     r
 }
 
-/// A mode's constants for a 0–5 knob value.
+/// A mode's constants for a knob value: -5..5 for a bipolar mode, else 0–5.
 pub fn prepare(mode: Mode, knob_value: f32) -> Prepared {
-    let amt = knob(knob_value);
+    let amt = if mode.is_bipolar() {
+        ((sanitize(knob_value) + 5.0) / 10.0).clamp(0.0, 1.0)
+    } else {
+        knob(knob_value)
+    };
     match mode {
-        Mode::Asym | Mode::Mirror => Prepared::one(0.01 + 0.99 * amt),
-        Mode::Bendp => Prepared::one(1.0 + 3.0 * amt),
-        Mode::Bendm => Prepared::one(1.0 / (1.0 + 3.0 * amt)),
-        // Bend down below the middle of the knob, up above it.
-        Mode::Bendmp => Prepared::one(if amt < 0.5 {
-            1.0 / (1.0 + 3.0 * (1.0 - 2.0 * amt))
-        } else {
-            1.0 + 3.0 * (2.0 * amt - 1.0)
-        }),
+        Mode::Asym => Prepared::one(0.01 + 0.99 * amt),
+        // The turn moves from the cycle's end, the plain wave, to its middle.
+        Mode::Mirror => Prepared::one(1.0 - 0.495 * amt),
         Mode::Sync => Prepared::one(16f32.powf(amt * amt)),
-        Mode::Quant => Prepared::one(to_bits(amt, 2.0, 12.0).1),
+        Mode::Quant => Prepared::one(to_bits(amt.sqrt(), 2.0, 12.0).1),
         Mode::Fold => Prepared::one(1.0 + fround(7.0 * amt).max(1.0)),
         Mode::Pwm => Prepared::one((0.5 + 0.49 * (2.0 * amt - 1.0)).clamp(0.0, 1.0)),
         Mode::Orbit | Mode::Fractal => Prepared::one(0.5 * amt),
@@ -185,7 +188,7 @@ pub fn prepare(mode: Mode, knob_value: f32) -> Prepared {
             c: 0.0,
         },
         Mode::Primes => {
-            let mut n = to_bits(amt, 3.0, 12.0).1 as u32;
+            let mut n = to_bits(amt.sqrt(), 3.0, 12.0).1 as u32;
             while !is_prime(n) {
                 n += 1;
             }
@@ -200,15 +203,7 @@ pub fn prepare(mode: Mode, knob_value: f32) -> Prepared {
             }
         }
         Mode::Brownian => Prepared::one(0.25 * amt),
-        Mode::Reciprocal => Prepared::one(2.0 + 4.0 * amt),
-        Mode::Wormhole => {
-            let gap = (0.8 * amt).clamp(0.0, 1.0);
-            Prepared {
-                a: 0.5 * (1.0 - gap),
-                b: 0.5 * (1.0 + gap),
-                c: 0.0,
-            }
-        }
+        Mode::Reciprocal => Prepared::one(1.0 + 5.0 * amt),
         Mode::Logistic => Prepared {
             a: 3.6 + 0.4 * amt,
             b: 1.0 + fround(2.0 * amt),
@@ -233,7 +228,6 @@ pub fn warp(mode: Mode, x: f32, p: &Prepared) -> (f32, f32) {
     let y = match mode {
         Mode::Asym => knee(x, p.a),
         Mode::Mirror => 1.0 - (2.0 * knee(x, p.a) - 1.0).abs(),
-        Mode::Bendp | Mode::Bendm | Mode::Bendmp => x.powf(p.a),
         Mode::Sync => frac(x * p.a),
         Mode::Quant | Mode::Primes => ffloor(x * p.a) / p.a,
         Mode::Fold => ((x * p.a - ffloor(x * p.a)) - 0.5).abs() * 2.0,
@@ -246,20 +240,7 @@ pub fn warp(mode: Mode, x: f32, p: &Prepared) -> (f32, f32) {
             bit_reverse(idx, p.b as u32) as f32 / p.a
         }
         Mode::Brownian => frac(x + p.a * brownian(64.0 * x)),
-        Mode::Reciprocal => {
-            let den = x + (1.0 - x) * p.a;
-            let y = if den > 1e-12 { x * p.a / den } else { 0.0 };
-            y.clamp(0.0, 1.0)
-        }
-        Mode::Wormhole => {
-            if x < p.a {
-                0.5 * x / p.a
-            } else if x > p.b {
-                0.5 * (1.0 + (x - p.b) / (1.0 - p.b))
-            } else {
-                0.5
-            }
-        }
+        Mode::Reciprocal => p.a * x / (p.a * x + 1.0 - x),
         Mode::Logistic => {
             let mut y = x;
             for _ in 0..p.b as u32 {
@@ -281,12 +262,9 @@ pub fn warp(mode: Mode, x: f32, p: &Prepared) -> (f32, f32) {
 mod tests {
     use super::*;
 
-    const ALL: [Mode; 21] = [
+    const ALL: [Mode; 17] = [
         Mode::Asym,
         Mode::Mirror,
-        Mode::Bendp,
-        Mode::Bendm,
-        Mode::Bendmp,
         Mode::Sync,
         Mode::Quant,
         Mode::Fold,
@@ -298,7 +276,6 @@ mod tests {
         Mode::Binary,
         Mode::Brownian,
         Mode::Reciprocal,
-        Mode::Wormhole,
         Mode::Logistic,
         Mode::Sigmoid,
         Mode::Fractal,
@@ -312,7 +289,7 @@ mod tests {
     #[test]
     fn every_mode_stays_in_range() {
         for mode in ALL {
-            for knob_value in [0.0, 1.0, 2.5, 4.0, 5.0] {
+            for knob_value in [-5.0, -2.5, 0.0, 1.0, 2.5, 4.0, 5.0] {
                 for i in 0..=200 {
                     let x = i as f32 / 200.0;
                     let y = at(mode, knob_value, x);
@@ -351,27 +328,30 @@ mod tests {
     }
 
     #[test]
-    fn pwm_is_even_at_the_middle_of_the_knob() {
+    fn pwm_is_even_at_zero() {
         for i in 0..=10 {
             let x = i as f32 / 10.0;
-            assert!((at(Mode::Pwm, 2.5, x) - x).abs() < 1e-6);
+            assert!((at(Mode::Pwm, 0.0, x) - x).abs() < 1e-6);
         }
     }
 
     #[test]
-    fn mirror_peaks_at_the_knee() {
-        let knee = prepare(Mode::Mirror, 2.5).a;
-        assert!((at(Mode::Mirror, 2.5, knee) - 1.0).abs() < 1e-5);
-        assert_eq!(at(Mode::Mirror, 2.5, 0.0), 0.0);
+    fn bipolar_modes_span_strudels_amount_across_minus_five_to_five() {
+        assert_eq!(prepare(Mode::Asym, -5.0).a, 0.01);
+        assert_eq!(prepare(Mode::Asym, 5.0).a, 1.0);
+        assert!((prepare(Mode::Asym, 0.0).a - 0.505).abs() < 1e-6);
+        assert_eq!(prepare(Mode::Pwm, f32::NAN), prepare(Mode::Pwm, 0.0));
     }
 
     #[test]
-    fn bendmp_is_linear_at_the_middle_and_bends_either_way() {
-        assert!((at(Mode::Bendmp, 2.5, 0.3) - 0.3).abs() < 1e-6);
-        assert!(at(Mode::Bendmp, 0.0, 0.3) > 0.3);
-        assert!(at(Mode::Bendmp, 5.0, 0.3) < 0.3);
-        assert_eq!(at(Mode::Bendmp, 0.0, 0.3), at(Mode::Bendm, 5.0, 0.3));
-        assert_eq!(at(Mode::Bendmp, 5.0, 0.3), at(Mode::Bendp, 5.0, 0.3));
+    fn mirror_peaks_at_the_knee() {
+        let knee = prepare(Mode::Mirror, 5.0).a;
+        assert!((at(Mode::Mirror, 5.0, knee) - 1.0).abs() < 1e-5);
+        assert_eq!(at(Mode::Mirror, 5.0, 0.0), 0.0);
+        for i in 0..=10 {
+            let x = i as f32 / 10.0;
+            assert!((at(Mode::Mirror, 0.0, x) - x).abs() < 1e-6);
+        }
     }
 
     #[test]
@@ -391,10 +371,26 @@ mod tests {
     }
 
     #[test]
-    fn wormhole_holds_the_middle() {
-        assert_eq!(at(Mode::Wormhole, 5.0, 0.5), 0.5);
-        assert_eq!(at(Mode::Wormhole, 5.0, 0.45), 0.5);
-        assert!((at(Mode::Wormhole, 0.0, 0.3) - 0.3).abs() < 1e-6);
+    fn reciprocal_is_plain_at_zero_and_reaches_the_end_only_at_the_end() {
+        for i in 0..=10 {
+            let x = i as f32 / 10.0;
+            assert!((at(Mode::Reciprocal, 0.0, x) - x).abs() < 1e-6);
+        }
+        for i in 0..10 {
+            let x = i as f32 / 10.0;
+            assert!(at(Mode::Reciprocal, 5.0, x) < 1.0, "x {x}");
+            assert!(at(Mode::Reciprocal, 5.0, x) >= x, "x {x}");
+        }
+        assert_eq!(at(Mode::Reciprocal, 5.0, 1.0), 1.0);
+    }
+
+    #[test]
+    fn step_counts_fall_fastest_at_the_bottom_of_the_knob() {
+        assert_eq!(prepare(Mode::Quant, 0.0).a, 4096.0);
+        assert_eq!(prepare(Mode::Quant, 5.0).a, 4.0);
+        // Below 64 steps by the middle of the knob.
+        assert!(prepare(Mode::Quant, 2.5).a < 64.0);
+        assert!(prepare(Mode::Primes, 2.5).a < 128.0);
     }
 
     #[test]

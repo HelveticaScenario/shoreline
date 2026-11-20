@@ -81,10 +81,6 @@ export const API_CONTROLS: Record<
             pan: { spec: closedControl(-5, 5, 0) },
             spread: { spec: { ...LEVEL, defaultValue: 0 } },
         },
-        // The middle of the knob leaves these phases (almost) unwarped.
-        '$phase.asym': { amount: { spec: closedControl(0, 5, 2.5) } },
-        '$phase.bendmp': { amount: { spec: closedControl(0, 5, 2.5) } },
-        '$phase.pwm': { width: { spec: closedControl(0, 5, 2.5) } },
         pipeMix: { mix: { spec: MIX_SPEC } },
         wet: { mix: { spec: MIX_SPEC } },
     },

@@ -1,4 +1,4 @@
 kind: New
 body: |-
-    Strudel's wavetable warp modes arrive as `$phase.*` warps for `$wavetable`, `$enosc` and `$pWarp`, ported with thanks to the Strudel project (strudel.cc): `asym`, `bendp`, `bendm`, `bendmp`, `quant`, `orbit`, `spin`, `chaos`, `primes`, `binary`, `brownian`, `reciprocal`, `wormhole`, `logistic`, `sigmoid`, `fractal` and `flip`, each with a 0–5 amount. `flip` inverts the wave for part of each cycle; after `$pWarp`, multiply the oscillator by its new `_sign` output to hear it.
+    Strudel's wavetable warp modes arrive as `$phase.*` warps for `$wavetable`, `$enosc` and `$pWarp`, ported with thanks to the Strudel project (strudel.cc): `asym`, `quant`, `orbit`, `spin`, `chaos`, `primes`, `binary`, `brownian`, `reciprocal`, `logistic`, `sigmoid`, `fractal` and `flip`, each with a 0–5 amount, except `asym`, which moves the wave's midpoint either way from 0 across -5..5. `flip` inverts the wave for part of each cycle; after `$pWarp`, multiply the oscillator by its new `_sign` output to hear it.
 time: 2026-11-20T03:18:25.000000-05:00

@@ -49,9 +49,9 @@ fn identity_evaluates_as_passthrough() {
 
 #[test]
 fn mirror_evaluates_with_constant_signal() {
-    // A triangle peaking at its knee: 0.505 at the middle of the knob.
+    // A triangle peaking at its knee: 0.505 at full amount.
     let t = PhaseWarp::Mirror {
-        amount: constant(2.5),
+        amount: constant(5.0),
     };
     assert!(ev(&t, 0.0).abs() < 1e-6);
     assert!((ev(&t, 0.505) - 1.0).abs() < 1e-5);
@@ -101,7 +101,7 @@ fn fold_evaluates_with_constant_signal() {
 #[test]
 fn pwm_evaluates_with_constant_signal() {
     let t = PhaseWarp::Pwm {
-        width: constant(2.5),
+        width: constant(0.0),
     };
     assert!(ev(&t, 0.0).abs() < 1e-6);
     assert!((ev(&t, 1.0) - 1.0).abs() < 1e-6);
@@ -158,7 +158,7 @@ fn connect_resolves_polysignal_for_every_variant() {
     let patch = Patch::new();
 
     let mut mirror = PhaseWarp::Mirror {
-        amount: constant(2.5),
+        amount: constant(5.0),
     };
     mirror.connect(&patch);
     assert!((ev(&mirror, 0.505) - 1.0).abs() < 1e-4);
@@ -182,7 +182,7 @@ fn connect_resolves_polysignal_for_every_variant() {
     assert!(ev(&fold, 0.25).abs() < 1e-6);
 
     let mut pwm = PhaseWarp::Pwm {
-        width: constant(2.5),
+        width: constant(0.0),
     };
     pwm.connect(&patch);
     assert!((ev(&pwm, 0.5) - 0.5).abs() < 1e-6);
@@ -280,7 +280,7 @@ fn pipe_chains_evaluate_first_then_second() {
     // A mirror peaks at its knee; bend at 0 is the identity.
     let t = PhaseWarp::Pipe {
         first: Box::new(PhaseWarp::Mirror {
-            amount: constant(2.5),
+            amount: constant(5.0),
         }),
         second: Box::new(PhaseWarp::Bend {
             amount: constant(0.0),
@@ -475,9 +475,6 @@ fn deserr_parses_every_amount_stage() {
         "asym",
         "mirror",
         "bend",
-        "bendp",
-        "bendm",
-        "bendmp",
         "quant",
         "fold",
         "orbit",
@@ -487,7 +484,6 @@ fn deserr_parses_every_amount_stage() {
         "binary",
         "brownian",
         "reciprocal",
-        "wormhole",
         "logistic",
         "sigmoid",
         "fractal",
@@ -534,16 +530,16 @@ fn an_edited_amount_glides_from_the_old_value() {
             amount: constant(5.0),
         },
     );
-    // Resolved values are shape parameters: a mirror knob of 5 puts its knee at 1.
+    // Resolved values are shape parameters: a mirror's turn, from 1 at 0 to 0.505 at 5.
     let first = new.resolve(0, SAMPLE_RATE, &mut glides).values[0].a;
-    assert!(first < 0.1, "expected to start near 0.01, got {first}");
+    assert!(first > 0.99, "expected to start near 1, got {first}");
     let mut last = first;
     for _ in 0..(SAMPLE_RATE as usize) {
         last = new.resolve(0, SAMPLE_RATE, &mut glides).values[0].a;
     }
     assert!(
-        (last - 1.0).abs() < 1e-3,
-        "expected to settle on 1, got {last}"
+        (last - 0.505).abs() < 1e-3,
+        "expected to settle on 0.505, got {last}"
     );
 }
 

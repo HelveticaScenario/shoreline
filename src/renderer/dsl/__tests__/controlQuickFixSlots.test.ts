@@ -124,15 +124,14 @@ describe('computeControlQuickFixes — required API params', () => {
         }
     });
 
-    test('a missing required knob starts at its stated default', () => {
-        const { source, fixes } = fixesAt(`$phase.pwm(|)`);
-        expect(apply(source, addFix(fixes, 'width'))).toBe(
-            `$phase.pwm($slider('width', 2.5, 0, 5))`,
-        );
-        for (const warp of ['asym', 'bendmp']) {
-            const neutral = fixesAt(`$phase.${warp}(|)`);
-            expect(apply(neutral.source, addFix(neutral.fixes, 'amount'))).toBe(
-                `$phase.${warp}($slider('amount', 2.5, 0, 5))`,
+    test('a bipolar warp starts its slider at its neutral 0', () => {
+        for (const [warp, param] of [
+            ['asym', 'amount'],
+            ['pwm', 'width'],
+        ]) {
+            const { source, fixes } = fixesAt(`$phase.${warp}(|)`);
+            expect(apply(source, addFix(fixes, param))).toBe(
+                `$phase.${warp}($slider('${param}', 0, -5, 5))`,
             );
         }
     });

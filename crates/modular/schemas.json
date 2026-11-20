@@ -15403,54 +15403,6 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendp"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendm"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendmp"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "ratio": {
                   "$ref": "#/$defs/PolySignal"
                 },
@@ -15617,22 +15569,6 @@
                 "type": {
                   "type": "string",
                   "const": "reciprocal"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "wormhole"
                 }
               },
               "required": [
@@ -16290,54 +16226,6 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendp"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendm"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendmp"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "ratio": {
                   "$ref": "#/$defs/PolySignal"
                 },
@@ -16504,22 +16392,6 @@
                 "type": {
                   "type": "string",
                   "const": "reciprocal"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "wormhole"
                 }
               },
               "required": [
@@ -25405,54 +25277,6 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendp"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendm"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "bendmp"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
                 "ratio": {
                   "$ref": "#/$defs/PolySignal"
                 },
@@ -25619,22 +25443,6 @@
                 "type": {
                   "type": "string",
                   "const": "reciprocal"
-                }
-              },
-              "required": [
-                "type",
-                "amount"
-              ]
-            },
-            {
-              "type": "object",
-              "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "wormhole"
                 }
               },
               "required": [

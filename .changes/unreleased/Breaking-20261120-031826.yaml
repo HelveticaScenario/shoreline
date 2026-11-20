@@ -1,11 +1,15 @@
 kind: Breaking
 body: |-
-    `$phase.mirror`, `$phase.sync`, `$phase.fold` and `$phase.pwm` now follow Strudel's warp modes of the same names, so patches using them sound different. `mirror` always plays the wave forward then back, turning at a point its amount moves; `fold` folds a whole number of times, 2 to 8, so it never clicks at the cycle's end; `sync` rises slowly at first, reaching 16× only at 5; `pwm` changes only slightly. `mirror` and `fold` reshape the wave even at 0, so drop a warp you had set to 0. To keep about the same sound:
+    `$phase.mirror`, `$phase.sync`, `$phase.fold` and `$phase.pwm` now follow Strudel's warp modes of the same names, so patches using them sound different. `mirror` plays the wave forward then back, turning at a point that moves from the cycle's end at 0 to its middle at 5. `pwm` moves the wave's midpoint across -5..5, even at 0: a `pwm` width of `w` becomes `2 * w - 5`. `fold` folds a whole number of times, 2 to 8, so it never clicks at the cycle's end, and reshapes the wave even at 0. `sync` rises slowly at first, reaching 16× only at 5. To keep about the same sound:
 
     ```js
-    // before: a full triangle, and 8.5× sync
-    tone: $wavetable("c3", "pad.wav", 0, { phase: $phase.mirror(5, $phase.sync(2.5)) })
+    // before: an even pulse width, and 8.5× sync
+    tone: $wavetable("c3", "pad.wav", 0, {
+      phase: $phase.pwm(2.5, $phase.sync(2.5)),
+    })
     // after
-    tone: $wavetable("c3", "pad.wav", 0, { phase: $phase.mirror(2.5, $phase.sync(4.4)) })
+    tone: $wavetable("c3", "pad.wav", 0, {
+      phase: $phase.pwm(0, $phase.sync(4.4)),
+    })
     ```
 time: 2026-11-20T03:18:25.000000-05:00
