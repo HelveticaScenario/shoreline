@@ -2832,7 +2832,7 @@ where
 
     let stream = device
         .build_output_stream(
-            config,
+            *config,
             move |output: &mut [T], _info: &cpal::OutputCallbackInfo| {
                 health.beat();
                 // If a previous callback panicked, never touch the captured state
@@ -3246,7 +3246,7 @@ where
     let mut f32_buffer: Vec<f32> = Vec::new();
     let stream = device
         .build_input_stream(
-            config,
+            *config,
             move |data: &[T], _info: &cpal::InputCallbackInfo| {
                 // Convert to f32 and write to ring buffer (reuse allocation)
                 f32_buffer.clear();

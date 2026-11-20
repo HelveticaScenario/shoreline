@@ -86,7 +86,7 @@ fn an_unplugged_device_reopens_with_its_engine_when_it_returns() {
     let device = plug();
     // CoreAudio publishes a new device shortly after creating it.
     std::thread::sleep(Duration::from_millis(500));
-    let device_id = cpal::DeviceId(cpal::HostId::CoreAudio, AGGREGATE_UID.into()).to_string();
+    let device_id = cpal::DeviceId::new(cpal::HostId::CoreAudio, AGGREGATE_UID).to_string();
     let mut synth = Synthesizer::new(Some(AudioConfigOptions {
         output_device_id: Some(device_id.clone()),
         input_device_id: Some("none".into()),

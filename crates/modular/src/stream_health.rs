@@ -24,14 +24,15 @@ impl StreamHealth {
     }
 
     /// Record a stream error. Device loss and invalidation end the stream;
-    /// an underrun or backend hiccup does not.
-    pub fn report(&self, err: &cpal::StreamError) {
-        eprintln!("Audio stream error: {err}");
-        if matches!(
-            err,
-            cpal::StreamError::DeviceNotAvailable | cpal::StreamError::StreamInvalidated
-        ) {
-            self.lost.store(true, Ordering::Relaxed);
+    /// an xrun or backend hiccup does not.
+    pub fn report(&self, err: &cpal::Error) {
+        match err.kind() {
+            cpal::ErrorKind::DeviceNotAvailable | cpal::ErrorKind::StreamInvalidated => {
+                eprintln!("Audio stream error: {err}");
+                self.lost.store(true, Ordering::Relaxed);
+            }
+            cpal::ErrorKind::Xrun => {}
+            _ => eprintln!("Audio stream error: {err}"),
         }
     }
 
@@ -161,7 +162,7 @@ mod tests {
         let health = StreamHealth::default();
         let mut watchdog = StreamWatchdog::new(start);
         health.beat();
-        health.report(&cpal::StreamError::DeviceNotAvailable);
+        health.report(&cpal::ErrorKind::DeviceNotAvailable.into());
         assert!(watchdog.is_dead(&health, start + TICK));
     }
 
@@ -170,7 +171,7 @@ mod tests {
         let start = Instant::now();
         let health = StreamHealth::default();
         let mut watchdog = StreamWatchdog::new(start);
-        health.report(&cpal::StreamError::BufferUnderrun);
+        health.report(&cpal::ErrorKind::Xrun.into());
         health.beat();
         assert!(!watchdog.is_dead(&health, start + TICK));
     }

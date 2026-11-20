@@ -9,6 +9,8 @@ mod denormals;
 mod device_follow;
 #[cfg(all(test, target_os = "macos"))]
 mod device_loss_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod pinned_output_tests;
 use device_follow::DeviceFollowReport;
 mod graph_analysis;
 mod link;
@@ -770,9 +772,8 @@ fn resolve_devices(
                         fallback_warning.clone().unwrap_or_default(),
                         requested_device_id
                     ));
-                    let device = host
-                        .default_output_device()
-                        .expect("No default output device available");
+                    let device =
+                        pinned_default_output(&host).expect("No default output device available");
                     let id = device
                         .id()
                         .ok()
@@ -782,9 +783,7 @@ fn resolve_devices(
                 }
             }
         } else {
-            let device = host
-                .default_output_device()
-                .expect("No default output device available");
+            let device = pinned_default_output(&host).expect("No default output device available");
             let id = device
                 .id()
                 .ok()
@@ -836,6 +835,19 @@ fn resolve_devices(
 
 fn host_for_id(host_id: &str) -> Option<cpal::Host> {
     parse_host_id(host_id).and_then(|id| cpal::host_from_id(id).ok())
+}
+
+/// The system default output as a device of its own. A stream built from
+/// `host.default_output_device()` reroutes itself when the default changes,
+/// behind the engine's back; this one stays on the device, and
+/// `device_follow` moves the streams to a new default.
+fn pinned_default_output(host: &cpal::Host) -> Option<cpal::Device> {
+    let default = host.default_output_device()?;
+    default
+        .id()
+        .ok()
+        .and_then(|id| find_output_device_in_host(host, &id.to_string()))
+        .or(Some(default))
 }
 
 fn system_default_output_id(host: &cpal::Host) -> Option<String> {
@@ -1884,9 +1896,7 @@ impl Synthesizer {
                 output_config: &output_config,
                 sample_rate,
                 buffer_size,
-                input: input_setup
-                    .as_ref()
-                    .map(|(d, c, id)| (d, c.clone(), id.clone())),
+                input: input_setup.as_ref().map(|(d, c, id)| (d, *c, id.clone())),
             },
             &state,
             engine_slot.clone(),

@@ -201,7 +201,7 @@ pub fn enumerate_devices(host_id: &str) -> (Vec<AudioDeviceInfo>, Vec<AudioDevic
         let Some(name) = read_string(device, kAudioObjectPropertyName) else {
             continue;
         };
-        let id = cpal::DeviceId(cpal::HostId::CoreAudio, uid).to_string();
+        let id = cpal::DeviceId::new(cpal::HostId::CoreAudio, uid).to_string();
         let buffer_size_range = buffer_size_range(device);
 
         if let Some((channels, sample_rate)) = output_format {
