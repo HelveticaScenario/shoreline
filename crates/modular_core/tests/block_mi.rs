@@ -64,6 +64,7 @@ fn z_osc_paths_agree() {
 fn allocation_free() {
     for module in [
         "$mi.additive",
+        "$mi.chiptune",
         "$mi.chords",
         "$mi.divideDown",
         "$mi.formant",
@@ -112,6 +113,19 @@ fn six_op_allocation_free() {
             "$mi.sixOp",
             json!({ "freq": poly_cable("lfo", LANES), "gate": poly_cable("src", LANES),
                     "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+        ),
+        0
+    );
+}
+
+/// Arpeggios, with the chord and pattern moving under them, allocate nothing.
+#[test]
+fn chiptune_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.chiptune",
+            json!({ "freq": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES),
+                    "chord": cable("lfo", 2), "pattern": cable("lfo", 3), "bassDecay": true })
         ),
         0
     );

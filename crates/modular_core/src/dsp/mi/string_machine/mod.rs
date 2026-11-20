@@ -2,11 +2,11 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::module_category::ModuleCategory;
-use crate::module_docs::{DocExample, ModuleDocs};
+use crate::module_docs::{DocExample, DocSection, ModuleDocs};
 use crate::{
     dsp::{
         mi::{
-            chords::CHORDS_SECTION,
+            chords::CHORD_TABLE,
             core::{
                 chords::{ChordBank, NUM_NOTES},
                 ensemble::{Ensemble, EnsembleRates},
@@ -98,7 +98,12 @@ const STRING_MACHINE_DOCS: ModuleDocs = ModuleDocs {
                   chords on divide-down organ voices, low-pass filtered and \
                   spread across a stereo ensemble chorus.",
     categories: &[ModuleCategory::Oscillator],
-    sections: &[CHORDS_SECTION],
+    sections: &[DocSection {
+        title: "Chords",
+        body: "`chord` picks one of eleven chords by number.",
+        table: Some(CHORD_TABLE),
+        examples: &[],
+    }],
     examples: &[
         DocExample {
             title: "Minor 7th strings",
