@@ -36418,6 +36418,358 @@
     "stereo": "lift"
   },
   {
+    "name": "$mi.chords",
+    "docs": {
+      "summary": "Organ and wavetable chords",
+      "description": "Mutable Instruments Plaits' chord engine: four-note chords on divide-down organ voices that hand over, a note at a time, to wavetable voices as `waveform` rises. `inversion` revoices the chord upward, gliding each note into the next octave.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [
+        {
+          "title": "Chords",
+          "body": "`chord` picks one of eleven chords by number.",
+          "table": {
+            "columns": [
+              "chord",
+              "Chord"
+            ],
+            "rows": [
+              [
+                "0",
+                "octave"
+              ],
+              [
+                "1",
+                "fifth"
+              ],
+              [
+                "2",
+                "sus4"
+              ],
+              [
+                "3",
+                "minor"
+              ],
+              [
+                "4",
+                "minor 7th"
+              ],
+              [
+                "5",
+                "minor 9th"
+              ],
+              [
+                "6",
+                "minor 11th"
+              ],
+              [
+                "7",
+                "6/9"
+              ],
+              [
+                "8",
+                "major 9th"
+              ],
+              [
+                "9",
+                "major 7th"
+              ],
+              [
+                "10",
+                "major"
+              ]
+            ]
+          },
+          "examples": []
+        }
+      ],
+      "examples": [
+        {
+          "title": "Minor 7th organ",
+          "code": "keys: $mi.chords('c3', { chord: 4 })"
+        },
+        {
+          "title": "Rising voicing",
+          "code": "const lift = $sine('0.05hz').range(0, 5)\npad: $mi.chords('a2', { chord: 5, inversion: lift })"
+        },
+        {
+          "title": "Wavetable chords over their root",
+          "code": "const keys = $mi.chords('e3', { chord: 9, waveform: 4 })\nchords: keys\nbass: keys._root"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiChordsParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "root pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "chord": {
+          "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 10.0,
+            "minValue": 0.0,
+            "maxValue": 10.0,
+            "controlMin": 0.0,
+            "controlMax": 10.0
+          }
+        },
+        "inversion": {
+          "description": "the voicing: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "waveform": {
+          "description": "the tone: organ registrations from a bright mixture (0) to a hollow square (2.3), then wavetable waves from 2.7",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "chord",
+        "description": "the whole chord",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "root",
+        "description": "the root alone, in each octave the voicing plays it, louder: for a bass line or an effect of its own",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "root pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "chord",
+        "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+        "paramType": "control",
+        "defaultValue": 10.0,
+        "minValue": 0.0,
+        "maxValue": 10.0,
+        "controlMin": 0.0,
+        "controlMax": 10.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "inversion",
+        "description": "the voicing: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "waveform",
+        "description": "the tone: organ registrations from a bright mixture (0) to a hollow square (2.3), then wavetable waves from 2.7",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
     "name": "$mi.chorus",
     "docs": {
       "summary": "Stereo ensemble chorus",
