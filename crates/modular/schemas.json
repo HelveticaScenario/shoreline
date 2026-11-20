@@ -41859,7 +41859,7 @@
           }
         },
         "fm": {
-          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42030,7 +42030,7 @@
       },
       {
         "name": "fm",
-        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
         "paramType": "audio",
         "carriesBounds": false,
         "boundsNeedConstant": false,

@@ -128,8 +128,7 @@ impl Svf {
     }
 }
 
-/// `stmlib::NaiveSvf`: the explicit Chamberlin state-variable filter, its
-/// frequency coefficient the dirty approximation `2π f`.
+/// `stmlib::NaiveSvf`: the explicit Chamberlin state-variable filter.
 #[derive(Clone, Copy, Default)]
 pub struct NaiveSvf {
     f: f32,
@@ -138,13 +137,42 @@ pub struct NaiveSvf {
     bp: f32,
 }
 
+/// The frequency coefficient and damping of the filter that
+/// `set_f_q<FREQUENCY_DIRTY>(f, resonance)` makes at 48 kHz, for a rate
+/// `to_48k` times 48 kHz: `f` in cycles per 48 kHz sample, held at 0.158.
+///
+/// The dirty coefficient `2π f` warps the filter far above `f` near that
+/// limit, so at another rate the filter's poles are carried over in hertz
+/// (each 48 kHz pole raised to the power `1 / to_48k`) rather than its
+/// nominal cutoff. At 48 kHz this is the stmlib filter itself.
+pub fn naive_svf_coefficients(f: f32, resonance: f32, to_48k: f32) -> (f32, f32) {
+    let f = 2.0 * std::f32::consts::PI * f.min(0.158);
+    let damp = 1.0 / resonance;
+    if to_48k == 1.0 {
+        return (f, damp);
+    }
+    // The 48 kHz filter's poles, the roots of z² + a1 z + a2.
+    let (f, damp) = (f64::from(f), f64::from(damp));
+    let a1 = f * f + f * damp - 2.0;
+    let a2 = 1.0 - f * damp;
+    let radius = a2.max(0.0).sqrt();
+    let angle = (-a1 / (2.0 * radius)).clamp(-1.0, 1.0).acos();
+    let exponent = 1.0 / f64::from(to_48k);
+    let radius = radius.powf(exponent);
+    // A pole the rate cannot hold stays just below its Nyquist.
+    let angle = (angle * exponent).min(0.95 * std::f64::consts::PI);
+    let a1 = -2.0 * radius * angle.cos();
+    let a2 = radius * radius;
+    let f = (1.0 + a1 + a2).max(f64::MIN_POSITIVE).sqrt();
+    (f as f32, ((1.0 - a2) / f) as f32)
+}
+
 impl NaiveSvf {
-    /// `set_f_q<FREQUENCY_DIRTY>`: `f` in cycles per sample, held at or below
-    /// 0.158 where the approximation and the filter stay stable.
+    /// Sets the coefficients [`naive_svf_coefficients`] gives.
     #[inline(always)]
-    pub fn set_f_q(&mut self, f: f32, resonance: f32) {
-        self.f = 2.0 * std::f32::consts::PI * f.min(0.158);
-        self.damp = 1.0 / resonance;
+    pub fn set_coefficients(&mut self, (f, damp): (f32, f32)) {
+        self.f = f;
+        self.damp = damp;
     }
 
     #[inline(always)]

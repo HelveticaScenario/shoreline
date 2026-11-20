@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
         note = -2.0f + float((n / 400) % 5) * 0.7f;
         break;
       case 6:  // high enough to fade and shift octaves
-        chord = 8.0f; registration = 4.0f; tone = 2.0f; note = 2.3f;
+        chord = 8.0f; registration = 4.0f; tone = 2.0f; note = 3.3f;
         break;
       case 7:  // a pitch sweep
         chord = 3.0f; registration = 2.7f; tone = 4.8f; note = -2.0f + 5.0f * t;

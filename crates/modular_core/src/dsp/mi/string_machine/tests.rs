@@ -71,6 +71,37 @@ fn sounds_the_same_at_any_rate() {
     }
 }
 
+/// With the filter open, as it is from a low note up at the default tone,
+/// a chord's top harmonics (8–18 kHz) are as loud at 44.1 and 96 kHz as at
+/// 48 kHz, with the ensemble in. The saws' own band-limiting softens the
+/// harmonics nearest each rate's Nyquist by up to about 1.4 dB.
+#[test]
+fn open_filter_is_open_at_any_rate() {
+    let hz = 1000.0;
+    for tone in [3.5, 5.0] {
+        let levels = |sample_rate: f32| {
+            let rendered = render(sample_rate, hz, [0.0, 0.0, tone], 0.5);
+            harmonics(&side(&rendered, false), hz * 0.998, sample_rate, 18)
+        };
+        let reference = levels(48000.0);
+        for sample_rate in [44100.0, 96000.0] {
+            for (h, (a, r)) in levels(sample_rate)
+                .iter()
+                .zip(&reference)
+                .enumerate()
+                .skip(7)
+            {
+                let db = 20.0 * (a / r).log10();
+                assert!(
+                    db.abs() < 1.5,
+                    "tone {tone}, {sample_rate} Hz, harmonic {}: {db} dB",
+                    h + 1
+                );
+            }
+        }
+    }
+}
+
 /// The chord's notes alternate between the sides: in a minor chord the root
 /// leads on the left and the minor third on the right.
 #[test]

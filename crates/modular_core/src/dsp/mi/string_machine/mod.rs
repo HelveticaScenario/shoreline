@@ -10,7 +10,7 @@ use crate::{
             core::{
                 chords::{ChordBank, NUM_NOTES},
                 ensemble::{Ensemble, EnsembleRates},
-                filter::NaiveSvf,
+                filter::{NaiveSvf, naive_svf_coefficients},
                 phase::limit_frequency,
                 units::semitones_to_ratio,
             },
@@ -29,6 +29,8 @@ use crate::{
 /// Plaits' output gain for this engine, at ±5 V full scale.
 const OUTPUT_GAIN: f32 = -0.8 * 5.0;
 const FULL_SCALE: f32 = 5.0;
+/// The lowest filter cutoff, 10 Hz in cycles per 48 kHz sample.
+const CUTOFF_FLOOR: f32 = 10.0 / 48000.0;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -65,7 +67,7 @@ struct StringMachineParams {
     #[deserr(default)]
     tone: Option<PolySignal>,
     #[input(
-        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
+        "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
         type = audio,
         fold,
     )]
@@ -176,8 +178,29 @@ struct Lane {
     /// The smoothed registration `registration` was computed for, as bits.
     registration_key: Option<u32>,
     voices: [DivideDownVoice; NUM_NOTES],
-    filters: [NaiveSvf; 2],
+    filters: [Filter; 2],
     ensemble: Ensemble,
+}
+
+/// One of the engine's two low-pass filters, with its coefficients cached on
+/// the cutoff they were derived for.
+#[derive(Default)]
+struct Filter {
+    filter: NaiveSvf,
+    /// The cutoff (cycles per 48 kHz sample) the coefficients are for, as
+    /// bits.
+    key: Option<u32>,
+}
+
+impl Filter {
+    #[inline(always)]
+    fn set(&mut self, cutoff: f32, to_48k: f32) {
+        if self.key != Some(cutoff.to_bits()) {
+            self.filter
+                .set_coefficients(naive_svf_coefficients(cutoff, 1.0, to_48k));
+            self.key = Some(cutoff.to_bits());
+        }
+    }
 }
 
 impl Lane {
@@ -200,8 +223,8 @@ fn knob(volts: f32) -> f32 {
 
 impl Lane {
     /// One stereo sample with the notes at `f0` cycles per sample and the
-    /// filter tracking `cutoff_f0`, the unmodulated pitch, before the output
-    /// gain. `knobs` are the chord, registration and tone in volts.
+    /// filter tracking `cutoff_f0`, before the output gain. `knobs` are the
+    /// chord, registration and tone in volts.
     #[inline(always)]
     fn step(
         &mut self,
@@ -244,16 +267,18 @@ impl Lane {
         }
 
         let timbre = knob(tone);
-        // Plaits' cutoff in cycles per 48 kHz sample, which its filters
-        // hold at 0.158 (7.6 kHz).
-        let cutoff = 2.2
+        // Plaits' cutoff in cycles per 48 kHz sample. The floor keeps the
+        // filters following their input at a zero or NaN pitch, where a
+        // zero cutoff would freeze them.
+        let cutoff = (2.2
             * (limit_frequency(cutoff_f0, 0.5) * 0.998 * state.to_48k).abs()
-            * semitones_to_ratio(120.0 * timbre);
-        let per_sample = |f: f32| (f.min(0.158) / state.to_48k).min(0.158);
-        self.filters[0].set_f_q(per_sample(cutoff), 1.0);
-        self.filters[1].set_f_q(per_sample(cutoff * 1.5), 1.0);
-        let l = self.filters[0].low_pass(sides[0]);
-        let r = self.filters[1].low_pass(sides[1]);
+            * semitones_to_ratio(120.0 * timbre))
+        .max(CUTOFF_FLOOR);
+        for (filter, cutoff) in self.filters.iter_mut().zip([cutoff, cutoff * 1.5]) {
+            filter.set(cutoff, state.to_48k);
+        }
+        let l = self.filters[0].filter.low_pass(sides[0]);
+        let r = self.filters[1].filter.low_pass(sides[1]);
         let left = 0.66 * l + 0.33 * r;
         let right = 0.66 * r + 0.33 * l;
 
@@ -289,12 +314,22 @@ impl StringMachine {
                 0.5 * (signal.value_or(lane, default) + signal.value_or(right, default))
             };
             let pitch = 0.5 * (p.freq.get_value(lane) + p.freq.get_value(right));
-            let f0 = apply_fm(
-                pitch,
-                fold(&p.fm, StringMachineParams::FM_DEFAULT),
-                p.fm_mode,
-            ) * state.inv_sample_rate;
-            let cutoff_f0 = voct_to_hz(pitch) * state.inv_sample_rate;
+            let (f0, cutoff_f0) = match (&p.fm, p.fm_mode) {
+                (None, _) => {
+                    let f0 = voct_to_hz(pitch) * state.inv_sample_rate;
+                    (f0, f0)
+                }
+                // Exponential FM moves the note, which the filter follows as
+                // Plaits' does; linear FM leaves it on the unmodulated note.
+                (Some(_), FmMode::Exp) => {
+                    let f0 = apply_fm(pitch, fold(&p.fm, 0.0), FmMode::Exp) * state.inv_sample_rate;
+                    (f0, f0)
+                }
+                (Some(_), mode) => (
+                    apply_fm(pitch, fold(&p.fm, 0.0), mode) * state.inv_sample_rate,
+                    voct_to_hz(pitch) * state.inv_sample_rate,
+                ),
+            };
             let registration = voice.registration_glide.follow(
                 fold(&p.registration, StringMachineParams::REGISTRATION_DEFAULT),
                 p.registration.glide_mark(lane),
