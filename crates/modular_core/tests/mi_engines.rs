@@ -4,7 +4,8 @@
 //! `out` and `aux` reach the same level, spectrum and polarity once both have
 //! settled. String and modal draw the same grains as Plaits, from the seed
 //! the test pins. The drums are struck on a steady pulse as well as droning
-//! or, for the hi-hats, hissing.
+//! or, for the hi-hats, hissing; the filtered noise is clocked by its trigger
+//! as well as running free.
 //! The per-sample fixtures compare waveforms; this pins the knob mappings and
 //! output gains.
 
@@ -139,6 +140,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             [
                 port("$mi.swarm", knobs.clone(), "saw"),
                 port("$mi.swarm", knobs, "sine"),
+            ]
+        }
+        17 => {
+            let knobs = json!({ "rate": 5.0 * t, "mode": 5.0 * h, "resonance": 5.0 * m });
+            [
+                port("$mi.noise", knobs.clone(), "filtered"),
+                port("$mi.noise", knobs, "bands"),
             ]
         }
         18 => {
@@ -449,7 +457,17 @@ fn matches_plaits_engines() {
             let snares = engine == 22 && h > 0.0;
             // The engine's two hi-hats share its noise generator too.
             let noisy = snares || (engine == 23 && h > 0.0);
-            let (level_db, near_db) = if noisy { (0.25, 1.5) } else { (0.1, near_db) };
+            // The filtered noise draws its two clocks' values a sample at a
+            // time, where the engine draws each clock's block in turn, so it
+            // matches the engine only to the noise's spread, and has no
+            // polarity to compare.
+            let (level_db, near_db) = if engine == 17 {
+                (1.0, 2.0)
+            } else if noisy {
+                (0.25, 1.5)
+            } else {
+                (0.1, near_db)
+            };
             assert_sounds_alike(&name, &actual, &expected, level_db, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
             // timing, and the snare drums with no snares mute their noise, so
@@ -477,6 +495,7 @@ fn matches_plaits_engines() {
             }
             assert!(
                 h >= 0.5 && snares
+                    || engine == 17
                     || aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
                 "{name}: inverted"
             );

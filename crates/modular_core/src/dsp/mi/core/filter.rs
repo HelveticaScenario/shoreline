@@ -109,6 +109,17 @@ impl Svf {
         (bp, lp)
     }
 
+    /// `Svf::ProcessMultimodeLPtoHP`: one sample swept from low-pass (`mode`
+    /// 0) through band-pass (0.5) to high-pass (1).
+    #[inline(always)]
+    pub fn low_to_high_pass(&mut self, x: f32, mode: f32) -> f32 {
+        let hp_gain = (-mode * 2.0 + 1.0).min(0.0);
+        let bp_gain = 1.0 - 2.0 * (mode - 0.5).abs();
+        let lp_gain = (1.0 - mode * 2.0).max(0.0);
+        let (hp, bp, lp) = self.process_all(x);
+        hp_gain * hp + bp_gain * bp + lp_gain * lp
+    }
+
     /// One sample: the high-pass, band-pass and low-pass outputs.
     #[inline(always)]
     fn process_all(&mut self, x: f32) -> (f32, f32, f32) {

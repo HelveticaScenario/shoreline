@@ -69,6 +69,7 @@ fn allocation_free() {
         "$mi.hiHat",
         "$mi.kick",
         "$mi.modal",
+        "$mi.noise",
         "$mi.particles",
         "$mi.phaseDistortion",
         "$mi.ringHat",
