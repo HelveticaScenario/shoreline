@@ -50,6 +50,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
         }
     };
     match engine {
+        0 => {
+            let knobs = json!({ "cutoff": 5.0 * t, "resonance": 10.0 * h - 5.0, "shape": 5.0 * m });
+            [
+                port("$mi.vcf", knobs.clone(), "lowpass"),
+                port("$mi.vcf", knobs, "highpass"),
+            ]
+        }
         1 => {
             let knobs = |sync| json!({ "ratio": 5.0 * h, "amount": 5.0 * t, "asymmetry": 5.0 * m, "sync": sync });
             [
