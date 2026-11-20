@@ -406,6 +406,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$ramp"
         | "$swell"
         | "$mi.additive"
+        | "$mi.chords"
         | "$mi.divideDown"
         | "$mi.formant"
         | "$mi.hiHat"

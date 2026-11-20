@@ -1,4 +1,4 @@
-mod oscillator;
+pub mod oscillator;
 
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -6,15 +6,12 @@ use schemars::JsonSchema;
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::{
-        mi::core::phase::limit_frequency,
-        oscillators::{FmMode, apply_fm},
-    },
+    dsp::oscillators::{FmMode, apply_fm},
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
 };
 
-use oscillator::{DivideDownOscillator, saw_gains, shift_down};
+use oscillator::{DivideDownVoice, fade};
 
 /// Plaits' output gain for its string machine, at ±5 V full scale.
 const OUTPUT_GAIN: f32 = -0.8 * 5.0;
@@ -35,21 +32,6 @@ const REGISTRATIONS: [[f32; 6]; 11] = [
     [0.0, 0.5, 0.0, 0.5, 0.0, 0.0],
     [0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
 ];
-
-/// Plaits' `ComputeRegistration`: the seven amplitudes `registration` (0–1)
-/// blends to across the table; the seventh is always 0.
-fn registration_amplitudes(registration: f32) -> [f32; 7] {
-    let position = registration * (REGISTRATIONS.len() as f32 - 1.001);
-    let integral = position as usize;
-    let fractional = position - integral as f32;
-    let mut amplitudes = [0.0; 7];
-    for (i, amplitude) in amplitudes[..6].iter_mut().enumerate() {
-        let a = REGISTRATIONS[integral][i];
-        let b = REGISTRATIONS[integral + 1][i];
-        *amplitude = a + (b - a) * fractional;
-    }
-    amplitudes
-}
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -143,30 +125,29 @@ impl DivideDownState {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
-    oscillator: DivideDownOscillator,
+    voice: DivideDownVoice,
     registration: SwapGlide,
     /// The last finite registration, which a NaN or infinite knob holds.
     held: f32,
     /// The registration smoothed as Plaits smooths it.
     smoothed: f32,
     started: bool,
-    /// The saw levels the oscillator last drew with.
-    gains: [f32; 4],
-    /// The smoothed registration, octave shift and fade `gains` were
-    /// computed for, as bits; `None` before the first sample.
-    gains_key: Option<(u32, usize, u32)>,
+    /// The partial amplitudes of the smoothed registration.
+    amplitudes: [f32; 7],
+    /// The smoothed registration `amplitudes` were computed for, as bits.
+    amplitudes_key: Option<u32>,
 }
 
 impl Default for Voice {
     fn default() -> Self {
         Self {
-            oscillator: DivideDownOscillator::default(),
+            voice: DivideDownVoice::default(),
             registration: SwapGlide::default(),
             held: DivideDownParams::REGISTRATION_DEFAULT,
             smoothed: 0.0,
             started: false,
-            gains: [0.0; 4],
-            gains_key: None,
+            amplitudes: [0.0; 7],
+            amplitudes_key: None,
         }
     }
 }
@@ -198,27 +179,14 @@ impl Voice {
             self.started = true;
         }
 
-        let f0 = limit_frequency(f0, 0.5);
-        // Top notes fade out toward Plaits' 6 kHz, and toward this rate's
-        // equivalent when that is lower.
-        let speed = f0.abs().max(f0.abs() * state.to_48k);
-        let gain = (4.0 - speed * 32.0).clamp(0.0, 1.0);
-        let Some((frequency, shift)) = shift_down(f0 * 8.0, speed * 8.0) else {
-            return 0.0;
-        };
-        let key = (self.smoothed.to_bits(), shift, gain.to_bits());
-        if self.gains_key != Some(key) {
-            let gains = saw_gains(&registration_amplitudes(self.smoothed), shift, gain);
-            if self
-                .gains_key
-                .is_some_and(|(_, last_shift, _)| last_shift != shift)
-            {
-                self.oscillator.redraw(gains);
-            }
-            self.gains = gains;
-            self.gains_key = Some(key);
+        let key = self.smoothed.to_bits();
+        if self.amplitudes_key != Some(key) {
+            self.amplitudes = oscillator::registration(&REGISTRATIONS, self.smoothed);
+            self.amplitudes_key = Some(key);
         }
-        self.oscillator.step(frequency, self.gains)
+        let gain = fade(f0, state.to_48k);
+        self.voice
+            .step(f0, state.to_48k, &self.amplitudes, key, gain)
     }
 }
 

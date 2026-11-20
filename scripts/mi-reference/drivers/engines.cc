@@ -11,7 +11,7 @@
 // for channel 0 when a test pins `TEST_SEED_BASE` to 1, so the random engines
 // draw the same values as the modules; string's cases keep dispersion off,
 // where only the sounding string draws.
-// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/bass_drum_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/hi_hat_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/snare_drum_engine.cc plaits/dsp/engine/speech_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/six_op_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/fm/algorithms.cc plaits/dsp/fm/dx_units.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc plaits/dsp/speech/lpc_speech_synth.cc plaits/dsp/speech/lpc_speech_synth_controller.cc plaits/dsp/speech/lpc_speech_synth_phonemes.cc plaits/dsp/speech/lpc_speech_synth_words.cc plaits/dsp/speech/naive_speech_synth.cc plaits/dsp/speech/sam_speech_synth.cc
+// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/chords/chord_bank.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/bass_drum_engine.cc plaits/dsp/engine/chord_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/hi_hat_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/snare_drum_engine.cc plaits/dsp/engine/speech_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/six_op_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/fm/algorithms.cc plaits/dsp/fm/dx_units.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc plaits/dsp/speech/lpc_speech_synth.cc plaits/dsp/speech/lpc_speech_synth_controller.cc plaits/dsp/speech/lpc_speech_synth_phonemes.cc plaits/dsp/speech/lpc_speech_synth_words.cc plaits/dsp/speech/naive_speech_synth.cc plaits/dsp/speech/sam_speech_synth.cc
 
 #include <algorithm>
 #include <cstdio>
@@ -20,6 +20,7 @@
 #include "stmlib/utils/random.h"
 #include "plaits/dsp/engine/additive_engine.h"
 #include "plaits/dsp/engine/bass_drum_engine.h"
+#include "plaits/dsp/engine/chord_engine.h"
 #include "plaits/dsp/engine/fm_engine.h"
 #include "plaits/dsp/engine/grain_engine.h"
 #include "plaits/dsp/engine/hi_hat_engine.h"
@@ -66,6 +67,8 @@ static const Case kCases[] = {
     {10, 41.0f, 0.4f, 0.5f, 0.3f}, {10, 57.0f, 0.65f, 0.7f, 0.8f},
     {11, 43.0f, 0.3f, 0.5f, 0.4f}, {11, 59.0f, 0.7f, 0.25f, 0.85f},
     {12, 48.0f, 0.0f, 0.4f, 0.6f}, {12, 55.0f, 0.5f, 0.7f, 0.3f},
+    {14, 48.0f, 0.4f, 0.3f, 0.2f}, {14, 43.0f, 0.62f, 0.75f, 0.5f},
+    {14, 55.0f, 0.85f, 0.6f, 0.8f},
     {15, 45.0f, 0.0f, 0.5f, 0.3f}, {15, 52.0f, 1.0f / 6.0f, 0.3f, 0.8f},
     {15, 48.0f, 1.0f / 6.0f, 0.6f, 0.2f}, {15, 40.0f, 0.333f, 0.45f, 0.1f},
     {15, 48.0f, 0.48f, 0.5f, 0.6f}, {15, 43.0f, 0.9f, 0.35f, 0.5f},
@@ -94,6 +97,7 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
   static FMEngine fm;
   static GrainEngine grain;
   static AdditiveEngine additive;
+  static ChordEngine chord;
   static StringEngine string;
   static SwarmEngine swarm;
   static ModalEngine modal;
@@ -113,6 +117,7 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
     case 10: *out_gain = 0.6f; *aux_gain = 0.6f; return &fm;
     case 11: *out_gain = 0.7f; *aux_gain = 0.6f; return &grain;
     case 12: *out_gain = 0.8f; *aux_gain = 0.8f; return &additive;
+    case 14: *out_gain = 0.8f; *aux_gain = 0.8f; return &chord;
     case 15: *out_gain = -0.7f; *aux_gain = 0.8f; return &speech;
     case 16: *out_gain = -3.0f; *aux_gain = 1.0f; return &swarm;
     case 18: *out_gain = -2.0f; *aux_gain = 1.0f; return &particle;

@@ -108,6 +108,16 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
                 port("$mi.additive", knobs("organ"), "output"),
             ]
         }
+        14 => {
+            // Plaits' quantiser picks chord `floor(11.22 h - 0.075)` from
+            // `harmonics`, rising from its initial 0.
+            let chord = (h * 1.02 * 11.0 - 0.075).floor();
+            let knobs = json!({ "chord": chord, "inversion": 5.0 * t, "waveform": 5.0 * m });
+            [
+                port("$mi.chords", knobs.clone(), "chord"),
+                port("$mi.chords", knobs, "root"),
+            ]
+        }
         15 if h < 0.4 => {
             // The vowel path, where harmonics sounds one synth alone: the
             // formant filters at 0, SAM at 1/6 and LPC just below 1/3.
@@ -449,7 +459,15 @@ fn matches_plaits_engines() {
             let snares = engine == 22 && h > 0.0;
             // The engine's two hi-hats share its noise generator too.
             let noisy = snares || (engine == 23 && h > 0.0);
-            let (level_db, near_db) = if noisy { (0.25, 1.5) } else { (0.1, near_db) };
+            // The engine's chord voices take their phases from the sweep its
+            // knob smoothing starts with, which the module does not repeat, so
+            // their nearly coinciding partials beat in another phase.
+            let chords = engine == 14;
+            let (level_db, near_db) = if noisy || chords {
+                (0.5, 1.5)
+            } else {
+                (0.1, near_db)
+            };
             assert_sounds_alike(&name, &actual, &expected, level_db, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
             // timing, and the snare drums with no snares mute their noise, so
@@ -475,8 +493,11 @@ fn matches_plaits_engines() {
                     .fold(0.0f32, |m, (a, e)| m.max((a - e).abs()));
                 assert!(error < 1e-4, "{name}: max error {error}");
             }
+            // The chord's voices keep no single phase offset from the
+            // engine's, so no lag lines the two up.
             assert!(
                 h >= 0.5 && snares
+                    || chords
                     || aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
                 "{name}: inverted"
             );
