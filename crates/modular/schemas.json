@@ -39815,6 +39815,324 @@
     "stereo": "lift"
   },
   {
+    "name": "$mi.noise",
+    "docs": {
+      "summary": "Clocked, filtered noise",
+      "description": "Mutable Instruments Plaits' filtered noise: white noise, held between ticks of a clock, through a resonant filter, for wind, surf and whistles or stepped, digital hiss.",
+      "categories": [
+        "oscillator",
+        "random"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Whistling wind",
+          "code": "wind: $mi.noise('c5', { resonance: 4 })"
+        },
+        {
+          "title": "Two bands",
+          "code": "air: $mi.noise('c4', { mode: 3.75, resonance: 3 })._bands"
+        },
+        {
+          "title": "Stepped noise",
+          "code": "const beat = $clock._beatTrigger\nbits: $mi.noise('c3', { trigger: beat, rate: 0 })"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiNoiseParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the frequency the filters centre on",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "trigger": {
+          "description": "restarts the noise clock, so each hit steps to a fresh value; patched, `rate` reaches two octaves lower",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "trig"
+          }
+        },
+        "rate": {
+          "description": "the noise clock, from slow, stepped crackle (0) to smooth hiss (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 5.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "mode": {
+          "description": "sweeps `filtered` from lowpass (0) through bandpass to highpass (5), and moves `bands`' second band from two octaves below `freq` to two above",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "resonance": {
+          "description": "from a gentle slope (0) to a whistling, pitched peak (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 1.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "filtered",
+        "description": "the noise through one filter that `mode` sweeps",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "bands",
+        "description": "the noise through two bandpass filters, one at `freq` and one that `mode` moves",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the frequency the filters centre on",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "trigger",
+        "description": "restarts the noise clock, so each hit steps to a fresh value; patched, `rate` reaches two octaves lower",
+        "paramType": "trig",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "rate",
+        "description": "the noise clock, from slow, stepped crackle (0) to smooth hiss (5)",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mode",
+        "description": "sweeps `filtered` from lowpass (0) through bandpass to highpass (5), and moves `bands`' second band from two octaves below `freq` to two above",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "from a gentle slope (0) to a whistling, pitched peak (5)",
+        "paramType": "control",
+        "defaultValue": 1.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
     "name": "$mi.particles",
     "docs": {
       "summary": "Resonant dust",
