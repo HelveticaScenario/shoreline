@@ -14566,7 +14566,7 @@
           }
         },
         "waitForZeroCross": {
-          "description": "each new saw stays silent until it first crosses zero, so random starting phases cannot click",
+          "description": "each new saw stays silent until it first crosses zero, so its starting phase cannot click",
           "type": "boolean",
           "default": true
         }

@@ -1,6 +1,7 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::unison_phase::{UnisonPhases, phase_glide_step};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
@@ -65,49 +66,6 @@ struct UnisonOutputs {
     phase: PolyOutput,
 }
 
-/// Phase offset of copy `voice` of `count`, in cycles. Schroeder's quadratic
-/// phases keep the copies from all lining up at once as their evenly spaced
-/// detune drifts them against each other, so the stack holds a steady level.
-fn voice_phase(voice: usize, count: usize) -> f32 {
-    let voice = voice as u64;
-    let count = count as u64;
-    // `voice² / 2·count` mod 1, reduced in integers so it stays exact.
-    ((voice * voice) % (2 * count)) as f32 / (2 * count) as f32
-}
-
-/// How fast `phase` slides to a new target when `count` changes, in cycles
-/// per second. A phase slide is a brief pitch shift of this many Hz, small
-/// enough to hide in the detune.
-const PHASE_GLIDE_HZ: f32 = 2.0;
-
-/// Steps `current` toward `target` by at most `max_step`, the short way
-/// around the cycle. Both are phases in `[0, 1)`.
-fn glide_phase(current: f32, target: f32, max_step: f32) -> f32 {
-    let delta = (target - current + 0.5).rem_euclid(1.0) - 0.5;
-    if delta.abs() <= max_step {
-        target
-    } else {
-        (current + max_step.copysign(delta)).rem_euclid(1.0)
-    }
-}
-
-struct UnisonState {
-    /// The `phase` output's value per output lane.
-    phase: [f32; PORT_MAX_LANES],
-    /// Lanes holding a phase this module, or the one it took state from,
-    /// has written. Lanes at or past it start on their target.
-    phase_lanes: usize,
-}
-
-impl Default for UnisonState {
-    fn default() -> Self {
-        Self {
-            phase: [0.0; PORT_MAX_LANES],
-            phase_lanes: 0,
-        }
-    }
-}
-
 const UNISON_DOCS: ModuleDocs = ModuleDocs {
     summary: "Detuned unison copies",
     description: "Turns each pitch into a stack of detuned copies for thick unison \
@@ -142,7 +100,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
-    state: UnisonState,
+    state: UnisonPhases,
 }
 
 impl Unison {
@@ -156,8 +114,7 @@ impl Unison {
         let channels = self.channels();
         let poly_lanes = unison_poly_lanes(input, spread) / channels;
         let output_lanes = self.lane_count();
-        let max_phase_step = PHASE_GLIDE_HZ / sample_rate;
-        let glided_lanes = self.state.phase_lanes;
+        let max_phase_step = phase_glide_step(sample_rate);
 
         for poly_ch in 0..poly_lanes {
             for side in 0..channels {
@@ -185,18 +142,12 @@ impl Unison {
                     };
 
                     self.outputs.sample.set(out_ch, input_val + offset);
-                    let target = voice_phase(voice, count);
-                    let phase = &mut self.state.phase[out_ch];
-                    *phase = if out_ch < glided_lanes {
-                        glide_phase(*phase, target, max_phase_step)
-                    } else {
-                        target
-                    };
-                    self.outputs.phase.set(out_ch, *phase);
+                    let phase = self.state.step(out_ch, voice, count, max_phase_step);
+                    self.outputs.phase.set(out_ch, phase);
                 }
             }
         }
-        self.state.phase_lanes = output_lanes;
+        self.state.hold(output_lanes);
     }
 }
 
@@ -205,6 +156,7 @@ message_handlers!(impl Unison {});
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dsp::utils::unison_phase::voice_phase;
     use crate::types::{OutputStruct, Signal};
 
     /// Create a Unison with params and properly initialize _lane_count and output lanes.
@@ -215,7 +167,7 @@ mod tests {
         Unison {
             params,
             outputs,
-            state: UnisonState::default(),
+            state: UnisonPhases::default(),
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
@@ -453,34 +405,12 @@ mod tests {
     }
 
     #[test]
-    fn test_voice_phases_are_schroeder_phases() {
-        for count in 1..=PORT_MAX_LANES {
-            for voice in 0..count {
-                let phase = voice_phase(voice, count);
-                let want = ((voice * voice) as f64 / (2 * count) as f64).fract() as f32;
-                assert!((0.0..1.0).contains(&phase), "{voice}/{count}: {phase}");
-                assert!(
-                    (phase - want).abs() < 1e-6,
-                    "{voice}/{count}: {phase} != {want}"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn test_phase_glides_the_short_way() {
-        assert!((glide_phase(0.9, 0.1, 0.05) - 0.95).abs() < 1e-6);
-        assert!((glide_phase(0.1, 0.9, 0.05) - 0.05).abs() < 1e-6);
-        assert_eq!(glide_phase(0.5, 0.52, 0.05), 0.52);
-    }
-
-    #[test]
     fn test_count_change_glides_phase_without_jumps() {
         // A patch update from count 3 to 4 carries the phases over: copies
         // that existed slide to their new phase at PHASE_GLIDE_HZ, and the
         // added copy starts on its target.
         let sample_rate = 48000.0;
-        let max_step = PHASE_GLIDE_HZ / sample_rate;
+        let max_step = phase_glide_step(sample_rate);
         let params = |count| UnisonParams {
             input: PolySignal::mono(Signal::Volts(0.0)),
             count,

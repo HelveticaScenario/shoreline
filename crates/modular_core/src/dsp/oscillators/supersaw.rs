@@ -10,9 +10,9 @@ use crate::{
     dsp::{
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
         utils::{
-            SchmittTrigger,
-            rng::{LcgRng, seed_base},
-            sanitize, wrap_phase,
+            SchmittTrigger, sanitize,
+            unison_phase::{UnisonPhases, phase_glide_step, voice_phase},
+            wrap_phase,
         },
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -61,7 +61,7 @@ struct SupersawParams {
     #[block_input(optional)]
     sync: Option<PolySignal>,
     #[input(
-        "each new saw stays silent until it first crosses zero, so random starting phases cannot click"
+        "each new saw stays silent until it first crosses zero, so its starting phase cannot click"
     )]
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
@@ -113,8 +113,8 @@ pub struct Supersaw {
     params: SupersawParams,
     state: SupersawState,
     /// Every saw's state: a `voices * PORT_MAX_LANES` matrix indexed as
-    /// `[voice * PORT_MAX_LANES + lane]`, where lane `2n + c` is side `c` of
-    /// note `n`. Each side runs its own saws from its own side's inputs. The
+    /// `[voice * PORT_MAX_LANES + lane]`, where voices count from lowest to
+    /// highest pitch and lane `2n + c` is side `c` of note `n`. Each side runs its own saws from its own side's inputs. The
     /// row stride is the fixed `PORT_MAX_LANES`, never the voice count, so
     /// the element-wise state transfer keeps every surviving voice's cells at
     /// the same coordinates when the `unison` param changes; only the voice
@@ -128,7 +128,8 @@ pub struct Supersaw {
 /// transfer instead of the wholesale `state` swap.
 #[derive(Default, Clone, Copy)]
 struct VoiceState {
-    /// Phase accumulator in `[0, 1)`.
+    /// Phase accumulator in `[0, 1)`; the saw reads it shifted by its
+    /// voice's phase offset.
     phase: f32,
     /// PolyBLEP residual carried into the next sample from a sync reset.
     blep_carry: f32,
@@ -143,7 +144,8 @@ struct VoiceState {
 
 /// Module-level state for the Supersaw module.
 struct SupersawState {
-    rng: LcgRng,
+    /// Each voice's phase offset.
+    phases: UnisonPhases,
     /// Voice count clamped to [1, PORT_MAX_LANES]. Derived from params.
     voices: usize,
     /// Reciprocal of the sample rate.
@@ -151,7 +153,7 @@ struct SupersawState {
     /// Per-saw gain: 5 V over the square root of the voice count, so a stack
     /// of uncorrelated saws keeps its loudness whatever the voice count.
     gain: f32,
-    /// Per-voice interpolation factor for symmetric detuning.
+    /// Each voice's place in the detune spread, 0 lowest to 1 highest.
     voice_t: [f32; PORT_MAX_LANES],
     /// Per-voice gain into each side, `[side][voice]`: the voices spread from
     /// left to right with equal-power panning that keeps a centred voice at
@@ -172,7 +174,7 @@ struct SupersawState {
 impl Default for SupersawState {
     fn default() -> Self {
         Self {
-            rng: LcgRng::default(),
+            phases: UnisonPhases::default(),
             voices: 1,
             inv_sample_rate: 0.0,
             gain: 0.0,
@@ -207,33 +209,25 @@ impl Supersaw {
         // a patch transfer (a rate change rebuilds the processor, not a transfer).
         self.state.inv_sample_rate = 1.0 / sample_rate;
 
-        // Seed per-oscillator phases once. This runtime state is preserved across
-        // patch updates by transfer_state_from, so it must not be re-seeded in
-        // configure().
-        let base = seed_base(self);
-        self.state.rng.seed(base, 0);
         // One `PORT_MAX_LANES`-wide row per voice. Input lanes are
         // bounded by PORT_MAX_LANES, so a full-width row covers any input
         // width, and the fixed stride keeps each voice's cells at stable flat
         // indices across a voice-count change — the element-wise transfer then
         // carries surviving voices intact while added voices keep the fresh
-        // seeding below.
+        // state below.
         let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
         self.lane_state = vec![VoiceState::default(); voices * PORT_MAX_LANES].into_boxed_slice();
-        // Seed each fresh voice and arm its zero-cross mute. prev_out is the
-        // naive saw at the seeded phase so the mute holds until the output
+        // Arm each fresh voice's zero-cross mute. prev_out is the naive saw
+        // at the voice's starting phase so the mute holds until the output
         // genuinely crosses zero (it would release immediately if left at 0).
         // For carried-over voices these values are overwritten by
         // `transfer_state_from`, keeping an already-sounding voice un-muted.
-        // A note's two sides start from the same phases, so with the same
-        // inputs on both they run identical saws.
         let gate_open = !self.params.wait_for_zero_cross;
-        for note in self.lane_state.chunks_mut(2) {
-            let phase = self.state.rng.next_unit();
-            for cell in note {
-                cell.phase = phase;
+        for (voice, row) in self.lane_state.chunks_mut(PORT_MAX_LANES).enumerate() {
+            let prev_out = 2.0 * voice_phase(voice, voices) - 1.0;
+            for cell in row {
                 cell.gate_open = gate_open;
-                cell.prev_out = 2.0 * phase - 1.0;
+                cell.prev_out = prev_out;
             }
         }
     }
@@ -246,29 +240,27 @@ impl Supersaw {
         self.state.voices = voices;
         self.state.gain = 5.0 / (voices as f32).sqrt();
 
-        // Voice interpolation factor (precompute per voice)
-        // Interleaved ordering: first half of voices gets even detune positions,
-        // second half gets odd positions. This ensures each half contains a
-        // balanced spread across the full detune range, so splitting voices
-        // into two groups (e.g. for stereo panning) gives symmetric detuning
-        // on each side — matching Strudel's alternating L/R distribution.
+        // Voices take the stereo slots left to right in interleaved order:
+        // the left half of the slots gets the even detune positions, the right
+        // half the odd ones. Each side then holds a balanced spread across
+        // the full detune range, matching Strudel's alternating L/R
+        // distribution.
         let half = voices.div_ceil(2);
-        for v in 0..voices {
-            let linear_pos = if v < half { v * 2 } else { (v - half) * 2 + 1 };
-            self.state.voice_t[v] = if voices > 1 {
-                linear_pos as f32 / (voices - 1) as f32
+        for slot in 0..voices {
+            let voice = if slot < half {
+                slot * 2
             } else {
-                0.5 // centered, offset will be 0
+                (slot - half) * 2 + 1
             };
-            // Voices spread from left to right in this order, so each side
-            // holds one of the two halves of the detune spread.
-            let p = if voices > 1 {
-                v as f32 / (voices - 1) as f32
+            let (detune, p) = if voices > 1 {
+                let last = (voices - 1) as f32;
+                (voice as f32 / last, slot as f32 / last)
             } else {
-                0.5
+                (0.5, 0.5)
             };
-            self.state.pan[0][v] = (2.0 * (1.0 - p)).sqrt();
-            self.state.pan[1][v] = (2.0 * p).sqrt();
+            self.state.voice_t[voice] = detune;
+            self.state.pan[0][voice] = (2.0 * (1.0 - p)).sqrt();
+            self.state.pan[1][voice] = (2.0 * p).sqrt();
         }
         for (peak, pan) in self.state.peak.iter_mut().zip(&self.state.pan) {
             *peak = self.state.gain * pan[..voices].iter().sum::<f32>();
@@ -281,8 +273,9 @@ impl Supersaw {
         Bounds::new(-peak, peak)
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let voices = self.state.voices;
+        let offsets = self.state.phase_offsets(sample_rate);
         let lanes = self.lane_count();
         let p = &self.params;
 
@@ -313,7 +306,7 @@ impl Supersaw {
                     self.state.inv_sample_rate,
                 );
                 let cell = &mut self.lane_state[voice * PORT_MAX_LANES + lane];
-                accum += cell.step(dt, frac) * gain;
+                accum += cell.step(dt, offsets[voice], frac) * gain;
             }
             self.outputs.sample.set(lane, accum * self.state.gain);
         }
@@ -329,7 +322,7 @@ impl Supersaw {
         &mut self,
         outputs: &mut SupersawBlockOutputs,
         range: Range<usize>,
-        _sample_rate: f32,
+        sample_rate: f32,
     ) -> Option<()> {
         let voices = self.state.voices;
         let lanes = self.lane_count();
@@ -374,6 +367,7 @@ impl Supersaw {
             if !held {
                 fill(&mut increments, i);
             }
+            let offsets = self.state.phase_offsets(sample_rate);
             let mut sync_frac = [None; PORT_MAX_LANES];
             if let Some(sync) = &sync {
                 for (lane, &v) in sync.row(i).iter().enumerate() {
@@ -387,7 +381,7 @@ impl Supersaw {
                 for voice in 0..voices {
                     let dt = increments[voice * lanes + lane];
                     let cell = &mut self.lane_state[voice * PORT_MAX_LANES + lane];
-                    accum += cell.step(dt, sync_frac[lane]) * pan[voice];
+                    accum += cell.step(dt, offsets[voice], sync_frac[lane]) * pan[voice];
                 }
                 *out = sanitize(accum * self.state.gain);
             }
@@ -397,6 +391,20 @@ impl Supersaw {
 }
 
 impl SupersawState {
+    /// Each voice's phase offset for this sample, gliding to its new phase
+    /// after a voice-count change. Every lane of a voice shares it, so a
+    /// note's two sides run identical saws from the same inputs.
+    #[inline(always)]
+    fn phase_offsets(&mut self, sample_rate: f32) -> [f32; PORT_MAX_LANES] {
+        let max_step = phase_glide_step(sample_rate);
+        let mut offsets = [0.0f32; PORT_MAX_LANES];
+        for (voice, offset) in offsets.iter_mut().enumerate().take(self.voices) {
+            *offset = self.phases.step(voice, voice, self.voices, max_step);
+        }
+        self.phases.hold(self.voices);
+        offsets
+    }
+
     /// Register sync input `v` for `lane`; on a rising edge, returns the
     /// subsample position of the crossing.
     #[inline(always)]
@@ -430,27 +438,29 @@ fn voice_increment(
 }
 
 impl VoiceState {
-    /// Advance by `dt` and return this voice's contribution. `sync_frac` is
-    /// the subsample position of a sync edge on this sample, if any.
+    /// Advance by `dt` and return this voice's contribution, its saw read
+    /// `offset` cycles ahead. `sync_frac` is the subsample position of a sync
+    /// edge on this sample, if any.
     #[inline(always)]
-    fn step(&mut self, dt: f32, sync_frac: Option<f32>) -> f32 {
+    fn step(&mut self, dt: f32, offset: f32, sync_frac: Option<f32>) -> f32 {
         let mut phase = wrap_phase(self.phase + dt);
+        let read = wrap_phase(phase + offset);
 
         // Naive saw + its own PolyBLEP wrap correction, then any residual
         // carried from a sync reset on the previous sample. The reset
         // (below) lands in the upcoming interval, so this operates on the
         // real, pre-reset phase.
-        let mut saw = 2.0 * phase - 1.0;
-        saw -= poly_blep_saw(phase, dt.abs());
+        let mut saw = 2.0 * read - 1.0;
+        saw -= poly_blep_saw(read, dt.abs());
         saw += self.blep_carry;
         self.blep_carry = 0.0;
 
         // Hard sync resets this voice, band-limited with a PolyBLEP at
         // the subsample crossing.
         if let Some(frac) = sync_frac {
-            let before = 2.0 * phase - 1.0;
+            let before = 2.0 * read - 1.0;
             phase = 0.0;
-            let after = -1.0;
+            let after = 2.0 * offset - 1.0;
             let (now, carry) = sync_blep(after - before, frac);
             saw += now;
             self.blep_carry = carry;
@@ -583,9 +593,10 @@ mod tests {
     fn voices_spread_from_left_to_right() {
         // Two voices: the first hard left, the second hard right.
         let mut s = make_supersaw(params(mono(0.0), 2, 0.0));
+        // Each saw reads its phase shifted by its voice's offset.
         for lane in 0..2 {
-            s.lane_state[lane].phase = 0.75;
-            s.lane_state[PORT_MAX_LANES + lane].phase = 0.25;
+            s.lane_state[lane].phase = 0.75 - voice_phase(0, 2);
+            s.lane_state[PORT_MAX_LANES + lane].phase = 0.25 - voice_phase(1, 2);
         }
         s.update(48000.0);
         let (left, right) = (s.outputs.sample.get(0), s.outputs.sample.get(1));
@@ -593,20 +604,50 @@ mod tests {
     }
 
     #[test]
-    fn a_notes_sides_start_together_and_voices_apart() {
-        let s = make_supersaw(params(mono(0.0), 4, 0.0));
-        let phases: Vec<f32> = (0..4)
-            .map(|v| s.lane_state[v * PORT_MAX_LANES].phase)
-            .collect();
-        assert!(
-            phases.windows(2).any(|w| w[0] != w[1]),
-            "voices start apart"
-        );
-        for v in 0..4 {
+    fn voices_start_at_their_schroeder_phases_with_sides_together() {
+        let mut s = make_supersaw(params(mono(0.0), 4, 0.0));
+        let offsets = s.state.phase_offsets(48000.0);
+        for (v, &offset) in offsets.iter().enumerate().take(4) {
+            assert_eq!(offset, voice_phase(v, 4), "voice {v}");
             assert_eq!(
                 s.lane_state[v * PORT_MAX_LANES].phase,
                 s.lane_state[v * PORT_MAX_LANES + 1].phase
             );
+        }
+    }
+
+    #[test]
+    fn a_voice_count_change_glides_the_phase_offsets() {
+        use crate::types::PatchUpdateHandler;
+        let sample_rate = 48000.0;
+        let mut old = make_supersaw(params(mono(0.0), 3, 0.18));
+        old.update(sample_rate);
+        let mut new = make_supersaw(params(mono(0.0), 4, 0.18));
+        std::mem::swap(&mut new.state, &mut old.state);
+        new.on_patch_update();
+
+        let max_step = phase_glide_step(sample_rate);
+        let mut prev: Vec<f32> = (0..3).map(|v| voice_phase(v, 3)).collect();
+        let first = new.state.phase_offsets(sample_rate);
+        assert_eq!(
+            first[3],
+            voice_phase(3, 4),
+            "an added voice starts on its phase"
+        );
+        let mut offsets = first;
+        for _ in 0..sample_rate as usize {
+            for (voice, last) in prev.iter_mut().enumerate() {
+                let moved = (offsets[voice] - *last + 0.5).rem_euclid(1.0) - 0.5;
+                assert!(
+                    moved.abs() <= max_step + 1e-6,
+                    "voice {voice} jumped {moved}"
+                );
+                *last = offsets[voice];
+            }
+            offsets = new.state.phase_offsets(sample_rate);
+        }
+        for (voice, &offset) in offsets.iter().enumerate().take(4) {
+            assert_eq!(offset, voice_phase(voice, 4), "voice {voice}");
         }
     }
 

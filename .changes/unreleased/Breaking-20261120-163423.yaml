@@ -1,0 +1,3 @@
+kind: Breaking
+body: '`$supersaw` starts its saws at phases spread so they never all line up, so the stack holds a steady level instead of swelling as the detune drifts them, and keeps that spread through hard sync instead of restarting every saw together. Changing `unison` slides the saws to their new phases without a click. Patches with `$supersaw` sound slightly different; nothing in the patch needs to change.'
+time: 2026-11-20T16:34:23.588681-05:00
