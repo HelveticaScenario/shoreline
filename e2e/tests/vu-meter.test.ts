@@ -62,18 +62,16 @@ function readout(window: import('playwright').Page, key: string) {
     return window.locator(`.vu-meter[data-vu-key="${key}"] .vu-peak-readout`);
 }
 
-/** Run `patch` and wait until its tracks are metering, so the test never
- *  observes the new buffer's starter patch. */
-async function runPatch(window: import('playwright').Page, patch: string) {
+/** Run `patch` in a new buffer and wait until the mixer lists `track`. */
+async function runPatch(
+    window: import('playwright').Page,
+    patch: string,
+    track: string,
+) {
     await openUntitledBuffer(window);
     await window.evaluate((p) => {
         window.__TEST_API__!.setEditorValue(p);
     }, patch);
-    await expect
-        .poll(() =>
-            window.evaluate(() => window.__TEST_API__!.getEditorValue()),
-        )
-        .toBe(patch);
     await window.evaluate(() => window.__TEST_API__!.executePatch());
     await expect
         .poll(
@@ -83,7 +81,7 @@ async function runPatch(window: import('playwright').Page, patch: string) {
                 ),
             { timeout: 15_000 },
         )
-        .toContain('hot');
+        .toContain(track);
 }
 
 async function setupClipPatch(window: import('playwright').Page) {
@@ -91,7 +89,7 @@ async function setupClipPatch(window: import('playwright').Page) {
     const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
     test.skip(!hasTestAPI, '__TEST_API__ not available');
 
-    await runPatch(window, CLIP_PATCH);
+    await runPatch(window, CLIP_PATCH, 'hot');
     await window.evaluate(() => {
         window.__TEST_API__!.setMixerVisible(true);
     });
@@ -103,12 +101,7 @@ async function setupTwoOutPatch(window: import('playwright').Page) {
     const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
     test.skip(!hasTestAPI, '__TEST_API__ not available');
 
-    await openUntitledBuffer(window);
-    await window.evaluate((patch) => {
-        window.__TEST_API__!.setEditorValue(patch);
-    }, TWO_OUT_PATCH);
-    await window.evaluate(() => window.__TEST_API__!.executePatch());
-    await window.waitForTimeout(2000);
+    await runPatch(window, TWO_OUT_PATCH, 'lead');
 
     await window.evaluate(() => {
         window.__TEST_API__!.setMixerVisible(true);
@@ -433,17 +426,11 @@ test.describe('vu meter panel', () => {
         const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
         test.skip(!hasTestAPI, '__TEST_API__ not available');
 
-        await openUntitledBuffer(window);
-        await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue(
-                `lead: $sine($hz(440)).track({ gain: 3 })`,
-            );
-        });
-        await window.evaluate(() => window.__TEST_API__!.executePatch());
-        await window.waitForFunction(
-            () => window.__TEST_API__!.getLastPatchResult() !== null,
+        await runPatch(
+            window,
+            `lead: $sine($hz(440)).track({ gain: 3 })`,
+            'lead',
         );
-        await window.waitForTimeout(1000);
         await window.evaluate(() => {
             window.__TEST_API__!.setMixerVisible(true);
         });
@@ -472,16 +459,14 @@ test.describe('vu meter panel', () => {
         const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
         test.skip(!hasTestAPI, '__TEST_API__ not available');
 
-        await openUntitledBuffer(window);
-        await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue(
-                [
-                    `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
-                    `fx$2: $bus().lpf('c8')`,
-                ].join('\n'),
-            );
-        });
-        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await runPatch(
+            window,
+            [
+                `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
+                `fx$2: $bus().lpf('c8')`,
+            ].join('\n'),
+            'dry',
+        );
         await window.evaluate(() => {
             window.__TEST_API__!.setMixerVisible(true);
         });
@@ -511,20 +496,18 @@ test.describe('vu meter panel', () => {
         const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
         test.skip(!hasTestAPI, '__TEST_API__ not available');
 
-        await openUntitledBuffer(window);
-        await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue(
-                [
-                    `kick$drums: $sine($hz(55))`,
-                    `hats$drums: $noise()`,
-                    `drums$rhythm: $group().lpf('c8')`,
-                    `bass$rhythm: $saw($hz(110))`,
-                    `rhythm: $group()`,
-                    `lead: $sine($hz(440))`,
-                ].join('\n'),
-            );
-        });
-        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await runPatch(
+            window,
+            [
+                `kick$drums: $sine($hz(55))`,
+                `hats$drums: $noise()`,
+                `drums$rhythm: $group().lpf('c8')`,
+                `bass$rhythm: $saw($hz(110))`,
+                `rhythm: $group()`,
+                `lead: $sine($hz(440))`,
+            ].join('\n'),
+            'lead',
+        );
         await window.evaluate(() => {
             window.__TEST_API__!.setMixerVisible(true);
         });
@@ -674,6 +657,7 @@ test.describe('vu meter panel', () => {
         await runPatch(
             window,
             `hot: $saw('c3').mul($pulse('0.0625hz', { width: 0.05 }).range(0.2, 5))`,
+            'hot',
         );
         await window.waitForTimeout(1000);
 

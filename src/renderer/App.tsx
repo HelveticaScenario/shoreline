@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { MonacoPatchEditor as PatchEditor } from './components/MonacoPatchEditor';
 import { VideoBackdrop } from './app/video/VideoBackdrop';
 import { PerformancePreview } from './app/video/PerformancePreview';
@@ -1583,10 +1590,20 @@ function App() {
         }
     }, []);
 
+    // Submissions read this ref. The editor's change handler writes it as the
+    // text changes, and it follows buffer switches at commit, so a submit
+    // made before React re-renders never sends stale code.
     const patchCodeRef = useRef(patchCode);
-    useEffect(() => {
+    useLayoutEffect(() => {
         patchCodeRef.current = patchCode;
     }, [patchCode]);
+    const handleEditorChange = useCallback(
+        (value: string) => {
+            patchCodeRef.current = value;
+            handlePatchChange(value);
+        },
+        [handlePatchChange],
+    );
 
     const runningBufferIdRef = useRef(runningBufferId);
     useEffect(() => {
@@ -1958,7 +1975,7 @@ function App() {
     }, [selectWorkspaceFolder]);
 
     const handleSubmitRef = useRef((_trigger?: QueuedTrigger) => {});
-    useEffect(() => {
+    useLayoutEffect(() => {
         handleSubmitRef.current = async (trigger?: QueuedTrigger) => {
             if (!activeBufferId) {
                 return;
@@ -2715,7 +2732,7 @@ function App() {
                                 currentFile={activeBufferId}
                                 viewStates={viewStates}
                                 openFiles={openBufferIds}
-                                onChange={handlePatchChange}
+                                onChange={handleEditorChange}
                                 editorRef={editorRef}
                                 onEditorChange={setPaletteEditor}
                                 scopeViews={scopeViews}
