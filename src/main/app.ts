@@ -12,6 +12,7 @@ import {
 } from 'electron';
 import type {
     AudioConfigOptions,
+    CurrentAudioState,
     PatchGraph,
     QueuedTrigger,
 } from '@modular/core';
@@ -43,6 +44,11 @@ import { AppliedPatchState } from './appliedPatchState';
 import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
+import {
+    deviceSwitchNotice,
+    followSystemDefaultOutput,
+    SYSTEM_DEFAULT_POLL_MS,
+} from './systemDefaultOutput';
 import { bundledChangelog, fetchPublishedReleases } from './releaseNotesSource';
 import {
     isNewerVersion,
@@ -611,12 +617,19 @@ if (actualAudioState.fallbackWarning) {
     fallbackWarnings.report(actualAudioState.fallbackWarning);
 }
 
+/** The saved output: absent while the output follows the system default. */
+function savedOutputDeviceId(state: CurrentAudioState): string | undefined {
+    return state.followsSystemDefaultOutput
+        ? undefined
+        : (state.outputDeviceId ?? undefined);
+}
+
 // Update saved config with actual devices used (in case of fallback)
 const actualConfig = configStore.load();
 const configNeedsUpdate =
     actualConfig.audioConfig?.hostId !== actualAudioState.hostId ||
     actualConfig.audioConfig?.outputDeviceId !==
-        actualAudioState.outputDeviceId ||
+        savedOutputDeviceId(actualAudioState) ||
     actualConfig.audioConfig?.inputDeviceId !==
         actualAudioState.inputDeviceId ||
     actualConfig.audioConfig?.sampleRate !== actualAudioState.sampleRate ||
@@ -628,7 +641,7 @@ if (configNeedsUpdate) {
             bufferSize: actualAudioState.bufferSize ?? undefined,
             hostId: actualAudioState.hostId,
             inputDeviceId: actualAudioState.inputDeviceId ?? null,
-            outputDeviceId: actualAudioState.outputDeviceId ?? undefined,
+            outputDeviceId: savedOutputDeviceId(actualAudioState),
             sampleRate: actualAudioState.sampleRate,
         };
     });
@@ -644,7 +657,7 @@ function saveAudioConfig() {
                 bufferSize: state.bufferSize ?? undefined,
                 hostId: state.hostId,
                 inputDeviceId: state.inputDeviceId ?? null,
-                outputDeviceId: state.outputDeviceId ?? undefined,
+                outputDeviceId: savedOutputDeviceId(state),
                 sampleRate: state.sampleRate,
             };
         });
@@ -664,6 +677,25 @@ setInterval(() => {
     // arrive to trigger the prune inline.
     synth.pruneDisconnectedMidi();
 }, 10000);
+
+setInterval(() => {
+    const followed = followSystemDefaultOutput(synth, appliedPatch);
+    if (!followed) {
+        return;
+    }
+    cvSent.values.clear();
+    if (!followed.report.error) {
+        saveAudioConfig();
+    }
+    const notice = deviceSwitchNotice(
+        followed.report,
+        followed.stoppedPlayback,
+    );
+    console.log('System default output changed:', notice.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED, notice);
+    }
+}, SYSTEM_DEFAULT_POLL_MS);
 
 // Workspace root state
 let currentWorkspaceRoot: string | null = null;
@@ -1278,16 +1310,18 @@ registerIPCHandler('AUDIO_GET_CURRENT_STATE', () =>
 registerIPCHandler(
     'AUDIO_RECREATE_STREAMS',
     (
-        outputDeviceId: string,
+        outputDeviceId: string | null,
         sampleRate: number,
         bufferSize: number | null,
         inputDeviceId: string | null,
+        hostId: string | null,
     ) => {
         synth.recreateStreams(
-            outputDeviceId,
+            outputDeviceId ?? undefined,
             sampleRate,
             bufferSize ?? undefined,
             inputDeviceId ?? undefined,
+            hostId ?? undefined,
         );
         cvSent.values.clear();
         fallbackWarnings.report(synth.getCurrentAudioState().fallbackWarning);

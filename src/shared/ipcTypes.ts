@@ -341,6 +341,13 @@ export interface ContextMenuAction {
     commandId?: string;
 }
 
+/** The banner shown when the audio moves to a new system default output. */
+export interface DeviceSwitchNotice {
+    message: string;
+    /** The patch that was playing stopped. */
+    stopped: boolean;
+}
+
 /**
  * IPC Channel names - centralized to avoid typos
  */
@@ -397,6 +404,8 @@ export const IPC_CHANNELS = {
     AUDIO_GET_INPUT_CHANNELS: 'modular:audio:get-input-channels',
     // Fallback warning notification
     AUDIO_FALLBACK_WARNING: 'modular:audio:fallback-warning',
+    // The output moved to a new system default device
+    AUDIO_OUTPUT_SWITCHED: 'modular:audio:output-switched',
 
     // MIDI device operations
     MIDI_LIST_INPUTS: 'modular:midi:list-inputs',
@@ -574,6 +583,7 @@ export interface IPCHandlers {
     [IPC_CHANNELS.AUDIO_SET_INPUT_DEVICE]: typeof Synthesizer.prototype.setAudioInputDevice;
     [IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]: typeof Synthesizer.prototype.inputChannels;
     [IPC_CHANNELS.AUDIO_FALLBACK_WARNING]: (warning: string) => void;
+    [IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED]: (notice: DeviceSwitchNotice) => void;
 
     // MIDI device operations
     [IPC_CHANNELS.MIDI_LIST_INPUTS]: typeof Synthesizer.prototype.listMidiInputs;

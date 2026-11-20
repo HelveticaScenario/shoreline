@@ -114,9 +114,12 @@ export declare class Synthesizer {
   getCurrentAudioState(): CurrentAudioState
   /**
    * Recreate both input and output streams with new device/config
-   * This is the primary way to change audio devices after initialization
+   * This is the primary way to change audio devices after initialization.
+   * An `output_device_id` of `None` opens the system default output of
+   * `host_id` (the current host when `None`) and keeps following it (see
+   * `follow_system_default_output`).
    */
-  recreateStreams(outputDeviceId: string, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null): void
+  recreateStreams(outputDeviceId: string | undefined | null, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null, hostId?: string | undefined | null): void
   /** Force refresh the device cache (legacy - same as refresh_device_cache) */
   refreshDeviceList(): void
   /** List all available audio hosts (from cache) */
@@ -139,6 +142,15 @@ export declare class Synthesizer {
    * `is_audio_thread_panicked()` returns true to recover.
    */
   restartAudio(): void
+  /**
+   * While following the system default output, move the streams to the
+   * device the system now makes its default, keeping the sample rate,
+   * buffer size and input where the new device allows them. Returns what
+   * changed, or `None` when nothing did; moving leaves the engine stopped and
+   * empty like any stream recreation. Cheap enough to poll: on hosts whose
+   * default cannot change under a running stream it reads nothing.
+   */
+  followSystemDefaultOutput(): DeviceFollowReport | null
   /**
    * Set the audio output device (legacy - use recreate_streams instead)
    * This uses device default sample rate and buffer size
@@ -190,6 +202,7 @@ export interface AudioBudgetSnapshot {
 /** Audio configuration for synthesizer initialization */
 export interface AudioConfigOptions {
   hostId?: string
+  /** `None` follows the host's system default output. */
   outputDeviceId?: string
   inputDeviceId?: string
   sampleRate?: number
@@ -237,7 +250,13 @@ export declare function cpuSupportsBuild(): boolean
 /** Current audio state information */
 export interface CurrentAudioState {
   hostId: string
+  /**
+   * The device the output stream is open on, also while following the
+   * system default.
+   */
   outputDeviceId?: string
+  /** The output moves to whichever device the system makes its default. */
+  followsSystemDefaultOutput: boolean
   outputDeviceName?: string
   inputDeviceId?: string
   inputDeviceName?: string
@@ -271,6 +290,23 @@ export interface DeriveLaneCountResult {
 export interface DeviceCacheSnapshot {
   /** All hosts with their devices grouped together */
   hosts: Array<HostDeviceInfo>
+}
+
+/** What changed when the output followed a new system default device. */
+export interface DeviceFollowReport {
+  outputDeviceName: string
+  /**
+   * The input could not open at the sample rate the new output runs at,
+   * which leaves the input off.
+   */
+  unopenedInputDeviceName?: string
+  previousSampleRate: number
+  sampleRate: number
+  /**
+   * Why the streams could not be opened on the new device, which leaves
+   * the previous streams running.
+   */
+  error?: string
 }
 
 /**

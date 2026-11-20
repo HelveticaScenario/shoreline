@@ -318,6 +318,13 @@ impl AudioDeviceCache {
 pub(crate) const JACK_HOST_ID: &str = "Jack";
 const ALSA_HOST_ID: &str = "Alsa";
 
+/// Whether a host's default output can become another device while a stream
+/// is open on it. ALSA's default is a PCM the sound server routes, and JACK
+/// opens a client to answer, so neither is polled.
+pub(crate) fn host_default_output_can_change(host_id: &str) -> bool {
+    host_id != JACK_HOST_ID && host_id != ALSA_HOST_ID
+}
+
 /// Put `id`'s previous ALSA entry back into `devices` if the new listing lacks
 /// it. The restored entry is never the default; the new listing decides that.
 fn restore_missing(
@@ -366,7 +373,11 @@ pub struct DeviceCacheSnapshot {
 #[napi(object)]
 pub struct CurrentAudioState {
     pub host_id: String,
+    /// The device the output stream is open on, also while following the
+    /// system default.
     pub output_device_id: Option<String>,
+    /// The output moves to whichever device the system makes its default.
+    pub follows_system_default_output: bool,
     pub output_device_name: Option<String>,
     pub input_device_id: Option<String>,
     pub input_device_name: Option<String>,

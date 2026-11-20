@@ -9,6 +9,7 @@ import { AudioControls } from './components/AudioControls';
 import { TransportDisplay } from './components/TransportDisplay';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
+import { DeviceSwitchBanner } from './components/DeviceSwitchBanner';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
 import {
@@ -2250,6 +2251,18 @@ function App() {
     }, []);
     const handleStop = useCallback(() => handleStopRef.current(), []);
 
+    // A move to a new system default output that stopped playback leaves the
+    // editor in the same state as Stop.
+    useEffect(
+        () =>
+            electronAPI.audio.onOutputSwitched((notice) => {
+                if (notice.stopped) {
+                    handleStopRef.current();
+                }
+            }),
+        [],
+    );
+
     const dismissError = useCallback(() => {
         setError(null);
         setValidationErrors(null);
@@ -2651,6 +2664,8 @@ function App() {
             />
 
             <AudioPanicDialog />
+
+            <DeviceSwitchBanner />
 
             <CommandPalette
                 open={isPaletteOpen}

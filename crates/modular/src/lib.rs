@@ -6,6 +6,8 @@ mod commands;
 #[cfg(target_os = "macos")]
 mod coreaudio_devices;
 mod denormals;
+mod device_follow;
+use device_follow::DeviceFollowReport;
 mod graph_analysis;
 mod link;
 mod media_audio;
@@ -658,6 +660,7 @@ pub struct ModuleProfileSample {
 #[derive(Debug, Clone, Default)]
 pub struct AudioConfigOptions {
     pub host_id: Option<String>,
+    /// `None` follows the host's system default output.
     pub output_device_id: Option<String>,
     pub input_device_id: Option<String>,
     pub sample_rate: Option<u32>,
@@ -677,7 +680,11 @@ pub struct Synthesizer {
     is_recording: bool,
     host_id: String,
     output_device_id: Option<String>,
+    follows_system_default_output: bool,
     input_device_id: Option<String>,
+    /// The system default output last moved to, so a default that cannot be
+    /// opened is not retried until it changes again.
+    seen_default_output: Option<String>,
     device_cache: AudioDeviceCache,
     fallback_warning: Option<String>,
     next_update_id: u64,
@@ -771,16 +778,7 @@ fn resolve_devices(
 
     // Try to get requested input device (None is valid = no input)
     let (input_device, input_device_id) = match &config.input_device_id {
-        None => {
-            // No input requested, try default
-            match host.default_input_device() {
-                Some(device) => {
-                    let id = device.id().ok().map(|id| id.to_string());
-                    (Some(device), id)
-                }
-                None => (None, None),
-            }
-        }
+        None => (None, None),
         Some(requested_device_id)
             if requested_device_id == "none" || requested_device_id.is_empty() =>
         {
@@ -817,6 +815,15 @@ fn resolve_devices(
         input_device,
         input_device_id,
     )
+}
+
+fn host_for_id(host_id: &str) -> Option<cpal::Host> {
+    parse_host_id(host_id).and_then(|id| cpal::host_from_id(id).ok())
+}
+
+fn system_default_output_id(host: &cpal::Host) -> Option<String> {
+    let device = host.default_output_device()?;
+    device.id().ok().map(|id| id.to_string())
 }
 
 /// Parse a host ID string to cpal::HostId
@@ -1049,6 +1056,7 @@ impl Synthesizer {
         // Try to use requested config, fall back to defaults if invalid
         let (_host, host_id, output_device, output_device_id, input_device, input_device_id) =
             resolve_devices(&config, &mut fallback_warning);
+        let follows_system_default_output = config.output_device_id.is_none();
 
         // Get output config
         let output_config = output_device.default_output_config().map_err(|err| {
@@ -1142,7 +1150,9 @@ impl Synthesizer {
             input_channels: setup_result.input_channels,
             is_recording: false,
             host_id,
+            seen_default_output: follows_system_default_output.then(|| output_device_id.clone()),
             output_device_id: Some(output_device_id),
+            follows_system_default_output,
             input_device_id: setup_result.input_device_id,
             device_cache,
             fallback_warning,
@@ -1627,6 +1637,7 @@ impl Synthesizer {
         CurrentAudioState {
             host_id: self.host_id.clone(),
             output_device_id: self.output_device_id.clone(),
+            follows_system_default_output: self.follows_system_default_output,
             output_device_name,
             input_device_id: self.input_device_id.clone(),
             input_device_name,
@@ -1639,9 +1650,43 @@ impl Synthesizer {
     }
 
     /// Recreate both input and output streams with new device/config
-    /// This is the primary way to change audio devices after initialization
+    /// This is the primary way to change audio devices after initialization.
+    /// An `output_device_id` of `None` opens the system default output of
+    /// `host_id` (the current host when `None`) and keeps following it (see
+    /// `follow_system_default_output`).
     #[napi]
     pub fn recreate_streams(
+        &mut self,
+        output_device_id: Option<String>,
+        sample_rate: u32,
+        buffer_size: Option<u32>,
+        input_device_id: Option<String>,
+        host_id: Option<String>,
+    ) -> Result<()> {
+        let follows_output = output_device_id.is_none();
+        let output_device_id = match output_device_id {
+            Some(id) => id,
+            None => {
+                let host_id = host_id.unwrap_or_else(|| self.host_id.clone());
+                self.default_output_id(&host_id).ok_or_else(|| {
+                    napi::Error::from_reason(format!(
+                        "Host '{}' has no default output device",
+                        host_id
+                    ))
+                })?
+            }
+        };
+        self.open_streams(output_device_id, sample_rate, buffer_size, input_device_id)?;
+        self.follows_system_default_output = follows_output;
+        self.seen_default_output = follows_output
+            .then(|| self.output_device_id.clone())
+            .flatten();
+        Ok(())
+    }
+
+    /// Open streams on exactly these devices, replacing the running ones.
+    /// The fresh engine starts stopped and empty.
+    fn open_streams(
         &mut self,
         output_device_id: String,
         sample_rate: u32,
@@ -1660,8 +1705,7 @@ impl Synthesizer {
             })?;
 
         let host_id = output_device_info.host_id.clone();
-        let host = parse_host_id(&host_id)
-            .and_then(|id| cpal::host_from_id(id).ok())
+        let host = host_for_id(&host_id)
             .ok_or_else(|| napi::Error::from_reason(format!("Failed to get host '{}'", host_id)))?;
 
         // Find output device
@@ -1826,16 +1870,37 @@ impl Synthesizer {
     /// `is_audio_thread_panicked()` returns true to recover.
     #[napi]
     pub fn restart_audio(&mut self) -> Result<()> {
-        let output_device_id = self
-            .output_device_id
-            .clone()
-            .ok_or_else(|| napi::Error::from_reason("No output device configured"))?;
+        let output_device_id = self.chosen_output_device_id()?;
         self.recreate_streams(
             output_device_id,
             self.sample_rate as u32,
             self.buffer_size,
             self.input_device_id.clone(),
+            None,
         )
+    }
+
+    /// The output this synthesizer was asked for: `None` while it follows
+    /// the system default.
+    fn chosen_output_device_id(&self) -> Result<Option<String>> {
+        if self.follows_system_default_output {
+            return Ok(None);
+        }
+        self.output_device_id
+            .clone()
+            .map(Some)
+            .ok_or_else(|| napi::Error::from_reason("No output device configured"))
+    }
+
+    /// While following the system default output, move the streams to the
+    /// device the system now makes its default, keeping the sample rate,
+    /// buffer size and input where the new device allows them. Returns what
+    /// changed, or `None` when nothing did; moving leaves the engine stopped and
+    /// empty like any stream recreation. Cheap enough to poll: on hosts whose
+    /// default cannot change under a running stream it reads nothing.
+    #[napi]
+    pub fn follow_system_default_output(&mut self) -> Option<DeviceFollowReport> {
+        device_follow::follow(self)
     }
 
     /// Set the audio output device (legacy - use recreate_streams instead)
@@ -1852,22 +1917,26 @@ impl Synthesizer {
 
         let sample_rate = device_info.sample_rate;
 
-        self.recreate_streams(device_id, sample_rate, None, self.input_device_id.clone())
+        self.recreate_streams(
+            Some(device_id),
+            sample_rate,
+            None,
+            self.input_device_id.clone(),
+            None,
+        )
     }
 
     /// Set the audio input device (legacy - use recreate_streams instead)
     #[napi]
     pub fn set_audio_input_device(&mut self, device_id: Option<String>) -> Result<()> {
-        let output_device_id = self
-            .output_device_id
-            .clone()
-            .ok_or_else(|| napi::Error::from_reason("No output device configured"))?;
+        let output_device_id = self.chosen_output_device_id()?;
 
         self.recreate_streams(
             output_device_id,
             self.sample_rate as u32,
             self.buffer_size,
             device_id,
+            None,
         )
     }
 

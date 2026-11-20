@@ -65,9 +65,17 @@ function computeBufferSizes(
     return powerOf2Sizes.filter((size) => size >= minSize && size <= maxSize);
 }
 
+/** The output a state was asked for: `null` while it follows the system default. */
+function chosenOutputDeviceId(state: CurrentAudioState): string | null {
+    return state.followsSystemDefaultOutput
+        ? null
+        : (state.outputDeviceId ?? null);
+}
+
 /**
  * Audio device choices. They take effect on Apply, since reopening the
- * streams interrupts the sound.
+ * streams interrupts the sound. An output selection of `null` follows the
+ * system default output.
  */
 export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
     // Device cache from Rust
@@ -120,12 +128,24 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         return hostData?.inputDevices ?? [];
     }, [deviceCache, selectedHostId]);
 
+    const systemDefaultOutputDevice = useMemo(
+        () => outputDevicesForHost.find((d) => d.isDefault) ?? null,
+        [outputDevicesForHost],
+    );
+
     // Get selected device objects
     const selectedOutputDevice = useMemo(
         () =>
-            outputDevicesForHost.find((d) => d.id === selectedOutputDeviceId) ??
-            null,
-        [outputDevicesForHost, selectedOutputDeviceId],
+            selectedOutputDeviceId === null
+                ? systemDefaultOutputDevice
+                : (outputDevicesForHost.find(
+                      (d) => d.id === selectedOutputDeviceId,
+                  ) ?? null),
+        [
+            outputDevicesForHost,
+            selectedOutputDeviceId,
+            systemDefaultOutputDevice,
+        ],
     );
 
     const selectedInputDevice = useMemo(
@@ -173,7 +193,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
 
             // Initialize selections from current state
             setSelectedHostId(state.hostId);
-            setSelectedOutputDeviceId(state.outputDeviceId ?? null);
+            setSelectedOutputDeviceId(chosenOutputDeviceId(state));
             setSelectedInputDeviceId(state.inputDeviceId ?? null);
             setSelectedSampleRate(state.sampleRate);
             setSelectedBufferSize(state.bufferSize ?? null);
@@ -203,15 +223,12 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         }
         hostSelectionsResolved.current = selectedHostId;
 
-        // If current output device isn't in this host, select default
+        // If current output device isn't in this host, follow its default
         const outputInHost = hostData.outputDevices.find(
             (d) => d.id === selectedOutputDeviceId,
         );
         if (!outputInHost) {
-            const defaultOutput =
-                hostData.outputDevices.find((d) => d.isDefault) ??
-                hostData.outputDevices[0];
-            setSelectedOutputDeviceId(defaultOutput?.id ?? null);
+            setSelectedOutputDeviceId(null);
         }
 
         // If current input device isn't in this host, select none or default
@@ -315,13 +332,23 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         return unsubscribe;
     }, []);
 
+    // The engine moved to a new system default output: show it.
+    useEffect(
+        () =>
+            electronAPI.audio.onOutputSwitched(() => {
+                void Promise.all([
+                    electronAPI.audio.getDeviceCache(),
+                    electronAPI.audio.getCurrentState(),
+                ]).then(([cache, state]) => {
+                    setDeviceCache(cache);
+                    setCurrentState(state);
+                });
+            }),
+        [],
+    );
+
     // Apply configuration using recreateStreams
     const applyConfig = useCallback(async () => {
-        if (!selectedOutputDeviceId) {
-            setError('Please select an output device');
-            return;
-        }
-
         if (!selectedSampleRate) {
             setError('Please select a sample rate');
             return;
@@ -333,10 +360,11 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
             setWarning(null);
 
             await electronAPI.audio.recreateStreams(
-                selectedOutputDeviceId,
+                selectedOutputDeviceId ?? undefined,
                 selectedSampleRate,
                 selectedBufferSize ?? undefined,
                 selectedInputDeviceId ?? undefined,
+                selectedHostId ?? undefined,
             );
 
             // Reload state to get actual applied values
@@ -345,7 +373,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
 
             // Update selections to match what was actually applied
             setSelectedHostId(newState.hostId);
-            setSelectedOutputDeviceId(newState.outputDeviceId ?? null);
+            setSelectedOutputDeviceId(chosenOutputDeviceId(newState));
             setSelectedInputDeviceId(newState.inputDeviceId ?? null);
             setSelectedSampleRate(newState.sampleRate);
             setSelectedBufferSize(newState.bufferSize ?? null);
@@ -359,6 +387,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
             setApplying(false);
         }
     }, [
+        selectedHostId,
         selectedOutputDeviceId,
         selectedSampleRate,
         selectedBufferSize,
@@ -371,7 +400,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         }
         return (
             selectedHostId !== currentState.hostId ||
-            selectedOutputDeviceId !== (currentState.outputDeviceId ?? null) ||
+            selectedOutputDeviceId !== chosenOutputDeviceId(currentState) ||
             selectedInputDeviceId !== (currentState.inputDeviceId ?? null) ||
             selectedSampleRate !== currentState.sampleRate ||
             selectedBufferSize !== (currentState.bufferSize ?? null)
@@ -437,13 +466,19 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                                 )
                             }
                         >
-                            <option value="">-- Select Output Device --</option>
-                            {outputDevicesForHost.map((d) => (
-                                <option key={d.id} value={d.id}>
-                                    {d.name} ({d.outputChannels} ch)
-                                    {d.isDefault ? ' (Default)' : ''}
-                                </option>
-                            ))}
+                            <option value="">
+                                System Default
+                                {systemDefaultOutputDevice
+                                    ? ` (${systemDefaultOutputDevice.name})`
+                                    : ''}
+                            </option>
+                            <optgroup label="Devices">
+                                {outputDevicesForHost.map((d) => (
+                                    <option key={d.id} value={d.id}>
+                                        {d.name} ({d.outputChannels} ch)
+                                    </option>
+                                ))}
+                            </optgroup>
                         </select>
                         {selectedOutputDevice && (
                             <div className="device-info">

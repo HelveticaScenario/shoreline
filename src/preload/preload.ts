@@ -18,7 +18,11 @@ import {
     SyphonToggleResult,
     UpdateAvailableInfo,
 } from '../shared/ipcTypes';
-import type { FileChange, QueuedTrigger } from '../shared/ipcTypes';
+import type {
+    DeviceSwitchNotice,
+    FileChange,
+    QueuedTrigger,
+} from '../shared/ipcTypes';
 import type {
     VideoCvValue,
     VideoPull,
@@ -136,6 +140,9 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_RECREATE_STREAMS]
         >;
         onFallbackWarning: (callback: (warning: string) => void) => () => void;
+        onOutputSwitched: (
+            callback: (notice: DeviceSwitchNotice) => void,
+        ) => () => void;
         // Legacy (kept for backward compatibility)
         refreshDeviceList: Promisify<
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_REFRESH_DEVICE_LIST]
@@ -400,6 +407,8 @@ const electronAPI: ElectronAPI = {
         onFallbackWarning: menuEventHandler(
             IPC_CHANNELS.AUDIO_FALLBACK_WARNING,
         ),
+
+        onOutputSwitched: menuEventHandler(IPC_CHANNELS.AUDIO_OUTPUT_SWITCHED),
 
         // Legacy (kept for backward compatibility)
         refreshDeviceList: (...args) =>

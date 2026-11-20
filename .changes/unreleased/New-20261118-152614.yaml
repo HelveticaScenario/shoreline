@@ -1,0 +1,3 @@
+kind: New
+body: The Output Device list has a System Default choice that follows your computer's default output, so unplugging headphones moves the sound to your speakers. Playback stops when that happens, and a banner says where the sound went. New installs start on it with no input, and No Input now stays off after a restart.
+time: 2026-11-18T15:26:14.114007-05:00
