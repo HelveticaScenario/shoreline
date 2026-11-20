@@ -40,6 +40,12 @@ export function formatDb(db: number): string {
     return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
 }
 
+/** A held peak above 0 dB marks the channel as clipping, so the meter
+ *  stays red through the peak hold and release. */
+export function isClipping(peakDb: number): boolean {
+    return peakDb > 0;
+}
+
 /** Per-channel meter display state, advanced once per drawn frame: the
  *  fast (dim) layer and the held peak marker above it. */
 export interface VuBallistics {
@@ -112,12 +118,77 @@ export interface VuMeterColors {
     hot: string;
     /** Externally-controlled (signal-driven, locked) control accents. */
     external: string;
+    /** A clipping bar's zones and peak dash, darkest to lightest red, all
+     *  shades of `hot`. */
+    clipLow: string;
+    clipMid: string;
+    clipHot: string;
+    clipPeak: string;
     /** Font family for the dB scale labels (the `--font-mono` CSS var). */
     fontMono: string;
 }
 
+let parseCtx: CanvasRenderingContext2D | null = null;
+
+/** Any CSS colour as [r, g, b], via the canvas's own colour parser, which
+ *  normalizes an opaque colour to `#rrggbb` and a translucent one to
+ *  `rgba(r, g, b, a)`. */
+function parseRgb(color: string): [number, number, number] {
+    parseCtx ??= document.createElement('canvas').getContext('2d');
+    if (!parseCtx) {
+        return [0, 0, 0];
+    }
+    parseCtx.fillStyle = '#000000';
+    parseCtx.fillStyle = color;
+    const normalized = String(parseCtx.fillStyle);
+    if (normalized.startsWith('#')) {
+        const n = parseInt(normalized.slice(1), 16);
+        return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    const [r = 0, g = 0, b = 0] = normalized
+        .slice(normalized.indexOf('(') + 1)
+        .split(',')
+        .map((part) => Number(part));
+    return [r, g, b];
+}
+
+/** `color` moved `amount` (0–1) of the way to `target`. */
+function mixRgb(
+    color: [number, number, number],
+    target: [number, number, number],
+    amount: number,
+): string {
+    const channel = (i: number) =>
+        Math.round(color[i] + (target[i] - color[i]) * amount);
+    return `rgb(${channel(0)}, ${channel(1)}, ${channel(2)})`;
+}
+
+let clipShades: {
+    hot: string;
+    low: string;
+    mid: string;
+    peak: string;
+} | null = null;
+
+/** The clip reds for the theme's error colour, recomputed only when the
+ *  theme changes it. */
+function clipShadesFor(hot: string): NonNullable<typeof clipShades> {
+    if (clipShades?.hot !== hot) {
+        const rgb = parseRgb(hot);
+        clipShades = {
+            hot,
+            low: mixRgb(rgb, [0, 0, 0], 0.45),
+            mid: mixRgb(rgb, [0, 0, 0], 0.2),
+            peak: mixRgb(rgb, [255, 255, 255], 0.55),
+        };
+    }
+    return clipShades;
+}
+
 export function readVuMeterColors(): VuMeterColors {
     const styles = getComputedStyle(document.documentElement);
+    const hot = styles.getPropertyValue('--color-error').trim() || '#e05561';
+    const clip = clipShadesFor(hot);
     return {
         bg: styles.getPropertyValue('--bg-primary').trim() || '#0a0a0a',
         track: '#141414',
@@ -125,9 +196,13 @@ export function readVuMeterColors(): VuMeterColors {
         muted: styles.getPropertyValue('--text-muted').trim() || '#8a8a8a',
         low: styles.getPropertyValue('--color-success').trim() || '#9fd94f',
         mid: styles.getPropertyValue('--color-warning').trim() || '#d7ba4a',
-        hot: styles.getPropertyValue('--color-error').trim() || '#e05561',
+        hot,
         external:
             styles.getPropertyValue('--accent-primary').trim() || '#4ec9b0',
+        clipLow: clip.low,
+        clipMid: clip.mid,
+        clipHot: clip.hot,
+        clipPeak: clip.peak,
         fontMono: styles.getPropertyValue('--font-mono').trim() || 'monospace',
     };
 }
@@ -286,26 +361,27 @@ export function drawVuMeter(
 
     // Zone-segmented level fill: green to −12 dB, warning to 0, error
     // above. A signal-controlled gain tints the whole bar in the external
-    // accent instead, flipping back to zone colors when control returns.
-    const fillLevel = (x: number, db: number) => {
+    // accent instead, flipping back to zone colors when control returns. A
+    // clipping bar keeps its zones in three shades of red, over either.
+    const fillLevel = (x: number, db: number, clipping: boolean) => {
         const yTop = dbToY(db);
         if (yTop >= yBottom) {
             return;
         }
-        if (gainLocked) {
+        if (gainLocked && !clipping) {
             ctx.fillStyle = colors.external;
             ctx.fillRect(x, yTop, barW, yBottom - yTop);
             return;
         }
         const greenTop = Math.max(yTop, yMid);
-        ctx.fillStyle = colors.low;
+        ctx.fillStyle = clipping ? colors.clipLow : colors.low;
         ctx.fillRect(x, greenTop, barW, yBottom - greenTop);
         if (yTop < yMid) {
             const midTop = Math.max(yTop, yZero);
-            ctx.fillStyle = colors.mid;
+            ctx.fillStyle = clipping ? colors.clipMid : colors.mid;
             ctx.fillRect(x, midTop, barW, yMid - midTop);
             if (yTop < yZero) {
-                ctx.fillStyle = colors.hot;
+                ctx.fillStyle = clipping ? colors.clipHot : colors.hot;
                 ctx.fillRect(x, yTop, barW, yZero - yTop);
             }
         }
@@ -314,6 +390,7 @@ export function drawVuMeter(
     for (let ch = 0; ch < channels.length; ch++) {
         const x = firstBarX + ch * (barW + barGap);
         const { rmsDb, fastDb, peakDb } = channels[ch];
+        const clipping = isClipping(peakDb);
 
         // Unlit bar body, always visible like a hardware meter's dark glass.
         ctx.fillStyle = '#000000';
@@ -322,14 +399,14 @@ export function drawVuMeter(
         // Fast layer first, dimmed; the smooth layer paints over its lower
         // span, leaving the dim segment visible between the two levels.
         ctx.globalAlpha = 0.45;
-        fillLevel(x, fastDb);
+        fillLevel(x, fastDb, clipping);
         ctx.globalAlpha = 1;
-        fillLevel(x, rmsDb);
+        fillLevel(x, rmsDb, clipping);
 
         // Per-channel peak-hold dash on the bar.
         if (peakDb > VU_FLOOR_DB) {
             const yPeak = dbToY(peakDb);
-            ctx.fillStyle = peakDb > 0 ? colors.hot : '#d8d8d8';
+            ctx.fillStyle = clipping ? colors.clipPeak : '#d8d8d8';
             ctx.fillRect(x, yPeak - dpr, barW, 2 * dpr);
         }
     }

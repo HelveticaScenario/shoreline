@@ -84,6 +84,7 @@ import type { VuBallistics } from './app/vuMeter';
 import {
     drawVuMeter,
     formatDb,
+    isClipping,
     newBallistics,
     readVuMeterColors,
     updateBallistics,
@@ -274,6 +275,9 @@ function App() {
     );
     /** Per-meter, per-channel peak-marker state keyed by meter key. */
     const vuBallisticsRef = useRef(new Map<string, VuBallistics[]>());
+    /** Highest peak per meter since its readout was last reset, in dB. The
+     *  readout shows it and is red while it is above 0 dB. */
+    const vuPeakMaxRef = useRef(new Map<string, number>());
     /** Last drawn channel levels per meter, for redraws outside the RAF
      *  loop (canvas resizes and fader drags while the clock is stopped). */
     const vuLastChannelsRef = useRef(
@@ -1276,6 +1280,7 @@ function App() {
         vuCanvasMapRef.current.delete(key);
         vuBallisticsRef.current.delete(key);
         vuLastChannelsRef.current.delete(key);
+        vuPeakMaxRef.current.delete(key);
     }, []);
 
     /**
@@ -1530,6 +1535,9 @@ function App() {
 
     const registerVuReadout = useCallback((key: string, el: HTMLElement) => {
         vuReadoutMapRef.current.set(key, el);
+        const peakMax = vuPeakMaxRef.current.get(key) ?? -Infinity;
+        el.textContent = formatDb(peakMax);
+        el.dataset.clipped = String(isClipping(peakMax));
     }, []);
 
     const unregisterVuReadout = useCallback((key: string) => {
@@ -1550,9 +1558,11 @@ function App() {
     /** Restart a meter's peak hold; it re-seeds from the next frame's levels. */
     const handleVuPeakReset = useCallback((key: string) => {
         vuBallisticsRef.current.delete(key);
+        vuPeakMaxRef.current.delete(key);
         const readout = vuReadoutMapRef.current.get(key);
         if (readout) {
             readout.textContent = '-∞';
+            readout.dataset.clipped = 'false';
         }
     }, []);
 
@@ -1757,10 +1767,16 @@ function App() {
                                     `rotate(${(Math.max(-5, Math.min(5, frame.pan)) / 5) * 135} 13 17)`,
                                 );
                             }
+                            const peakMax = Math.max(
+                                vuPeakMaxRef.current.get(key) ?? -Infinity,
+                                ...channels.map((c) => c.peakDb),
+                            );
+                            vuPeakMaxRef.current.set(key, peakMax);
                             const readout = vuReadoutMapRef.current.get(key);
                             if (readout) {
-                                readout.textContent = formatDb(
-                                    Math.max(...channels.map((c) => c.peakDb)),
+                                readout.textContent = formatDb(peakMax);
+                                readout.dataset.clipped = String(
+                                    isClipping(peakMax),
                                 );
                             }
                         }
