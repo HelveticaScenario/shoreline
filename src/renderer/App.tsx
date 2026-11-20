@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { MonacoPatchEditor as PatchEditor } from './components/MonacoPatchEditor';
 import { VideoBackdrop } from './app/video/VideoBackdrop';
 import { PerformancePreview } from './app/video/PerformancePreview';
@@ -81,11 +88,12 @@ import type { VuBallistics } from './app/vuMeter';
 import {
     drawVuMeter,
     formatDb,
+    isClipping,
     newBallistics,
-    readVuMeterColors,
     updateBallistics,
     voltsToDb,
 } from './app/vuMeter';
+import { readVuMeterColors } from './app/vuMeterColors';
 import type { ScopeView } from './types/editor';
 import { EqPanelController } from './eq/eqPanelController';
 import { type EqPanelSetup, disposeEqPanelSetup } from './eq/eqPanelSetup';
@@ -119,6 +127,12 @@ type ReleaseNotesView =
     | { kind: 'update' }
     | { kind: 'whatsNew'; currentVersion: string; releases: ReleaseNotes[] }
     | { kind: 'changelog'; info: ChangelogInfo };
+
+/** Show a meter's highest peak on its readout pill, red above 0 dB. */
+function showVuPeak(readout: HTMLElement, peakDb: number): void {
+    readout.textContent = formatDb(peakDb);
+    readout.dataset.clipped = String(isClipping(peakDb));
+}
 
 function App() {
     const {
@@ -269,6 +283,11 @@ function App() {
     );
     /** Per-meter, per-channel peak-marker state keyed by meter key. */
     const vuBallisticsRef = useRef(new Map<string, VuBallistics[]>());
+    /** Highest peak per meter since its readout was last reset, in dB. The
+     *  readout shows it and is red while it is above 0 dB. It outlives the
+     *  meter's strip, so a clip stays flagged across folds and tab switches
+     *  until the readout is clicked. */
+    const vuPeakMaxRef = useRef(new Map<string, number>());
     /** Last drawn channel levels per meter, for redraws outside the RAF
      *  loop (canvas resizes and fader drags while the clock is stopped). */
     const vuLastChannelsRef = useRef(
@@ -1255,6 +1274,19 @@ function App() {
         [redrawVuMeter],
     );
 
+    // A stopped engine makes no sound, so its meters fall to silence; the
+    // readouts keep their highest peaks.
+    useEffect(() => {
+        if (isClockRunning) {
+            return;
+        }
+        vuBallisticsRef.current.clear();
+        vuLastChannelsRef.current.clear();
+        for (const key of vuCanvasMapRef.current.keys()) {
+            redrawVuMeter(key);
+        }
+    }, [isClockRunning, redrawVuMeter]);
+
     /** Write `gain` into the source — the track's `gain` option, or
      *  $setMainGain for the master. */
     const writeVuGainEdit = useCallback(
@@ -1461,6 +1493,7 @@ function App() {
 
     const registerVuReadout = useCallback((key: string, el: HTMLElement) => {
         vuReadoutMapRef.current.set(key, el);
+        showVuPeak(el, vuPeakMaxRef.current.get(key) ?? -Infinity);
     }, []);
 
     const unregisterVuReadout = useCallback((key: string) => {
@@ -1470,16 +1503,27 @@ function App() {
     /** Restart a meter's peak hold; it re-seeds from the next frame's levels. */
     const handleVuPeakReset = useCallback((key: string) => {
         vuBallisticsRef.current.delete(key);
+        vuPeakMaxRef.current.delete(key);
         const readout = vuReadoutMapRef.current.get(key);
         if (readout) {
-            readout.textContent = '-∞';
+            showVuPeak(readout, -Infinity);
         }
     }, []);
 
+    // Submissions read this ref. The editor's change handler writes it as the
+    // text changes, and it follows buffer switches at commit, so a submit
+    // made before React re-renders never sends stale code.
     const patchCodeRef = useRef(patchCode);
-    useEffect(() => {
+    useLayoutEffect(() => {
         patchCodeRef.current = patchCode;
     }, [patchCode]);
+    const handleEditorChange = useCallback(
+        (value: string) => {
+            patchCodeRef.current = value;
+            handlePatchChange(value);
+        },
+        [handlePatchChange],
+    );
 
     const runningBufferIdRef = useRef(runningBufferId);
     useEffect(() => {
@@ -1677,11 +1721,18 @@ function App() {
                             if (frame.controls && output) {
                                 paintVuKnobFrame(output, frame.controls);
                             }
+                            const prevMax =
+                                vuPeakMaxRef.current.get(key) ?? -Infinity;
+                            const peakMax = Math.max(
+                                prevMax,
+                                ...channels.map((c) => c.peakDb),
+                            );
                             const readout = vuReadoutMapRef.current.get(key);
-                            if (readout) {
-                                readout.textContent = formatDb(
-                                    Math.max(...channels.map((c) => c.peakDb)),
-                                );
+                            if (peakMax !== prevMax) {
+                                vuPeakMaxRef.current.set(key, peakMax);
+                                if (readout) {
+                                    showVuPeak(readout, peakMax);
+                                }
                             }
                         }
                     }
@@ -1845,7 +1896,7 @@ function App() {
     }, [selectWorkspaceFolder]);
 
     const handleSubmitRef = useRef((_trigger?: QueuedTrigger) => {});
-    useEffect(() => {
+    useLayoutEffect(() => {
         handleSubmitRef.current = async (trigger?: QueuedTrigger) => {
             if (!activeBufferId) {
                 return;
@@ -2602,7 +2653,7 @@ function App() {
                                 currentFile={activeBufferId}
                                 viewStates={viewStates}
                                 openFiles={openBufferIds}
-                                onChange={handlePatchChange}
+                                onChange={handleEditorChange}
                                 editorRef={editorRef}
                                 onEditorChange={setPaletteEditor}
                                 scopeViews={scopeViews}

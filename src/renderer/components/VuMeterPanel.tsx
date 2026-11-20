@@ -299,7 +299,7 @@ function VuMeter({
                         <button
                             ref={readoutRef}
                             className="vu-peak-readout"
-                            title="Peak level (click to reset)"
+                            title="Highest peak since reset, red above 0 dB (click to reset)"
                             onClick={() => onPeakReset(output.key)}
                         >
                             -∞
