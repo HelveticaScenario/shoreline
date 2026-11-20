@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    A send level in `.track({ sends: [bus, level] })` is now a linear mix amount, like `$amp`: 5 sends at full level, 2.5 at half and 0 not at all, instead of following the 12 dB-per-step `.gain()` curve. Patches with a send level other than 5 send a different amount; to keep a send at about the same level, convert it from the gain scale:
+    A send level in `.track({ sends: [bus, level] })` is now a linear mix amount, like `$amp`: 5 sends at full level, 2.5 at half and 0 not at all, instead of following the 12 dB-per-step `.gain()` curve. Patches with a send level between 0 and 5 send more than before, and a negative level inverts the send; to keep a send at about the same level, convert it from the gain scale:
 
     ```js
     // before: 4 on the gain scale, 12 dB down
