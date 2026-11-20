@@ -11,7 +11,7 @@
 // for channel 0 when a test pins `TEST_SEED_BASE` to 1, so the random engines
 // draw the same values as the modules; string's cases keep dispersion off,
 // where only the sounding string draws.
-// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/chords/chord_bank.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/bass_drum_engine.cc plaits/dsp/engine/chord_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/hi_hat_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/snare_drum_engine.cc plaits/dsp/engine/speech_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/virtual_analog_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/six_op_engine.cc plaits/dsp/engine2/string_machine_engine.cc plaits/dsp/engine2/virtual_analog_vcf_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/fm/algorithms.cc plaits/dsp/fm/dx_units.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc plaits/dsp/speech/lpc_speech_synth.cc plaits/dsp/speech/lpc_speech_synth_controller.cc plaits/dsp/speech/lpc_speech_synth_phonemes.cc plaits/dsp/speech/lpc_speech_synth_words.cc plaits/dsp/speech/naive_speech_synth.cc plaits/dsp/speech/sam_speech_synth.cc
+// build: stmlib/dsp/units.cc stmlib/utils/random.cc plaits/dsp/chords/chord_bank.cc plaits/dsp/engine/additive_engine.cc plaits/dsp/engine/bass_drum_engine.cc plaits/dsp/engine/chord_engine.cc plaits/dsp/engine/fm_engine.cc plaits/dsp/engine/grain_engine.cc plaits/dsp/engine/hi_hat_engine.cc plaits/dsp/engine/modal_engine.cc plaits/dsp/engine/noise_engine.cc plaits/dsp/engine/particle_engine.cc plaits/dsp/engine/snare_drum_engine.cc plaits/dsp/engine/speech_engine.cc plaits/dsp/engine/string_engine.cc plaits/dsp/engine/swarm_engine.cc plaits/dsp/engine/virtual_analog_engine.cc plaits/dsp/engine/waveshaping_engine.cc plaits/dsp/engine2/phase_distortion_engine.cc plaits/dsp/engine2/six_op_engine.cc plaits/dsp/engine2/string_machine_engine.cc plaits/dsp/engine2/virtual_analog_vcf_engine.cc plaits/dsp/engine2/wave_terrain_engine.cc plaits/dsp/fm/algorithms.cc plaits/dsp/fm/dx_units.cc plaits/dsp/physical_modelling/modal_voice.cc plaits/dsp/physical_modelling/resonator.cc plaits/dsp/physical_modelling/string_voice.cc plaits/dsp/physical_modelling/string.cc plaits/dsp/speech/lpc_speech_synth.cc plaits/dsp/speech/lpc_speech_synth_controller.cc plaits/dsp/speech/lpc_speech_synth_phonemes.cc plaits/dsp/speech/lpc_speech_synth_words.cc plaits/dsp/speech/naive_speech_synth.cc plaits/dsp/speech/sam_speech_synth.cc
 
 #include <algorithm>
 #include <cstdio>
@@ -25,6 +25,7 @@
 #include "plaits/dsp/engine/grain_engine.h"
 #include "plaits/dsp/engine/hi_hat_engine.h"
 #include "plaits/dsp/engine/modal_engine.h"
+#include "plaits/dsp/engine/noise_engine.h"
 #include "plaits/dsp/engine/particle_engine.h"
 #include "plaits/dsp/engine/snare_drum_engine.h"
 #include "plaits/dsp/engine/speech_engine.h"
@@ -61,7 +62,8 @@ static float Patch(int index) { return (float(index) + 0.5f) / 32.64f; }
 // the synth words (0.9), scanned; the bass and snare drums struck at 10 and
 // 5 Hz and droning, the snare drums with no snares (one ringing out below
 // the synthetic drum's 0.03, where Plaits slows its decay) and with them;
-// and the hi-hats struck and hissing, with no noise and with it.
+// the hi-hats struck and hissing, with no noise and with it; and the filtered
+// noise smooth and stepped, running free and clocked by its trigger.
 static const Case kCases[] = {
     {0, 45.0f, 0.15f, 0.5f, 0.1f},  {0, 57.0f, 0.85f, 0.45f, 0.6f},
     {0, 40.0f, 0.5f, 0.35f, 0.95f},
@@ -84,6 +86,8 @@ static const Case kCases[] = {
     {15, 48.0f, 1.0f / 6.0f, 0.6f, 0.2f}, {15, 40.0f, 0.333f, 0.45f, 0.1f},
     {15, 48.0f, 0.48f, 0.5f, 0.6f}, {15, 43.0f, 0.9f, 0.35f, 0.5f},
     {16, 48.0f, 0.5f, 0.5f, 0.5f}, {16, 60.0f, 0.2f, 0.7f, 0.9f},
+    {17, 60.0f, 0.5f, 1.0f, 0.1f},  {17, 60.0f, 0.3f, 0.9f, 0.1f},
+    {17, 64.0f, 0.85f, 0.8f, 0.0f}, {17, 48.0f, 0.6f, 0.5f, 0.15f, 2400},
     {18, 52.0f, 0.4f, 0.8f, 0.8f}, {18, 64.0f, 0.7f, 0.6f, 0.2f},
     {19, 40.0f, 0.1f, 0.6f, 0.7f}, {19, 52.0f, 0.25f, 0.4f, 0.9f},
     {20, 45.0f, 0.4f, 0.6f, 0.7f}, {20, 57.0f, 0.75f, 0.3f, 0.5f},
@@ -114,6 +118,7 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
   static StringEngine string;
   static SwarmEngine swarm;
   static ModalEngine modal;
+  static NoiseEngine noise;
   static ParticleEngine particle;
   static SpeechEngine speech;
   static SixOpEngine six_op;
@@ -137,6 +142,7 @@ static Engine* Select(int index, float* out_gain, float* aux_gain) {
     case 14: *out_gain = 0.8f; *aux_gain = 0.8f; return &chord;
     case 15: *out_gain = -0.7f; *aux_gain = 0.8f; return &speech;
     case 16: *out_gain = -3.0f; *aux_gain = 1.0f; return &swarm;
+    case 17: *out_gain = -1.0f; *aux_gain = -1.0f; return &noise;
     case 18: *out_gain = -2.0f; *aux_gain = 1.0f; return &particle;
     case 19: *out_gain = -1.0f; *aux_gain = 0.8f; return &string;
     case 20: *out_gain = -1.0f; *aux_gain = 0.8f; return &modal;
@@ -185,7 +191,9 @@ int main(int argc, char** argv) {
     p.timbre = c.timbre;
     p.morph = c.morph;
     p.accent = 0.8f;
-    const int blocks = c.trigger_period ? 4000 : 1000;
+    // The filtered noise runs long enough for its level to settle within the
+    // noise's spread.
+    const int blocks = c.engine == 17 ? 16000 : (c.trigger_period ? 4000 : 1000);
     const float header[7] = {float(c.engine), c.note, c.harmonics, c.timbre,
                              c.morph, float(c.trigger_period),
                              float(blocks * kBlockSize)};
