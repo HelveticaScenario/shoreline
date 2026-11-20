@@ -3,6 +3,7 @@
 //! and saw shapes on its plain path.
 
 use super::control::Ramp;
+use super::dsp::constrain;
 use super::polyblep::{
     edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
     this_integrated_blep_sample,
@@ -33,19 +34,6 @@ impl Default for SlopeOscillator {
             frequency,
             pw,
         }
-    }
-}
-
-/// stmlib's `CONSTRAIN`: the low bound wins when the bounds cross, which a
-/// frequency a hair past 0.25 does.
-#[inline(always)]
-fn constrain(x: f32, low: f32, high: f32) -> f32 {
-    if x < low {
-        low
-    } else if x > high {
-        high
-    } else {
-        x
     }
 }
 

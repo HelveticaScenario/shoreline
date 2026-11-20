@@ -423,6 +423,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.synthSnare"
         | "$mi.twoOp"
         | "$mi.va"
+        | "$mi.vcf"
         | "$mi.formantVowel"
         | "$mi.lpcVowel"
         | "$mi.samVowel"

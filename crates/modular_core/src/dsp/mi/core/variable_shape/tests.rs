@@ -101,3 +101,69 @@ fn stays_within_a_cycle() {
         }
     }
 }
+
+/// A frequency running backward plays the forward waveform reversed in
+/// time, so its harmonics match the forward ones, at every shape and
+/// width. Each tone is measured over whole cycles, where the waveform's
+/// DC leaks into no harmonic.
+#[test]
+fn runs_backward() {
+    let sample_rate = 48000.0;
+    for (hz, pw, waveshape) in [
+        (110.0, 0.5, 0.0),
+        (220.0, 0.7, 0.25),
+        (110.0, 0.5, 0.5),
+        (55.0, 0.8, 0.75),
+        (440.0, 0.3, 1.0),
+    ] {
+        let tone = |f: f32| {
+            let mut oscillator = VariableShapeOscillator::default();
+            let out: Vec<f32> = (0..96000)
+                .map(|_| oscillator.step(f, pw, waveshape))
+                .collect();
+            harmonics(&out, hz, sample_rate, 16)
+        };
+        let forward = tone(hz / sample_rate);
+        let backward = tone(-hz / sample_rate);
+        let loudest = forward.iter().fold(0.0f32, |m, &a| m.max(a));
+        for (h, (b, f)) in backward.iter().zip(&forward).enumerate() {
+            assert!(
+                (b - f).abs() < 0.01 * loudest,
+                "{hz} Hz, pw {pw}, shape {waveshape}, harmonic {}: {b} vs {f}",
+                h + 1
+            );
+        }
+    }
+}
+
+/// Turning around mid-cycle, at a standstill or at the frequency limit,
+/// keeps the waveform within its swing.
+#[test]
+fn turns_around_cleanly() {
+    let mut oscillator = VariableShapeOscillator::default();
+    for n in 0..20000 {
+        let f = match n % 997 {
+            0..=9 => 0.0,
+            10..=19 => 0.25,
+            20..=29 => -0.25,
+            _ => 0.01 * (n as f32 * 0.002).sin(),
+        };
+        let shape = (n % 5) as f32 * 0.25;
+        let out = oscillator.step(f, 0.5 + 0.4 * (n as f32 * 0.01).sin(), shape);
+        assert!(out.is_finite() && out.abs() < 2.0, "sample {n}: {out}");
+    }
+}
+
+/// A backward wrap from a hair below 0 lands within the cycle, high,
+/// rather than at 1, where it would wrap again to the low half.
+#[test]
+fn backward_wrap_stays_below_one() {
+    let mut oscillator = VariableShapeOscillator::default();
+    oscillator.frequency.set(-1e-9, None);
+    oscillator.pw.set(0.5, None);
+    oscillator.waveshape.set(0.5, None);
+    let out = oscillator.step(-1e-9, 0.5, 0.5);
+    assert!(out.is_finite());
+    assert!(oscillator.phase < 1.0, "phase {}", oscillator.phase);
+    assert!(oscillator.high);
+}

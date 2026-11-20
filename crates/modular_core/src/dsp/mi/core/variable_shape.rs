@@ -1,18 +1,19 @@
-//! `plaits::VariableShapeOscillator` on its hard-sync path: a master phasor
-//! restarting a slave whose waveform morphs from triangle through saw to a
-//! square of variable width. Extended to run backward: the master wraps below
-//! 0, the slave crosses its width and 0 going down, and a backward sync
-//! restarts the slave where a forward cycle ends.
+//! `plaits::VariableShapeOscillator`: a band-limited waveform that morphs from
+//! triangle through saw to a variable-width square, free-running or
+//! hard-synced to a master phasor. A negative frequency runs the waveform
+//! backward, mirroring each band-limited step; a backward sync restarts the
+//! slave where a forward master cycle ends.
 
 use super::control::Ramp;
-use super::phase::{fraction, wrap};
+use super::dsp::constrain;
+use super::phase::{BELOW_ONE, fraction, wrap};
 use super::polyblep::{
     edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
     this_integrated_blep_sample, within_sample,
 };
 
-/// Slave transitions handled per sample; more than enough for any finite
-/// phase, and a bound if one is not.
+/// Transitions handled per sample; more than enough for any finite phase, and
+/// a bound if one is not.
 const MAX_TRANSITIONS: usize = 4;
 
 #[derive(Clone, Copy)]
@@ -37,18 +38,6 @@ impl Default for VariableShapeOscillator {
     }
 }
 
-/// stmlib's `CONSTRAIN`: the low bound wins when the bounds cross.
-#[inline(always)]
-fn constrain(x: f32, low: f32, high: f32) -> f32 {
-    if x < low {
-        low
-    } else if x > high {
-        high
-    } else {
-        x
-    }
-}
-
 /// The waveform at one width and waveshape; `triangle` and `square` are
 /// never both above 0.
 #[derive(Clone, Copy)]
@@ -62,6 +51,17 @@ struct Shape {
 
 impl Shape {
     #[inline(always)]
+    fn new(pw: f32, waveshape: f32) -> Self {
+        Self {
+            pw,
+            slope_up: 1.0 / pw,
+            slope_down: 1.0 / (1.0 - pw),
+            triangle: (1.0 - waveshape * 2.0).max(0.0),
+            square: (waveshape - 0.5).max(0.0) * 2.0,
+        }
+    }
+
+    #[inline(always)]
     fn naive(&self, phase: f32) -> f32 {
         let mut saw = phase;
         let square = if phase < self.pw { 0.0 } else { 1.0 };
@@ -73,6 +73,16 @@ impl Shape {
         saw += (square - saw) * self.square;
         saw += (triangle - saw) * self.triangle;
         saw
+    }
+}
+
+/// The width Plaits allows at `speed` cycles per sample.
+#[inline(always)]
+fn bounded_pw(pw: f32, speed: f32) -> f32 {
+    if speed >= 0.25 {
+        0.5
+    } else {
+        constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
     }
 }
 
@@ -97,10 +107,36 @@ impl VariableShapeOscillator {
         }
     }
 
+    /// One free-running sample, from −1 to 1, at `frequency` cycles per
+    /// sample (finite and within ±0.25, which the caller ensures), `pw` the
+    /// fraction of the cycle before the square's edge or the triangle's peak,
+    /// and `waveshape` from triangle (0) through saw (0.5) to square (1).
+    #[inline(always)]
+    pub fn step(&mut self, frequency: f32, pw: f32, waveshape: f32) -> f32 {
+        self.frequency.set(frequency, Some(1.0));
+        self.pw.set(bounded_pw(pw, frequency.abs()), Some(1.0));
+        self.waveshape.set(waveshape, Some(1.0));
+        let frequency = self.frequency.next_value();
+        let shape = Shape::new(self.pw.next_value(), self.waveshape.next_value());
+
+        let mut this_sample = self.next_sample;
+        let mut next_sample = 0.0;
+        let crossing = self.previous_pw - shape.pw + frequency;
+        self.phase += frequency;
+        self.transitions(
+            frequency,
+            crossing,
+            &shape,
+            &mut this_sample,
+            &mut next_sample,
+        );
+        self.finish(&shape, this_sample, next_sample)
+    }
+
     /// One sample, from −1 to 1, of the slave at `slave` cycles per sample
     /// restarted by the master at `master`: both finite and of the same sign
-    /// (negative runs backward), held to ±`max`. `pw` is the slave's width and
-    /// `waveshape` runs from triangle (0) through saw (1/2) to square (1).
+    /// (negative runs backward), held to ±`max`. `pw` and `waveshape` shape
+    /// the slave as in [`step`](Self::step).
     #[inline(always)]
     pub fn step_synced(
         &mut self,
@@ -112,30 +148,17 @@ impl VariableShapeOscillator {
     ) -> f32 {
         let master = master.clamp(-max, max);
         let slave = slave.clamp(-max, max);
-        let speed = slave.abs();
-        let pw = if speed >= 0.25 {
-            0.5
-        } else {
-            constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
-        };
         self.master_frequency.set(master, Some(1.0));
         self.frequency.set(slave, Some(1.0));
-        self.pw.set(pw, Some(1.0));
+        self.pw.set(bounded_pw(pw, slave.abs()), Some(1.0));
         self.waveshape.set(waveshape, Some(1.0));
 
         let mut this_sample = self.next_sample;
         let mut next_sample = 0.0;
         let master_frequency = self.master_frequency.next_value();
         let frequency = self.frequency.next_value();
-        let pw = self.pw.next_value();
-        let waveshape = self.waveshape.next_value();
-        let shape = Shape {
-            pw,
-            slope_up: 1.0 / pw,
-            slope_down: 1.0 / (1.0 - pw),
-            triangle: (1.0 - waveshape * 2.0).max(0.0),
-            square: (waveshape - 0.5).max(0.0) * 2.0,
-        };
+        let shape = Shape::new(self.pw.next_value(), self.waveshape.next_value());
+        let pw = shape.pw;
 
         let mut reset = false;
         let mut transition_during_reset = false;
@@ -193,7 +216,6 @@ impl VariableShapeOscillator {
                 &mut next_sample,
             );
         }
-
         if reset {
             // The slave runs on from its restart for the rest of the sample,
             // which can carry it across its width or its end below 12 kHz, or
@@ -214,15 +236,7 @@ impl VariableShapeOscillator {
                 &mut next_sample,
             );
         }
-        if !(0.0..1.0).contains(&self.phase) {
-            self.phase = wrap(self.phase);
-            self.high = self.phase >= pw;
-        }
-
-        next_sample += shape.naive(self.phase);
-        self.previous_pw = pw;
-        self.next_sample = next_sample;
-        2.0 * this_sample - 1.0
+        self.finish(&shape, this_sample, next_sample)
     }
 
     /// The band-limited steps for each width crossing and wrap the phase made
@@ -282,7 +296,9 @@ impl VariableShapeOscillator {
                     break;
                 }
                 let t = edge_time(self.phase, frequency);
-                self.phase += 1.0;
+                // A phase a hair below 0 rounds up to 1 here; the largest
+                // value below 1 keeps it within the cycle.
+                self.phase = (self.phase + 1.0).min(BELOW_ONE);
                 *this_sample += wrap_step * this_blep_sample(t);
                 *next_sample += wrap_step * next_blep_sample(t);
                 *this_sample += corner * this_integrated_blep_sample(t);
@@ -290,6 +306,19 @@ impl VariableShapeOscillator {
                 self.high = true;
             }
         }
+    }
+
+    /// Brings the phase back within its cycle and emits the sample.
+    #[inline(always)]
+    fn finish(&mut self, shape: &Shape, this_sample: f32, mut next_sample: f32) -> f32 {
+        if !(0.0..1.0).contains(&self.phase) {
+            self.phase = wrap(self.phase);
+            self.high = self.phase >= shape.pw;
+        }
+        next_sample += shape.naive(self.phase);
+        self.previous_pw = shape.pw;
+        self.next_sample = next_sample;
+        2.0 * this_sample - 1.0
     }
 }
 
