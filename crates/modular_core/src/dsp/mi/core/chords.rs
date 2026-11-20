@@ -26,9 +26,17 @@ const CHORDS: [[f32; NUM_NOTES]; NUM_CHORDS] = [
     [0.00, 4.00, 7.00, 12.00],
 ];
 
-/// How far past halfway to the next chord the selection moves before it
-/// changes, in chords.
+/// How far past halfway to the next step a selection moves before it
+/// changes, in steps.
 const HYSTERESIS: f32 = 0.075;
+
+/// `stmlib::HysteresisQuantizer2`: the step of `0..steps` nearest `value`,
+/// keeping `current` until `value` passes the halfway point by `HYSTERESIS`.
+#[inline(always)]
+pub fn quantize(current: usize, value: f32, steps: usize) -> usize {
+    let sign = if value > current as f32 { -1.0 } else { 1.0 };
+    ((value + sign * HYSTERESIS + 0.5) as i32).clamp(0, steps as i32 - 1) as usize
+}
 
 /// The voices of an inversion: each voice's frequency ratio to the root and
 /// its level, and a bit set for each voice playing the root.
@@ -67,9 +75,7 @@ impl ChordBank {
         if index.is_nan() {
             return;
         }
-        let sign = if index > self.index as f32 { -1.0 } else { 1.0 };
-        let index =
-            ((index + sign * HYSTERESIS + 0.5) as i32).clamp(0, NUM_CHORDS as i32 - 1) as usize;
+        let index = quantize(self.index, index, NUM_CHORDS);
         if index != self.index {
             self.index = index;
             self.ratios = ratios(index);
@@ -78,6 +84,28 @@ impl ChordBank {
 
     pub fn chord_index(&self) -> usize {
         self.index
+    }
+
+    /// How many distinct notes the chord has, leaving out the notes that
+    /// only double another a detune or an octave away.
+    pub fn num_notes(&self) -> usize {
+        CHORDS[self.index]
+            .iter()
+            .filter(|n| ![0.01, 7.01, 11.99, 12.0].contains(*n))
+            .count()
+    }
+
+    /// `Sort`: the chord's ratios folded into the octave above the root, in
+    /// ascending order.
+    pub fn sorted_ratios(&self) -> [f32; NUM_NOTES] {
+        let mut sorted = self.ratios.map(|mut r| {
+            while r > 2.0 {
+                r *= 0.5;
+            }
+            r
+        });
+        sorted.sort_unstable_by(f32::total_cmp);
+        sorted
     }
 
     /// `ComputeChordInversion`: the chord's notes over five voices at
@@ -147,6 +175,22 @@ mod tests {
         assert_eq!(bank.chord_index(), NUM_CHORDS - 1);
         bank.set_chord(-7.0);
         assert_eq!(bank.chord_index(), 0);
+    }
+
+    #[test]
+    fn counts_and_sorts_the_chord() {
+        let mut bank = ChordBank::default();
+        let counts: Vec<usize> = (0..NUM_CHORDS)
+            .map(|i| {
+                bank.set_chord(i as f32);
+                bank.num_notes()
+            })
+            .collect();
+        assert_eq!(counts, [1, 2, 3, 3, 4, 4, 4, 4, 4, 4, 3]);
+        bank.set_chord(5.0);
+        let sorted = bank.sorted_ratios();
+        assert!(sorted.windows(2).all(|w| w[0] <= w[1]));
+        assert!(sorted.iter().all(|&r| (1.0..=2.0).contains(&r)));
     }
 
     #[test]

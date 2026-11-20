@@ -1,0 +1,3 @@
+kind: New
+body: 'New `$mi.chiptune`: Plaits'' chiptune engine, chords of square waves over a stepped NES-style triangle bass on its own `bass` output. Patch `trigger` and it arpeggiates the chord instead, a note per trigger, in the direction and octave range `pattern` picks, with `decay` fading each note.'
+time: 2026-11-20T07:35:57.907687-05:00
