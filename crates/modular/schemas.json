@@ -42277,6 +42277,296 @@
     "stereo": "lift"
   },
   {
+    "name": "$mi.va",
+    "docs": {
+      "summary": "Virtual analog dual oscillator",
+      "description": "Mutable Instruments Plaits' virtual analog oscillator: a square and a saw, each with a morphing shape, tuned an interval apart, and a second output of two hard-synced oscillators for tearing sync leads.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Fifths",
+          "code": "lead: $mi.va('c3', { detune: 3.1, shape: 1 })"
+        },
+        {
+          "title": "Sync sweep",
+          "code": "const sweep = $sine('0.1hz').range(0.5, 4.5)\nlead: $mi.va('a2', { square: sweep })._sync"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "VirtualAnalogParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "oscillator pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "detune": {
+          "description": "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "square": {
+          "description": "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "shape": {
+          "description": "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "dual",
+        "description": "a square and a saw, the saw tuned by `detune`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "sync",
+        "description": "two hard-synced oscillators, `detune` apart, one subtracted from the other",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "oscillator pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "detune",
+        "description": "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "square",
+        "description": "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "shape",
+        "description": "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
     "name": "$mi.vcf",
     "docs": {
       "summary": "Oscillator into a resonant filter",

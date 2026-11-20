@@ -87,6 +87,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
                 port("$mi.waveTerrain", knobs, "pm"),
             ]
         }
+        8 => {
+            let knobs = json!({ "detune": 5.0 * h, "square": 5.0 * t, "shape": 5.0 * m });
+            [
+                port("$mi.va", knobs.clone(), "dual"),
+                port("$mi.va", knobs, "sync"),
+            ]
+        }
         9 => {
             let knobs = json!({ "shape": 5.0 * h, "fold": 5.0 * t, "asymmetry": 5.0 * m });
             [

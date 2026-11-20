@@ -25,6 +25,7 @@ pub mod speak;
 pub mod string;
 pub mod swarm;
 pub mod two_op;
+pub mod va;
 pub mod vcf;
 pub mod vowel;
 pub mod wave_terrain;
@@ -51,6 +52,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     string::MiString::install_constructor(map);
     swarm::Swarm::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
+    va::VirtualAnalog::install_constructor(map);
     vcf::Vcf::install_constructor(map);
     vowel::naive::FormantVowel::install_constructor(map);
     vowel::sam::SamVowel::install_constructor(map);
@@ -80,6 +82,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     string::MiString::install_params_deserializer(map);
     swarm::Swarm::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
+    va::VirtualAnalog::install_params_deserializer(map);
     vcf::Vcf::install_params_deserializer(map);
     vowel::naive::FormantVowel::install_params_deserializer(map);
     vowel::sam::SamVowel::install_params_deserializer(map);
@@ -110,6 +113,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         string::MiString::get_schema(),
         swarm::Swarm::get_schema(),
         two_op::TwoOp::get_schema(),
+        va::VirtualAnalog::get_schema(),
         vcf::Vcf::get_schema(),
         vowel::naive::FormantVowel::get_schema(),
         vowel::sam::SamVowel::get_schema(),
