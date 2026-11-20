@@ -13,6 +13,8 @@ use crate::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
 #[serde(rename_all = "camelCase")]
@@ -40,6 +42,10 @@ struct SineOscillatorParams {
     )]
     #[deserr(default)]
     phase_offset: Option<PolySignal>,
+    #[input("smooths the click of a hard-sync reset; off makes the reset an exact step")]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    bandlimit: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -99,7 +105,7 @@ impl LaneState {
     /// Advance the phase by `increment` (cycles per sample) and return the
     /// next output sample. `sync` is this sample's sync input, if connected.
     #[inline(always)]
-    fn step(&mut self, increment: f32, offset: f32, sync: Option<f32>) -> f32 {
+    fn step(&mut self, increment: f32, offset: f32, sync: Option<f32>, bandlimit: bool) -> f32 {
         self.phase = wrap_phase(self.phase + increment);
 
         // Phase offset shifts the read position without altering the
@@ -113,14 +119,14 @@ impl LaneState {
         self.blep_carry = 0.0;
 
         // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the discontinuity.
+        // at the subsample crossing when band-limited.
         let mut now = 0.0;
         if let Some(v) = sync {
             if self.sync_schmitt.process(v) {
                 let frac = sync_edge_fraction(self.sync_prev, v);
                 self.phase = 0.0;
                 let after = interpolate(LUT_SINE, offset.rem_euclid(1.0), LUT_SINE_SIZE);
-                let (n, carry) = sync_blep(after - body, frac);
+                let (n, carry) = sync_blep(after - body, frac, bandlimit);
                 now = n;
                 self.blep_carry = carry;
             }
@@ -144,7 +150,7 @@ impl SineOscillator {
             let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
             self.outputs
                 .sample
-                .set(lane, state.step(increment, offset, sync));
+                .set(lane, state.step(increment, offset, sync, p.bandlimit));
         }
     }
 
@@ -186,7 +192,12 @@ impl SineOscillator {
                 } else {
                     apply_fm(pitch[lane], fm[lane], p.fm_mode) / sample_rate
                 };
-                *out = sanitize(state.step(increment, offset[lane], sync.map(|sync| sync[lane])));
+                *out = sanitize(state.step(
+                    increment,
+                    offset[lane],
+                    sync.map(|sync| sync[lane]),
+                    p.bandlimit,
+                ));
             }
         }
         Some(())
@@ -208,6 +219,7 @@ mod tests {
             fm_mode,
             sync: None,
             phase_offset: None,
+            bandlimit: true,
         };
         let lanes = params.freq.lanes().max(1);
         let mut outputs = SineOscillatorOutputs::default();

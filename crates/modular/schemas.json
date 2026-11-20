@@ -12247,6 +12247,11 @@
             "controlMin": 0.0,
             "controlMax": 1.0
           }
+        },
+        "bandlimit": {
+          "description": "smooths the click of a hard-sync reset; off makes the reset an exact step",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
@@ -12504,6 +12509,11 @@
         },
         "waitForZeroCross": {
           "description": "a new voice stays silent until its wave first crosses zero, so a phase offset cannot start it with a click",
+          "type": "boolean",
+          "default": true
+        },
+        "bandlimit": {
+          "description": "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone",
           "type": "boolean",
           "default": true
         }
@@ -12793,6 +12803,11 @@
             "controlMin": 0.0,
             "controlMax": 1.0
           }
+        },
+        "bandlimit": {
+          "description": "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
@@ -13154,6 +13169,11 @@
             "controlMin": 0.0,
             "controlMax": 5.0
           }
+        },
+        "bandlimit": {
+          "description": "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
@@ -13338,6 +13358,11 @@
             "controlMin": -5.0,
             "controlMax": 5.0
           }
+        },
+        "bandlimit": {
+          "description": "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
@@ -15845,6 +15870,11 @@
             "controlMin": 0.0,
             "controlMax": 1.0
           }
+        },
+        "bandlimit": {
+          "description": "drops harmonics as the pitch rises so high notes stay clean; off reads the full table at every pitch, for a raw aliased tone",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [

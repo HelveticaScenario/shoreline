@@ -55,9 +55,13 @@ pub fn sync_edge_fraction(prev: f32, curr: f32) -> f32 {
 /// interval. Returns `(this_sample, next_sample)`: residuals to add to the
 /// naive output now and to carry into the following sample. Calibrated to match
 /// the ±1-normalized PolyBLEP used for the oscillators' natural edges, so the
-/// synced sample lands on the band-limited midpoint when `frac == 0`.
+/// synced sample lands on the band-limited midpoint when `frac == 0`. Without
+/// `bandlimit` both are 0, leaving the reset as a hard step.
 #[inline]
-pub fn sync_blep(jump: f32, frac: f32) -> (f32, f32) {
+pub fn sync_blep(jump: f32, frac: f32, bandlimit: bool) -> (f32, f32) {
+    if !bandlimit {
+        return (0.0, 0.0);
+    }
     let half = 0.5 * jump;
     let before = 1.0 - frac;
     (half * before * before, -half * frac * frac)
@@ -73,6 +77,7 @@ pub mod pulse;
 pub mod saw;
 pub mod sine;
 pub mod supersaw;
+pub mod waveforms;
 pub mod wavetable;
 pub mod wavetable_prep;
 
@@ -141,14 +146,14 @@ mod tests {
     fn sync_blep_lands_the_discontinuity_sample_on_the_midpoint() {
         let m = 2.0;
         // frac == 0: the whole correction is on this sample → before + M/2.
-        let (now, carry) = sync_blep(m, 0.0);
+        let (now, carry) = sync_blep(m, 0.0, true);
         assert!((now - 1.0).abs() < 1e-6);
         assert!(carry.abs() < 1e-6);
         // frac → 1: nothing now, the next sample carries −M/2 → after − M/2.
-        let (now, carry) = sync_blep(m, 1.0);
+        let (now, carry) = sync_blep(m, 1.0, true);
         assert!(now.abs() < 1e-6);
         assert!((carry + 1.0).abs() < 1e-6);
         // A zero jump produces no correction at all.
-        assert_eq!(sync_blep(0.0, 0.3), (0.0, 0.0));
+        assert_eq!(sync_blep(0.0, 0.3, true), (0.0, 0.0));
     }
 }

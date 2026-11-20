@@ -3,11 +3,16 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
+        oscillators::{
+            FmMode, apply_fm, sync_blep, sync_edge_fraction,
+            waveforms::{naive_triangle, triangle, triangle_symmetry},
+        },
         utils::{SchmittTrigger, sanitize, wrap_phase_f64},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -55,10 +60,12 @@ struct SawOscillatorParams {
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     wait_for_zero_cross: bool,
-}
-
-fn default_true() -> bool {
-    true
+    #[input(
+        "smooths the edges so high notes stay clean; off gives exact steps and corners, for LFOs or a raw aliased tone"
+    )]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    bandlimit: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -139,10 +146,9 @@ impl LaneState {
         offset: f32,
         sync: Option<f32>,
         wait_for_zero_cross: bool,
+        bandlimit: bool,
     ) -> f32 {
-        // Convert shape (0–5) to symmetry (peak position):
-        // 0 = saw (peak at 1.0), 2.5 = triangle (peak at 0.5), 5 = ramp (peak at 0.0)
-        let s = (1.0 - shape * 0.2).clamp(0.001, 0.999) as f64;
+        let s = triangle_symmetry(shape);
 
         // Phase offset shifts the read position without altering the
         // accumulator, so it never drifts.
@@ -173,34 +179,19 @@ impl LaneState {
             self.prev_out = naive_triangle(read_start, s) as f32 * 5.0;
         }
 
-        // DPW: compute integral at current phase BEFORE advancing
         let read_old = (self.phase + read_offset).rem_euclid(1.0);
-        let integral_old = triangle_integral(read_old, s);
-
         self.phase = wrap_phase_f64(self.phase + phase_increment);
         let read_phase = (self.phase + read_offset).rem_euclid(1.0);
 
-        // DPW body for this sample. The sync reset (below) lands in the
-        // upcoming interval, so the phase advanced normally here and the DPW
-        // differentiation stays valid; the reset is band-limited separately.
-        let body = if phase_increment.abs() > 1.0e-7 {
-            // The DPW slope is computed in f64: integral_new and
-            // integral_old are near-equal when the phase increment is small
-            // (low frequency), so the difference and its division must keep
-            // enough precision that f32 rounding does not get amplified into
-            // per-sample hash on slow, LFO-rate outputs.
-            let integral_new = triangle_integral(read_phase, s);
-            ((integral_new - integral_old) / phase_increment) as f32
-        } else {
-            // Near-DC fallback: use naive waveform (no aliasing at low freq)
-            naive_triangle(read_phase, s) as f32
-        };
+        // The sync reset (below) lands in the upcoming interval, so the phase
+        // advanced normally here and the DPW differentiation stays valid.
+        let body = triangle(read_old, read_phase, phase_increment, s, bandlimit) as f32;
 
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
 
         // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the reset discontinuity.
+        // at the subsample crossing when band-limited.
         let mut now = 0.0;
         if let Some(v) = sync {
             if self.sync_schmitt.process(v) {
@@ -208,7 +199,7 @@ impl LaneState {
                 let before = naive_triangle(read_phase, s);
                 self.phase = 0.0;
                 let after = naive_triangle(read_offset, s);
-                let (n, carry) = sync_blep((after - before) as f32, frac);
+                let (n, carry) = sync_blep((after - before) as f32, frac, bandlimit);
                 now = n;
                 self.blep_carry = carry;
             }
@@ -266,7 +257,14 @@ impl SawOscillator {
                 .phase_offset
                 .value_or(lane, SawOscillatorParams::PHASE_OFFSET_DEFAULT);
             let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
-            let sample = state.step(increment, shape, offset, sync, p.wait_for_zero_cross);
+            let sample = state.step(
+                increment,
+                shape,
+                offset,
+                sync,
+                p.wait_for_zero_cross,
+                p.bandlimit,
+            );
             self.outputs.sample.set(lane, sample);
         }
     }
@@ -324,6 +322,7 @@ impl SawOscillator {
                     offset[lane],
                     sync.map(|sync| sync[lane]),
                     p.wait_for_zero_cross,
+                    p.bandlimit,
                 ));
             }
         }
@@ -334,34 +333,6 @@ impl SawOscillator {
                 .settle(shape_last[lane].clamp(0.0, 5.0), p.shape.glide_mark(lane));
         }
         Some(())
-    }
-}
-
-/// Anti-derivative of the variable-symmetry triangle waveform.
-///
-/// This is a continuous, differentiable, periodic piecewise-parabolic function
-/// (F(0) = F(1) = 0). Used by the DPW method: the numeric differentiation
-/// `(F[n] - F[n-1]) / dt` naturally band-limits the output without requiring
-/// any explicit PolyBLEP/PolyBLAMP corrections.
-#[inline(always)]
-fn triangle_integral(phase: f64, s: f64) -> f64 {
-    if phase < s {
-        // Integral of rising segment: f(p) = 2p/s - 1  →  F(p) = p²/s - p
-        phase * phase / s - phase
-    } else {
-        // Integral of falling segment: f(p) = 1 - 2(p-s)/(1-s)  →  F(p) = p - (p-s)²/(1-s) - s
-        let d = phase - s;
-        phase - d * d / (1.0 - s) - s
-    }
-}
-
-/// Naive variable-symmetry triangle (used as fallback at near-zero frequency).
-#[inline(always)]
-fn naive_triangle(phase: f64, s: f64) -> f64 {
-    if phase < s {
-        2.0 * phase / s - 1.0
-    } else {
-        1.0 - 2.0 * (phase - s) / (1.0 - s)
     }
 }
 
@@ -382,6 +353,7 @@ mod tests {
             sync: None,
             phase_offset: Some(PolySignal::mono(Signal::Volts(phase_offset))),
             wait_for_zero_cross,
+            bandlimit: true,
         };
         let lanes = params.freq.lanes().max(1);
         let mut outputs = SawOscillatorOutputs::default();

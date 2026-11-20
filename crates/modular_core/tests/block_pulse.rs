@@ -1,9 +1,11 @@
 //! `$pulse` renders identically on the block and per-sample paths: held and
-//! modulated pitch and width, PWM, FM, phase offset and hard sync.
+//! modulated pitch and width, PWM, FM, phase offset and hard sync, band-limited
+//! or not.
 
 mod block_common;
 
 use block_common::*;
+use modular_core::types::ProcessingMode;
 use serde_json::json;
 
 #[global_allocator]
@@ -26,6 +28,40 @@ fn pulse_paths_agree() {
     check_paths_agree(
         "$pulse",
         json!({ "freq": 1.0, "sync": poly_cable("src", LANES), "phaseOffset": cable("lfo", 0) }),
+    );
+    check_paths_agree(
+        "$pulse",
+        json!({
+            "freq": poly_cable("lfo", LANES),
+            "pwm": poly_cable("lfo", LANES),
+            "sync": cable("src", 1),
+            "bandlimit": false,
+        }),
+    );
+}
+
+/// Without band-limiting every sample is fully high or fully low, through
+/// width modulation and hard sync alike.
+#[test]
+fn unbandlimited_pulse_only_switches() {
+    let outputs = |bandlimit: bool| {
+        let patch = build(
+            ProcessingMode::Block,
+            ProcessingMode::Block,
+            "$pulse",
+            json!({
+                "freq": [2.0, 3.0, 1.0, 4.0],
+                "pwm": poly_cable("lfo", LANES),
+                "sync": cable("src", 1),
+                "bandlimit": bandlimit,
+            }),
+        );
+        render(&patch, &[BLOCK_SIZE]).0
+    };
+    assert!(outputs(false).iter().all(|&v| v.abs() == 5.0));
+    assert!(
+        outputs(true).iter().any(|&v| v.abs() != 5.0),
+        "band-limited edges are smoothed"
     );
 }
 

@@ -91,6 +91,11 @@ pub fn wrap_phase_f64(phase: f64) -> f64 {
     if wrapped.is_finite() { wrapped } else { 0.0 }
 }
 
+/// Serde default for a param that is on unless set.
+pub fn default_true() -> bool {
+    true
+}
+
 /// Map a value from one range to another. If the input range is degenerate, returns `y0`.
 pub fn map_range(x: f32, x0: f32, x1: f32, y0: f32, y1: f32) -> f32 {
     let denom = x1 - x0;

@@ -4,11 +4,13 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
+        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction, waveforms::poly_blep},
         utils::{
             SchmittTrigger,
             rng::{LcgRng, seed_base},
@@ -66,10 +68,6 @@ struct SupersawParams {
     #[serde(default = "default_true")]
     #[deserr(default = default_true())]
     wait_for_zero_cross: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -183,22 +181,6 @@ impl Default for SupersawState {
             sync_prev: [0.0; PORT_MAX_LANES],
         }
     }
-}
-
-/// PolyBLEP correction for sawtooth wave discontinuity at phase wrap.
-#[inline(always)]
-fn poly_blep_saw(phase: f32, dt: f32) -> f32 {
-    // Near phase = 0 (just after wrap)
-    if phase < dt {
-        let t = phase / dt;
-        return t + t - t * t - 1.0;
-    }
-    // Near phase = 1 (just before wrap)
-    if phase > 1.0 - dt {
-        let t = (phase - 1.0) / dt;
-        return t * t + t + t + 1.0;
-    }
-    0.0
 }
 
 impl Supersaw {
@@ -441,7 +423,7 @@ impl VoiceState {
         // (below) lands in the upcoming interval, so this operates on the
         // real, pre-reset phase.
         let mut saw = 2.0 * phase - 1.0;
-        saw -= poly_blep_saw(phase, dt.abs());
+        saw -= poly_blep(phase, dt.abs());
         saw += self.blep_carry;
         self.blep_carry = 0.0;
 
@@ -451,7 +433,7 @@ impl VoiceState {
             let before = 2.0 * phase - 1.0;
             phase = 0.0;
             let after = -1.0;
-            let (now, carry) = sync_blep(after - before, frac);
+            let (now, carry) = sync_blep(after - before, frac, true);
             saw += now;
             self.blep_carry = carry;
         }

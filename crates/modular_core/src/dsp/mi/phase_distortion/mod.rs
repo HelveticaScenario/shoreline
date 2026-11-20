@@ -3,6 +3,8 @@ mod oscillator;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::default_true;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
@@ -23,10 +25,6 @@ use oscillator::PdOscillator;
 
 /// Plaits' output gain for this engine, at ±5 V full scale.
 const OUTPUT_GAIN: f32 = -0.7 * 5.0;
-
-fn default_true() -> bool {
-    true
-}
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]

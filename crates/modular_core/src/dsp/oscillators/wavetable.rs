@@ -14,6 +14,8 @@
 
 use deserr::Deserr;
 use schemars::JsonSchema;
+
+use crate::dsp::utils::default_true;
 use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
@@ -75,6 +77,12 @@ pub(crate) struct WavetableOscParams {
     )]
     #[deserr(default)]
     pub(crate) phase_offset: Option<PolySignal>,
+    #[input(
+        "drops harmonics as the pitch rises so high notes stay clean; off reads the full table at every pitch, for a raw aliased tone"
+    )]
+    #[serde(default = "default_true")]
+    #[deserr(default = default_true())]
+    pub(crate) bandlimit: bool,
     /// Pre-computed mipmap pyramid, populated by `prepare_resources` on the
     /// main thread. Skipped from serialization and deserialization.
     #[serde(skip)]
@@ -151,7 +159,8 @@ impl LaneState {
     /// One output sample (±5 V) at `position` (0–5 V across the frames), then
     /// advance the phase. `warp` reshapes the read phase with its stage values
     /// already resolved for this lane; `sync` is this sample's sync input,
-    /// if connected.
+    /// if connected. Without `bandlimit` it reads the full-bandwidth table and
+    /// leaves the warp and sync reset unsmoothed.
     #[inline(always)]
     #[allow(clippy::too_many_arguments)]
     fn step(
@@ -163,6 +172,7 @@ impl LaneState {
         offset: f32,
         warp: Option<(&PhaseWarp, &ResolvedWarp)>,
         sync: Option<f32>,
+        bandlimit: bool,
     ) -> f32 {
         let frame_scale = if prepared.frame_count > 1 {
             (prepared.frame_count - 1) as f32
@@ -177,7 +187,12 @@ impl LaneState {
         // it advances, so the first sample reads the starting phase.
         let read_offset = offset.rem_euclid(1.0);
         let raw_phase = (self.phase as f32 + read_offset).rem_euclid(1.0);
-        let freq_norm = self.freq / sample_rate;
+        // The warp antialiases from the frequency; 0 turns that off.
+        let (level, freq_norm) = if bandlimit {
+            (self.level, self.freq / sample_rate)
+        } else {
+            (0, 0.0)
+        };
         // The warp's state as it stood before this sample, for the sync
         // reset's second read below.
         let warp_before = self.warp;
@@ -185,7 +200,7 @@ impl LaneState {
             Some((warp, resolved)) => warp.evaluate(raw_phase, resolved, freq_norm, &mut self.warp),
             None => raw_phase,
         };
-        let before = prepared.read_sample(self.level, frame_f, warped_phase);
+        let before = prepared.read_sample(level, frame_f, warped_phase);
 
         // Naive read plus any residual carried from a sync reset on the
         // previous sample.
@@ -223,8 +238,8 @@ impl LaneState {
                     }
                     None => read_offset,
                 };
-                let after = prepared.read_sample(self.level, frame_f, warped_zero);
-                let (now, carry) = sync_blep(after - before, frac);
+                let after = prepared.read_sample(level, frame_f, warped_zero);
+                let (now, carry) = sync_blep(after - before, frac, bandlimit);
                 sample += now;
                 self.blep_carry = carry;
                 next = 0.0;
@@ -340,6 +355,7 @@ impl WavetableOsc {
                     .value_or(lane, WavetableOscParams::PHASE_OFFSET_DEFAULT),
                 resolved.as_ref().map(|(warp, resolved)| (*warp, resolved)),
                 p.sync.as_ref().map(|sync| sync.get_value(lane)),
+                p.bandlimit,
             );
             self.outputs.sample.set(lane, sample);
         }
@@ -389,6 +405,7 @@ impl WavetableOsc {
                     offset[lane],
                     None,
                     sync.map(|sync| sync[lane]),
+                    p.bandlimit,
                 );
                 *out = sanitize(sample);
             }
@@ -473,6 +490,7 @@ mod tests {
             sync: None,
             phase: None,
             phase_offset: None,
+            bandlimit: true,
             prepared: None,
         }
     }
