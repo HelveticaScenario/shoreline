@@ -129,14 +129,7 @@ impl PreparedWavetable {
                     *c = Complex::new(0.0, 0.0);
                 }
 
-                let half = frame_size / 2;
-
-                // Determine how many bins to keep for this level.
-                let cutoff = if level == 0 {
-                    half // full bandwidth: keep bins 0..half
-                } else {
-                    frame_size / (2usize << level)
-                };
+                let cutoff = level_cutoff(frame_size, level);
 
                 // Copy positive-frequency bins [0..cutoff) to padded[0..cutoff).
                 padded[..cutoff].copy_from_slice(&spectrum[..cutoff]);
@@ -227,9 +220,11 @@ impl PreparedWavetable {
 
     /// Choose a mipmap level for a given playback frequency.
     ///
-    /// Each level halves the spectral bandwidth; level `l` is appropriate
-    /// when the playback frequency's magnitude is `base_frequency * 2^l` or
-    /// higher. Only the magnitude matters: backwards (negative-frequency)
+    /// Each level halves the spectral bandwidth. Level `l` keeps harmonics
+    /// below Nyquist up to `base_frequency * 2^l`, so this picks the lowest
+    /// level whose bound reaches the playback frequency: any brighter level
+    /// would fold harmonics past Nyquist back down as aliasing. Only the
+    /// magnitude matters: backwards (negative-frequency)
     /// playback from through-zero FM has the same magnitude spectrum, so it
     /// needs the same band-limiting. The result is clamped to
     /// `[0, mipmap_count - 1]`.
@@ -245,9 +240,16 @@ impl PreparedWavetable {
             return 0;
         }
         let ratio = freq / self.base_frequency;
-        let level = ratio.log2().max(0.0) as usize;
+        let level = ratio.log2().ceil().max(0.0) as usize;
         level.min(self.mipmap_count - 1)
     }
+}
+
+/// How many spectrum bins level `level` keeps: half the frame at level 0,
+/// halving at each level after. The kept bins are harmonics `0..cutoff`.
+#[inline]
+fn level_cutoff(frame_size: usize, level: usize) -> usize {
+    frame_size / (2usize << level)
 }
 
 /// Floor(log2(n)) for n >= 1. Returns 0 for n == 0.
@@ -391,15 +393,40 @@ mod tests {
         assert_eq!(prep.mipmap_level_for_freq(base), 0);
         assert_eq!(prep.mipmap_level_for_freq(base * 0.5), 0);
         assert_eq!(prep.mipmap_level_for_freq(base * 2.0), 1);
-        // log2(100/23.4375) ≈ 2.09 → 2.
-        assert_eq!(prep.mipmap_level_for_freq(100.0), 2);
-        // log2(200/23.4375) ≈ 3.09 → 3.
-        assert_eq!(prep.mipmap_level_for_freq(200.0), 3);
-        // log2(10000/23.4375) ≈ 8.74 → 8 (unclamped).
-        assert_eq!(prep.mipmap_level_for_freq(10000.0), 8);
+        // log2(100/23.4375) ≈ 2.09 → 3.
+        assert_eq!(prep.mipmap_level_for_freq(100.0), 3);
+        // log2(200/23.4375) ≈ 3.09 → 4.
+        assert_eq!(prep.mipmap_level_for_freq(200.0), 4);
+        // log2(10000/23.4375) ≈ 8.74 → 9 (unclamped).
+        assert_eq!(prep.mipmap_level_for_freq(10000.0), 9);
         // Clamped at the top: base * 2^10 ≈ 24000 Hz; anything well above
         // that saturates.
         assert_eq!(prep.mipmap_level_for_freq(96000.0), prep.mipmap_count - 1);
+    }
+
+    /// Wherever a level is left to choose, the chosen level's top harmonic
+    /// stays below Nyquist, so a full-bandwidth table never aliases.
+    #[test]
+    fn chosen_level_stays_below_nyquist() {
+        let size = 2048;
+        let sample_rate = 48000.0;
+        let wav = WavData::new(
+            SampleBuffer::from_samples(vec![make_sine_frame(size, 0.0)], sample_rate),
+            Some(size),
+        );
+        let prep = PreparedWavetable::from_wav_data(&wav, sample_rate);
+        let top_level_freq = prep.base_frequency * (1 << (prep.mipmap_count - 1)) as f32;
+        let mut freq = 1.0f32;
+        while freq < top_level_freq {
+            let level = prep.mipmap_level_for_freq(freq);
+            let top_harmonic = (level_cutoff(size, level) - 1) as f32;
+            assert!(
+                top_harmonic * freq < sample_rate / 2.0,
+                "{freq} Hz picks level {level}, whose harmonic {top_harmonic} lands at {} Hz",
+                top_harmonic * freq
+            );
+            freq *= 1.01;
+        }
     }
 
     #[test]
