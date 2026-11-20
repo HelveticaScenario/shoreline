@@ -5,9 +5,7 @@ use schemars::JsonSchema;
 
 use crate::dsp::core::pan::pan_pair;
 use crate::dsp::utils::sanitize;
-use crate::dsp::utils::unison_voices::{
-    centred_position, detune_of_slot, unison_gain, unison_lane,
-};
+use crate::dsp::utils::unison_voices::{SlotOrder, centred_position, unison_gain, unison_lane};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PairSignal, PolyOutput, PolySignal, PolySignalExt};
@@ -80,11 +78,31 @@ fn stereo_fold_derive_lane_count(params: &StereoFoldParams) -> usize {
     params.input.lanes().div_ceil(voices(params)).max(1)
 }
 
-#[module(name = "$stereoFold", docs = STEREO_FOLD_DOCS, lanes_derive = stereo_fold_derive_lane_count, args(input, voices, width), stereo = stereo)]
+/// How many of note `note`'s copies the input holds. The copies past the
+/// input's last lane are those `$unison` cut, the top of the detune range, so
+/// every note but the last row holds the same count and the rest hold one
+/// fewer.
+fn copies(voices: usize, note: usize, notes: usize, input_lanes: usize) -> usize {
+    (0..voices)
+        .take_while(|&v| unison_lane(v, note, notes) < input_lanes)
+        .count()
+}
+
+#[module(name = "$stereoFold", docs = STEREO_FOLD_DOCS, lanes_derive = stereo_fold_derive_lane_count, args(input, voices, width), stereo = stereo, patch_update)]
 pub struct StereoFold {
     outputs: StereoFoldOutputs,
     params: StereoFoldParams,
+    state: StereoFoldState,
     lane_state: Box<[SwapGlide]>,
+}
+
+#[derive(Default)]
+struct StereoFoldState {
+    /// The copies the first note holds.
+    full: usize,
+    /// The slot orders of a note holding `full` copies and one holding one
+    /// fewer.
+    orders: [SlotOrder; 2],
 }
 
 impl StereoFold {
@@ -102,14 +120,12 @@ impl StereoFold {
                 p.width.glide_mark(note * 2),
                 sample_rate,
             ) / 5.0;
-            // The copies past the input's last lane are those `$unison` cut,
-            // the top of the detune range: the rest spread as a smaller stack.
-            let present = (0..voices)
-                .take_while(|&v| unison_lane(v, note, notes) < input_lanes)
-                .count();
+            // A note `$unison` cut short spreads as a smaller stack.
+            let present = copies(voices, note, notes, input_lanes);
+            let order = &self.state.orders[usize::from(present != self.state.full)];
             let mut sum = [0.0f32; 2];
             for slot in 0..present {
-                let lane = unison_lane(detune_of_slot(slot, present), note, notes);
+                let lane = unison_lane(order.detune(slot), note, notes);
                 let [left, right] = pan_pair(
                     p.input.get_pair(lane),
                     centred_position(slot, present) * width,
@@ -123,6 +139,15 @@ impl StereoFold {
                 .sample
                 .set(note * 2 + 1, sanitize(sum[1] * gain));
         }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for StereoFold {
+    fn on_patch_update(&mut self) {
+        let notes = self.lane_count() / 2;
+        let full = copies(voices(&self.params), 0, notes, self.params.input.lanes());
+        self.state.full = full;
+        self.state.orders = [SlotOrder::new(full), SlotOrder::new(full.saturating_sub(1))];
     }
 }
 

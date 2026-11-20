@@ -14,7 +14,7 @@ use crate::{
             SchmittTrigger,
             rng::{LcgRng, seed_base},
             sanitize,
-            unison_voices::{centred_position, detune_of_slot, detune_position, unison_gain},
+            unison_voices::{SlotOrder, centred_position, detune_position, unison_gain},
             wrap_phase,
         },
     },
@@ -250,8 +250,9 @@ impl Supersaw {
         self.state.gain = 5.0 * unison_gain(voices);
 
         // Voice `v` sits at stereo slot `v`, left to right.
+        let order = SlotOrder::new(voices);
         for v in 0..voices {
-            self.state.voice_t[v] = detune_position(detune_of_slot(v, voices), voices);
+            self.state.voice_t[v] = detune_position(order.detune(v), voices);
             let [left, right] = pan_pair([1.0, 1.0], centred_position(v, voices));
             self.state.pan[0][v] = left;
             self.state.pan[1][v] = right;

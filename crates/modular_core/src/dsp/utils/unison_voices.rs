@@ -3,6 +3,8 @@
 //! share these, so a stack built from `$unison` folds to the same image as a
 //! `$supersaw`; `$pan` spreads its lanes by [`centred_position`] too.
 
+use crate::poly::PORT_MAX_LANES;
+
 /// The lane of copy `voice` of note `note` among `notes`: copies are laid out
 /// voice-major, each a full set of the notes.
 #[inline]
@@ -21,16 +23,105 @@ pub fn detune_position(voice: usize, voices: usize) -> f32 {
     }
 }
 
-/// The voice (by detune order) placed at stereo slot `slot` of `voices`.
-/// The left half of the slots takes the even detunes and the right half the
-/// odd ones, so each side holds a balanced spread of the whole detune range.
-#[inline]
-pub fn detune_of_slot(slot: usize, voices: usize) -> usize {
-    let half = voices.div_ceil(2);
-    if slot < half {
-        slot * 2
-    } else {
-        (slot - half) * 2 + 1
+/// Which voice, by detune order, sits at each stereo slot of a stack, left
+/// to right, placed so that each side's loudness-weighted pitch sits as near
+/// the stack's centre as the voice count allows: exactly for 4 or 5 voices,
+/// 8 or 9 and so on. Two or three voices leave one side holding the flatter
+/// outer voice.
+#[derive(Clone, Copy)]
+pub struct SlotOrder([u8; PORT_MAX_LANES]);
+
+impl Default for SlotOrder {
+    fn default() -> Self {
+        Self::new(1)
+    }
+}
+
+impl SlotOrder {
+    /// The better centred of two orders: mirrored detune pairs balanced
+    /// against each other, which centres larger stacks, and the left half of
+    /// the slots taking the even detunes, which leans less on three voices.
+    pub fn new(voices: usize) -> Self {
+        let voices = voices.clamp(1, PORT_MAX_LANES);
+        let balanced = Self::balanced(voices);
+        let interleaved = Self::interleaved(voices);
+        if interleaved.left_pull(voices).abs() < balanced.left_pull(voices).abs() {
+            interleaved
+        } else {
+            balanced
+        }
+    }
+
+    /// Mirrored slots hold mirrored detunes. Outer slot pair `k` takes detune
+    /// pair `j`, the inner detunes going to the outer slots, and each pair,
+    /// heaviest first, leans the left side against what it carries so far.
+    fn balanced(voices: usize) -> Self {
+        let pairs = voices / 2;
+        let centre = (voices - 1) as f32 / 2.0;
+        // How far a pair leans the left side: its detune times its slots'
+        // pan offset, flat with its lower voice on the left and sharp the
+        // other way round.
+        let mut weights = [(0.0f32, 0usize); PORT_MAX_LANES / 2];
+        for (k, weight) in weights.iter_mut().enumerate().take(pairs) {
+            let j = pairs - 1 - k;
+            *weight = ((centre - j as f32) * (centre - k as f32), k);
+        }
+        weights[..pairs].sort_unstable_by(|a, b| b.0.total_cmp(&a.0).then(a.1.cmp(&b.1)));
+        let mut order = [0u8; PORT_MAX_LANES];
+        let mut lean = 0.0f32;
+        for &(weight, k) in &weights[..pairs] {
+            let (low, high) = (pairs - 1 - k, voices - pairs + k);
+            let (left, right) = if lean >= 0.0 {
+                lean -= weight;
+                (low, high)
+            } else {
+                lean += weight;
+                (high, low)
+            };
+            order[k] = left as u8;
+            order[voices - 1 - k] = right as u8;
+        }
+        if voices % 2 == 1 {
+            order[pairs] = pairs as u8;
+        }
+        Self(order)
+    }
+
+    fn interleaved(voices: usize) -> Self {
+        let half = voices.div_ceil(2);
+        let mut order = [0u8; PORT_MAX_LANES];
+        for (slot, detune) in order.iter_mut().enumerate().take(voices) {
+            *detune = if slot < half {
+                slot * 2
+            } else {
+                (slot - half) * 2 + 1
+            } as u8;
+        }
+        Self(order)
+    }
+
+    /// How far the left side's pitch, weighted by each slot's power into it
+    /// at full width, sits from the stack's centre, as a fraction of the
+    /// detune range.
+    fn left_pull(&self, voices: usize) -> f32 {
+        if voices < 2 {
+            return 0.0;
+        }
+        let centre = (voices - 1) as f32 / 2.0;
+        let (mut pull, mut power) = (0.0, 0.0);
+        for slot in 0..voices {
+            // A centred pair panned to `p` sends `1 - p` of its power left.
+            let left = 1.0 - centred_position(slot, voices);
+            pull += left * (self.detune(slot) as f32 - centre);
+            power += left;
+        }
+        pull / power / (voices - 1) as f32
+    }
+
+    /// The voice, by detune order, at stereo slot `slot`.
+    #[inline]
+    pub fn detune(&self, slot: usize) -> usize {
+        self.0[slot] as usize
     }
 }
 
@@ -52,12 +143,15 @@ pub fn unison_gain(voices: usize) -> f32 {
 mod tests {
     use super::*;
 
+    use crate::dsp::core::pan::pan_pair;
+
     #[test]
     fn slots_hold_every_voice_once() {
         for voices in 1..=64 {
+            let order = SlotOrder::new(voices);
             let mut seen = vec![false; voices];
             for slot in 0..voices {
-                let d = detune_of_slot(slot, voices);
+                let d = order.detune(slot);
                 assert!(!seen[d], "{voices}: voice {d} placed twice");
                 seen[d] = true;
             }
@@ -75,9 +169,32 @@ mod tests {
     }
 
     #[test]
-    fn each_side_spans_the_detune_range() {
-        // Five voices: left takes detunes 0, 2, 4 and right 1, 3.
-        let order: Vec<usize> = (0..5).map(|s| detune_of_slot(s, 5)).collect();
-        assert_eq!(order, [0, 2, 4, 1, 3]);
+    fn the_pull_weights_slots_by_the_pan_law() {
+        for slot in 0..7 {
+            let [left, _] = pan_pair([1.0, 1.0], centred_position(slot, 7));
+            assert!((left * left - (1.0 - centred_position(slot, 7))).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    fn each_side_centres_its_pitch() {
+        for voices in 2..=64 {
+            let order = SlotOrder::new(voices);
+            let pull = order.left_pull(voices).abs();
+            let bound = match voices {
+                2 => 0.5,
+                3 => 1.0 / 6.0,
+                _ if (voices / 2) % 2 == 0 => 1e-5,
+                _ => 0.05,
+            };
+            assert!(pull <= bound + 1e-6, "{voices}: {pull}");
+        }
+    }
+
+    #[test]
+    fn five_voices_pair_inner_detunes_with_outer_slots() {
+        let order = SlotOrder::new(5);
+        let detunes: Vec<usize> = (0..5).map(|s| order.detune(s)).collect();
+        assert_eq!(detunes, [1, 4, 2, 0, 3]);
     }
 }
