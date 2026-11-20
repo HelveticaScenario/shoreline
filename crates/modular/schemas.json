@@ -14489,6 +14489,10 @@
           "code": "chord: $supersaw($chord('A2[m]'), {\n  unison: 7,\n  detune: 0.3,\n}).lpf('c6', 1)"
         },
         {
+          "title": "Sync sweep",
+          "code": "keys: $supersaw('a2', { sync: $sine('0.1hz').range(0, 3) })"
+        },
+        {
           "title": "Wide lead sweep",
           "code": "keys: $supersaw('a3', { detune: 0.3 }).lpf(\n  $sine('0.1hz').range('c5', 'c7'),\n)"
         }
@@ -14552,7 +14556,7 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts every saw of that note",
+          "description": "hard sync: each saw sits this many octaves above its own sync source at the note's pitch, which restarts it every cycle; sweep it for sync tearing",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -14562,7 +14566,10 @@
             }
           ],
           "x-signal": {
-            "paramType": "trig"
+            "paramType": "control",
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 4.0
           }
         },
         "waitForZeroCross": {
@@ -14701,8 +14708,11 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts every saw of that note",
-        "paramType": "trig",
+        "description": "hard sync: each saw sits this many octaves above its own sync source at the note's pitch, which restarts it every cycle; sweep it for sync tearing",
+        "paramType": "control",
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

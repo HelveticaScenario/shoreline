@@ -96,7 +96,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
+#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread), patch_update)]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
@@ -114,7 +114,7 @@ impl Unison {
         let channels = self.channels();
         let poly_lanes = unison_poly_lanes(input, spread) / channels;
         let output_lanes = self.lane_count();
-        let max_phase_step = phase_glide_step(sample_rate);
+        let phases = self.state.advance(phase_glide_step(sample_rate));
 
         for poly_ch in 0..poly_lanes {
             for side in 0..channels {
@@ -128,7 +128,7 @@ impl Unison {
                 let normalized = spread_v / 10.0;
                 let max_detune_voct = normalized * normalized;
 
-                for voice in 0..count {
+                for (voice, &phase) in phases.iter().enumerate().take(count) {
                     let out_ch = (voice * poly_lanes + poly_ch) * channels + side;
                     if out_ch >= output_lanes {
                         break;
@@ -142,12 +142,17 @@ impl Unison {
                     };
 
                     self.outputs.sample.set(out_ch, input_val + offset);
-                    let phase = self.state.step(out_ch, voice, count, max_phase_step);
                     self.outputs.phase.set(out_ch, phase);
                 }
             }
         }
-        self.state.hold(output_lanes);
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Unison {
+    fn on_patch_update(&mut self) {
+        self.state
+            .set_count(self.params.count.clamp(1, PORT_MAX_LANES));
     }
 }
 
@@ -161,17 +166,20 @@ mod tests {
 
     /// Create a Unison with params and properly initialize _lane_count and output lanes.
     fn make_unison(params: UnisonParams) -> Unison {
+        use crate::types::PatchUpdateHandler;
         let lanes = unison_derive_lane_count(&params);
         let mut outputs = UnisonOutputs::default();
         outputs.set_all_lanes(lanes);
-        Unison {
+        let mut u = Unison {
             params,
             outputs,
             state: UnisonPhases::default(),
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
-        }
+        };
+        u.on_patch_update();
+        u
     }
 
     #[test]
@@ -407,8 +415,8 @@ mod tests {
     #[test]
     fn test_count_change_glides_phase_without_jumps() {
         // A patch update from count 3 to 4 carries the phases over: copies
-        // that existed slide to their new phase at PHASE_GLIDE_HZ, and the
-        // added copy starts on its target.
+        // that existed slide to their new phase no faster than the glide
+        // step, and the added copy starts on its target.
         let sample_rate = 48000.0;
         let max_step = phase_glide_step(sample_rate);
         let params = |count| UnisonParams {
@@ -420,6 +428,7 @@ mod tests {
         old.update(sample_rate);
         let mut new = make_unison(params(4));
         std::mem::swap(&mut new.state, &mut old.state);
+        crate::types::PatchUpdateHandler::on_patch_update(&mut new);
 
         let mut prev: Vec<f32> = (0..3).map(|v| voice_phase(v, 3)).collect();
         new.update(sample_rate);
@@ -442,6 +451,31 @@ mod tests {
                 voice_phase(voice, 4),
                 "voice {voice}"
             );
+        }
+    }
+
+    #[test]
+    fn test_more_notes_keep_every_copys_phase() {
+        // A chord gaining a note shifts which lane holds which copy; every
+        // lane still reads its own copy's phase straight away.
+        let chord = |notes: usize| UnisonParams {
+            input: PolySignal::poly(&vec![Signal::Volts(0.0); notes]),
+            count: 4,
+            spread: None,
+        };
+        let mut old = make_unison(chord(3));
+        old.update(48000.0);
+        let mut new = make_unison(chord(4));
+        std::mem::swap(&mut new.state, &mut old.state);
+        crate::types::PatchUpdateHandler::on_patch_update(&mut new);
+        new.update(48000.0);
+        for voice in 0..4 {
+            for note in 0..4 {
+                assert_eq!(
+                    new.outputs.phase.get(voice * 4 + note),
+                    voice_phase(voice, 4)
+                );
+            }
         }
     }
 

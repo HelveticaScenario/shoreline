@@ -36,44 +36,64 @@ fn glide_phase(current: f32, target: f32, max_step: f32) -> f32 {
     }
 }
 
-/// The phase each slot of a unison stack holds, carried across patch updates
-/// so a count change slides the phases to their new targets instead of
-/// jumping, which would click.
+/// Each copy's phase, carried across patch updates so a count change slides
+/// the phases to their new targets; a phase that jumped would click.
 pub struct UnisonPhases {
     phase: [f32; PORT_MAX_LANES],
-    /// Slots an earlier sample wrote, here or in the module this state came
-    /// from. Slots at or past it start on their target.
+    target: [f32; PORT_MAX_LANES],
+    count: usize,
+    /// Copies an earlier sample wrote, here or in the module this state came
+    /// from. Copies at or past it start on their target.
     held: usize,
+    /// Whether any copy is still short of its target.
+    gliding: bool,
 }
 
 impl Default for UnisonPhases {
     fn default() -> Self {
         Self {
             phase: [0.0; PORT_MAX_LANES],
+            target: [0.0; PORT_MAX_LANES],
+            count: 0,
             held: 0,
+            gliding: false,
         }
     }
 }
 
 impl UnisonPhases {
-    /// Moves `slot` one sample toward the phase of copy `voice` of `count`,
-    /// by at most `max_step`, and returns it.
-    #[inline]
-    pub fn step(&mut self, slot: usize, voice: usize, count: usize, max_step: f32) -> f32 {
-        let target = voice_phase(voice, count);
-        let phase = &mut self.phase[slot];
-        *phase = if slot < self.held {
-            glide_phase(*phase, target, max_step)
-        } else {
-            target
-        };
-        *phase
+    /// Sets the copy count, at most `PORT_MAX_LANES`. Call from
+    /// `on_patch_update`, after the state transfer.
+    pub fn set_count(&mut self, count: usize) {
+        if count != self.count {
+            self.count = count;
+            for (voice, target) in self.target.iter_mut().enumerate().take(count) {
+                *target = voice_phase(voice, count);
+            }
+            self.gliding = true;
+        }
     }
 
-    /// Records that this sample wrote the first `slots` slots.
+    /// Every copy's phase this sample, each moved toward its target by at
+    /// most `max_step`.
     #[inline]
-    pub fn hold(&mut self, slots: usize) {
-        self.held = slots;
+    pub fn advance(&mut self, max_step: f32) -> &[f32; PORT_MAX_LANES] {
+        if self.gliding {
+            let mut gliding = false;
+            for voice in 0..self.count {
+                let target = self.target[voice];
+                let phase = if voice < self.held {
+                    glide_phase(self.phase[voice], target, max_step)
+                } else {
+                    target
+                };
+                self.phase[voice] = phase;
+                gliding |= phase != target;
+            }
+            self.held = self.count;
+            self.gliding = gliding;
+        }
+        &self.phase
     }
 }
 
@@ -104,13 +124,29 @@ mod tests {
     }
 
     #[test]
-    fn unwritten_slots_start_on_target_and_held_ones_glide() {
+    fn fresh_copies_start_on_target_and_held_ones_glide() {
         let mut phases = UnisonPhases::default();
-        assert_eq!(phases.step(2, 2, 4, 0.01), 0.5);
-        phases.hold(3);
-        // Copy 2 of 3 sits at 4/6; slot 2 moves one step toward it.
-        assert!((phases.step(2, 2, 3, 0.01) - 0.51).abs() < 1e-6);
-        // Slot 3 was never written, so it starts on copy 3 of 4's phase.
-        assert_eq!(phases.step(3, 3, 4, 0.01), 0.125);
+        phases.set_count(3);
+        assert_eq!(phases.advance(0.01)[..3], [0.0, 1.0 / 6.0, 4.0 / 6.0]);
+        phases.set_count(4);
+        let next = phases.advance(0.01);
+        // Copy 2 moves one step from 4/6 toward 4/8; copy 3 is new.
+        assert!((next[2] - (4.0 / 6.0 - 0.01)).abs() < 1e-6);
+        assert_eq!(next[3], 0.125);
+    }
+
+    #[test]
+    fn a_count_change_settles_on_the_new_targets() {
+        let mut phases = UnisonPhases::default();
+        phases.set_count(5);
+        phases.advance(0.01);
+        phases.set_count(7);
+        for _ in 0..100 {
+            phases.advance(0.01);
+        }
+        for voice in 0..7 {
+            assert_eq!(phases.advance(0.01)[voice], voice_phase(voice, 7));
+        }
+        assert!(!phases.gliding);
     }
 }
