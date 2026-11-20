@@ -1,0 +1,3 @@
+kind: New
+body: '25 wavetables from Mutable Instruments Plaits, Beads and Braids now ship with the app: pass a path like `''builtin/tables/mi/organ.wav''` to `$wavetable`, and the editor suggests them as you type `''builtin/''`. The Docs panel''s new Built-ins page describes each table.'
+time: 2026-11-20T02:02:03.567023-05:00
