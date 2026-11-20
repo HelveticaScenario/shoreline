@@ -1327,6 +1327,7 @@ export class GraphBuilder implements ChainHost {
                 active: ModuleOutput;
                 level: PolySignal;
                 pan: PolySignal;
+                isBus: boolean;
             }
         >();
 
@@ -1476,6 +1477,7 @@ export class GraphBuilder implements ChainHost {
                     outsByLabel.set(group.label, {
                         active: muteSig.items[0],
                         audio: outputSignals,
+                        isBus: group.isBus,
                         // The tap reads the gain as written, ranged as the
                         // user's own signal is.
                         level: gainControllable ? gainSource : group.gain!,
@@ -1752,7 +1754,19 @@ export class GraphBuilder implements ChainHost {
                 };
                 outSources.set(trackNameKey(label), sources);
             }
-            tap.resolve(sources);
+            if (out.isBus) {
+                // Every track sends to every bus, so a track reading a bus's
+                // audio would feed back into it.
+                const at = sourceLocation
+                    ? ` (line ${sourceLocation.line})`
+                    : '';
+                tap.resolveControls(
+                    sources,
+                    `bus ${label} has no audio to read${at}: a bus's name only names it in other tracks' sends`,
+                );
+            } else {
+                tap.resolve(sources);
+            }
         }
 
         for (const meter of vuMeters) {
@@ -2294,7 +2308,8 @@ export class GraphBuilder implements ChainHost {
         const resolved = deferred.resolve();
         if (resolved === null) {
             throw new Error(
-                'Unset DeferredModuleOutput used in a scope — call .set(...) on the $deferred() before the end of the script',
+                deferred.unsetReason ??
+                    'Unset DeferredModuleOutput used in a scope — call .set(...) on the $deferred() before the end of the script',
             );
         }
         return {
@@ -2471,6 +2486,8 @@ export class DeferredModuleOutput extends ModuleOutput {
     private resolvedModuleOutput: ModuleOutput | null = null;
     private resolving: boolean = false;
     static idCounter = 0;
+    /** Why this output is never set, reported where the patch reads it. */
+    unsetReason: string | null = null;
 
     constructor(builder: GraphBuilder) {
         super(
@@ -2757,7 +2774,8 @@ function replaceDeferred(
                 const output = resolved.resolve();
                 if (output === null) {
                     throw new Error(
-                        'Unset DeferredModuleOutput used as a module param — call .set(...) on the $deferred() before the end of the script',
+                        resolved.unsetReason ??
+                            'Unset DeferredModuleOutput used as a module param — call .set(...) on the $deferred() before the end of the script',
                     );
                 }
                 return valueToSignal(output);

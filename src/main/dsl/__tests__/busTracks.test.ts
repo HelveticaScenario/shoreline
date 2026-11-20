@@ -81,12 +81,21 @@ describe('$bus tracks', () => {
         ).not.toThrow();
     });
 
-    test('a bus name is also its track signal', () => {
+    test("a bus name has the bus's controls but no audio", () => {
         expect(() =>
             run(`verb: $bus().lpf('c5')
-                 dry: $saw('c3').amp(verb.active).track({ sends: verb })
-                 follow: $sine('c4').amp($motionFollower(verb))`),
+                 dry: $saw('c3').amp(verb.active).gain(verb.level).track({ sends: verb })`),
         ).not.toThrow();
+        // Every track sends to every bus, so reading one would loop back.
+        expect(() =>
+            run(`verb: $bus().lpf('c5')
+                 dry: $saw('c3').track({ sends: verb })
+                 follow: $sine('c4').amp($motionFollower(verb))`),
+        ).toThrow(/bus verb has no audio to read \(line 3\)/);
+        expect(() =>
+            run(`verb: $bus().lpf('c5')
+                 wet: $trackTap('verb').hpf('c3')`),
+        ).toThrow(/bus verb has no audio to read/);
     });
 
     test('a bus nothing sends to is silent', () => {

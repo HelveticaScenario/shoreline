@@ -170,7 +170,7 @@ describe('track labels in the editor', () => {
         });
     };
 
-    test("a bus track's name takes sends and is its signal", () => {
+    test("a bus track's name takes sends and has the bus's controls", () => {
         expect(
             labelErrors(`
 verb: $bus().plate().wet(2).track({ gain: 3 })
@@ -180,9 +180,18 @@ room: b.pipe((s) => s.lpf('c5'))
 kick: $sine('c1')
 bass: $saw('c2').amp(kick.active).track({ sends: [verb, 2] })
 lead: $saw('c3').track({ pan: kick.panning, sends: [verb, [echo, 2], room] }).scope()
-pad: $sine('c4').amp($motionFollower(verb)).amp(verb.active)
+pad: $sine('c4').amp(verb.active).gain(verb.level)
 `),
         ).toEqual([]);
+    });
+
+    test("a bus track's name plays no audio", () => {
+        expect(
+            labelErrors(`
+verb: $bus().plate()
+pad: $sine('c4').amp($motionFollower(verb))
+`),
+        ).toHaveLength(1);
     });
 
     test('ranged chain results and concat keep a bus chain a bus', () => {
