@@ -31,6 +31,13 @@ struct PWarpParams {
 struct PWarpOutputs {
     #[output("output", "the reshaped phase", type = cv, default, range = (0.0, 1.0))]
     sample: PolyOutput,
+    #[output(
+        "sign",
+        "-1 where a `flip` warp inverts the wave, otherwise 1: multiply the oscillator by it",
+        type = cv,
+        range = (-1.0, 1.0),
+    )]
+    sign: PolyOutput,
 }
 
 #[derive(Default, Clone, Copy, SeedSide)]
@@ -52,8 +59,7 @@ pub fn p_warp_derive_lane_count(params: &PWarpParams) -> usize {
 
 const P_WARP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Phase warp",
-    description: "Reshapes a phase ramp with a `$phase.*` warp (mirror, bend, \
-                  sync, fold, pwm, pulsar, crush or feedback) so the phase \
+    description: "Reshapes a phase ramp with a `$phase.*` warp so the phase \
                   oscillator after it plays a new timbre. Chain warps for more \
                   complex shapes, and modulate their amounts for sweeping, \
                   vocal motion.",
@@ -78,6 +84,16 @@ const P_WARP_DOCS: ModuleDocs = ModuleDocs {
                 tone: $pSine(
                   $pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1))),
                 )
+            "#,
+        },
+        DocExample {
+            title: "Flipped wave",
+            code: r#"
+                const warped = $pWarp(
+                  $ramp('c3'),
+                  $phase.flip($sine('0.2hz').range(0, 5)),
+                )
+                tone: $pSine(warped).mul(warped._sign)
             "#,
         },
     ],
@@ -107,11 +123,12 @@ impl PWarp {
                 .params
                 .phase
                 .resolve(lane, sample_rate, &mut state.glides);
-            let y = self
+            let warped = self
                 .params
                 .phase
                 .evaluate(input, &resolved, freq_norm, &mut state.warp);
-            self.outputs.sample.set(lane, y);
+            self.outputs.sample.set(lane, warped.phase);
+            self.outputs.sign.set(lane, warped.sign);
         }
     }
 }

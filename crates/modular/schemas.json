@@ -15360,6 +15360,22 @@
                 },
                 "type": {
                   "type": "string",
+                  "const": "asym"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
                   "const": "mirror"
                 }
               },
@@ -15387,6 +15403,54 @@
             {
               "type": "object",
               "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendp"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendm"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendmp"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
                 "ratio": {
                   "$ref": "#/$defs/PolySignal"
                 },
@@ -15398,6 +15462,22 @@
               "required": [
                 "type",
                 "ratio"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "quant"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
               ]
             },
             {
@@ -15430,6 +15510,198 @@
               "required": [
                 "type",
                 "width"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "orbit"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "spin"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "chaos"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "primes"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "binary"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "brownian"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "reciprocal"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "wormhole"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "logistic"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "sigmoid"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "fractal"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "flip"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
               ]
             },
             {
@@ -15975,6 +16247,22 @@
                 },
                 "type": {
                   "type": "string",
+                  "const": "asym"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
                   "const": "mirror"
                 }
               },
@@ -16002,6 +16290,54 @@
             {
               "type": "object",
               "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendp"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendm"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendmp"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
                 "ratio": {
                   "$ref": "#/$defs/PolySignal"
                 },
@@ -16013,6 +16349,22 @@
               "required": [
                 "type",
                 "ratio"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "quant"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
               ]
             },
             {
@@ -16045,6 +16397,198 @@
               "required": [
                 "type",
                 "width"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "orbit"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "spin"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "chaos"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "primes"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "binary"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "brownian"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "reciprocal"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "wormhole"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "logistic"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "sigmoid"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "fractal"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "flip"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
               ]
             },
             {
@@ -24681,7 +25225,7 @@
     "name": "$pWarp",
     "docs": {
       "summary": "Phase warp",
-      "description": "Reshapes a phase ramp with a `$phase.*` warp (mirror, bend, sync, fold, pwm, pulsar, crush or feedback) so the phase oscillator after it plays a new timbre. Chain warps for more complex shapes, and modulate their amounts for sweeping, vocal motion.",
+      "description": "Reshapes a phase ramp with a `$phase.*` warp so the phase oscillator after it plays a new timbre. Chain warps for more complex shapes, and modulate their amounts for sweeping, vocal motion.",
       "categories": [
         "phase"
       ],
@@ -24694,6 +25238,10 @@
         {
           "title": "Crushed feedback tone",
           "code": "tone: $pSine(\n  $pWarp($ramp('c3'), $phase.crush(2, $phase.feedback(1))),\n)"
+        },
+        {
+          "title": "Flipped wave",
+          "code": "const warped = $pWarp(\n  $ramp('c3'),\n  $phase.flip($sine('0.2hz').range(0, 5)),\n)\ntone: $pSine(warped).mul(warped._sign)"
         }
       ]
     },
@@ -24814,6 +25362,22 @@
                 },
                 "type": {
                   "type": "string",
+                  "const": "asym"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
                   "const": "mirror"
                 }
               },
@@ -24841,6 +25405,54 @@
             {
               "type": "object",
               "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendp"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendm"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "bendmp"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
                 "ratio": {
                   "$ref": "#/$defs/PolySignal"
                 },
@@ -24852,6 +25464,22 @@
               "required": [
                 "type",
                 "ratio"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "quant"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
               ]
             },
             {
@@ -24884,6 +25512,198 @@
               "required": [
                 "type",
                 "width"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "orbit"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "spin"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "chaos"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "primes"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "binary"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "brownian"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "reciprocal"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "wormhole"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "logistic"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "sigmoid"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "fractal"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
+              ]
+            },
+            {
+              "type": "object",
+              "properties": {
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
+                },
+                "type": {
+                  "type": "string",
+                  "const": "flip"
+                }
+              },
+              "required": [
+                "type",
+                "amount"
               ]
             },
             {
@@ -24966,6 +25786,18 @@
         "polyphonic": true,
         "default": true,
         "minValue": 0.0,
+        "maxValue": 1.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "sign",
+        "description": "-1 where a `flip` warp inverts the wave, otherwise 1: multiply the oscillator by it",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -1.0,
         "maxValue": 1.0,
         "mono": false,
         "precision": "f32",

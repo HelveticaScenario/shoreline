@@ -777,15 +777,37 @@ export function executePatchScript(
                 : t;
         };
 
+    const amountWarps = [
+        'asym',
+        'mirror',
+        'bend',
+        'bendp',
+        'bendm',
+        'bendmp',
+        'quant',
+        'fold',
+        'orbit',
+        'spin',
+        'chaos',
+        'primes',
+        'binary',
+        'brownian',
+        'reciprocal',
+        'wormhole',
+        'logistic',
+        'sigmoid',
+        'fractal',
+        'flip',
+        'pulsar',
+        'crush',
+        'feedback',
+    ] as const;
     const $phase = {
-        mirror: warpHelper('mirror', 'amount'),
-        bend: warpHelper('bend', 'amount'),
+        ...Object.fromEntries(
+            amountWarps.map((type) => [type, warpHelper(type, 'amount')]),
+        ),
         sync: warpHelper('sync', 'ratio'),
-        fold: warpHelper('fold', 'amount'),
         pwm: warpHelper('pwm', 'width'),
-        pulsar: warpHelper('pulsar', 'amount'),
-        crush: warpHelper('crush', 'amount'),
-        feedback: warpHelper('feedback', 'amount'),
     };
 
     /**

@@ -334,10 +334,13 @@ impl Voice {
             if fade > 0.0 {
                 let mut p = osc.phase + mod_in;
                 p -= p.floor();
+                let mut sign = 1.0;
                 if let Some((warp, resolved)) = &ctx.phase {
-                    p = warp.evaluate(p, resolved, f, &mut osc.warp);
+                    let warped = warp.evaluate(p, resolved, f, &mut osc.warp);
+                    p = warped.phase;
+                    sign = warped.sign;
                 }
-                s = sin_turns(p);
+                s = sin_turns(p) * sign;
                 if ctx.warps.active() {
                     s = ctx.warps.apply(s, f);
                 }

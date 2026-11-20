@@ -25,7 +25,7 @@ use crate::{
         oscillators::{
             FmMode, apply_fm, sync_blep, sync_edge_fraction, wavetable_prep::PreparedWavetable,
         },
-        phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
+        phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp, Warped},
         utils::{SchmittTrigger, sanitize},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -181,11 +181,14 @@ impl LaneState {
         // The warp's state as it stood before this sample, for the sync
         // reset's second read below.
         let warp_before = self.warp;
-        let warped_phase = match warp {
+        let warped = match warp {
             Some((warp, resolved)) => warp.evaluate(raw_phase, resolved, freq_norm, &mut self.warp),
-            None => raw_phase,
+            None => Warped {
+                phase: raw_phase,
+                sign: 1.0,
+            },
         };
-        let before = prepared.read_sample(self.level, frame_f, warped_phase);
+        let before = prepared.read_sample(self.level, frame_f, warped.phase) * warped.sign;
 
         // Naive read plus any residual carried from a sync reset on the
         // previous sample.
@@ -221,9 +224,13 @@ impl LaneState {
                         let mut scratch = warp_before;
                         warp.evaluate(read_offset, resolved, freq_norm, &mut scratch)
                     }
-                    None => read_offset,
+                    None => Warped {
+                        phase: read_offset,
+                        sign: 1.0,
+                    },
                 };
-                let after = prepared.read_sample(self.level, frame_f, warped_zero);
+                let after =
+                    prepared.read_sample(self.level, frame_f, warped_zero.phase) * warped_zero.sign;
                 let (now, carry) = sync_blep(after - before, frac);
                 sample += now;
                 self.blep_carry = carry;
