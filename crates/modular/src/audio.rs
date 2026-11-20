@@ -617,9 +617,9 @@ pub struct ApplyPatchError {
 use crate::validation::ValidationError;
 use crate::validation::validate_patch;
 
-/// Volts-to-full-scale factor for audio output: ±40 V plays at 0 dBFS, so a
-/// single ±5 V voice sits at -18 dBFS and summed lanes and tracks have headroom.
-const AUDIO_OUTPUT_ATTENUATION: f32 = 0.025;
+/// Volts-to-full-scale factor for audio output: ±20 V plays at 0 dBFS, so a
+/// single ±5 V voice sits at -12 dBFS and summed lanes and tracks have headroom.
+const AUDIO_OUTPUT_ATTENUATION: f32 = 0.05;
 
 /// Volts per unit of audio input: a full-scale input reads as ±5 V, the level
 /// of a single voice.

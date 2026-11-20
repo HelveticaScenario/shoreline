@@ -1,6 +1,6 @@
 /**
  * A track's `sends` feeds the track's final signal, after its gain, pan,
- * mute and solo, to each bus named, at full level or at a pair's gain.
+ * mute and solo, to each bus named, at full level or at a pair's linear level.
  */
 
 import { describe, expect, test } from 'vitest';
@@ -35,7 +35,11 @@ function busSends(patch: PatchGraph, index: number): string[] {
         if (module.moduleType !== '$amp') {
             return null;
         }
-        const factor = source(module.params.factor).id;
+        const cables = module.params.factor;
+        if (!Array.isArray(cables) || cables[0]?.type !== 'cable') {
+            return null;
+        }
+        const factor = source(cables).id;
         return factor.startsWith('__vuSlew_')
             ? factor.slice('__vuSlew_'.length)
             : null;
@@ -61,14 +65,14 @@ function busSends(patch: PatchGraph, index: number): string[] {
     return inputs.map((input) => {
         const cable = Array.isArray(input) ? input[0] : input;
         const from = byId.get(cable.module)!;
-        if (from.moduleType !== '$gain') {
+        if (from.moduleType !== '$amp' || gateOf(from) !== null) {
             return stages(from.id);
         }
-        const { input: gained, level } = from.params as {
+        const { input: sent, factor } = from.params as {
             input: Cable[];
-            level: unknown;
+            factor: unknown;
         };
-        return `${stages(gained[0].module)}@${JSON.stringify(level)}`;
+        return `${stages(sent[0].module)}@${JSON.stringify(factor)}`;
     });
 }
 
