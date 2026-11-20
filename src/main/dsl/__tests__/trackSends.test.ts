@@ -249,6 +249,21 @@ describe("the mixer's send dials", () => {
         ]);
     });
 
+    test("a level past the dial's span locks the dial and plays as written", () => {
+        const patch = patchOf(
+            `${BUSES}lead: $saw('c3').track({ sends: [[a, -2], [b, 7]] })`,
+        );
+        const lead = (patch.vuMeters as VuMeterDef[]).find(
+            (m) => m.key === 'lead',
+        )!;
+        expect(lead.sends).toEqual([
+            { bus: 'a', level: -2, locked: true, moduleId: null },
+            { bus: 'b', level: 7, locked: true, moduleId: null },
+        ]);
+        expect(busSends(patch, 0)).toEqual(['lead@-2']);
+        expect(busSends(patch, 1)).toEqual(['lead@7']);
+    });
+
     test('without buses, tracks have no sends', () => {
         expect(metersOf(`lead: $saw('c3')`).get('lead')!.sends).toBeUndefined();
     });

@@ -84,6 +84,12 @@ describe('setting a send', () => {
             2,
             `lead: $saw('c3').track({ sends: [[a, 2]] })`,
         ],
+        [
+            `lead: $saw('c3').track({ sends: [/* fx */] })`,
+            'a',
+            2,
+            `lead: $saw('c3').track({ sends: [/* fx */[a, 2]] })`,
+        ],
         // Changed in place.
         [
             `lead: $saw('c3').track({ sends: [a, 3] })`,
@@ -123,8 +129,16 @@ describe('setting a send', () => {
         // A value the dials cannot read.
         [`lead: $saw('c3').track({ sends: mySends })`, 'a', 2],
         [`lead: $saw('c3').track(opts)`, 'a', 2],
+        // A name, spread or array second may hold another send, so the text
+        // alone cannot tell a pair from a list.
+        [`lead: $saw('c3').track({ sends: [a, ...more] })`, 'a', 0],
+        [`lead: $saw('c3').track({ sends: [a, fx] })`, 'c', 2],
+        [`lead: $saw('c3').track({ sends: [a, level] })`, 'a', 2],
+        // A spread may hold sends an edit would override.
+        [`lead: $saw('c3').track({ ...opts })`, 'b', 2],
+        [`lead: $saw('c3').track({ sends: a, ...opts })`, 'b', 2],
     ])('%s: %s at %s edits nothing', (source, bus, level) => {
-        expect(send(source, bus, level)).toBeNull();
+        expect(send(source, bus, level === 0 ? null : level)).toBeNull();
     });
 
     test('a track made elsewhere is not appended to', () => {

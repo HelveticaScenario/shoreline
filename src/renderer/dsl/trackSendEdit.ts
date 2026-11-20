@@ -35,9 +35,10 @@ function busName(node: ts.Node | undefined, buses: ReadonlySet<string>) {
 }
 
 /**
- * Whether `node` is one `[bus, level]` pair rather than a list of sends, by
- * the rule the DSL reads it with: a bus followed by something that is
- * neither a bus nor a list starting with one.
+ * Whether `node` is one `[bus, level]` pair rather than a list of sends. The
+ * DSL tells them apart by what the second element holds when it runs, so a
+ * pair is recognised only where the text alone settles it: a level that is
+ * no name, spread or array, any of which may hold another send.
  */
 function isPair(
     node: ts.Expression,
@@ -49,11 +50,10 @@ function isPair(
     const [bus, level] = node.elements;
     return (
         busName(bus, buses) !== null &&
-        busName(level, buses) === null &&
-        !(
-            ts.isArrayLiteralExpression(level) &&
-            busName(level.elements[0], buses) !== null
-        )
+        !ts.isIdentifier(level) &&
+        !ts.isSpreadElement(level) &&
+        !ts.isOmittedExpression(level) &&
+        !ts.isArrayLiteralExpression(level)
     );
 }
 
@@ -125,7 +125,8 @@ function sendsEdit(
     buses: ReadonlySet<string>,
 ): TrackSourceEdit | null {
     const options = optionsOf(call);
-    if (options === null) {
+    // A spread may hold sends of its own, which an edit here would override.
+    if (options === null || options?.properties.some(ts.isSpreadAssignment)) {
         return null;
     }
     const property = options && findProperty(options, 'sends');
@@ -191,7 +192,7 @@ function sendsEdit(
         );
         return close === null
             ? null
-            : { end: close, start: sends.list.getStart(file) + 1, text: added };
+            : { end: close, start: close, text: added };
     }
     const trailing = commasAround(last, file).after;
     const at = trailing ? trailing.getEnd() : last.getEnd();

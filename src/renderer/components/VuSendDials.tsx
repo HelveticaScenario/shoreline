@@ -80,6 +80,7 @@ function SendDial({
         startLevel: number;
         lastLevel: number;
         codeOnly: boolean;
+        moved: boolean;
     } | null>(null);
     const level = send.level ?? 0;
     const editable = !send.locked && send.moduleId !== null;
@@ -97,6 +98,7 @@ function SendDial({
             dragRef.current = {
                 codeOnly,
                 lastLevel: startLevel,
+                moved: false,
                 startLevel,
                 startY: e.clientY,
             };
@@ -116,6 +118,7 @@ function SendDial({
                 Math.round(Math.min(MAX_LEVEL, Math.max(0, raw)) * 100) / 100;
             if (next !== drag.lastLevel) {
                 drag.lastLevel = next;
+                drag.moved = true;
                 onChange(next, drag.codeOnly);
             }
         },
@@ -123,14 +126,12 @@ function SendDial({
     );
 
     // Also bound to pointercancel/lostpointercapture, so a drag that loses
-    // its capture still commits; after a normal pointerup it is a no-op.
+    // its capture still commits; after a normal pointerup it is a no-op. A
+    // press that never moved the dial commits nothing.
     const handlePointerUp = useCallback(() => {
         const drag = dragRef.current;
         dragRef.current = null;
-        if (
-            drag &&
-            (drag.lastLevel !== drag.startLevel || drag.lastLevel === 0)
-        ) {
+        if (drag?.moved) {
             onCommit(drag.lastLevel, drag.codeOnly);
         }
     }, [onCommit]);
@@ -141,7 +142,7 @@ function SendDial({
             className={`vu-send${send.locked ? ' vu-send--locked' : ''}`}
             title={
                 send.locked
-                    ? `Send to ${busLabel} (signal-controlled)`
+                    ? `Send to ${busLabel} (${send.level === null ? 'signal-controlled' : `${send.level}, set in code`})`
                     : `Send to ${busLabel}: ${level} (drag; ⌃/⌘ drag: edit code only; right-click: off; ⌃/⌘ right-click: revert)`
             }
             onPointerDown={editable ? handlePointerDown : undefined}
@@ -256,7 +257,7 @@ export function VuSendDials({
                     }
                     return (
                         <SendDial
-                            key={bus.key}
+                            key={`${bus.key}:${send.locked}`}
                             letter={bus.letter}
                             busLabel={bus.label}
                             send={send}

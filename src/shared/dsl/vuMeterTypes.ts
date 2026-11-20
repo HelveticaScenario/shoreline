@@ -10,14 +10,14 @@ export interface VuSendDef {
     /** The bus's track name: the key of its meter. */
     bus: string;
     /**
-     * Linear level (5 = full) when the dial controls it: a numeric level, a
-     * bare bus name (5) or no send at all (0). Null when signal-driven.
+     * Linear level (5 = full) when it is a number: a numeric level, a bare
+     * bus name (5) or no send at all (0). Null when signal-driven.
      */
     level: number | null;
     /** `_smoothControl` driving the send's level; null when locked. */
     moduleId: string | null;
-    /** True when the level is signal-driven, or the track sends to the bus
-     *  more than once: the dial takes no input. */
+    /** True when the level is signal-driven or past the dial's 0–5, or the
+     *  track sends to the bus more than once: the dial takes no input. */
     locked: boolean;
     /** Index of this send's live tap in the meter's `sendSources`. */
     sourceIndex?: number;

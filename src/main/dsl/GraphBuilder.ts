@@ -1590,7 +1590,12 @@ export class GraphBuilder implements ChainHost {
                         .filter(([target]) => target === bus)
                         .map(([, level]) => level ?? SEND_FULL_LEVEL);
                     const level = levels.length === 0 ? 0 : levels[0];
-                    if (levels.length <= 1 && typeof level === 'number') {
+                    if (
+                        levels.length <= 1 &&
+                        typeof level === 'number' &&
+                        level >= SEND_LEVEL_RANGE.min &&
+                        level <= SEND_LEVEL_RANGE.max
+                    ) {
                         const idBase = `__vuSend_${sk}_${skByLabel.get(busName)}`;
                         let id = idBase;
                         for (let n = 2; sendIds.has(id); n++) {
@@ -1614,9 +1619,14 @@ export class GraphBuilder implements ChainHost {
                     for (const each of levels) {
                         bus.addSend(sent, each);
                     }
+                    // A level past the dial's span stays as written, the dial
+                    // locked at its edge.
                     const send: VuSendDef = {
                         bus: busName,
-                        level: null,
+                        level:
+                            levels.length === 1 && typeof level === 'number'
+                                ? level
+                                : null,
                         locked: true,
                         moduleId: null,
                     };
