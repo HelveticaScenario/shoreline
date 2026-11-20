@@ -47,10 +47,10 @@ fn saw_paths_agree() {
     );
 }
 
-/// Without band-limiting the saw reads the exact waveform at each sample's
-/// phase: shape 0 rises to its peak at 0.999 of the cycle, then falls.
+/// Without band-limiting the saw is exact: every sample rises by the same
+/// step, and each wrap falls the full 10 V in one sample.
 #[test]
-fn unbandlimited_saw_is_exact() {
+fn unbandlimited_saw_steps_exactly() {
     let render_lane0 = |bandlimit: bool| {
         let patch = build(
             ProcessingMode::Block,
@@ -61,23 +61,17 @@ fn unbandlimited_saw_is_exact() {
         let (dut, _, _) = render(&patch, &[BLOCK_SIZE]);
         dut.into_iter().step_by(LANES).collect::<Vec<f32>>()
     };
-    // A fresh voice starts on its rising zero crossing, at phase s / 2.
-    let (s, increment) = (0.999_f64, 261.625_565_300_598_6 * 4.0 / SAMPLE_RATE as f64);
+    let rise = 10.0 * 261.625_58 * 4.0 / SAMPLE_RATE;
     let exact = |out: &[f32]| {
-        out.iter().enumerate().all(|(n, &v)| {
-            let phase = (s / 2.0 + (n + 1) as f64 * increment).rem_euclid(1.0);
-            let wave = if phase < s {
-                2.0 * phase / s - 1.0
-            } else {
-                1.0 - 2.0 * (phase - s) / (1.0 - s)
-            };
-            (v as f64 - 5.0 * wave).abs() < 1e-3
+        out.windows(2).all(|w| {
+            let step = w[1] - w[0];
+            (step - rise).abs() < 1e-3 || (step - (rise - 10.0)).abs() < 1e-3
         })
     };
     assert!(exact(&render_lane0(false)));
     assert!(
         !exact(&render_lane0(true)),
-        "the band-limited saw is smoothed"
+        "the band-limited wrap is smoothed"
     );
 }
 

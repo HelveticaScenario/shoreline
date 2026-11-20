@@ -10,8 +10,8 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, apply_fm, sync_blep, sync_edge_fraction,
-            waveforms::{naive_pulse, pulse},
+            FmMode, apply_fm, sync_edge_fraction, sync_reset,
+            waveforms::{naive_pulse, pulse, pulse_width},
         },
         utils::{SchmittTrigger, sanitize, wrap_phase},
     },
@@ -148,7 +148,8 @@ impl PulseLaneState {
 
         // The sync reset lands in the upcoming interval, so the edges are
         // placed on the real, pre-reset phase.
-        let body = pulse(read_phase, width, phase_increment.abs(), bandlimit);
+        let pulse_width = pulse_width(width);
+        let body = pulse(read_phase, pulse_width, phase_increment.abs(), bandlimit);
 
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
@@ -160,10 +161,10 @@ impl PulseLaneState {
         if let Some(v) = sync {
             if self.sync_schmitt.process(v) {
                 let frac = sync_edge_fraction(self.sync_prev, v);
-                let before = naive_pulse(read_phase, width);
+                let before = naive_pulse(read_phase, pulse_width);
                 self.phase = 0.0;
-                let after = naive_pulse(read_offset, width);
-                let (n, carry) = sync_blep(after - before, frac, bandlimit);
+                let after = naive_pulse(read_offset, pulse_width);
+                let (n, carry) = sync_reset(after - before, frac, bandlimit);
                 now = n;
                 self.blep_carry = carry;
             }

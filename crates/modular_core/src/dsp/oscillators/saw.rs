@@ -10,7 +10,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, apply_fm, sync_blep, sync_edge_fraction,
+            FmMode, apply_fm, sync_edge_fraction, sync_reset,
             waveforms::{naive_triangle, triangle, triangle_symmetry},
         },
         utils::{SchmittTrigger, sanitize, wrap_phase_f64},
@@ -148,7 +148,7 @@ impl LaneState {
         wait_for_zero_cross: bool,
         bandlimit: bool,
     ) -> f32 {
-        let s = triangle_symmetry(shape);
+        let s = triangle_symmetry(shape, bandlimit);
 
         // Phase offset shifts the read position without altering the
         // accumulator, so it never drifts.
@@ -199,7 +199,7 @@ impl LaneState {
                 let before = naive_triangle(read_phase, s);
                 self.phase = 0.0;
                 let after = naive_triangle(read_offset, s);
-                let (n, carry) = sync_blep((after - before) as f32, frac, bandlimit);
+                let (n, carry) = sync_reset((after - before) as f32, frac, bandlimit);
                 now = n;
                 self.blep_carry = carry;
             }
@@ -376,6 +376,38 @@ mod tests {
                 osc.outputs.sample.get(0)
             })
             .collect()
+    }
+
+    /// Renders 60 samples of an unmuted saw, the sync input rising at
+    /// sample 50 when `synced`.
+    fn render_synced(bandlimit: bool, synced: bool) -> Vec<f32> {
+        let mut osc = make_saw(0.0, false);
+        osc.params.bandlimit = bandlimit;
+        (0..60)
+            .map(|n| {
+                let sync = if synced && n >= 50 { 5.0 } else { 0.0 };
+                osc.params.sync = Some(PolySignal::mono(Signal::Volts(sync)));
+                osc.update(48_000.0);
+                osc.outputs.sample.get(0)
+            })
+            .collect()
+    }
+
+    /// Without band-limiting a sync reset is an exact step: the edge sample
+    /// still reads the running wave, and the next reads one increment past
+    /// phase 0.
+    #[test]
+    fn unbandlimited_sync_resets_exactly() {
+        let free = render_synced(false, false);
+        let naive = render_synced(false, true);
+        assert_eq!(naive[..51], free[..51]);
+        let increment = phase_increment(0.0, 0.0, FmMode::default(), 48_000.0);
+        assert_eq!(naive[51], naive_triangle(increment, 1.0) as f32 * 5.0);
+        assert_ne!(
+            render_synced(true, true)[50],
+            render_synced(true, false)[50],
+            "the band-limited reset is smoothed"
+        );
     }
 
     #[test]

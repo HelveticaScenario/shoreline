@@ -433,7 +433,7 @@ impl VoiceState {
             let before = 2.0 * phase - 1.0;
             phase = 0.0;
             let after = -1.0;
-            let (now, carry) = sync_blep(after - before, frac, true);
+            let (now, carry) = sync_blep(after - before, frac);
             saw += now;
             self.blep_carry = carry;
         }

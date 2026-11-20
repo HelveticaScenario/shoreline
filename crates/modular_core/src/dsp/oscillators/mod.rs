@@ -55,16 +55,23 @@ pub fn sync_edge_fraction(prev: f32, curr: f32) -> f32 {
 /// interval. Returns `(this_sample, next_sample)`: residuals to add to the
 /// naive output now and to carry into the following sample. Calibrated to match
 /// the ±1-normalized PolyBLEP used for the oscillators' natural edges, so the
-/// synced sample lands on the band-limited midpoint when `frac == 0`. Without
-/// `bandlimit` both are 0, leaving the reset as a hard step.
+/// synced sample lands on the band-limited midpoint when `frac == 0`.
 #[inline]
-pub fn sync_blep(jump: f32, frac: f32, bandlimit: bool) -> (f32, f32) {
-    if !bandlimit {
-        return (0.0, 0.0);
-    }
+pub fn sync_blep(jump: f32, frac: f32) -> (f32, f32) {
     let half = 0.5 * jump;
     let before = 1.0 - frac;
     (half * before * before, -half * frac * frac)
+}
+
+/// [`sync_blep`] when `bandlimit` is set; otherwise no correction, leaving the
+/// reset as a hard step.
+#[inline]
+pub fn sync_reset(jump: f32, frac: f32, bandlimit: bool) -> (f32, f32) {
+    if bandlimit {
+        sync_blep(jump, frac)
+    } else {
+        (0.0, 0.0)
+    }
 }
 
 pub mod enosc;
@@ -146,14 +153,14 @@ mod tests {
     fn sync_blep_lands_the_discontinuity_sample_on_the_midpoint() {
         let m = 2.0;
         // frac == 0: the whole correction is on this sample → before + M/2.
-        let (now, carry) = sync_blep(m, 0.0, true);
+        let (now, carry) = sync_blep(m, 0.0);
         assert!((now - 1.0).abs() < 1e-6);
         assert!(carry.abs() < 1e-6);
         // frac → 1: nothing now, the next sample carries −M/2 → after − M/2.
-        let (now, carry) = sync_blep(m, 1.0, true);
+        let (now, carry) = sync_blep(m, 1.0);
         assert!(now.abs() < 1e-6);
         assert!((carry + 1.0).abs() < 1e-6);
         // A zero jump produces no correction at all.
-        assert_eq!(sync_blep(0.0, 0.3, true), (0.0, 0.0));
+        assert_eq!(sync_blep(0.0, 0.3), (0.0, 0.0));
     }
 }

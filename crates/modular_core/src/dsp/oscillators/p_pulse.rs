@@ -1,7 +1,10 @@
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
-    dsp::{oscillators::waveforms::pulse, utils::wrap},
+    dsp::{
+        oscillators::waveforms::{pulse, pulse_width},
+        utils::wrap,
+    },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
@@ -121,7 +124,12 @@ impl PPulseOscillator {
 
             state.prev_phase = phase;
 
-            let sample = pulse(phase, width, phase_increment, self.params.bandlimit);
+            let sample = pulse(
+                phase,
+                pulse_width(width),
+                phase_increment,
+                self.params.bandlimit,
+            );
             self.outputs.sample.set(lane, sample * 5.0);
         }
     }

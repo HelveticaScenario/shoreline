@@ -110,7 +110,7 @@ impl PSawOscillator {
             }
             phase_increment = phase_increment.abs().clamp(0.0, 0.5);
 
-            let s = triangle_symmetry(*state.shape);
+            let s = triangle_symmetry(*state.shape, self.params.bandlimit);
             let raw_output = triangle(
                 state.prev_phase,
                 phase,
@@ -161,7 +161,7 @@ mod tests {
             let phase = (i as f32 * 0.037).fract();
             osc.params.phase = PolySignal::mono(Signal::Volts(phase));
             osc.update(48_000.0);
-            let expected = naive_triangle(phase as f64, triangle_symmetry(0.0)) as f32 * 5.0;
+            let expected = naive_triangle(phase as f64, triangle_symmetry(0.0, false)) as f32 * 5.0;
             assert_eq!(osc.outputs.sample.get(0), expected);
         }
     }

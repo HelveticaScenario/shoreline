@@ -17,27 +17,27 @@ pub fn poly_blep(phase: f32, dt: f32) -> f32 {
     }
 }
 
-/// Naive ±1 pulse for `width` (0–5 V, 2.5 square): high from phase 0 to the
-/// width, then low.
+/// Fraction of the cycle a pulse of `width` (0–5 V, 2.5 square) stays high.
 #[inline(always)]
-pub fn naive_pulse(phase: f32, width: f32) -> f32 {
-    if phase < pulse_width(width) {
-        1.0
-    } else {
-        -1.0
-    }
+pub fn pulse_width(width: f32) -> f32 {
+    (width / 5.0).clamp(0.01, 0.99)
 }
 
-/// ±1 pulse at `phase` for `width` (0–5 V), PolyBLEP'd at its rising and
-/// falling edges when `bandlimit` is set. `dt` is the absolute phase increment
-/// per sample.
+/// Naive ±1 pulse, high from phase 0 to `pulse_width`, then low.
 #[inline(always)]
-pub fn pulse(phase: f32, width: f32, dt: f32, bandlimit: bool) -> f32 {
-    let naive = naive_pulse(phase, width);
+pub fn naive_pulse(phase: f32, pulse_width: f32) -> f32 {
+    if phase < pulse_width { 1.0 } else { -1.0 }
+}
+
+/// ±1 pulse at `phase`, high for `pulse_width` of the cycle, PolyBLEP'd at its
+/// rising and falling edges when `bandlimit` is set. `dt` is the absolute phase
+/// increment per sample.
+#[inline(always)]
+pub fn pulse(phase: f32, pulse_width: f32, dt: f32, bandlimit: bool) -> f32 {
+    let naive = naive_pulse(phase, pulse_width);
     if !bandlimit {
         return naive;
     }
-    let pulse_width = pulse_width(width);
     let from_fall = if phase >= pulse_width {
         phase - pulse_width
     } else {
@@ -46,16 +46,19 @@ pub fn pulse(phase: f32, width: f32, dt: f32, bandlimit: bool) -> f32 {
     naive + poly_blep(phase, dt) - poly_blep(from_fall, dt)
 }
 
-#[inline(always)]
-fn pulse_width(width: f32) -> f32 {
-    (width / 5.0).clamp(0.01, 0.99)
-}
-
 /// Symmetry (peak position) of the saw/triangle/ramp morph for `shape`
 /// (0–5 V): 0 saw (peak at 1), 2.5 triangle (peak at 0.5), 5 ramp (peak at 0).
+/// DPW divides by both segment lengths, so the band-limited form keeps the
+/// peak off the cycle's ends; the naive form reaches them, resetting in one
+/// sample.
 #[inline(always)]
-pub fn triangle_symmetry(shape: f32) -> f64 {
-    (1.0 - shape * 0.2).clamp(0.001, 0.999) as f64
+pub fn triangle_symmetry(shape: f32, bandlimit: bool) -> f64 {
+    let s = 1.0 - shape * 0.2;
+    if bandlimit {
+        s.clamp(0.001, 0.999) as f64
+    } else {
+        s.clamp(0.0, 1.0) as f64
+    }
 }
 
 /// ±1 variable-symmetry triangle at `phase`, its corners band-limited by DPW
@@ -76,7 +79,8 @@ pub fn triangle(prev_phase: f64, phase: f64, increment: f64, s: f64, bandlimit: 
     }
 }
 
-/// Naive ±1 variable-symmetry triangle with its peak at phase `s`.
+/// Naive ±1 variable-symmetry triangle with its peak at phase `s`; phase is in
+/// `[0, 1)`, so `s = 0` and `s = 1` never divide by zero.
 #[inline(always)]
 pub fn naive_triangle(phase: f64, s: f64) -> f64 {
     if phase < s {
