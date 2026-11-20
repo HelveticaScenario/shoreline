@@ -169,7 +169,9 @@ int main(int argc, char** argv) {
     p.timbre = c.timbre;
     p.morph = c.morph;
     p.accent = 0.8f;
-    const int blocks = c.trigger_period ? 4000 : 1000;
+    // The filtered noise runs long enough for its level to settle within the
+    // noise's spread.
+    const int blocks = c.engine == 17 ? 16000 : (c.trigger_period ? 4000 : 1000);
     const float header[7] = {float(c.engine), c.note, c.harmonics, c.timbre,
                              c.morph, float(c.trigger_period),
                              float(blocks * kBlockSize)};

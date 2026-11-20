@@ -460,9 +460,10 @@ fn matches_plaits_engines() {
             // The filtered noise draws its two clocks' values a sample at a
             // time, where the engine draws each clock's block in turn, so it
             // matches the engine only to the noise's spread, and has no
-            // polarity to compare.
+            // polarity to compare. A slow, synced clock through a narrow band
+            // spreads its level about 0.3 dB from one draw to the next.
             let (level_db, near_db) = if engine == 17 {
-                (1.0, 2.0)
+                (1.5, 2.0)
             } else if noisy {
                 (0.25, 1.5)
             } else {
