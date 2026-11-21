@@ -974,6 +974,11 @@ describe('sequencing', () => {
             '$saw',
         );
         expect(semitones(mixed.params.freq)).toEqual(['c2', 6, 10, 15]);
+        const [buffer] = findModules(
+            execPatch('const b = $buffer("c3(maj7)", 1)'),
+            '$buffer',
+        );
+        expect(buffer.params.input).toHaveLength(4);
         expect(() => execPatch('out: $saw("c3(nope)")')).toThrow(
             /"c3\(nope\)": unknown chord/,
         );
@@ -2724,6 +2729,16 @@ describe('$phase helpers', () => {
             type: 'cable',
             port: 'output',
         });
+    });
+
+    test('a $phase amount spreads a chord literal into its notes', () => {
+        const patch = execWithWavs(
+            'out: $wavetable(0, "/wavs/wt.wav", 0, { phase: $phase.fold("c(maj)") })',
+        ).patch;
+        const [wt] = findModules(patch, '$wavetable');
+        expect((wt.params.phase as { amount: unknown[] }).amount).toHaveLength(
+            3,
+        );
     });
 
     test('$phase variants use camelCase tags matching Rust deserializer', () => {

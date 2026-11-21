@@ -222,6 +222,14 @@ function chordNotes(value: unknown): number[] | undefined {
         : undefined;
 }
 
+/** `value` with each chord literal in it, alone or in an array, spread into its notes. */
+export function spreadChords(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => chordNotes(v) ?? [v]);
+    }
+    return chordNotes(value) ?? value;
+}
+
 function sanitizeIdentifier(name: string): string {
     let id = name.replace(
         /[^a-zA-Z0-9_$]+(.)?/g,
