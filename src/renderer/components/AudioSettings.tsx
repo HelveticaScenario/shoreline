@@ -18,6 +18,10 @@ interface AudioSettingsTabProps {
     isActive: boolean;
 }
 
+/** The settings the engine opens with when none are chosen, where the devices allow them. */
+const PREFERRED_SAMPLE_RATE = 48_000;
+const PREFERRED_BUFFER_SIZE = 256;
+
 /**
  * The sample rate and buffer size the panel shows for `state`: the chosen ones
  * while the chosen output is not connected, since the default output plays at
@@ -358,34 +362,39 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
 
     // Update sample rate and buffer size when device selection changes
     useEffect(() => {
-        // Auto-select a sensible sample rate if the current one is not available.
-        // Prefer the output device's native/default rate (from cpal) so we
-        // Match what the OS considers optimal for this device.
+        // A selection the devices cannot run gives way to the engine's
+        // defaults where they can, then to the output's own rate and the
+        // lowest buffer size.
         if (
             selectedSampleRate === null ||
             !availableSampleRates.includes(selectedSampleRate)
         ) {
             const deviceDefault = capabilityOutputDevice?.sampleRate ?? null;
-            const preferred =
-                deviceDefault !== null &&
-                availableSampleRates.includes(deviceDefault)
-                    ? deviceDefault
-                    : availableSampleRates.length > 0
-                      ? availableSampleRates[availableSampleRates.length - 1]
-                      : null;
+            const preferred = availableSampleRates.includes(
+                PREFERRED_SAMPLE_RATE,
+            )
+                ? PREFERRED_SAMPLE_RATE
+                : deviceDefault !== null &&
+                    availableSampleRates.includes(deviceDefault)
+                  ? deviceDefault
+                  : availableSampleRates.length > 0
+                    ? availableSampleRates[availableSampleRates.length - 1]
+                    : null;
             setSelectedSampleRate(preferred);
         }
 
-        // Auto-select lowest buffer size if not in available list
         if (
             selectedBufferSize === null ||
             !availableBufferSizes.includes(selectedBufferSize)
         ) {
-            const lowest =
-                availableBufferSizes.length > 0
-                    ? Math.min(...availableBufferSizes)
-                    : null;
-            setSelectedBufferSize(lowest);
+            const preferred = availableBufferSizes.includes(
+                PREFERRED_BUFFER_SIZE,
+            )
+                ? PREFERRED_BUFFER_SIZE
+                : availableBufferSizes.length > 0
+                  ? Math.min(...availableBufferSizes)
+                  : null;
+            setSelectedBufferSize(preferred);
         }
     }, [
         availableSampleRates,
