@@ -7,6 +7,7 @@
 
 use crate::dsp::mi::core::{
     control::Ramp,
+    dsp::constrain,
     phase::{fraction, wrap_below},
     polyblep::{
         edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
@@ -54,18 +55,6 @@ impl Default for PdOscillator {
             pw: ramp(0.5),
             phase_modulation: ramp(0.0),
         }
-    }
-}
-
-/// stmlib's `CONSTRAIN`: the low bound wins when the bounds cross.
-#[inline(always)]
-fn constrain(x: f32, low: f32, high: f32) -> f32 {
-    if x < low {
-        low
-    } else if x > high {
-        high
-    } else {
-        x
     }
 }
 

@@ -16,6 +16,7 @@ import { AudioControls } from './components/AudioControls';
 import { TransportDisplay } from './components/TransportDisplay';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
+import { AudioDeviceBanner } from './components/AudioDeviceBanner';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
 import {
@@ -2222,6 +2223,21 @@ function App() {
     }, []);
     const handleStop = useCallback(() => handleStopRef.current(), []);
 
+    // An output device change that stopped playback leaves the editor in the
+    // same state as Stop.
+    useEffect(
+        () =>
+            electronAPI.audio.onDeviceNotice((notice) => {
+                if (notice.stopped) {
+                    handleStopRef.current();
+                }
+                if (notice.recordingStopped) {
+                    setIsRecording(false);
+                }
+            }),
+        [],
+    );
+
     const dismissError = useCallback(() => {
         setError(null);
         setValidationErrors(null);
@@ -2623,6 +2639,8 @@ function App() {
             />
 
             <AudioPanicDialog />
+
+            <AudioDeviceBanner playing={isClockRunning} />
 
             <CommandPalette
                 open={isPaletteOpen}

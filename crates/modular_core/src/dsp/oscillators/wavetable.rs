@@ -261,7 +261,8 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
     description: "Plays the single-cycle frames of a wavetable WAV and blends \
                   between them, for evolving glassy, vocal or digital timbres. \
                   Sweep `position` with an LFO or envelope, and bend each cycle \
-                  further with a `$phase.*` warp.",
+                  further with a `$phase.*` warp. Tables bundled with the app \
+                  live under `'builtin/tables/'`.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[],
     examples: &[
@@ -270,7 +271,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
             code: r#"
                 chord: $wavetable(
                   $chord('C3[m9]'),
-                  '/wavs/tables/pad.wav',
+                  'builtin/tables/mi/formants.wav',
                   $sine('0.1hz').range(0, 5),
                 )
             "#,
@@ -282,7 +283,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
                 const env = $perc(seq, { decay: 0.5 })
                 melody: $wavetable(
                   seq,
-                  '/wavs/tables/pad.wav',
+                  'builtin/tables/mi/fm-bell.wav',
                   env.range(0, 4),
                 ).amp(env)
             "#,

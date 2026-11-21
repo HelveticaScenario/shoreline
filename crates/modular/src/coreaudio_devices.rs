@@ -26,7 +26,7 @@ use objc2_core_foundation::{CFRetained, CFString};
 
 use crate::audio::{AudioDeviceInfo, BufferSizeRange, COMMON_SAMPLE_RATES};
 
-fn address(
+pub(crate) fn address(
     selector: AudioObjectPropertySelector,
     scope: AudioObjectPropertyScope,
 ) -> AudioObjectPropertyAddress {
@@ -42,16 +42,34 @@ fn address(
 /// # Safety
 /// `T` must be the property's data type.
 unsafe fn read<T: Copy>(object: AudioObjectID, address: &AudioObjectPropertyAddress) -> Option<T> {
+    // SAFETY: forwarded from the caller; the property takes no qualifier.
+    unsafe { read_qualified::<T, ()>(object, address, None) }
+}
+
+/// Read a fixed-size property, passing `qualifier` where the property takes
+/// one (translating a UID to a device, say).
+///
+/// # Safety
+/// `T` must be the property's data type and `Q` its qualifier's type.
+pub(crate) unsafe fn read_qualified<T: Copy, Q>(
+    object: AudioObjectID,
+    address: &AudioObjectPropertyAddress,
+    qualifier: Option<&Q>,
+) -> Option<T> {
     // SAFETY: zeroed is a valid placeholder for the plain C data types read
     // here, and the HAL writes at most `size` bytes into it.
     let mut value: T = unsafe { mem::zeroed() };
     let mut size = mem::size_of::<T>() as u32;
+    let (qualifier_size, qualifier) = match qualifier {
+        Some(q) => (mem::size_of::<Q>() as u32, (q as *const Q).cast()),
+        None => (0, null()),
+    };
     let status = unsafe {
         AudioObjectGetPropertyData(
             object,
             NonNull::from(address),
-            0,
-            null(),
+            qualifier_size,
+            qualifier,
             NonNull::from(&mut size),
             NonNull::from(&mut value).cast(),
         )
@@ -163,7 +181,7 @@ fn buffer_size_range(object: AudioObjectID) -> Option<BufferSizeRange> {
     })
 }
 
-fn default_device(selector: AudioObjectPropertySelector) -> Option<AudioObjectID> {
+pub(crate) fn default_device(selector: AudioObjectPropertySelector) -> Option<AudioObjectID> {
     let address = address(selector, kAudioObjectPropertyScopeGlobal);
     // SAFETY: default device properties are an `AudioDeviceID`.
     unsafe { read(kAudioObjectSystemObject as AudioObjectID, &address) }
@@ -201,7 +219,7 @@ pub fn enumerate_devices(host_id: &str) -> (Vec<AudioDeviceInfo>, Vec<AudioDevic
         let Some(name) = read_string(device, kAudioObjectPropertyName) else {
             continue;
         };
-        let id = cpal::DeviceId(cpal::HostId::CoreAudio, uid).to_string();
+        let id = cpal::DeviceId::new(cpal::HostId::CoreAudio, uid).to_string();
         let buffer_size_range = buffer_size_range(device);
 
         if let Some((channels, sample_rate)) = output_format {

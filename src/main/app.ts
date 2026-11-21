@@ -12,6 +12,7 @@ import {
 } from 'electron';
 import type {
     AudioConfigOptions,
+    CurrentAudioState,
     PatchGraph,
     QueuedTrigger,
 } from '@modular/core';
@@ -23,6 +24,7 @@ import type {
     FileTreeEntry,
     ContextMenuOptions,
     EditorContextMenuOptions,
+    AudioDeviceNotice,
     DSLExecuteResult,
     KeybindingOverride,
     MainLogLevel,
@@ -43,6 +45,12 @@ import { AppliedPatchState } from './appliedPatchState';
 import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
+import {
+    audioDeviceNotice,
+    appliedSettingsNotice,
+    pollAudioDevices,
+    AUDIO_DEVICE_POLL_MS,
+} from './audioDevicePoll';
 import { bundledChangelog, fetchPublishedReleases } from './releaseNotesSource';
 import {
     isNewerVersion,
@@ -69,6 +77,7 @@ import {
 import { PERFORMANCE_WINDOW_NAME } from '../shared/video/performanceWindowName';
 import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
+import { builtinAssetsDir } from './builtinAssetsDir';
 import { assetKind } from '../shared/assetFiles';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
@@ -592,6 +601,7 @@ const audioConfigOptions: AudioConfigOptions | undefined =
 // Initialize the synthesizer instance with saved config
 console.log('Initializing Synthesizer with config:', audioConfigOptions);
 const synth = new Synthesizer(audioConfigOptions);
+synth.setBuiltinAssets(builtinAssetsDir());
 
 // Get the actual audio state after construction (may have fallen back to defaults)
 const actualAudioState = synth.getCurrentAudioState();
@@ -611,26 +621,33 @@ if (actualAudioState.fallbackWarning) {
     fallbackWarnings.report(actualAudioState.fallbackWarning);
 }
 
-// Update saved config with actual devices used (in case of fallback)
+// The saved config holds the settings the user chose. A launch that falls
+// back from them (another host, a rate the output cannot run) saves what
+// opened; a chosen device that is not connected stays saved with its
+// settings.
+function chosenAudioConfig(state: CurrentAudioState) {
+    return {
+        bufferSize: state.chosenBufferSize ?? undefined,
+        hostId: state.hostId,
+        inputDeviceId: state.chosenInputDeviceId ?? null,
+        outputDeviceId: state.chosenOutputDeviceId ?? undefined,
+        sampleRate: state.chosenSampleRate,
+    };
+}
+
 const actualConfig = configStore.load();
+const chosenConfig = chosenAudioConfig(actualAudioState);
 const configNeedsUpdate =
-    actualConfig.audioConfig?.hostId !== actualAudioState.hostId ||
-    actualConfig.audioConfig?.outputDeviceId !==
-        actualAudioState.outputDeviceId ||
-    actualConfig.audioConfig?.inputDeviceId !==
-        actualAudioState.inputDeviceId ||
-    actualConfig.audioConfig?.sampleRate !== actualAudioState.sampleRate ||
-    actualConfig.audioConfig?.bufferSize !== actualAudioState.bufferSize;
+    actualConfig.audioConfig?.hostId !== chosenConfig.hostId ||
+    actualConfig.audioConfig?.outputDeviceId !== chosenConfig.outputDeviceId ||
+    (actualConfig.audioConfig?.inputDeviceId ?? null) !==
+        chosenConfig.inputDeviceId ||
+    actualConfig.audioConfig?.sampleRate !== chosenConfig.sampleRate ||
+    actualConfig.audioConfig?.bufferSize !== chosenConfig.bufferSize;
 
 if (configNeedsUpdate) {
     configStore.update((config) => {
-        config.audioConfig = {
-            bufferSize: actualAudioState.bufferSize ?? undefined,
-            hostId: actualAudioState.hostId,
-            inputDeviceId: actualAudioState.inputDeviceId ?? null,
-            outputDeviceId: actualAudioState.outputDeviceId ?? undefined,
-            sampleRate: actualAudioState.sampleRate,
-        };
+        config.audioConfig = chosenConfig;
     });
     console.log('Saved updated audio config after fallback');
 }
@@ -640,13 +657,7 @@ function saveAudioConfig() {
     try {
         const state = synth.getCurrentAudioState();
         configStore.update((config) => {
-            config.audioConfig = {
-                bufferSize: state.bufferSize ?? undefined,
-                hostId: state.hostId,
-                inputDeviceId: state.inputDeviceId ?? null,
-                outputDeviceId: state.outputDeviceId ?? undefined,
-                sampleRate: state.sampleRate,
-            };
+            config.audioConfig = chosenAudioConfig(state);
         });
         console.log('Audio configuration saved');
     } catch (error) {
@@ -664,6 +675,43 @@ setInterval(() => {
     // arrive to trigger the prune inline.
     synth.pruneDisconnectedMidi();
 }, 10000);
+
+// A notice raised before the main window loads, delivered once it does, and
+// whether it shows a disconnected output.
+let pendingDeviceNotice: {
+    notice: AudioDeviceNotice;
+    disconnected: boolean;
+} | null = null;
+// The banner shows a disconnected output, which new settings replace.
+let disconnectedNoticeShown = false;
+
+function sendDeviceNotice(notice: AudioDeviceNotice, disconnected = false) {
+    disconnectedNoticeShown = disconnected;
+    if (
+        mainWindow &&
+        !mainWindow.isDestroyed() &&
+        !mainWindow.webContents.isLoading()
+    ) {
+        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_DEVICE_NOTICE, notice);
+    } else {
+        pendingDeviceNotice = { notice, disconnected };
+    }
+}
+
+// The saved config is left alone: it holds the settings asked for, which the
+// next launch opens and a move falls back to where its device allows them.
+setInterval(() => {
+    const polled = pollAudioDevices(synth, appliedPatch);
+    if (!polled) {
+        return;
+    }
+    if (polled.engineReset) {
+        cvSent.values.clear();
+    }
+    const notice = audioDeviceNotice(polled.report, polled.stoppedPlayback);
+    console.log('Audio devices:', notice.message);
+    sendDeviceNotice(notice, polled.report.event === 'Disconnected');
+}, AUDIO_DEVICE_POLL_MS);
 
 // Workspace root state
 let currentWorkspaceRoot: string | null = null;
@@ -1264,7 +1312,7 @@ registerIPCHandler('SHELL_OPEN_PATH', async (targetPath: string) => {
     return shell.openPath(targetPath);
 });
 
-// Audio device operations - new API
+// Audio device operations
 registerIPCHandler('AUDIO_REFRESH_DEVICE_CACHE', (rescanJack?: boolean) => {
     synth.refreshDeviceCache(rescanJack);
 });
@@ -1278,51 +1326,41 @@ registerIPCHandler('AUDIO_GET_CURRENT_STATE', () =>
 registerIPCHandler(
     'AUDIO_RECREATE_STREAMS',
     (
-        outputDeviceId: string,
+        outputDeviceId: string | null,
         sampleRate: number,
         bufferSize: number | null,
         inputDeviceId: string | null,
+        hostId: string | null,
     ) => {
-        synth.recreateStreams(
-            outputDeviceId,
+        const wasPlaying = !synth.isStopped();
+        const change = synth.recreateStreams(
+            outputDeviceId ?? undefined,
             sampleRate,
             bufferSize ?? undefined,
             inputDeviceId ?? undefined,
+            hostId ?? undefined,
         );
-        cvSent.values.clear();
-        fallbackWarnings.report(synth.getCurrentAudioState().fallbackWarning);
+        // A new sample rate or buffer size starts an empty engine; otherwise
+        // the patch plays on with everything already sent to it.
+        if (change.engineReset) {
+            appliedPatch.clear();
+            cvSent.values.clear();
+        }
+        const state = synth.getCurrentAudioState();
+        const notice = appliedSettingsNotice(
+            change,
+            change.engineReset && wasPlaying,
+            state.outputDeviceName,
+            disconnectedNoticeShown,
+        );
+        if (notice) {
+            sendDeviceNotice(notice);
+        }
+        fallbackWarnings.report(state.fallbackWarning);
         saveAudioConfig();
+        return change;
     },
 );
-
-// Legacy audio device operations (for backward compatibility)
-registerIPCHandler('AUDIO_REFRESH_DEVICE_LIST', () => {
-    synth.refreshDeviceList();
-});
-
-registerIPCHandler('AUDIO_LIST_HOSTS', () => synth.listAudioHosts());
-
-registerIPCHandler('AUDIO_LIST_OUTPUT_DEVICES', () =>
-    synth.listAudioOutputDevices(),
-);
-
-registerIPCHandler('AUDIO_LIST_INPUT_DEVICES', () =>
-    synth.listAudioInputDevices(),
-);
-
-registerIPCHandler('AUDIO_GET_OUTPUT_DEVICE', () => synth.getOutputDeviceId());
-
-registerIPCHandler('AUDIO_GET_INPUT_DEVICE', () => synth.getInputDeviceId());
-
-registerIPCHandler('AUDIO_SET_OUTPUT_DEVICE', (deviceId: string) => {
-    synth.setAudioOutputDevice(deviceId);
-    saveAudioConfig();
-});
-
-registerIPCHandler('AUDIO_SET_INPUT_DEVICE', (deviceId: string | null) => {
-    synth.setAudioInputDevice(deviceId ?? undefined);
-    saveAudioConfig();
-});
 
 registerIPCHandler('AUDIO_GET_INPUT_CHANNELS', () => synth.inputChannels());
 
@@ -2097,6 +2135,11 @@ const createWindow = (): void => {
     // ready — anything sent earlier would be dropped by the loading page.
     mainWindow.webContents.on('did-finish-load', () => {
         flushPendingLogs();
+        if (pendingDeviceNotice) {
+            const { notice, disconnected } = pendingDeviceNotice;
+            pendingDeviceNotice = null;
+            sendDeviceNotice(notice, disconnected);
+        }
         fallbackWarnings.attach((warning) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send(

@@ -9,6 +9,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             filter::{Svf, tan_dirty},
             limiter::{Limiter, LimiterRates},
             phase::limit_frequency,
@@ -99,12 +100,28 @@ struct MiStringParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `_blend` from `strings` into `exciter`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiStringOutputs {
-    #[output("strings", "the ringing strings; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
+    #[output(
+        "blend",
+        "`strings` crossfaded into `exciter` by `mix`",
+        type = cv,
+        default,
+        range = (-10.0, 10.0),
+    )]
+    blend: PolyOutput,
+    #[output("strings", "the ringing strings; unaccented, within ±5 V", type = cv, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output(
         "exciter",
@@ -268,6 +285,7 @@ impl StringVoice {
 }
 
 struct Voice {
+    blend: Blend,
     strings: [StringVoice; STRINGS],
     /// Each string's pitch, in cycles per sample; a string keeps its pitch
     /// once a pluck moves on from it.
@@ -294,6 +312,7 @@ struct Voice {
 impl crate::types::SeedSide for Voice {
     fn seed_side(&mut self, left: &Self) {
         let Self {
+            blend: _,
             strings: _,
             f0: _,
             active: _,
@@ -311,6 +330,7 @@ impl crate::types::SeedSide for Voice {
         for (string, left) in self.strings.iter_mut().zip(&left.strings) {
             string.seed_side(left);
         }
+        self.blend = left.blend;
         self.f0 = left.f0;
         self.active = left.active;
         self.limiter = left.limiter;
@@ -327,6 +347,7 @@ impl crate::types::SeedSide for Voice {
 impl Default for Voice {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             strings: Default::default(),
             f0: [0.01; STRINGS],
             active: STRINGS - 1,
@@ -438,7 +459,7 @@ impl MiString {
         }
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         let sustain = p.trigger.is_none();
@@ -486,10 +507,16 @@ impl MiString {
                 ACCENT_TRIM,
                 self.state.sample_rate,
             );
+            let aux = (EXCITER_GAIN * exciter).clamp(-5.0, 5.0);
             self.outputs.sample.set(lane, out);
+            self.outputs.exciter.set(lane, aux);
+            let mix = (
+                p.mix.value_or(lane, MiStringParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
             self.outputs
-                .exciter
-                .set(lane, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
+                .blend
+                .set(lane, voice.blend.step(out, aux, mix, sample_rate));
         }
     }
 }
