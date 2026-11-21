@@ -29,7 +29,7 @@ fn default_unison() -> usize {
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SupersawParams {
-    #[input("the note's pitch; with `syncOctaves` set, the pitch the saws restart at", type = pitch)]
+    #[input("the note's pitch; with `sync` set, the pitch the saws restart at", type = pitch)]
     freq: PolySignal,
     #[input(
         "number of detuned saws stacked per note, spread across the stereo field",
@@ -58,14 +58,14 @@ struct SupersawParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "hard sync: how far above the note each saw runs before the note restarts it; sweep it for sync tearing",
+        "hard sync: how many octaves above the note each saw runs before the note restarts it; sweep it for sync tearing",
         type = control,
         range = (0.0, ..),
         control_range = (0.0, 4.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
-    sync_octaves: Option<PolySignal>,
+    sync: Option<PolySignal>,
     #[input(
         "each new saw stays silent until it first crosses zero, so its starting phase cannot click"
     )]
@@ -106,7 +106,7 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
             title: "Sync sweep",
             code: r#"
                 keys: $supersaw('a2', {
-                  syncOctaves: $sine('0.1hz').range(0, 3),
+                  sync: $sine('0.1hz').range(0, 3),
                 })
             "#,
         },
@@ -331,10 +331,7 @@ impl Supersaw {
             let fm = p.fm.value_or(lane, 0.0);
             let base_freq = apply_fm(pitch, fm, p.fm_mode);
             let detune = p.detune.value_or(lane, SupersawParams::DETUNE_DEFAULT);
-            let ratio = p
-                .sync_octaves
-                .as_ref()
-                .map(|sync| sync_ratio(sync.get_value(lane)));
+            let ratio = p.sync.as_ref().map(|sync| sync_ratio(sync.get_value(lane)));
             let mut accum = 0.0f32;
             for (voice, &gain) in mix[lane % 2].iter().enumerate().take(voices) {
                 let dt = voice_increment(
@@ -376,7 +373,7 @@ impl Supersaw {
             freq,
             detune,
             fm,
-            sync_octaves: sync,
+            sync,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
 
         // Each voice's phase increment, `[voice * lanes + lane]`, and each
@@ -599,7 +596,7 @@ mod tests {
             detune: Some(PolySignal::mono(Signal::Volts(detune))),
             fm: None,
             fm_mode: FmMode::default(),
-            sync_octaves: None,
+            sync: None,
             wait_for_zero_cross: false,
         }
     }
@@ -665,7 +662,7 @@ mod tests {
 
     fn synced(octaves: f32, base: SupersawParams) -> SupersawParams {
         SupersawParams {
-            sync_octaves: Some(mono(octaves)),
+            sync: Some(mono(octaves)),
             ..base
         }
     }
@@ -802,7 +799,7 @@ mod tests {
     }
 
     #[test]
-    fn sync_octaves_sets_how_much_faster_the_saw_runs() {
+    fn sync_sets_how_much_faster_the_saw_runs() {
         let mut s = make_supersaw(synced(1.5, params(mono(0.0), 1, 0.0)));
         s.update(48000.0);
         let (saw, source) = (s.lane_state[0].phase, s.lane_state[0].sync_phase);
@@ -843,7 +840,7 @@ mod tests {
 
     #[test]
     fn turning_sync_on_moves_nothing() {
-        // With `syncOctaves` at 0 each saw restarts exactly when it would
+        // With `sync` at 0 each saw restarts exactly when it would
         // wrap anyway, so switching it on mid-note leaves the output where
         // it was.
         let render = |switch_at: Option<usize>| {
@@ -851,7 +848,7 @@ mod tests {
             (0..3000)
                 .map(|i| {
                     if Some(i) == switch_at {
-                        s.params.sync_octaves = Some(mono(0.0));
+                        s.params.sync = Some(mono(0.0));
                     }
                     s.update(48000.0);
                     s.outputs.sample.get(0)
@@ -911,7 +908,7 @@ mod tests {
             let mut s = make_supersaw(synced(0.0, params(mono(freq), voices, 0.3)));
             let peak = s.state.peak;
             for i in 0..8000 {
-                s.params.sync_octaves = Some(mono(i as f32 / 1000.0));
+                s.params.sync = Some(mono(i as f32 / 1000.0));
                 s.update(48000.0);
                 for (lane, peak) in peak.iter().enumerate() {
                     let v = s.outputs.sample.get(lane);

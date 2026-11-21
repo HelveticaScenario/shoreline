@@ -14490,7 +14490,7 @@
         },
         {
           "title": "Sync sweep",
-          "code": "keys: $supersaw('a2', {\n  syncOctaves: $sine('0.1hz').range(0, 3),\n})"
+          "code": "keys: $supersaw('a2', {\n  sync: $sine('0.1hz').range(0, 3),\n})"
         },
         {
           "title": "Wide lead sweep",
@@ -14504,7 +14504,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "the note's pitch; with `syncOctaves` set, the pitch the saws restart at",
+          "description": "the note's pitch; with `sync` set, the pitch the saws restart at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -14555,8 +14555,8 @@
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
         },
-        "syncOctaves": {
-          "description": "hard sync: how far above the note each saw runs before the note restarts it; sweep it for sync tearing",
+        "sync": {
+          "description": "hard sync: how many octaves above the note each saw runs before the note restarts it; sweep it for sync tearing",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -14677,7 +14677,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "the note's pitch; with `syncOctaves` set, the pitch the saws restart at",
+        "description": "the note's pitch; with `sync` set, the pitch the saws restart at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -14707,8 +14707,8 @@
         "readsSides": false
       },
       {
-        "name": "syncOctaves",
-        "description": "hard sync: how far above the note each saw runs before the note restarts it; sweep it for sync tearing",
+        "name": "sync",
+        "description": "hard sync: how many octaves above the note each saw runs before the note restarts it; sweep it for sync tearing",
         "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
