@@ -2,6 +2,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::unison_phase::{UnisonPhases, phase_glide_step};
+use crate::dsp::utils::unison_voices::{centred_position, unison_lane};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
@@ -129,17 +130,13 @@ impl Unison {
                 let max_detune_voct = normalized * normalized;
 
                 for (voice, &phase) in phases.iter().enumerate().take(count) {
-                    let out_ch = (voice * poly_lanes + poly_ch) * channels + side;
+                    let out_ch = unison_lane(voice, poly_ch, poly_lanes) * channels + side;
                     if out_ch >= output_lanes {
                         break;
                     }
 
-                    let offset = if count > 1 {
-                        // Symmetric fan-out: -max_detune to +max_detune
-                        max_detune_voct * (2.0 * voice as f32 / (count - 1) as f32 - 1.0)
-                    } else {
-                        0.0
-                    };
+                    // Symmetric fan-out: -max_detune to +max_detune
+                    let offset = max_detune_voct * centred_position(voice, count);
 
                     self.outputs.sample.set(out_ch, input_val + offset);
                     self.outputs.phase.set(out_ch, phase);

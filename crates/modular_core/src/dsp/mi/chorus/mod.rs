@@ -1,5 +1,3 @@
-mod ensemble;
-
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -8,7 +6,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::types::SwapGlide;
 
-use ensemble::{Ensemble, EnsembleRates};
+use crate::dsp::mi::core::ensemble::{Ensemble, EnsembleRates};
 
 const AMOUNT_DEFAULT: f32 = 2.5;
 const DEPTH_DEFAULT: f32 = 2.5;
@@ -55,8 +53,8 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' ensemble: three delay taps \
                   per side, crossed between the sides and swept by a slow \
                   and a fast LFO, for the lush shimmer of a string \
-                  machine. After `$mi.divideDown` and a low-pass it makes \
-                  Plaits' string machine.",
+                  machine. `$mi.stringMachine` plays Plaits' string machine \
+                  through it.",
     categories: &[ModuleCategory::Effect],
     sections: &[],
     examples: &[

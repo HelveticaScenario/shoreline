@@ -46,9 +46,9 @@ const QUANTUM: f64 = 4.0;
 /// the per-buffer snapshot, the running sample counter for the host-time
 /// filter, an in-frame index, and the pending quantized-start flag.
 pub struct LinkState {
-    link: Option<AblLink>,
-    host_time_filter: Option<HostTimeFilter>,
-    session_state: Option<SessionState>,
+    /// Kept boxed so installing and removing resources only moves the
+    /// pointer: the box is allocated and freed on the main thread.
+    resources: Option<Box<LinkResources>>,
     /// Running sample count for HostTimeFilter.
     sample_count: u64,
     /// Per-buffer Link snapshot, refreshed at the start of every audio
@@ -62,19 +62,26 @@ pub struct LinkState {
 impl LinkState {
     pub fn new() -> Self {
         Self {
-            link: None,
-            host_time_filter: None,
-            session_state: None,
+            resources: None,
             sample_count: 0,
             buffer: None,
             pending_start: false,
         }
     }
 
+    /// Restart host-time tracking, which a gap in the sample count (a new
+    /// output stream) would otherwise skew. Allocates, so main thread only.
+    pub fn reset_timing(&mut self) {
+        if let Some(res) = self.resources.as_deref_mut() {
+            res.host_time_filter.reset();
+        }
+        self.sample_count = 0;
+    }
+
     /// Whether Link is currently active (resources installed).
     #[inline]
     pub fn is_active(&self) -> bool {
-        self.link.is_some()
+        self.resources.is_some()
     }
 
     /// Install or remove Link resources. Returns the previously-held resources
@@ -82,43 +89,15 @@ impl LinkState {
     /// main-thread drop. Also clears any pending start and the per-buffer
     /// snapshot whenever the live instance changes.
     pub fn install(&mut self, new: Option<Box<LinkResources>>) -> Option<Box<LinkResources>> {
-        let old = self.take();
-
-        if let Some(res) = new {
-            let LinkResources {
-                link,
-                host_time_filter,
-                session_state,
-            } = *res;
-            self.link = Some(link);
-            self.host_time_filter = Some(host_time_filter);
-            self.session_state = Some(session_state);
-            self.sample_count = 0;
-        }
-
-        old
-    }
-
-    /// Take the current resources (if any), leaving Link inactive. Used both
-    /// for swap (via `install`) and explicit teardown.
-    fn take(&mut self) -> Option<Box<LinkResources>> {
         self.buffer = None;
         self.pending_start = false;
+        self.sample_count = 0;
+        std::mem::replace(&mut self.resources, new)
+    }
 
-        match (
-            self.link.take(),
-            self.host_time_filter.take(),
-            self.session_state.take(),
-        ) {
-            (Some(link), Some(host_time_filter), Some(session_state)) => {
-                Some(Box::new(LinkResources {
-                    link,
-                    host_time_filter,
-                    session_state,
-                }))
-            }
-            _ => None,
-        }
+    fn link_and_session(&mut self) -> Option<(&AblLink, &mut SessionState)> {
+        let res = self.resources.as_deref_mut()?;
+        Some((&res.link, &mut res.session_state))
     }
 
     /// Force-clear the pending-start flag. Called on explicit Stop so a later
@@ -135,9 +114,11 @@ impl LinkState {
     }
 
     fn capture(&mut self, sample_rate: f32) -> Option<LinkBufferState> {
-        let link = self.link.as_ref()?;
-        let htf = self.host_time_filter.as_mut()?;
-        let ss = self.session_state.as_mut()?;
+        let LinkResources {
+            link,
+            host_time_filter: htf,
+            session_state: ss,
+        } = self.resources.as_deref_mut()?;
 
         let clock_micros = link.clock_micros();
         let host_time_micros = htf.sample_time_to_host_time(clock_micros, self.sample_count);
@@ -166,8 +147,8 @@ impl LinkState {
             Some(b) => b,
             None => return false,
         };
-        let ss = match &self.session_state {
-            Some(s) => s,
+        let ss = match &self.resources {
+            Some(r) => &r.session_state,
             None => return false,
         };
         // `request_quantized_start` maps beat 0 to the boundary: with peers
@@ -190,7 +171,7 @@ impl LinkState {
     /// sample at a time across arbitrary frame indices in a callback.
     pub fn phase_at_frame(&self, cb_frame: usize) -> Option<(f64, f64)> {
         let buffer = self.buffer.as_ref()?;
-        let ss = self.session_state.as_ref()?;
+        let ss = &self.resources.as_ref()?.session_state;
         let frame_offset_micros = (cb_frame as f64 * buffer.micros_per_sample) as i64;
         let frame_host_time = buffer.host_time_micros + frame_offset_micros;
         let phase = ss.phase_at_time(frame_host_time, buffer.quantum);
@@ -200,7 +181,7 @@ impl LinkState {
     /// Push an explicit tempo override to the Link session via the RT-safe
     /// capture/commit pair.
     pub fn set_tempo_now(&mut self, tempo: f64) {
-        if let (Some(link), Some(ss)) = (&self.link, &mut self.session_state) {
+        if let Some((link, ss)) = self.link_and_session() {
             link.capture_audio_session_state(ss);
             let time = link.clock_micros();
             ss.set_tempo(tempo, time);
@@ -212,7 +193,7 @@ impl LinkState {
     /// bar boundary. Sets the pending_start flag so the audio loop can
     /// release the local stopped atomic when the boundary arrives.
     pub fn request_quantized_start(&mut self) {
-        if let (Some(link), Some(ss)) = (&self.link, &mut self.session_state) {
+        if let Some((link, ss)) = self.link_and_session() {
             link.capture_audio_session_state(ss);
             let time = link.clock_micros();
             ss.set_is_playing_and_request_beat_at_time(true, time, 0.0, QUANTUM);
@@ -223,7 +204,7 @@ impl LinkState {
 
     /// Propagate a stop to the Link session.
     pub fn signal_stop(&mut self) {
-        if let (Some(link), Some(ss)) = (&self.link, &mut self.session_state) {
+        if let Some((link, ss)) = self.link_and_session() {
             link.capture_audio_session_state(ss);
             let time = link.clock_micros();
             ss.set_is_playing(false, time);
@@ -244,15 +225,15 @@ impl LinkState {
     /// is reset (the enabled/peers state is already maintained by the
     /// main thread on disable).
     pub fn write_meter(&self, meter: &TransportMeter) {
-        if let Some(ref link) = self.link {
-            meter.write_link_state(true, link.num_peers() as u32);
+        if let Some(ref res) = self.resources {
+            meter.write_link_state(true, res.link.num_peers() as u32);
             if let Some(ref buffer) = self.buffer {
                 meter.write_bpm(buffer.tempo);
-                if let Some(ref ss) = self.session_state {
-                    let phase = ss.phase_at_time(buffer.host_time_micros, buffer.quantum);
-                    let bar_phase = phase / buffer.quantum;
-                    meter.write_link_phase(bar_phase);
-                }
+                let phase = res
+                    .session_state
+                    .phase_at_time(buffer.host_time_micros, buffer.quantum);
+                let bar_phase = phase / buffer.quantum;
+                meter.write_link_phase(bar_phase);
             }
             meter.write_link_pending_start(self.pending_start);
         } else {
@@ -269,8 +250,11 @@ mod tests {
     /// and a buffer captured at `host_time_micros`.
     fn armed_state(link: AblLink, ss: SessionState, host_time_micros: i64) -> LinkState {
         let mut state = LinkState::new();
-        state.link = Some(link);
-        state.session_state = Some(ss);
+        state.resources = Some(Box::new(LinkResources {
+            link,
+            host_time_filter: HostTimeFilter::new(),
+            session_state: ss,
+        }));
         state.buffer = Some(LinkBufferState {
             host_time_micros,
             quantum: QUANTUM,
@@ -279,6 +263,24 @@ mod tests {
         });
         state.pending_start = true;
         state
+    }
+
+    #[test]
+    fn install_moves_the_box_without_reallocating() {
+        let res = Box::new(LinkResources {
+            link: AblLink::new(120.0),
+            host_time_filter: HostTimeFilter::new(),
+            session_state: SessionState::new(),
+        });
+        let ptr: *const LinkResources = &*res;
+
+        let mut state = LinkState::new();
+        assert!(state.install(Some(res)).is_none());
+        assert!(state.is_active());
+
+        let returned = state.install(None).expect("installed resources come back");
+        assert!(std::ptr::eq(&*returned, ptr));
+        assert!(!state.is_active());
     }
 
     #[test]

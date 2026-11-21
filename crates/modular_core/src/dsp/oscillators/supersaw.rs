@@ -8,11 +8,13 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
+        core::pan::pan_pair,
         oscillators::{FmMode, apply_fm, sync_blep},
         utils::{
             fade::{DEFAULT_FADE_IN_SECS, FadeIn},
             sanitize,
             unison_phase::{UnisonPhases, phase_glide_step, voice_phase},
+            unison_voices::{SlotOrder, centred_position, detune_position, unison_gain},
             wrap_phase,
         },
     },
@@ -170,13 +172,13 @@ struct SupersawState {
     voices: usize,
     /// Reciprocal of the sample rate.
     inv_sample_rate: f32,
-    /// `1 / (voices - 1)`, the detune spread between neighbouring voices as
-    /// a fraction of the whole; 0 for a single voice.
-    detune_step: f32,
+    /// Each voice's place in the detune spread, from -0.5 for the lowest
+    /// voice to 0.5 for the highest.
+    positions: [f32; PORT_MAX_LANES],
     /// Each voice's gain into each side, `[side][voice]`: 5 V over the square
     /// root of the voice count, so the stack keeps its loudness whatever the
-    /// voice count, spread from left to right with equal-power panning that
-    /// keeps a centred voice at unity.
+    /// voice count, spread across the stereo slots in `SlotOrder` with
+    /// equal-power panning that keeps a centred voice at unity.
     mix: [[f32; PORT_MAX_LANES]; 2],
     /// Each side's loudest swing, every saw at its peak at once: the output
     /// bounds.
@@ -201,7 +203,7 @@ impl Default for SupersawState {
             phases: UnisonPhases::default(),
             voices: 1,
             inv_sample_rate: 0.0,
-            detune_step: 0.0,
+            positions: [0.0; PORT_MAX_LANES],
             mix: [[0.0; PORT_MAX_LANES]; 2],
             peak: [0.0; 2],
             mix_from: [[0.0; PORT_MAX_LANES]; 2],
@@ -267,33 +269,18 @@ impl Supersaw {
         let state = &mut self.state;
         state.voices = voices;
         state.phases.set_count(voices);
-        state.detune_step = if voices > 1 {
-            1.0 / (voices - 1) as f32
-        } else {
-            0.0
-        };
+        for (voice, position) in state.positions.iter_mut().enumerate().take(voices) {
+            *position = detune_position(voice, voices) - 0.5;
+        }
 
-        // Voices take the stereo slots left to right in interleaved order:
-        // the left half of the slots gets the even detune positions, the right
-        // half the odd ones. Each side then holds a balanced spread across
-        // the full detune range, matching Strudel's alternating L/R
-        // distribution.
-        let gain = 5.0 / (voices as f32).sqrt();
-        let half = voices.div_ceil(2);
+        let gain = 5.0 * unison_gain(voices);
+        let order = SlotOrder::new(voices);
         let mut mix = [[0.0f32; PORT_MAX_LANES]; 2];
         for slot in 0..voices {
-            let voice = if slot < half {
-                slot * 2
-            } else {
-                (slot - half) * 2 + 1
-            };
-            let p = if voices > 1 {
-                slot as f32 / (voices - 1) as f32
-            } else {
-                0.5
-            };
-            mix[0][voice] = gain * (2.0 * (1.0 - p)).sqrt();
-            mix[1][voice] = gain * (2.0 * p).sqrt();
+            let voice = order.detune(slot);
+            let [left, right] = pan_pair([gain, gain], centred_position(slot, voices));
+            mix[0][voice] = left;
+            mix[1][voice] = right;
         }
         let peak = mix.map(|side| side[..voices].iter().sum::<f32>());
 
@@ -335,9 +322,7 @@ impl Supersaw {
             let mut accum = 0.0f32;
             for (voice, &gain) in mix[lane % 2].iter().enumerate().take(voices) {
                 let dt = voice_increment(
-                    voice,
-                    voices,
-                    self.state.detune_step,
+                    self.state.positions[voice],
                     base_freq,
                     detune,
                     self.state.inv_sample_rate,
@@ -385,7 +370,7 @@ impl Supersaw {
             && fm.is_constant()
             && detune.is_constant()
             && sync.as_ref().is_none_or(|sync| sync.is_constant());
-        let (detune_step, inv_sample_rate) = (self.state.detune_step, self.state.inv_sample_rate);
+        let (positions, inv_sample_rate) = (&self.state.positions, self.state.inv_sample_rate);
         let fill = |increments: &mut [f32], ratios: &mut [Option<f32>], i: usize| {
             let (freq, fm, detune) = (freq.row(i), fm.row(i), detune.row(i));
             if let Some(sync) = &sync {
@@ -396,14 +381,8 @@ impl Supersaw {
             for lane in 0..lanes {
                 let base_freq = apply_fm(freq[lane], fm[lane], p.fm_mode);
                 for voice in 0..voices {
-                    increments[voice * lanes + lane] = voice_increment(
-                        voice,
-                        voices,
-                        detune_step,
-                        base_freq,
-                        detune[lane],
-                        inv_sample_rate,
-                    );
+                    increments[voice * lanes + lane] =
+                        voice_increment(positions[voice], base_freq, detune[lane], inv_sample_rate);
                 }
             }
         };
@@ -474,20 +453,10 @@ fn sync_ratio(octaves: f32) -> f32 {
 /// band-limiting corrections still keep it within ±1.
 const MAX_SYNCED_INCREMENT: f32 = 0.5;
 
-/// Phase increment of voice `voice` of `voices` for a lane at `base_freq` Hz
-/// with `detune` semitones of spread, `detune_step` being the spread between
-/// neighbouring voices as a fraction of the whole.
+/// Phase increment of the voice at `position` in the detune spread for a
+/// lane at `base_freq` Hz with `detune` semitones of spread.
 #[inline(always)]
-fn voice_increment(
-    voice: usize,
-    voices: usize,
-    detune_step: f32,
-    base_freq: f32,
-    detune: f32,
-    inv_sample_rate: f32,
-) -> f32 {
-    // From -detune/2 for the lowest voice to +detune/2 for the highest.
-    let position = (voice as f32 - (voices - 1) as f32 * 0.5) * detune_step;
+fn voice_increment(position: f32, base_freq: f32, detune: f32, inv_sample_rate: f32) -> f32 {
     let freq = base_freq * (2.0f32).powf(position * detune / 12.0);
     freq * inv_sample_rate
 }
@@ -724,15 +693,15 @@ mod tests {
     #[test]
     fn each_side_holds_a_spread_of_pitches() {
         // Five voices, lowest pitch first, take the slots left to right as
-        // 0 2 4 1 3: the left side holds the lowest voice and the middle
-        // one, the right side the two between them and the top.
+        // 1 4 2 0 3: each side holds one voice below the note and one above,
+        // and the in-tune voice sits in the centre.
         let s = make_supersaw(params(mono(0.0), 5, 0.18));
         let [left, right] = s.state.mix;
-        for v in [0, 2] {
+        for v in [1, 4] {
             assert!(left[v] > right[v], "voice {v} leans left");
         }
-        assert_eq!(left[4], right[4], "voice 4 sits in the centre");
-        for v in [1, 3] {
+        assert_eq!(left[2], right[2], "voice 2 sits in the centre");
+        for v in [0, 3] {
             assert!(left[v] < right[v], "voice {v} leans right");
         }
     }

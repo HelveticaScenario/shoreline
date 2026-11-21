@@ -5,8 +5,8 @@
 mod block_common;
 
 use block_common::*;
-use modular_core::types::ProcessingMode;
-use serde_json::json;
+use modular_core::types::{ProcessingMode, SameIds};
+use serde_json::{Value, json};
 
 #[global_allocator]
 static GLOBAL: CountingAllocator = CountingAllocator;
@@ -64,11 +64,14 @@ fn z_osc_paths_agree() {
 fn allocation_free() {
     for module in [
         "$mi.additive",
+        "$mi.chiptune",
+        "$mi.chords",
         "$mi.divideDown",
         "$mi.formant",
         "$mi.hiHat",
         "$mi.kick",
         "$mi.modal",
+        "$mi.noise",
         "$mi.particles",
         "$mi.phaseDistortion",
         "$mi.ringHat",
@@ -76,10 +79,13 @@ fn allocation_free() {
         "$mi.snare",
         "$mi.speak",
         "$mi.string",
+        "$mi.stringMachine",
         "$mi.swarm",
         "$mi.synthKick",
         "$mi.synthSnare",
         "$mi.twoOp",
+        "$mi.va",
+        "$mi.vcf",
         "$mi.formantVowel",
         "$mi.samVowel",
         "$mi.lpcVowel",
@@ -107,6 +113,19 @@ fn six_op_allocation_free() {
             "$mi.sixOp",
             json!({ "freq": poly_cable("lfo", LANES), "gate": poly_cable("src", LANES),
                     "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+        ),
+        0
+    );
+}
+
+/// Arpeggios, with the chord and pattern moving under them, allocate nothing.
+#[test]
+fn chiptune_allocation_free() {
+    assert_eq!(
+        allocations_while_rendering(
+            "$mi.chiptune",
+            json!({ "freq": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES),
+                    "chord": cable("lfo", 2), "pattern": cable("lfo", 3), "bassDecay": true })
         ),
         0
     );
@@ -289,6 +308,158 @@ fn resonator_outputs_stay_in_range() {
                     .fold(0.0f32, |m, v| m.max(v.abs()));
                 assert!(peak <= range, "{module} {port} peak {peak}");
             }
+        }
+    }
+}
+
+/// The modules with Plaits' main and aux outputs, and the two outputs' names.
+const MAIN_AND_AUX: [(&str, &str, &str); 16] = [
+    ("$mi.va", "dual", "sync"),
+    ("$mi.vcf", "lowpass", "highpass"),
+    ("$mi.noise", "filtered", "bands"),
+    ("$mi.chords", "chord", "root"),
+    ("$mi.chiptune", "chord", "bass"),
+    ("$mi.twoOp", "fm", "subOctave"),
+    ("$mi.waveshaper", "shaped", "overtones"),
+    ("$mi.waveTerrain", "height", "pm"),
+    ("$mi.swarm", "saw", "sine"),
+    ("$mi.modal", "body", "exciter"),
+    ("$mi.string", "strings", "exciter"),
+    ("$mi.particles", "filtered", "raw"),
+    ("$mi.speak", "output", "excitation"),
+    ("$mi.formantVowel", "output", "excitation"),
+    ("$mi.samVowel", "output", "excitation"),
+    ("$mi.lpcVowel", "output", "excitation"),
+];
+
+/// Each module with Plaits' main and aux outputs reads by default as `blend`:
+/// the two crossfaded by `mix`, exactly the main at 0 V and the aux at 5 V.
+#[test]
+fn blend_crossfades_main_into_aux() {
+    let pairs = MAIN_AND_AUX;
+    let freq = json!([-1.0, 0.0, 0.5, 1.0]);
+    for (module, main, aux) in pairs {
+        assert_eq!(default_port(module), "blend", "{module}");
+        for mix in [json!(0.0), json!(5.0), json!(2.5), poly_cable("lfo", LANES)] {
+            let mut params = json!({ "freq": freq, "mix": mix });
+            if matches!(module, "$mi.modal" | "$mi.string") {
+                params["brightness"] = json!(5.0);
+            }
+            if module == "$mi.particles" {
+                params["density"] = json!(5.0);
+            }
+            let patch = build(
+                ProcessingMode::Block,
+                ProcessingMode::Sample,
+                module,
+                params,
+            );
+            let (mut heard_main, mut heard_aux) = (false, false);
+            for _ in 0..40 {
+                render(&patch, &[BLOCK_SIZE]);
+                for index in 0..BLOCK_SIZE {
+                    for lane in 0..LANES {
+                        let read = |id: &str, port: &str| {
+                            patch.sampleables[id].get_value_at(port, lane, index)
+                        };
+                        let (m, a) = (read("dut", main), read("dut", aux));
+                        let volts = match mix.as_f64() {
+                            Some(volts) => volts as f32,
+                            None => read("lfo", "output"),
+                        };
+                        let t = volts.clamp(0.0, 5.0) * 0.2;
+                        assert_eq!(
+                            read("dut", "blend"),
+                            m * (1.0 - t) + a * t,
+                            "{module} mix {mix} lane {lane}"
+                        );
+                        heard_main |= m != 0.0;
+                        heard_aux |= a != 0.0;
+                    }
+                }
+            }
+            assert!(heard_main && heard_aux, "{module}: silent output");
+        }
+    }
+}
+
+/// A patch update that turns `mix` from 0 to 5 glides `blend` from the main
+/// output into the aux on the lanes it keeps; a lane it adds has no earlier
+/// sound and starts on the aux.
+#[test]
+fn blend_glides_when_mix_changes() {
+    const KEPT: usize = 2;
+    for (module, main, aux) in MAIN_AND_AUX {
+        let params = |freq: Value, mix: f32| {
+            let mut params = json!({ "freq": freq, "mix": mix });
+            if matches!(module, "$mi.modal" | "$mi.string") {
+                params["brightness"] = json!(5.0);
+            }
+            if module == "$mi.particles" {
+                params["density"] = json!(5.0);
+            }
+            params
+        };
+        let old = build(
+            ProcessingMode::Block,
+            ProcessingMode::Sample,
+            module,
+            params(json!([0.0, 0.5]), 0.0),
+        );
+        for _ in 0..8 {
+            render(&old, &[BLOCK_SIZE]);
+        }
+        let new = build(
+            ProcessingMode::Block,
+            ProcessingMode::Sample,
+            module,
+            params(json!([0.0, 0.5, -1.0, 1.0]), 5.0),
+        );
+        for (id, sampleable) in &new.sampleables {
+            sampleable.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+        }
+        new.connect_all();
+        let read = |port: &str, lane: usize, index: usize| {
+            new.sampleables["dut"].get_value_at(port, lane, index)
+        };
+        for sampleable in new.sampleables.values() {
+            sampleable.start_block();
+        }
+        for id in ["dut", "src", "lfo"] {
+            new.sampleables[id].ensure_processed_to(BLOCK_SIZE);
+        }
+        let last = BLOCK_SIZE - 1;
+        for lane in KEPT..LANES {
+            assert_eq!(
+                read("blend", lane, 0),
+                read(aux, lane, 0),
+                "{module} lane {lane}"
+            );
+        }
+        for lane in 0..KEPT {
+            assert_eq!(
+                read("blend", lane, 0),
+                read(main, lane, 0),
+                "{module} lane {lane}"
+            );
+            let (m, a) = (read(main, lane, last), read(aux, lane, last));
+            if (a - m).abs() > 1e-3 {
+                let t = (read("blend", lane, last) - m) / (a - m);
+                assert!(
+                    0.01 < t && t < 0.99,
+                    "{module} lane {lane}: {t} of the way to aux"
+                );
+            }
+        }
+        for _ in 0..40 {
+            render(&new, &[BLOCK_SIZE]);
+        }
+        for lane in 0..LANES {
+            assert_eq!(
+                read("blend", lane, 0),
+                read(aux, lane, 0),
+                "{module} lane {lane}"
+            );
         }
     }
 }

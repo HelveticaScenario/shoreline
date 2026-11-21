@@ -406,11 +406,14 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$ramp"
         | "$swell"
         | "$mi.additive"
+        | "$mi.chiptune"
+        | "$mi.chords"
         | "$mi.divideDown"
         | "$mi.formant"
         | "$mi.hiHat"
         | "$mi.kick"
         | "$mi.modal"
+        | "$mi.noise"
         | "$mi.particles"
         | "$mi.phaseDistortion"
         | "$mi.ringHat"
@@ -418,10 +421,13 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.snare"
         | "$mi.speak"
         | "$mi.string"
+        | "$mi.stringMachine"
         | "$mi.swarm"
         | "$mi.synthKick"
         | "$mi.synthSnare"
         | "$mi.twoOp"
+        | "$mi.va"
+        | "$mi.vcf"
         | "$mi.formantVowel"
         | "$mi.lpcVowel"
         | "$mi.samVowel"
@@ -480,7 +486,8 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$curve" => json!({ "input": 0.0, "exp": 1.0 }),
         "$cycle" => json!({ "pattern": mini_payload("0") }),
         "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
-        | "$falling" | "$setLanes" | "$mono" | "$left" | "$right" | "$mid" | "$side" | "$pan" => {
+        | "$falling" | "$setLanes" | "$mono" | "$left" | "$right" | "$mid" | "$side" | "$pan"
+        | "$stereoFold" => {
             json!({ "input": 0.0 })
         }
         "$stereo" => json!({ "left": 0.0, "right": 0.0 }),

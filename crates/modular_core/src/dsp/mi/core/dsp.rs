@@ -13,6 +13,20 @@ pub fn soft_clip(x: f32) -> f32 {
     }
 }
 
+/// stmlib's `CONSTRAIN`: `x` held within `low`–`high`, where the low bound
+/// wins when the bounds cross (as a pulse width's do for a frequency past a
+/// quarter cycle per sample).
+#[inline(always)]
+pub fn constrain(x: f32, low: f32, high: f32) -> f32 {
+    if x < low {
+        low
+    } else if x > high {
+        high
+    } else {
+        x
+    }
+}
+
 /// `ONE_POLE`: moves `state` the fraction `coefficient` of the way to `input`.
 #[inline(always)]
 pub fn one_pole(state: &mut f32, input: f32, coefficient: f32) {

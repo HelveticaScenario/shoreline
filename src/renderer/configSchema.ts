@@ -23,7 +23,8 @@ const audioConfigSchema = {
             type: ['string', 'null'],
         },
         outputDeviceId: {
-            description: 'Output device ID',
+            description:
+                'Output device ID; omit to follow the system default output',
             type: 'string',
         },
         sampleRate: {
