@@ -59,6 +59,16 @@ export function outputDeviceNotice(
         parts.push(
             `${name} was disconnected. Shoreline goes back to it when it's reconnected.`,
         );
+    } else if (report.event === 'InputReopened') {
+        parts.push(
+            report.error
+                ? `The input stopped and couldn't reopen: ${report.error.replace(/\.$/, '')}.`
+                : report.disconnectedInputDeviceName
+                  ? `${report.disconnectedInputDeviceName} was disconnected, so the input is off.`
+                  : report.inputDeviceName
+                    ? `Input reopened on ${report.inputDeviceName}.`
+                    : 'The input stopped, so the input is off.',
+        );
     } else if (report.event === 'RateChanged' && !report.error) {
         parts.push(
             report.sampleRate === report.previousSampleRate
@@ -69,15 +79,19 @@ export function outputDeviceNotice(
         const device = report.outputDeviceName ?? 'the new default output';
         const reason = report.error.replace(/\.$/, '');
         parts.push(
-            report.outputLost
-                ? `Couldn't move to ${device}: ${reason}.`
-                : `Couldn't move to ${device}: ${reason}. Audio stays on the current device.`,
+            report.event === 'Reconnected' || report.event === 'RateChanged'
+                ? `Couldn't reopen ${name}: ${reason}. Shoreline keeps trying.`
+                : report.outputLost
+                  ? `Couldn't move to ${device}: ${reason}.`
+                  : `Couldn't move to ${device}: ${reason}. Audio stays on the current device.`,
         );
     } else {
         parts.push(
             report.event === 'Reconnected'
                 ? `Output is back on ${report.outputDeviceName}.`
-                : `Output moved to ${report.outputDeviceName}.`,
+                : report.event === 'Connected'
+                  ? `${report.outputDeviceName} is connected, so the output is on it now.`
+                  : `Output moved to ${report.outputDeviceName}.`,
         );
         if (report.sampleRate !== report.previousSampleRate) {
             parts.push(

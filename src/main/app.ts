@@ -12,6 +12,7 @@ import {
 } from 'electron';
 import type {
     AudioConfigOptions,
+    CurrentAudioState,
     PatchGraph,
     QueuedTrigger,
 } from '@modular/core';
@@ -618,26 +619,33 @@ if (actualAudioState.fallbackWarning) {
     fallbackWarnings.report(actualAudioState.fallbackWarning);
 }
 
-// Update saved config with actual devices used (in case of fallback)
+// The saved config holds the settings the user chose. A launch that falls
+// back from them (another host, a rate the output cannot run) saves what
+// opened; a chosen device that is not connected stays saved with its
+// settings.
+function chosenAudioConfig(state: CurrentAudioState) {
+    return {
+        bufferSize: state.chosenBufferSize ?? undefined,
+        hostId: state.hostId,
+        inputDeviceId: state.chosenInputDeviceId ?? null,
+        outputDeviceId: state.chosenOutputDeviceId ?? undefined,
+        sampleRate: state.chosenSampleRate,
+    };
+}
+
 const actualConfig = configStore.load();
+const chosenConfig = chosenAudioConfig(actualAudioState);
 const configNeedsUpdate =
-    actualConfig.audioConfig?.hostId !== actualAudioState.hostId ||
-    actualConfig.audioConfig?.outputDeviceId !==
-        (actualAudioState.chosenOutputDeviceId ?? undefined) ||
-    actualConfig.audioConfig?.inputDeviceId !==
-        actualAudioState.inputDeviceId ||
-    actualConfig.audioConfig?.sampleRate !== actualAudioState.sampleRate ||
-    actualConfig.audioConfig?.bufferSize !== actualAudioState.bufferSize;
+    actualConfig.audioConfig?.hostId !== chosenConfig.hostId ||
+    actualConfig.audioConfig?.outputDeviceId !== chosenConfig.outputDeviceId ||
+    (actualConfig.audioConfig?.inputDeviceId ?? null) !==
+        chosenConfig.inputDeviceId ||
+    actualConfig.audioConfig?.sampleRate !== chosenConfig.sampleRate ||
+    actualConfig.audioConfig?.bufferSize !== chosenConfig.bufferSize;
 
 if (configNeedsUpdate) {
     configStore.update((config) => {
-        config.audioConfig = {
-            bufferSize: actualAudioState.bufferSize ?? undefined,
-            hostId: actualAudioState.hostId,
-            inputDeviceId: actualAudioState.inputDeviceId ?? null,
-            outputDeviceId: actualAudioState.chosenOutputDeviceId ?? undefined,
-            sampleRate: actualAudioState.sampleRate,
-        };
+        config.audioConfig = chosenConfig;
     });
     console.log('Saved updated audio config after fallback');
 }
@@ -647,13 +655,7 @@ function saveAudioConfig() {
     try {
         const state = synth.getCurrentAudioState();
         configStore.update((config) => {
-            config.audioConfig = {
-                bufferSize: state.bufferSize ?? undefined,
-                hostId: state.hostId,
-                inputDeviceId: state.inputDeviceId ?? null,
-                outputDeviceId: state.chosenOutputDeviceId ?? undefined,
-                sampleRate: state.sampleRate,
-            };
+            config.audioConfig = chosenAudioConfig(state);
         });
         console.log('Audio configuration saved');
     } catch (error) {
@@ -672,8 +674,12 @@ setInterval(() => {
     synth.pruneDisconnectedMidi();
 }, 10000);
 
-// A notice raised before the main window loads, delivered once it does.
-let pendingOutputNotice: OutputDeviceNotice | null = null;
+// A notice raised before the main window loads, delivered once it does, and
+// whether it shows a disconnected output.
+let pendingOutputNotice: {
+    notice: OutputDeviceNotice;
+    disconnected: boolean;
+} | null = null;
 // The banner shows a disconnected output, which new settings replace.
 let disconnectedNoticeShown = false;
 
@@ -686,7 +692,7 @@ function sendOutputNotice(notice: OutputDeviceNotice, disconnected = false) {
     ) {
         mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE, notice);
     } else {
-        pendingOutputNotice = notice;
+        pendingOutputNotice = { notice, disconnected };
     }
 }
 
@@ -2131,9 +2137,9 @@ const createWindow = (): void => {
     mainWindow.webContents.on('did-finish-load', () => {
         flushPendingLogs();
         if (pendingOutputNotice) {
-            const notice = pendingOutputNotice;
+            const { notice, disconnected } = pendingOutputNotice;
             pendingOutputNotice = null;
-            sendOutputNotice(notice);
+            sendOutputNotice(notice, disconnected);
         }
         fallbackWarnings.attach((warning) => {
             if (mainWindow && !mainWindow.isDestroyed()) {

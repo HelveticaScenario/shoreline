@@ -19,6 +19,29 @@ interface AudioSettingsTabProps {
 }
 
 /**
+ * The sample rate and buffer size the panel shows for `state`: the chosen ones
+ * while the chosen output is not connected, since the default output plays at
+ * what it allows of them until it is; otherwise the ones the streams run at.
+ */
+function shownSettings(state: CurrentAudioState): {
+    sampleRate: number;
+    bufferSize: number | null;
+} {
+    const waiting =
+        state.chosenOutputDeviceId != null &&
+        state.chosenOutputDeviceId !== state.outputDeviceId;
+    return waiting
+        ? {
+              bufferSize: state.chosenBufferSize ?? null,
+              sampleRate: state.chosenSampleRate,
+          }
+        : {
+              bufferSize: state.bufferSize ?? null,
+              sampleRate: state.sampleRate,
+          };
+}
+
+/**
  * Compute intersection of sample rates supported by given devices.
  * If only output device is provided, returns its supported rates.
  */
@@ -37,6 +60,14 @@ function computeCommonSampleRates(
 
     const inputRates = new Set(inputDevice.supportedSampleRates || []);
     return outputRates.filter((r) => inputRates.has(r)).sort((a, b) => a - b);
+}
+
+/** `options` with `chosen` among them, in order. */
+function withChosen(options: number[], chosen: number | null): number[] {
+    if (chosen === null || options.includes(chosen)) {
+        return options;
+    }
+    return [...options, chosen].sort((a, b) => a - b);
 }
 
 /**
@@ -155,6 +186,23 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         ],
     );
 
+    // A chosen output that is not connected offers what the device playing in
+    // its place allows, along with the settings already chosen for it.
+    const playingOutputDevice = useMemo(
+        () =>
+            outputDevicesForHost.find(
+                (d) => d.id === currentState?.outputDeviceId,
+            ) ?? null,
+        [outputDevicesForHost, currentState],
+    );
+    const capabilityOutputDevice = unlistedOutputDeviceId
+        ? playingOutputDevice
+        : selectedOutputDevice;
+    const chosenForUnlisted =
+        unlistedOutputDeviceId && currentState
+            ? shownSettings(currentState)
+            : null;
+
     const selectedInputDevice = useMemo(
         () =>
             inputDevicesForHost.find((d) => d.id === selectedInputDeviceId) ??
@@ -163,15 +211,27 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
     );
 
     // Compute available sample rates and buffer sizes (JS-side logic)
+    const chosenSampleRate = chosenForUnlisted?.sampleRate ?? null;
+    const chosenBufferSize = chosenForUnlisted?.bufferSize ?? null;
     const availableSampleRates = useMemo(
         () =>
-            computeCommonSampleRates(selectedOutputDevice, selectedInputDevice),
-        [selectedOutputDevice, selectedInputDevice],
+            withChosen(
+                computeCommonSampleRates(
+                    capabilityOutputDevice,
+                    selectedInputDevice,
+                ),
+                chosenSampleRate,
+            ),
+        [capabilityOutputDevice, selectedInputDevice, chosenSampleRate],
     );
 
     const availableBufferSizes = useMemo(
-        () => computeBufferSizes(selectedOutputDevice, selectedInputDevice),
-        [selectedOutputDevice, selectedInputDevice],
+        () =>
+            withChosen(
+                computeBufferSizes(capabilityOutputDevice, selectedInputDevice),
+                chosenBufferSize,
+            ),
+        [capabilityOutputDevice, selectedInputDevice, chosenBufferSize],
     );
 
     // When the device list was last re-read, as `performance.now()`.
@@ -202,8 +262,9 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
             setSelectedHostId(state.hostId);
             setSelectedOutputDeviceId(state.chosenOutputDeviceId ?? null);
             setSelectedInputDeviceId(state.inputDeviceId ?? null);
-            setSelectedSampleRate(state.sampleRate);
-            setSelectedBufferSize(state.bufferSize ?? null);
+            const shown = shownSettings(state);
+            setSelectedSampleRate(shown.sampleRate);
+            setSelectedBufferSize(shown.bufferSize);
         } catch (err) {
             setError(
                 err instanceof Error ? err.message : 'Failed to load settings',
@@ -226,6 +287,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         ]);
         setDeviceCache(cache);
         setCurrentState(state);
+        setWarning(state.fallbackWarning ?? null);
         if (!previous) {
             return;
         }
@@ -243,12 +305,12 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         setSelectedInputDeviceId(
             follow(previous.inputDeviceId ?? null, state.inputDeviceId ?? null),
         );
+        const was = shownSettings(previous);
+        const now = shownSettings(state);
         setSelectedSampleRate(
-            follow<number | null>(previous.sampleRate, state.sampleRate),
+            follow<number | null>(was.sampleRate, now.sampleRate),
         );
-        setSelectedBufferSize(
-            follow(previous.bufferSize ?? null, state.bufferSize ?? null),
-        );
+        setSelectedBufferSize(follow(was.bufferSize, now.bufferSize));
     }, []);
 
     // When the host changes, reset device selections to defaults for that
@@ -303,7 +365,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
             selectedSampleRate === null ||
             !availableSampleRates.includes(selectedSampleRate)
         ) {
-            const deviceDefault = selectedOutputDevice?.sampleRate ?? null;
+            const deviceDefault = capabilityOutputDevice?.sampleRate ?? null;
             const preferred =
                 deviceDefault !== null &&
                 availableSampleRates.includes(deviceDefault)
@@ -330,7 +392,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         availableBufferSizes,
         selectedSampleRate,
         selectedBufferSize,
-        selectedOutputDevice,
+        capabilityOutputDevice,
     ]);
 
     // Re-read the device list without touching pending selections. Runs as
@@ -449,8 +511,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
             selectedOutputDeviceId !==
                 (currentState.chosenOutputDeviceId ?? null) ||
             selectedInputDeviceId !== (currentState.inputDeviceId ?? null) ||
-            selectedSampleRate !== currentState.sampleRate ||
-            selectedBufferSize !== (currentState.bufferSize ?? null)
+            selectedSampleRate !== shownSettings(currentState).sampleRate ||
+            selectedBufferSize !== shownSettings(currentState).bufferSize
         );
     }, [
         currentState,

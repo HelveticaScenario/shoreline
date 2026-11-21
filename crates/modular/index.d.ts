@@ -102,8 +102,9 @@ export declare class Synthesizer {
   getTransportState(): TransportSnapshot
   enableLink(enabled: boolean): void
   /**
-   * Re-enumerate audio devices. The devices this synthesizer has open stay
-   * listed even where ALSA cannot report them while open. JACK is
+   * Re-enumerate audio devices. The devices this synthesizer's running
+   * streams have open stay listed even where ALSA cannot report them while
+   * open; a device whose stream ended is listed only if it still is. JACK is
    * re-read only with `rescan_jack`, and never while a JACK stream runs,
    * whose clients a rescan would collide with.
    */
@@ -134,7 +135,7 @@ export declare class Synthesizer {
    * default, move to the device the system now makes its default; when the
    * output's stream has stopped (its device unplugged or reset), reopen it
    * once the device is back. The engine keeps playing wherever the device
-   * runs at its sample rate. Returns what changed, or `None` when nothing
+   * runs at its sample rate and buffer size. Returns what changed, or `None` when nothing
    * did. Cheap enough to poll every second.
    */
   followOutputDevice(): DeviceFollowReport | null
@@ -235,14 +236,18 @@ export interface CurrentAudioState {
    * system default.
    */
   outputDeviceId?: string
-  /** The output moves to whichever device the system makes its default. */
-  followsSystemDefaultOutput: boolean
   /**
-   * The output the user chose, which is saved: `None` for System Default.
-   * It differs from `output_device_id` while the chosen device is not
-   * connected.
+   * The output the user chose: `None` for System Default. It differs
+   * from `output_device_id` while the chosen device is not connected.
    */
   chosenOutputDeviceId?: string
+  /**
+   * The settings the user chose, which the saved config holds. The
+   * streams run at them wherever the output device allows.
+   */
+  chosenSampleRate: number
+  chosenBufferSize?: number
+  chosenInputDeviceId?: string
   outputDeviceName?: string
   inputDeviceId?: string
   inputDeviceName?: string
@@ -286,6 +291,13 @@ export interface DeviceFollowReport {
   event: OutputEvent
   /** The output device, when Shoreline lists it. */
   outputDeviceName?: string
+  /** The input the streams opened with. */
+  inputDeviceName?: string
+  /**
+   * The input whose stream stopped and whose device is gone, which leaves
+   * the input off.
+   */
+  disconnectedInputDeviceName?: string
   /**
    * The preferred input could not open at the sample rate the new output
    * runs at, which leaves the input off.
@@ -375,9 +387,14 @@ export interface ModuleProfileSample {
   mode: string
 }
 
-/** What happened to the output device. */
+/** What happened to the audio devices. */
 export type OutputEvent = /** The output moved to a new system default device. */
 'Moved'|
+/**
+ * The chosen output was not connected and now is| and the streams
+ * moved to it.
+ */
+'Connected'|
 /**
  * The output's stream stopped and its device is not back yet. The
  * engine waits frozen until it returns.
@@ -389,7 +406,12 @@ export type OutputEvent = /** The output moved to a new system default device. *
  * The output's device changed its sample rate and the streams reopened
  * at the new rate.
  */
-'RateChanged';
+'RateChanged'|
+/**
+ * The input's stream stopped and the streams reopened on the same
+ * output.
+ */
+'InputReopened';
 
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {

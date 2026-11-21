@@ -49,6 +49,11 @@ impl StreamHealth {
         self.lost.load(Ordering::Relaxed)
     }
 
+    /// The stream ended: its device left or changed format.
+    pub fn has_ended(&self) -> bool {
+        self.is_lost() || self.invalidated.load(Ordering::Relaxed)
+    }
+
     /// The stream ended because its device changed format, not because the
     /// device left.
     pub fn was_invalidated(&self) -> bool {
@@ -96,10 +101,12 @@ impl StreamWatchdog {
     /// Whether the stream is dead as of `now`. A dead stream never resumes,
     /// so once dead it stays dead.
     pub fn is_dead(&mut self, health: &StreamHealth, now: Instant) -> bool {
-        self.dead = self.dead
-            || health.is_lost()
-            || health.invalidated.load(Ordering::Relaxed)
-            || self.stalled(health, now);
+        self.dead = self.dead || health.has_ended() || self.stalled(health, now);
+        self.dead
+    }
+
+    /// Whether the last `is_dead` check found the stream dead.
+    pub fn has_died(&self) -> bool {
         self.dead
     }
 

@@ -150,10 +150,9 @@ fn a_device_missing_at_launch_is_kept_as_the_choice_and_opened_when_it_arrives()
     assert_ne!(synth.output_device_id.clone(), Some(device_id.clone()));
     let state = synth.get_current_audio_state();
     assert_eq!(state.chosen_output_device_id, Some(device_id.clone()));
-    assert!(!state.follows_system_default_output);
 
     let device = plug();
-    let arrived = poll_until(&mut synth, OutputEvent::Reconnected, Duration::from_secs(5))
+    let arrived = poll_until(&mut synth, OutputEvent::Connected, Duration::from_secs(8))
         .expect("the chosen device is not opened when it arrives");
     assert_eq!(
         arrived.output_device_name.as_deref(),

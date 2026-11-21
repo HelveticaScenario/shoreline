@@ -369,12 +369,14 @@ pub struct CurrentAudioState {
     /// The device the output stream is open on, also while following the
     /// system default.
     pub output_device_id: Option<String>,
-    /// The output moves to whichever device the system makes its default.
-    pub follows_system_default_output: bool,
-    /// The output the user chose, which is saved: `None` for System Default.
-    /// It differs from `output_device_id` while the chosen device is not
-    /// connected.
+    /// The output the user chose: `None` for System Default. It differs
+    /// from `output_device_id` while the chosen device is not connected.
     pub chosen_output_device_id: Option<String>,
+    /// The settings the user chose, which the saved config holds. The
+    /// streams run at them wherever the output device allows.
+    pub chosen_sample_rate: u32,
+    pub chosen_buffer_size: Option<u32>,
+    pub chosen_input_device_id: Option<String>,
     pub output_device_name: Option<String>,
     pub input_device_id: Option<String>,
     pub input_device_name: Option<String>,
@@ -2095,6 +2097,11 @@ struct AudioProcessor {
     /// `retry_pending_profile_seed`) so the audio thread never blocks on the
     /// profiler mutex. Normally `None`.
     pending_profile_shared_seed: Option<HashMap<String, ModuleProfileAccum>>,
+    /// Profiler records for the playing patch, built on the main thread when
+    /// the engine moves to another stream. The profiler keeps its records per
+    /// audio thread, so the new stream's thread installs these on its first
+    /// callback.
+    pending_profile_records_seed: Option<HashMap<String, ModuleProfileAccum>>,
     /// Pre-allocated buffer the pending MIDI queue is swapped into each
     /// callback (see `MidiInputManager::take_messages_into`), sorted in place,
     /// dispatched, and cleared. `Message` is drop-free (its device name is
@@ -2140,6 +2147,7 @@ impl AudioProcessor {
             link: crate::link::LinkState::new(),
             module_profile_collection: shared.module_profile_collection,
             pending_profile_shared_seed: None,
+            pending_profile_records_seed: None,
             midi_scratch: Vec::with_capacity(crate::midi::MIDI_BUFFER_SIZE),
         }
     }
@@ -2163,6 +2171,23 @@ impl AudioProcessor {
             Err(seed) => {
                 self.pending_profile_shared_seed = Some(seed);
             }
+        }
+    }
+
+    /// Seed the profiler records for the playing patch, for the thread of the
+    /// next stream this processor plays on. Main thread only: it allocates.
+    fn seed_profile_records_for_new_thread(&mut self) {
+        self.pending_profile_records_seed = Some(modular_core::profiling::build_seed(
+            self.patch.sampleables.keys().cloned(),
+        ));
+    }
+
+    /// Install records seeded by `seed_profile_records_for_new_thread` on
+    /// this audio thread. No-op when nothing is pending.
+    fn install_pending_profile_records(&mut self) {
+        if let Some(seed) = self.pending_profile_records_seed.take() {
+            let old = modular_core::profiling::swap_records(seed);
+            self.drop_profile_map(old);
         }
     }
 
@@ -2720,8 +2745,8 @@ impl AudioProcessor {
 }
 
 /// The part of the audio callback that plays the patch. It outlives any one
-/// output stream, so moving to another device at the same sample rate keeps
-/// the patch, its state and anything recording it.
+/// output stream, so moving to another device at the same sample rate and
+/// buffer size keeps the patch, its state and anything recording it.
 pub struct Engine {
     processor: AudioProcessor,
     final_state: FinalStateProcessor,
@@ -2754,6 +2779,7 @@ impl Engine {
     /// allocates.
     pub fn resume_on_new_stream(&mut self) {
         self.processor.link.reset_timing();
+        self.processor.seed_profile_records_for_new_thread();
         self.final_state.resume_gain = 0.0;
     }
 }
@@ -3202,6 +3228,7 @@ where
                     // callback's per-module profile data into the cross-thread
                     // snapshot. Both are no-ops when nothing is pending / profiling
                     // is disabled (early-out inside the calls).
+                    audio_processor.install_pending_profile_records();
                     audio_processor.retry_pending_profile_seed();
                     modular_core::profiling::flush_into(&audio_processor.module_profile_collection);
 
@@ -3232,12 +3259,13 @@ pub fn make_input_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     mut input_writer: InputBufferWriter,
+    health: Arc<StreamHealth>,
 ) -> Result<cpal::Stream>
 where
     T: SizedSample + cpal::Sample,
     f32: FromSample<T>,
 {
-    let err_fn = |err| eprintln!("Error building input sound stream: {err}");
+    let err_fn = move |err| health.report(&err);
 
     let mut f32_buffer: Vec<f32> = Vec::new();
     let stream = device
@@ -3323,9 +3351,10 @@ const SWAP_DECLICK_EPSILON: f32 = 1e-5;
 /// engine, where the device starts from silence.
 const RESUME_FADE_SECONDS: f32 = 0.005;
 
-/// Per-stream attenuation state for fade-in/fade-out on stop/start
-/// transitions, plus the patch-swap output declick. Lives in the cpal closure
-/// and gets ticked once per emitted sample by the per-sample drain loop.
+/// Attenuation state for fade-in/fade-out on stop/start transitions, plus the
+/// patch-swap output declick. Part of the [`Engine`], so it carries over when
+/// the engine moves to another stream, and gets ticked once per emitted
+/// sample by the per-sample drain loop.
 struct FinalStateProcessor {
     attenuation_factor: f32,
     volume_change: VolumeChange,

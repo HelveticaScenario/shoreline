@@ -230,6 +230,44 @@ describe('outputDeviceNotice', () => {
             "Couldn't move to Speakers: busy. Playback stopped. Run the patch to start it again.",
         );
     });
+    test('names a chosen device once it is connected', () => {
+        expect(
+            outputDeviceNotice(
+                report({ event: 'Connected', outputDeviceName: 'Interface' }),
+                false,
+            ).message,
+        ).toBe('Interface is connected, so the output is on it now.');
+    });
+
+    test('says a device that will not reopen is retried', () => {
+        expect(
+            outputDeviceNotice(
+                report({ error: 'busy.', event: 'Reconnected' }),
+                false,
+            ).message,
+        ).toBe("Couldn't reopen Speakers: busy. Shoreline keeps trying.");
+    });
+
+    test('names the input a stopped input reopened on', () => {
+        expect(
+            outputDeviceNotice(
+                report({ event: 'InputReopened', inputDeviceName: 'Mic' }),
+                false,
+            ).message,
+        ).toBe('Input reopened on Mic.');
+    });
+
+    test('says a disconnected input leaves the input off', () => {
+        expect(
+            outputDeviceNotice(
+                report({
+                    disconnectedInputDeviceName: 'Mic',
+                    event: 'InputReopened',
+                }),
+                false,
+            ).message,
+        ).toBe('Mic was disconnected, so the input is off.');
+    });
 });
 
 describe('appliedSettingsNotice', () => {
