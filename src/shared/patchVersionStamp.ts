@@ -14,9 +14,6 @@
  * main-process file handlers and the unit tests share the same logic.
  */
 
-/** File extensions that carry the version stamp (Shoreline patch files). */
-const STAMPABLE_EXTENSIONS = ['.js', '.mjs'];
-
 /**
  * Leading block comment, tolerating a UTF-8 BOM and surrounding whitespace.
  * Non-greedy up to the first closing delimiter so it captures exactly one
@@ -26,12 +23,6 @@ const LEADING_BLOCK_COMMENT = /^\uFEFF?\s*\/\*[\s\S]*?\*\//;
 
 /** The blank-line separator written between the block and the patch body. */
 const TRAILING_SEPARATOR = /^[^\S\n]*\r?\n(?:[^\S\n]*\r?\n)?/;
-
-/** Whether `filePath` is a patch file that carries the version stamp. */
-export function isStampablePath(filePath: string): boolean {
-    const lower = filePath.toLowerCase();
-    return STAMPABLE_EXTENSIONS.some((ext) => lower.endsWith(ext));
-}
 
 /**
  * Whether `block` is Shoreline's metadata block — it carries the `@shoreline`

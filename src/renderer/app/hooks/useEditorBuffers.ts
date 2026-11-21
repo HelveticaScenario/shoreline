@@ -3,6 +3,7 @@ import { v4 } from 'uuid';
 import electronAPI from '../../electronAPI';
 import type { EditorBuffer } from '../../types/editor';
 import type { FSWriteResult } from '../../../shared/ipcTypes';
+import { PATCH_EXTENSION } from '../../../shared/patchFiles';
 import {
     DEFAULT_PATCH,
     formatBufferLabel,
@@ -284,8 +285,9 @@ export function useEditorBuffers({
             const savedContent = buffer.content;
 
             if (buffer.kind === 'untitled') {
-                const input =
-                    await electronAPI.filesystem.showSaveDialog('untitled.mjs');
+                const input = await electronAPI.filesystem.showSaveDialog(
+                    `untitled${PATCH_EXTENSION}`,
+                );
                 if (!input) {
                     return undefined;
                 }

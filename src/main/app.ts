@@ -34,10 +34,14 @@ import type {
 } from '../shared/ipcTypes';
 import { IPC_CHANNELS, MENU_CHANNELS } from '../shared/ipcTypes';
 import {
-    isStampablePath,
     stampPatchVersionSource,
     stripPatchVersionStamp,
 } from '../shared/patchVersionStamp';
+import {
+    isPatchPath,
+    PATCH_EXTENSION,
+    PATCH_FILE_FILTER,
+} from '../shared/patchFiles';
 import { reconcilePatchBySimilarity } from './patchSimilarityRemap';
 import { VideoTapSlots } from './videoTapSlots';
 import type { CompiledVideoShader } from '../shared/video/videoGraph';
@@ -769,7 +773,7 @@ function validatePathInWorkspace(filePath: string): string | null {
 
 /** The explorer's file type for a patch or an asset a patch can load, or undefined for any other file. */
 function explorerFileType(filename: string): FileTreeEntry['fileType'] {
-    if (filename.endsWith('.js') || filename.endsWith('.mjs')) {
+    if (isPatchPath(filename)) {
         return 'js';
     }
     return assetKind(filename);
@@ -1554,7 +1558,7 @@ registerIPCHandler('FS_LIST_FILES', () => {
 // the editor only ever sees the user's own source.
 function readEditorContent(absolutePath: string): string {
     const content = fs.readFileSync(absolutePath, 'utf-8');
-    return isStampablePath(absolutePath)
+    return isPatchPath(absolutePath)
         ? stripPatchVersionStamp(content)
         : content;
 }
@@ -1658,7 +1662,7 @@ registerIPCHandler(
 
             // Record the app version that last wrote this patch as an invisible
             // block at the top of the file (stripped again on read).
-            const toWrite = isStampablePath(absolutePath)
+            const toWrite = isPatchPath(absolutePath)
                 ? stampPatchVersionSource(content, app.getVersion())
                 : content;
 
@@ -1803,12 +1807,12 @@ registerIPCHandler('FS_SHOW_SAVE_DIALOG', async (defaultPath?: string) => {
         return null;
     }
 
-    const fileName = defaultPath || 'untitled.mjs';
+    const fileName = defaultPath || `untitled${PATCH_EXTENSION}`;
     for (;;) {
         const result = await dialog.showSaveDialog({
             defaultPath: path.join(currentWorkspaceRoot, fileName),
             filters: [
-                { extensions: ['js', 'mjs'], name: 'JavaScript Files' },
+                PATCH_FILE_FILTER,
                 { extensions: ['*'], name: 'All Files' },
             ],
         });
@@ -1842,7 +1846,7 @@ registerIPCHandler(
         const result = await dialog.showSaveDialog({
             defaultPath: defaultValue || '',
             filters: [
-                { name: 'JavaScript Files', extensions: ['js', 'mjs'] },
+                PATCH_FILE_FILTER,
                 { name: 'All Files', extensions: ['*'] },
             ],
             title,
