@@ -14,36 +14,43 @@ use crate::audio::{
 pub(crate) enum OutputTarget {
     /// A device the device cache lists.
     Listed(String),
-    /// The host's own default output, which the device cache does not list.
-    /// A stream on it reroutes itself when the default changes, so only a new
-    /// synthesizer with no listed default opens it.
+    /// The host's system default output, which the device cache does not
+    /// list: the device the host finds under the default's id, or else the
+    /// host's own default device, whose stream reroutes itself when the
+    /// default changes. Only a new synthesizer opens it.
     Unlisted(cpal::Host),
 }
 
-/// How the settings asked for give way to what the output allows.
+/// The sample rate asked for, and how it and the buffer size give way to
+/// what the output allows.
 pub(crate) enum Fit {
-    /// Exactly the settings asked for, or an error.
-    Exact,
-    /// The settings asked for where the output allows them, then
-    /// `fallback`'s, then the output's own. The input opens only where it
-    /// runs at the chosen sample rate.
-    Closest { fallback: (u32, Option<u32>) },
-    /// The sample rate asked for where the output runs at it, otherwise the
-    /// output's preferred default; the buffer size as asked; an input that
-    /// will not open is left off. A new synthesizer opens this way.
-    Launch,
+    /// Exactly `sample_rate` and the buffer size asked for, or an error.
+    Exact { sample_rate: u32 },
+    /// `sample_rate` and the buffer size asked for where the output allows
+    /// them, then `fallback`'s, then the output's own. The input opens only
+    /// where it runs at the chosen rate.
+    Closest {
+        sample_rate: u32,
+        fallback: (u32, Option<u32>),
+    },
+    /// `sample_rate` where the output runs at it, otherwise the output's
+    /// preferred default (also for `None`); the buffer size as asked; an
+    /// input that will not open is left off. A new synthesizer opens this
+    /// way.
+    Launch { sample_rate: Option<u32> },
 }
 
 /// A stream open: the devices and settings asked for.
 pub(crate) struct OpenRequest {
     pub(crate) output: OutputTarget,
-    /// `None` asks for the output's preferred default rate.
-    pub(crate) sample_rate: Option<u32>,
     pub(crate) buffer_size: Option<u32>,
-    /// `None`, `"none"` or an empty id opens no input.
+    /// `None` opens no input.
     pub(crate) input_device_id: Option<String>,
     pub(crate) fit: Fit,
 }
+
+/// An input device ready to open, with its config and id.
+pub(crate) type InputPlan = (cpal::Device, cpal::SupportedStreamConfig, String);
 
 /// The devices and settings a stream open resolved to.
 pub(crate) struct StreamPlan {
@@ -53,7 +60,7 @@ pub(crate) struct StreamPlan {
     pub(crate) output_config: cpal::SupportedStreamConfig,
     pub(crate) sample_rate: u32,
     pub(crate) buffer_size: Option<u32>,
-    pub(crate) input: Option<(cpal::Device, cpal::SupportedStreamConfig, String)>,
+    pub(crate) input: Option<InputPlan>,
     /// The input asked for, listed but left off because it cannot run at
     /// `sample_rate`.
     pub(crate) unopened_input: Option<String>,
@@ -70,25 +77,22 @@ struct Settings {
     buffer_size: Option<u32>,
 }
 
-/// The current sample rate and buffer size where the output allows them;
-/// otherwise the preferred ones, then the output's own. The input where it
+/// The sample rate and buffer size asked for where the output allows them;
+/// otherwise the fallback ones, then the output's own. The input where it
 /// runs at the chosen rate.
 fn choose_settings(
     output: &AudioDeviceInfo,
     input: Option<&AudioDeviceInfo>,
-    preferred: (u32, Option<u32>),
-    current: (u32, Option<u32>),
+    asked: (u32, Option<u32>),
+    fallback: (u32, Option<u32>),
 ) -> Settings {
-    let (preferred_sample_rate, preferred_buffer_size) = preferred;
-    let (current_sample_rate, current_buffer_size) = current;
+    let (asked_sample_rate, asked_buffer_size) = asked;
+    let (fallback_sample_rate, fallback_buffer_size) = fallback;
     let supported = &output.supported_sample_rates;
-    let sample_rate = if supported.contains(&current_sample_rate) {
-        current_sample_rate
-    } else if supported.contains(&preferred_sample_rate) {
-        preferred_sample_rate
-    } else {
-        preferred_default_sample_rate(output.sample_rate, supported)
-    };
+    let sample_rate = [asked_sample_rate, fallback_sample_rate]
+        .into_iter()
+        .find(|rate| supported.contains(rate))
+        .unwrap_or_else(|| preferred_default_sample_rate(output.sample_rate, supported));
     let input = input.filter(|input| input.supported_sample_rates.contains(&sample_rate));
     let fits = |range: &Option<BufferSizeRange>, size: &u32| {
         range
@@ -101,7 +105,7 @@ fn choose_settings(
                 && input.is_none_or(|input| fits(&input.buffer_size_range, &size))
         })
     };
-    let buffer_size = [current_buffer_size, preferred_buffer_size]
+    let buffer_size = [asked_buffer_size, fallback_buffer_size]
         .into_iter()
         .find(allowed)
         .flatten();
@@ -109,6 +113,18 @@ fn choose_settings(
         sample_rate,
         input_opens: input.is_some(),
         buffer_size,
+    }
+}
+
+/// `sample_rate`, where `output` runs at it.
+fn supported_rate(output: &AudioDeviceInfo, sample_rate: u32) -> Result<u32> {
+    if output.supported_sample_rates.contains(&sample_rate) {
+        Ok(sample_rate)
+    } else {
+        Err(napi::Error::from_reason(format!(
+            "Sample rate {}Hz not supported by output device",
+            sample_rate
+        )))
     }
 }
 
@@ -136,13 +152,14 @@ pub(crate) fn resolve(cache: &AudioDeviceCache, request: OpenRequest) -> Result<
             (host, host_id, id, device, Some(output))
         }
         OutputTarget::Unlisted(host) => {
-            let device = host
-                .default_output_device()
+            let device = system_default_output_id(&host)
+                .and_then(|id| find_output_device_in_host(&host, &id))
+                .or_else(|| host.default_output_device())
                 .ok_or_else(|| napi::Error::from_reason("No output device is available"))?;
             let id = device.id().map(|id| id.to_string()).map_err(|err| {
                 napi::Error::from_reason(format!("The output device has no id: {err}"))
             })?;
-            let host_id = format!("{:?}", host.id());
+            let host_id = host_name(&host);
             (host, host_id, id, device, None)
         }
     };
@@ -150,72 +167,67 @@ pub(crate) fn resolve(cache: &AudioDeviceCache, request: OpenRequest) -> Result<
         .default_output_config()
         .map_err(|e| napi::Error::from_reason(format!("Failed to get output config: {}", e)))?;
 
-    let asked_input = chosen_input(request.input_device_id);
     let mut unopened_input = None;
     let mut unsupported_sample_rate = None;
+    let input_device_id = request.input_device_id;
     let (sample_rate, buffer_size, input_device_id) = match (&request.fit, output) {
-        (Fit::Closest { fallback }, Some(output)) => {
-            let input_info = asked_input
+        (Fit::Exact { sample_rate }, Some(output)) => (
+            supported_rate(output, *sample_rate)?,
+            request.buffer_size,
+            input_device_id,
+        ),
+        (
+            Fit::Closest {
+                sample_rate,
+                fallback,
+            },
+            Some(output),
+        ) => {
+            let input_info = input_device_id
                 .as_ref()
                 .and_then(|id| cache.find_input_device(id));
             let settings = choose_settings(
                 output,
                 input_info,
+                (*sample_rate, request.buffer_size),
                 *fallback,
-                (
-                    request.sample_rate.unwrap_or(output.sample_rate),
-                    request.buffer_size,
-                ),
             );
-            let input = match asked_input.filter(|_| input_info.is_some()) {
+            let input = match input_device_id.filter(|_| input_info.is_some()) {
                 Some(id) if settings.input_opens => Some(id),
                 unopened => {
                     unopened_input = unopened;
                     None
                 }
             };
-            (settings.sample_rate, settings.buffer_size, input)
+            (
+                supported_rate(output, settings.sample_rate)?,
+                settings.buffer_size,
+                input,
+            )
         }
-        (Fit::Launch, Some(output)) => {
+        (Fit::Launch { sample_rate }, Some(output)) => {
             let supported = &output.supported_sample_rates;
-            let sample_rate = request
-                .sample_rate
+            let chosen = sample_rate
                 .filter(|rate| supported.contains(rate))
                 .unwrap_or_else(|| {
-                    unsupported_sample_rate = request.sample_rate;
-                    preferred_default_sample_rate(output_config.sample_rate(), supported)
+                    unsupported_sample_rate = *sample_rate;
+                    preferred_default_sample_rate(output.sample_rate, supported)
                 });
-            (sample_rate, request.buffer_size, asked_input)
+            (chosen, request.buffer_size, input_device_id)
         }
-        (Fit::Exact, Some(output)) => {
-            let sample_rate = request.sample_rate.unwrap_or_else(|| {
-                preferred_default_sample_rate(output.sample_rate, &output.supported_sample_rates)
-            });
-            if !output.supported_sample_rates.contains(&sample_rate) {
-                return Err(napi::Error::from_reason(format!(
-                    "Sample rate {}Hz not supported by output device",
-                    sample_rate
-                )));
-            }
-            (sample_rate, request.buffer_size, asked_input)
-        }
+        // An unlisted output runs at its own rate.
         (_, None) => (
             output_config.sample_rate(),
             request.buffer_size,
-            asked_input,
+            input_device_id,
         ),
     };
 
     let input = match input_device_id {
         None => None,
-        Some(id) if matches!(request.fit, Fit::Launch) => find_input_device_in_host(&host, &id)
-            .and_then(|device| {
-                let config = device
-                    .default_input_config()
-                    .inspect_err(|e| eprintln!("Failed to get input config: {}", e))
-                    .ok()?;
-                Some((device, config, id))
-            }),
+        Some(id) if matches!(request.fit, Fit::Launch { .. }) => open_input(&host, id)
+            .inspect_err(|e| eprintln!("{}", e))
+            .ok(),
         Some(id) => Some(listed_input(cache, &host, &host_id, id, sample_rate)?),
     };
 
@@ -239,7 +251,7 @@ fn listed_input(
     host_id: &str,
     id: String,
     sample_rate: u32,
-) -> Result<(cpal::Device, cpal::SupportedStreamConfig, String)> {
+) -> Result<InputPlan> {
     let info = cache.find_input_device(&id).ok_or_else(|| {
         napi::Error::from_reason(format!("Input device '{}' not found in cache", id))
     })?;
@@ -255,6 +267,11 @@ fn listed_input(
             sample_rate
         )));
     }
+    open_input(host, id)
+}
+
+/// The input `id` on `host`, with its default config.
+fn open_input(host: &cpal::Host, id: String) -> Result<InputPlan> {
     let device = find_input_device_in_host(host, &id).ok_or_else(|| {
         napi::Error::from_reason(format!("Input device '{}' not found in host", id))
     })?;
@@ -262,6 +279,18 @@ fn listed_input(
         .default_input_config()
         .map_err(|e| napi::Error::from_reason(format!("Failed to get input config: {}", e)))?;
     Ok((device, config, id))
+}
+
+/// Add `text` to the end of `warning`.
+pub(crate) fn append_warning(warning: &mut Option<String>, text: &str) {
+    warning.get_or_insert_default().push_str(text);
+}
+
+/// The warning for a chosen output that is not connected.
+pub(crate) fn missing_output_warning(id: &str) -> String {
+    format!(
+        "Output device '{id}' is not connected, so the sound plays on the system default until it is. "
+    )
 }
 
 /// What a new synthesizer opens for `config`: the host and output asked for,
@@ -277,32 +306,32 @@ pub(crate) fn launch_request(
         None => get_host_by_preference(),
         Some(requested) => match parse_host_id(requested) {
             Some(id) => cpal::host_from_id(id).unwrap_or_else(|_| {
-                *warning = Some(format!(
-                    "Requested host '{}' not available, using default. ",
-                    requested
-                ));
+                append_warning(
+                    warning,
+                    &format!(
+                        "Requested host '{}' not available, using default. ",
+                        requested
+                    ),
+                );
                 get_host_by_preference()
             }),
             None => {
-                *warning = Some(format!("Unknown host '{}', using default. ", requested));
+                append_warning(
+                    warning,
+                    &format!("Unknown host '{}', using default. ", requested),
+                );
                 get_host_by_preference()
             }
         },
     };
-    let host_id = format!("{:?}", host.id());
+    let host_id = host_name(&host);
     let on_host = |device: Option<&AudioDeviceInfo>| device.is_some_and(|d| d.host_id == host_id);
-    let mut append = |text: String| {
-        *warning = Some(format!("{}{}", warning.take().unwrap_or_default(), text));
-    };
 
     let listed_output = match &config.output_device_id {
         Some(id) if on_host(cache.find_output_device(id)) => Some(id.clone()),
         requested => {
             if let Some(id) = requested {
-                append(format!(
-                    "Output device '{}' is not connected, so the sound plays on the system default until it is. ",
-                    id
-                ));
+                append_warning(warning, &missing_output_warning(id));
             }
             system_default_output_id(&host).filter(|id| on_host(cache.find_output_device(id)))
         }
@@ -312,7 +341,10 @@ pub(crate) fn launch_request(
         if on_host(cache.find_input_device(&id)) {
             return Some(id);
         }
-        append(format!("Input device '{}' not found, using default. ", id));
+        append_warning(
+            warning,
+            &format!("Input device '{}' not found, using default. ", id),
+        );
         host.default_input_device()
             .and_then(|device| device.id().ok())
             .map(|id| id.to_string())
@@ -323,11 +355,17 @@ pub(crate) fn launch_request(
             Some(id) => OutputTarget::Listed(id),
             None => OutputTarget::Unlisted(host),
         },
-        sample_rate: config.sample_rate,
         buffer_size: config.buffer_size,
         input_device_id,
-        fit: Fit::Launch,
+        fit: Fit::Launch {
+            sample_rate: config.sample_rate,
+        },
     }
+}
+
+/// The name the device cache gives `host`.
+fn host_name(host: &cpal::Host) -> String {
+    format!("{:?}", host.id())
 }
 
 /// The input device an id asks for: `None` for no input, which the renderer
@@ -386,11 +424,11 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_current_rate_and_buffer_size_where_the_output_allows_them() {
+    fn keeps_the_asked_rate_and_buffer_size_where_the_output_allows_them() {
         let output = device(&[44100, 48000, 96000], (15, 4096));
         let input = device(&[48000, 96000], (15, 4096));
         assert_eq!(
-            choose_settings(&output, Some(&input), (48000, Some(64)), (96000, Some(256))),
+            choose_settings(&output, Some(&input), (96000, Some(256)), (48000, Some(64))),
             Settings {
                 sample_rate: 96000,
                 input_opens: true,
@@ -400,15 +438,15 @@ mod tests {
     }
 
     #[test]
-    fn falls_back_to_the_preferred_rate_then_the_outputs_own() {
+    fn falls_back_to_the_fallback_rate_then_the_outputs_own() {
         let output = device(&[44100, 48000], (15, 4096));
         assert_eq!(
-            choose_settings(&output, None, (48000, None), (96000, None)).sample_rate,
+            choose_settings(&output, None, (96000, None), (48000, None)).sample_rate,
             48000
         );
         let only_44k = device(&[44100], (15, 4096));
         assert_eq!(
-            choose_settings(&only_44k, None, (96000, None), (48000, None)).sample_rate,
+            choose_settings(&only_44k, None, (48000, None), (96000, None)).sample_rate,
             44100
         );
     }
@@ -421,14 +459,14 @@ mod tests {
     }
 
     #[test]
-    fn a_buffer_size_the_output_rejects_falls_back_to_the_preferred_then_the_hosts() {
+    fn a_buffer_size_the_output_rejects_falls_back_to_the_fallback_then_the_hosts() {
         let output = device(&[48000], (128, 4096));
         assert_eq!(
-            choose_settings(&output, None, (48000, Some(256)), (48000, Some(64))).buffer_size,
+            choose_settings(&output, None, (48000, Some(64)), (48000, Some(256))).buffer_size,
             Some(256)
         );
         assert_eq!(
-            choose_settings(&output, None, (48000, Some(64)), (48000, Some(32))).buffer_size,
+            choose_settings(&output, None, (48000, Some(32)), (48000, Some(64))).buffer_size,
             None
         );
         let input = device(&[48000], (15, 32));

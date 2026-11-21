@@ -4,7 +4,7 @@ import { AppliedPatchState } from '../appliedPatchState';
 import {
     appliedSettingsNotice,
     pollAudioDevices,
-    outputDeviceNotice,
+    audioDeviceNotice,
 } from '../audioDevicePoll';
 
 const graph = { modules: [] } as unknown as PatchGraph;
@@ -19,16 +19,16 @@ const report = (over: Partial<DeviceReport> = {}): DeviceReport => ({
     ...over,
 });
 
-function fakeSynth(moved: DeviceReport | null, stopped: boolean) {
+function fakeSynth(polled: DeviceReport | null, stopped: boolean) {
     return {
-        pollDevices: vi.fn(() => moved),
+        pollDevices: vi.fn(() => polled),
         isStopped: vi.fn(() => stopped),
         stop: vi.fn(),
     };
 }
 
 describe('pollAudioDevices', () => {
-    test('an unchanged default leaves the engine alone', () => {
+    test('a poll that changes nothing leaves the engine alone', () => {
         const applied = new AppliedPatchState();
         applied.record(graph, 'song', 1);
 
@@ -107,9 +107,9 @@ describe('pollAudioDevices', () => {
     });
 });
 
-describe('outputDeviceNotice', () => {
+describe('audioDeviceNotice', () => {
     test('names the new device', () => {
-        expect(outputDeviceNotice(report(), false)).toEqual({
+        expect(audioDeviceNotice(report(), false)).toEqual({
             message: 'Output moved to Speakers.',
             persists: false,
             recordingStopped: false,
@@ -119,7 +119,7 @@ describe('outputDeviceNotice', () => {
 
     test('explains a sample rate the new output cannot run at', () => {
         expect(
-            outputDeviceNotice(report({ previousSampleRate: 192000 }), false)
+            audioDeviceNotice(report({ previousSampleRate: 192000 }), false)
                 .message,
         ).toBe(
             "Output moved to Speakers. It can't run at 192000 Hz, so the sample rate is now 48000 Hz.",
@@ -128,7 +128,7 @@ describe('outputDeviceNotice', () => {
 
     test('explains a buffer size the new output cannot use', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ previousBufferSize: 32, bufferSize: 64 }),
                 true,
             ).message,
@@ -139,7 +139,7 @@ describe('outputDeviceNotice', () => {
 
     test('explains an input left off', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ unopenedInputDeviceName: 'Interface' }),
                 false,
             ).message,
@@ -150,10 +150,7 @@ describe('outputDeviceNotice', () => {
 
     test('reports a recording the move ended', () => {
         expect(
-            outputDeviceNotice(
-                report({ recordingPath: '/rec/take.wav' }),
-                true,
-            ),
+            audioDeviceNotice(report({ recordingPath: '/rec/take.wav' }), true),
         ).toEqual({
             message:
                 'Output moved to Speakers. Recording stopped and saved to /rec/take.wav. Playback stopped. Run the patch to start it again.',
@@ -165,7 +162,7 @@ describe('outputDeviceNotice', () => {
 
     test('says a device went away and came back', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({
                     event: 'Disconnected',
                     outputDeviceName: 'Interface',
@@ -179,7 +176,7 @@ describe('outputDeviceNotice', () => {
             stopped: false,
         });
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ event: 'Reconnected', engineReset: false }),
                 false,
             ),
@@ -191,7 +188,7 @@ describe('outputDeviceNotice', () => {
 
     test('says a device changed its sample rate', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ event: 'RateChanged', sampleRate: 96000 }),
                 true,
             ),
@@ -201,7 +198,7 @@ describe('outputDeviceNotice', () => {
             stopped: true,
         });
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ event: 'RateChanged', engineReset: false }),
                 false,
             ).message,
@@ -210,7 +207,7 @@ describe('outputDeviceNotice', () => {
 
     test('explains a failed move', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ error: 'busy', outputDeviceName: undefined }),
                 false,
             ).message,
@@ -218,17 +215,15 @@ describe('outputDeviceNotice', () => {
             "Couldn't move to the new default output: busy. Audio stays on the current device.",
         );
         expect(
-            outputDeviceNotice(
-                report({ error: 'busy', outputLost: true }),
-                true,
-            ).message,
+            audioDeviceNotice(report({ error: 'busy', outputLost: true }), true)
+                .message,
         ).toBe(
             "Couldn't move to Speakers: busy. Playback stopped. Run the patch to start it again.",
         );
     });
     test('names a chosen device once it is connected', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ event: 'Connected', outputDeviceName: 'Interface' }),
                 false,
             ).message,
@@ -237,7 +232,7 @@ describe('outputDeviceNotice', () => {
 
     test('says a device that will not reopen is retried', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ error: 'busy.', event: 'Reconnected' }),
                 false,
             ).message,
@@ -246,7 +241,7 @@ describe('outputDeviceNotice', () => {
 
     test('names the input a stopped input reopened on', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({ event: 'InputReopened', inputDeviceName: 'Mic' }),
                 false,
             ).message,
@@ -255,7 +250,7 @@ describe('outputDeviceNotice', () => {
 
     test('says a disconnected input leaves the input off', () => {
         expect(
-            outputDeviceNotice(
+            audioDeviceNotice(
                 report({
                     disconnectedInputDeviceName: 'Mic',
                     event: 'InputReopened',

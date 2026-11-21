@@ -1,11 +1,6 @@
-//! The output device the user chose, and what polling the devices keeps for
-//! it.
+//! The output device the user chose.
 
-use std::time::{Duration, Instant};
-
-/// How often the device list is read for a chosen output that is not
-/// connected.
-pub(crate) const MISSING_OUTPUT_CHECK: Duration = Duration::from_secs(3);
+use std::time::Instant;
 
 /// The output the user chose.
 #[derive(Debug)]

@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import electronAPI from '../electronAPI';
-import type { OutputDeviceNotice } from '../../shared/ipcTypes';
-import './OutputDeviceBanner.css';
+import type { AudioDeviceNotice } from '../../shared/ipcTypes';
+import './AudioDeviceBanner.css';
 
 /** How long a notice stays up unless it persists. */
 const NOTICE_MS = 10_000;
 
 /**
- * Says what happened to the output device. A notice that persists stays up
+ * Says what happened to the audio devices. A notice that persists stays up
  * until dismissed or replaced; one that playback stopped also goes when
  * playback starts again.
  */
-export function OutputDeviceBanner({ playing }: { playing: boolean }) {
-    const [notice, setNotice] = useState<OutputDeviceNotice | null>(null);
+export function AudioDeviceBanner({ playing }: { playing: boolean }) {
+    const [notice, setNotice] = useState<AudioDeviceNotice | null>(null);
 
-    useEffect(() => electronAPI.audio.onOutputNotice(setNotice), []);
+    useEffect(() => electronAPI.audio.onDeviceNotice(setNotice), []);
 
     // Checked only when `playing` changes, so a notice that arrives while the
     // stop it reports is still settling survives until playback restarts.
@@ -39,14 +39,14 @@ export function OutputDeviceBanner({ playing }: { playing: boolean }) {
     }
     return (
         <div
-            className={`output-device-banner${notice.stopped ? ' output-device-banner--stopped' : ''}`}
+            className={`audio-device-banner${notice.stopped ? ' audio-device-banner--stopped' : ''}`}
             role={notice.persists ? 'alert' : 'status'}
         >
-            <span className="output-device-banner__message">
+            <span className="audio-device-banner__message">
                 {notice.message}
             </span>
             <button
-                className="output-device-banner__dismiss"
+                className="audio-device-banner__dismiss"
                 onClick={() => setNotice(null)}
             >
                 Dismiss

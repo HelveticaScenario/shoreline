@@ -237,10 +237,7 @@ export declare function cpuSupportsBuild(): boolean
 /** Current audio state information */
 export interface CurrentAudioState {
   hostId: string
-  /**
-   * The device the output stream is open on, also while following the
-   * system default.
-   */
+  /** The device the output stream is open on. */
   outputDeviceId: string
   /**
    * The output the user chose: `None` for System Default. It differs
@@ -315,10 +312,7 @@ export type DeviceEvent = /** The output moved to a new system default device. *
  */
 'InputReopened';
 
-/**
- * What changed when the streams followed a new system default output, or
- * lost and regained a device.
- */
+/** What a device poll changed. */
 export interface DeviceReport {
   event: DeviceEvent
   /** The output device, when Shoreline lists it. */
@@ -331,21 +325,21 @@ export interface DeviceReport {
    */
   disconnectedInputDeviceName?: string
   /**
-   * The preferred input could not open at the sample rate the new output
-   * runs at, which leaves the input off.
+   * The chosen input could not open at the sample rate the output runs
+   * at, which leaves the input off.
    */
   unopenedInputDeviceName?: string
   previousSampleRate: number
   /**
-   * Differs from `previous_sample_rate` when the new output cannot run at
-   * that rate, or changed its own.
+   * Differs from `previous_sample_rate` when the output cannot run at that
+   * rate, or changed its own.
    */
   sampleRate: number
   /** The buffer size in frames; `None` is the host's default. */
   previousBufferSize?: number
   /**
-   * Differs from `previous_buffer_size` only when the new output cannot
-   * use that buffer size.
+   * Differs from `previous_buffer_size` only when the output cannot use
+   * that buffer size.
    */
   bufferSize?: number
   /**
@@ -353,13 +347,14 @@ export interface DeviceReport {
    * playback.
    */
   engineReset: boolean
-  /** The file of the recording the move ended. */
+  /** The file of the recording the engine reset ended. */
   recordingPath?: string
-  /** Why the streams could not be opened on the new device. */
+  /** Why the streams could not open on the device. */
   error?: string
   /**
-   * The streams could not move and the device they play on is gone, so
-   * nothing can be heard until the output changes again.
+   * The streams could not open on the new default and the device they
+   * play on is gone, so nothing can be heard until the output changes
+   * again.
    */
   outputLost: boolean
 }

@@ -16,7 +16,7 @@ import { AudioControls } from './components/AudioControls';
 import { TransportDisplay } from './components/TransportDisplay';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { AudioPanicDialog } from './components/AudioPanicDialog';
-import { OutputDeviceBanner } from './components/OutputDeviceBanner';
+import { AudioDeviceBanner } from './components/AudioDeviceBanner';
 import { EngineHealth } from './components/EngineHealth';
 import { ModuleProfile } from './components/ModuleProfile';
 import {
@@ -2306,7 +2306,7 @@ function App() {
     // same state as Stop.
     useEffect(
         () =>
-            electronAPI.audio.onOutputNotice((notice) => {
+            electronAPI.audio.onDeviceNotice((notice) => {
                 if (notice.stopped) {
                     handleStopRef.current();
                 }
@@ -2719,7 +2719,7 @@ function App() {
 
             <AudioPanicDialog />
 
-            <OutputDeviceBanner playing={isClockRunning} />
+            <AudioDeviceBanner playing={isClockRunning} />
 
             <CommandPalette
                 open={isPaletteOpen}

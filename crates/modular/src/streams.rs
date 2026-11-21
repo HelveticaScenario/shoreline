@@ -16,11 +16,8 @@ use crate::audio::{
     create_input_ring_buffer, make_input_stream, make_stream,
 };
 use crate::midi::MidiInputManager;
-use crate::output_choice::OutputChoice;
 use crate::stream_health::{StreamHealth, StreamWatchdog};
-use crate::stream_resolve::{
-    Fit, OpenRequest, OutputTarget, StreamPlan, host_for_id, resolve, system_default_output_id,
-};
+use crate::stream_resolve::{OpenRequest, StreamPlan, resolve};
 
 /// Fewest frames per internal block: below this, each module's per-block work
 /// (resolving inputs, dispatch) costs more than a shorter callback saves.
@@ -39,14 +36,14 @@ const ENGINE_RETURN_WAIT: Duration = Duration::from_millis(250);
 /// the host's default). A callback shorter than a block renders only the
 /// frames it emits and the next continues the block, so a block longer than
 /// the device buffer adds no latency.
-pub(crate) fn block_size_for(buffer_size: Option<u32>) -> usize {
+fn block_size_for(buffer_size: Option<u32>) -> usize {
     buffer_size
         .map_or(DEFAULT_BLOCK_SIZE, |frames| frames as usize)
         .clamp(MIN_BLOCK_SIZE, MAX_BLOCK_SIZE)
 }
 
 /// The streams open on the output device and, optionally, an input device,
-/// with the settings they run at. Every field changes only when streams open.
+/// with the settings they run at. A stream open replaces them whole.
 pub(crate) struct Streams {
     output: cpal::Stream,
     input: Option<cpal::Stream>,
@@ -152,6 +149,16 @@ impl Streams {
         })
     }
 
+    /// The devices these streams hold open: an ended stream holds none.
+    pub(crate) fn open_device_ids(&self) -> impl Iterator<Item = &str> {
+        let output = Some(self.output_device_id.as_str()).filter(|_| !self.watchdog.has_died());
+        let input = self
+            .input_device_id
+            .as_deref()
+            .filter(|_| !self.input_health.has_ended());
+        output.into_iter().chain(input)
+    }
+
     /// Move the engine a dropped output stream returned to this stream's
     /// slot, waiting up to `wait` for it. False when it is still on its way.
     pub(crate) fn adopt_returning_engine(&mut self, wait: Duration) -> bool {
@@ -215,7 +222,7 @@ fn build_input_stream(
 
 /// A new engine at `sample_rate`, waiting in its slot for a stream, and the
 /// state the main thread drives it through.
-pub(crate) fn new_engine(
+fn new_engine(
     sample_rate: u32,
     buffer_size: Option<u32>,
     channels: u16,
@@ -270,12 +277,9 @@ pub struct StreamsChange {
 
 impl Synthesizer {
     /// Resolve `request` and open its streams, replacing the running ones.
-    /// Also returns the input asked for that was left off because it cannot
-    /// run at the chosen sample rate.
-    pub(crate) fn open(&mut self, request: OpenRequest) -> Result<(StreamsChange, Option<String>)> {
-        let mut plan = resolve(&self.device_cache, request)?;
-        let unopened_input = plan.unopened_input.take();
-        Ok((self.open_streams(plan)?, unopened_input))
+    pub(crate) fn open(&mut self, request: OpenRequest) -> Result<StreamsChange> {
+        let plan = resolve(&self.device_cache, request)?;
+        self.open_streams(plan)
     }
 
     /// Open the streams `plan` describes, replacing the running ones. At the
@@ -283,23 +287,18 @@ impl Synthesizer {
     /// streams with its patch, playback, recording and Link. Otherwise a
     /// fresh engine starts stopped and empty, with Link as it was, and a
     /// recording in progress ends with the old streams.
-    fn open_streams(&mut self, plan: StreamPlan) -> Result<StreamsChange> {
+    pub(crate) fn open_streams(&mut self, plan: StreamPlan) -> Result<StreamsChange> {
         // An engine keeps playing on the new streams when they run at its
         // sample rate and buffer size, which its block size is built from.
         let keep_engine = plan.sample_rate == self.streams.sample_rate
             && plan.buffer_size == self.streams.buffer_size
             && !self.state.is_audio_thread_panicked();
-        let (state, engine_slot) = if keep_engine {
-            (self.state.clone(), Arc::new(Mutex::new(None)))
+        let (state, streams) = if keep_engine {
+            let streams = Streams::open(plan, &self.state, Arc::new(Mutex::new(None)))?;
+            (self.state.clone(), streams)
         } else {
-            new_engine(
-                plan.sample_rate,
-                plan.buffer_size,
-                plan.output_config.channels(),
-                self.midi_manager.clone(),
-            )
+            launch(plan, self.midi_manager.clone())?
         };
-        let streams = Streams::open(plan, &state, engine_slot)?;
         let Streams {
             output,
             input,
@@ -364,67 +363,6 @@ impl Synthesizer {
             engine_reset: true,
             recording_path,
         })
-    }
-
-    /// The id of `host_id`'s system default output, with the device cache
-    /// refreshed first when it does not list that device yet.
-    pub(crate) fn default_output_id(&mut self, host_id: &str) -> Option<String> {
-        let id = system_default_output_id(&host_for_id(host_id)?)?;
-        if self.device_cache.find_output_device(&id).is_none() {
-            self.refresh_device_cache(None);
-        }
-        Some(id)
-    }
-
-    /// Open the streams on `output_device_id`, or on `host_id`'s system
-    /// default output (the current host when `None`) when it is `None`, at
-    /// these settings, and make that output the choice. A chosen output that
-    /// is not connected stays the choice: the sound plays on the system
-    /// default, at these settings where it allows them, until it is listed.
-    pub(crate) fn reopen_streams(
-        &mut self,
-        output_device_id: Option<String>,
-        sample_rate: u32,
-        buffer_size: Option<u32>,
-        input_device_id: Option<String>,
-        host_id: Option<String>,
-    ) -> Result<StreamsChange> {
-        let listed = output_device_id
-            .clone()
-            .filter(|id| self.device_cache.find_output_device(id).is_some());
-        let missing = output_device_id.is_some() && listed.is_none();
-        let target = match listed {
-            Some(id) => id,
-            None => {
-                let host_id = host_id.unwrap_or_else(|| self.streams.host_id.clone());
-                self.default_output_id(&host_id).ok_or_else(|| {
-                    napi::Error::from_reason(format!(
-                        "Host '{}' has no default output device",
-                        host_id
-                    ))
-                })?
-            }
-        };
-        let (change, _) = self.open(OpenRequest {
-            output: OutputTarget::Listed(target),
-            sample_rate: Some(sample_rate),
-            buffer_size,
-            input_device_id,
-            fit: if missing {
-                Fit::Closest {
-                    fallback: (sample_rate, buffer_size),
-                }
-            } else {
-                Fit::Exact
-            },
-        })?;
-        if missing && let Some(id) = &output_device_id {
-            self.fallback_warning = Some(format!(
-                "Output device '{id}' is not connected, so the sound plays on the system default until it is. "
-            ));
-        }
-        self.output_choice = OutputChoice::opened(output_device_id, &self.streams.output_device_id);
-        Ok(change)
     }
 }
 

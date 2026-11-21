@@ -56,7 +56,10 @@ use crate::audio::{
 use crate::commands::{GraphCommand, QueuedTrigger, TransportMeta};
 use crate::midi::MidiInputManager;
 use crate::output_choice::OutputChoice;
-use crate::stream_resolve::{Fit, OpenRequest, OutputTarget, chosen_input};
+use crate::stream_resolve::{
+    Fit, OpenRequest, OutputTarget, append_warning, chosen_input, host_for_id,
+    missing_output_warning, system_default_output_id,
+};
 use crate::streams::{Streams, StreamsChange};
 
 use modular_core::dsp::utilities::video_tap;
@@ -717,11 +720,11 @@ pub struct Synthesizer {
     midi_manager: Arc<MidiInputManager>,
     is_recording: bool,
     output_choice: OutputChoice,
-    /// The settings last asked for, which following the system default
-    /// output returns to whenever the new device allows them.
-    preferred_sample_rate: u32,
-    preferred_buffer_size: Option<u32>,
-    preferred_input_device_id: Option<String>,
+    /// The settings the user chose, which the saved config holds. Every open
+    /// on a device the poll finds comes back to them where the device allows.
+    chosen_sample_rate: u32,
+    chosen_buffer_size: Option<u32>,
+    chosen_input_device_id: Option<String>,
     device_cache: AudioDeviceCache,
     fallback_warning: Option<String>,
     next_update_id: u64,
@@ -745,12 +748,13 @@ impl Synthesizer {
             stream_resolve::launch_request(&device_cache, &config, &mut fallback_warning),
         )?;
         if let Some(requested) = plan.unsupported_sample_rate {
-            fallback_warning = Some(format!(
-                "{}Requested sample rate {}Hz not supported, using {}Hz. ",
-                fallback_warning.unwrap_or_default(),
-                requested,
-                plan.sample_rate,
-            ));
+            append_warning(
+                &mut fallback_warning,
+                &format!(
+                    "Requested sample rate {}Hz not supported, using {}Hz. ",
+                    requested, plan.sample_rate
+                ),
+            );
         }
         let output_choice =
             OutputChoice::opened(config.output_device_id.clone(), &plan.output_device_id);
@@ -766,7 +770,7 @@ impl Synthesizer {
         // A rate the connected output cannot run gives way to the one it
         // runs; the rate chosen for a device that is not connected waits for
         // that device.
-        let preferred_sample_rate = config
+        let chosen_sample_rate = config
             .sample_rate
             .filter(|_| matches!(output_choice, OutputChoice::Missing(_)))
             .unwrap_or(streams.sample_rate);
@@ -777,9 +781,9 @@ impl Synthesizer {
             midi_manager,
             is_recording: false,
             output_choice,
-            preferred_sample_rate,
-            preferred_buffer_size: config.buffer_size,
-            preferred_input_device_id: chosen_input(config.input_device_id),
+            chosen_sample_rate,
+            chosen_buffer_size: config.buffer_size,
+            chosen_input_device_id: chosen_input(config.input_device_id),
             device_cache,
             fallback_warning,
             next_update_id: 0,
@@ -1233,18 +1237,9 @@ impl Synthesizer {
     /// whose clients a rescan would collide with.
     #[napi]
     pub fn refresh_device_cache(&mut self, rescan_jack: Option<bool>) {
-        let streams = &self.streams;
-        let keep: Vec<&str> = [
-            Some(streams.output_device_id.as_str()).filter(|_| !streams.watchdog.has_died()),
-            streams
-                .input_device_id
-                .as_deref()
-                .filter(|_| !streams.input_health.has_ended()),
-        ]
-        .into_iter()
-        .flatten()
-        .collect();
-        let rescan_jack = rescan_jack.unwrap_or(false) && streams.host_id != audio::JACK_HOST_ID;
+        let keep: Vec<&str> = self.streams.open_device_ids().collect();
+        let rescan_jack =
+            rescan_jack.unwrap_or(false) && self.streams.host_id != audio::JACK_HOST_ID;
         self.device_cache.refresh(&keep, rescan_jack);
     }
 
@@ -1270,23 +1265,19 @@ impl Synthesizer {
     #[napi]
     pub fn get_current_audio_state(&self) -> CurrentAudioState {
         let streams = &self.streams;
-        let output_device_name = self
-            .device_cache
-            .find_output_device(&streams.output_device_id)
-            .map(|d| d.name.clone());
+        let output_device_name = self.device_cache.output_name(&streams.output_device_id);
         let input_device_name = streams
             .input_device_id
-            .as_ref()
-            .and_then(|id| self.device_cache.find_input_device(id))
-            .map(|d| d.name.clone());
+            .as_deref()
+            .and_then(|id| self.device_cache.input_name(id));
 
         CurrentAudioState {
             host_id: streams.host_id.clone(),
             output_device_id: streams.output_device_id.clone(),
             chosen_output_device_id: self.output_choice.device_id(&streams.output_device_id),
-            chosen_sample_rate: self.preferred_sample_rate,
-            chosen_buffer_size: self.preferred_buffer_size,
-            chosen_input_device_id: self.preferred_input_device_id.clone(),
+            chosen_sample_rate: self.chosen_sample_rate,
+            chosen_buffer_size: self.chosen_buffer_size,
+            chosen_input_device_id: self.chosen_input_device_id.clone(),
             output_device_name,
             input_device_id: streams.input_device_id.clone(),
             input_device_name,
@@ -1314,17 +1305,56 @@ impl Synthesizer {
         input_device_id: Option<String>,
         host_id: Option<String>,
     ) -> Result<StreamsChange> {
-        let change = self.reopen_streams(
-            output_device_id,
-            sample_rate,
+        let input_device_id = chosen_input(input_device_id);
+        let listed = output_device_id
+            .clone()
+            .filter(|id| self.device_cache.find_output_device(id).is_some());
+        let target = match listed {
+            Some(id) => id,
+            None => {
+                let host_id = host_id.unwrap_or_else(|| self.streams.host_id.clone());
+                self.default_output_id(&host_id).ok_or_else(|| {
+                    napi::Error::from_reason(format!(
+                        "Host '{}' has no default output device",
+                        host_id
+                    ))
+                })?
+            }
+        };
+        // A chosen output that is not connected keeps these settings for when
+        // it is; until then the system default plays at them where it allows.
+        let fit = if output_device_id.is_some() && output_device_id.as_ref() != Some(&target) {
+            Fit::Closest {
+                sample_rate,
+                fallback: (sample_rate, buffer_size),
+            }
+        } else {
+            Fit::Exact { sample_rate }
+        };
+        let change = self.open(OpenRequest {
+            output: OutputTarget::Listed(target),
             buffer_size,
-            input_device_id.clone(),
-            host_id,
-        )?;
-        self.preferred_sample_rate = sample_rate;
-        self.preferred_buffer_size = buffer_size;
-        self.preferred_input_device_id = chosen_input(input_device_id);
+            input_device_id: input_device_id.clone(),
+            fit,
+        })?;
+        self.output_choice = OutputChoice::opened(output_device_id, &self.streams.output_device_id);
+        if let OutputChoice::Missing(missing) = &self.output_choice {
+            self.fallback_warning = Some(missing_output_warning(&missing.id));
+        }
+        self.chosen_sample_rate = sample_rate;
+        self.chosen_buffer_size = buffer_size;
+        self.chosen_input_device_id = input_device_id;
         Ok(change)
+    }
+
+    /// The id of `host_id`'s system default output, with the device cache
+    /// refreshed first when it does not list that device yet.
+    fn default_output_id(&mut self, host_id: &str) -> Option<String> {
+        let id = system_default_output_id(&host_for_id(host_id)?)?;
+        if self.device_cache.find_output_device(&id).is_none() {
+            self.refresh_device_cache(None);
+        }
+        Some(id)
     }
 
     /// Restart the audio streams using the current device/sample-rate/buffer-size
@@ -1336,10 +1366,11 @@ impl Synthesizer {
         let streams = &self.streams;
         let request = OpenRequest {
             output: OutputTarget::Listed(streams.output_device_id.clone()),
-            sample_rate: Some(streams.sample_rate),
             buffer_size: streams.buffer_size,
             input_device_id: streams.input_device_id.clone(),
-            fit: Fit::Exact,
+            fit: Fit::Exact {
+                sample_rate: streams.sample_rate,
+            },
         };
         self.open(request).map(|_| ())
     }

@@ -1,4 +1,4 @@
-.output-device-banner {
+.audio-device-banner {
     flex-shrink: 0;
     display: flex;
     align-items: center;
@@ -12,16 +12,16 @@
     color: var(--text-primary, #cccccc);
 }
 
-.output-device-banner--stopped {
+.audio-device-banner--stopped {
     border-bottom-color: var(--color-warning, #d4a855);
 }
 
-.output-device-banner__message {
+.audio-device-banner__message {
     flex: 1;
     min-width: 0;
 }
 
-.output-device-banner__dismiss {
+.audio-device-banner__dismiss {
     flex-shrink: 0;
     padding: 3px 10px;
     border-radius: 4px;
@@ -33,6 +33,6 @@
     border: 1px solid var(--border-default, #2a2a2a);
 }
 
-.output-device-banner__dismiss:hover {
+.audio-device-banner__dismiss:hover {
     background: var(--bg-hover, #1a1a1a);
 }

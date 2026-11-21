@@ -94,8 +94,9 @@ impl ModuleStateMetaCache {
 }
 
 use crate::commands::{
-    AudioError, COMMAND_QUEUE_CAPACITY, ERROR_QUEUE_CAPACITY, GARBAGE_QUEUE_CAPACITY, GarbageItem,
-    GraphCommand, PatchUpdate, QueuedTrigger, TransferSourceIds, TransportMeta,
+    AudioError, COMMAND_QUEUE_CAPACITY, CommandSender, ERROR_QUEUE_CAPACITY,
+    GARBAGE_QUEUE_CAPACITY, GarbageItem, GraphCommand, PatchUpdate, QueuedTrigger,
+    TransferSourceIds, TransportMeta,
 };
 use crate::midi::MidiInputManager;
 use crate::recording::{RecordingFeed, RecordingSession};
@@ -293,6 +294,16 @@ impl AudioDeviceCache {
             .find(|d| d.id == device_id)
     }
 
+    /// The name of the listed output device `device_id`.
+    pub fn output_name(&self, device_id: &str) -> Option<String> {
+        self.find_output_device(device_id).map(|d| d.name.clone())
+    }
+
+    /// The name of the listed input device `device_id`.
+    pub fn input_name(&self, device_id: &str) -> Option<String> {
+        self.find_input_device(device_id).map(|d| d.name.clone())
+    }
+
     /// Get output devices for a specific host
     pub fn output_devices_for_host(&self, host_id: &str) -> Vec<AudioDeviceInfo> {
         self.output_devices
@@ -366,8 +377,7 @@ pub struct DeviceCacheSnapshot {
 #[napi(object)]
 pub struct CurrentAudioState {
     pub host_id: String,
-    /// The device the output stream is open on, also while following the
-    /// system default.
+    /// The device the output stream is open on.
     pub output_device_id: String,
     /// The output the user chose: `None` for System Default. It differs
     /// from `output_device_id` while the chosen device is not connected.
@@ -1248,79 +1258,8 @@ pub fn create_audio_channels() -> (
 // AudioStateHandle - Main thread side
 // ============================================================================
 
-/// Queue slots single-module updates leave free, so patch, transport and
-/// Link commands still fit while the engine is not draining the queue, as
-/// while its output device is disconnected.
-const COMMAND_QUEUE_RESERVE: usize = 64;
-
-/// A single-module update waiting for room in the command queue.
-struct ParkedModule {
-    module_id: String,
-    module: Box<dyn modular_core::types::Sampleable>,
-    update_id: u64,
-}
-
-/// The main thread's end of the command queue. Single-module updates (a
-/// slider drag, a video region's level) can outpace an engine that is not
-/// running, so while the queue is short of room they wait here, the latest
-/// per module and patch update, and go out ahead of the next command once
-/// there is room.
-struct CommandSender {
-    tx: CommandProducer,
-    parked: Vec<ParkedModule>,
-}
-
-impl CommandSender {
-    fn flush(&mut self) {
-        let room = self
-            .tx
-            .slots()
-            .saturating_sub(COMMAND_QUEUE_RESERVE)
-            .min(self.parked.len());
-        for parked in self.parked.drain(..room) {
-            let pushed = self.tx.push(GraphCommand::SingleModuleUpdate {
-                module_id: parked.module_id,
-                module: parked.module,
-                update_id: parked.update_id,
-            });
-            debug_assert!(pushed.is_ok());
-        }
-    }
-
-    fn send(&mut self, command: GraphCommand) -> Result<()> {
-        self.flush();
-        self.tx.push(command).map_err(|_| {
-            napi::Error::from_reason(
-                "Command queue full - audio thread may be overloaded".to_string(),
-            )
-        })
-    }
-
-    fn send_module_update(
-        &mut self,
-        module_id: String,
-        module: Box<dyn modular_core::types::Sampleable>,
-        update_id: u64,
-    ) {
-        match self
-            .parked
-            .iter_mut()
-            .find(|parked| parked.module_id == module_id && parked.update_id == update_id)
-        {
-            Some(parked) => parked.module = module,
-            None => self.parked.push(ParkedModule {
-                module_id,
-                module,
-                update_id,
-            }),
-        }
-        self.flush();
-    }
-}
-
 /// Main thread handle for audio state. Sends commands to audio thread.
 pub struct AudioState {
-    /// Command queue producer (main thread → audio thread)
     commands: Mutex<CommandSender>,
     /// Error queue consumer (main thread ← audio thread)
     error_rx: Mutex<ErrorConsumer>,
@@ -1403,10 +1342,7 @@ impl AudioState {
         block_size: usize,
     ) -> Self {
         Self {
-            commands: Mutex::new(CommandSender {
-                tx: command_tx,
-                parked: Vec::new(),
-            }),
+            commands: Mutex::new(CommandSender::new(command_tx)),
             error_rx: Mutex::new(error_rx),
             garbage_rx: Mutex::new(garbage_rx),
             stopped: Arc::new(AtomicBool::new(true)),
@@ -5638,6 +5574,8 @@ mod tests {
 
     #[test]
     fn module_updates_wait_for_room_and_keep_the_latest_per_module() {
+        use crate::commands::COMMAND_QUEUE_RESERVE;
+
         let (cmd_producer, mut cmd_consumer, _err_producer, err_consumer, _garbage, garbage) =
             create_audio_channels();
         let state = AudioState::new_with_channels(

@@ -24,7 +24,7 @@ import type {
     FileTreeEntry,
     ContextMenuOptions,
     EditorContextMenuOptions,
-    OutputDeviceNotice,
+    AudioDeviceNotice,
     DSLExecuteResult,
     KeybindingOverride,
     MainLogLevel,
@@ -46,7 +46,7 @@ import { isBufferSwitch } from './bufferSwitch';
 import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
 import {
-    outputDeviceNotice,
+    audioDeviceNotice,
     appliedSettingsNotice,
     pollAudioDevices,
     AUDIO_DEVICE_POLL_MS,
@@ -678,23 +678,23 @@ setInterval(() => {
 
 // A notice raised before the main window loads, delivered once it does, and
 // whether it shows a disconnected output.
-let pendingOutputNotice: {
-    notice: OutputDeviceNotice;
+let pendingDeviceNotice: {
+    notice: AudioDeviceNotice;
     disconnected: boolean;
 } | null = null;
 // The banner shows a disconnected output, which new settings replace.
 let disconnectedNoticeShown = false;
 
-function sendOutputNotice(notice: OutputDeviceNotice, disconnected = false) {
+function sendDeviceNotice(notice: AudioDeviceNotice, disconnected = false) {
     disconnectedNoticeShown = disconnected;
     if (
         mainWindow &&
         !mainWindow.isDestroyed() &&
         !mainWindow.webContents.isLoading()
     ) {
-        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE, notice);
+        mainWindow.webContents.send(IPC_CHANNELS.AUDIO_DEVICE_NOTICE, notice);
     } else {
-        pendingOutputNotice = { notice, disconnected };
+        pendingDeviceNotice = { notice, disconnected };
     }
 }
 
@@ -708,9 +708,9 @@ setInterval(() => {
     if (polled.engineReset) {
         cvSent.values.clear();
     }
-    const notice = outputDeviceNotice(polled.report, polled.stoppedPlayback);
-    console.log('Output device:', notice.message);
-    sendOutputNotice(notice, polled.report.event === 'Disconnected');
+    const notice = audioDeviceNotice(polled.report, polled.stoppedPlayback);
+    console.log('Audio devices:', notice.message);
+    sendDeviceNotice(notice, polled.report.event === 'Disconnected');
 }, AUDIO_DEVICE_POLL_MS);
 
 // Workspace root state
@@ -1354,7 +1354,7 @@ registerIPCHandler(
             disconnectedNoticeShown,
         );
         if (notice) {
-            sendOutputNotice(notice);
+            sendDeviceNotice(notice);
         }
         fallbackWarnings.report(state.fallbackWarning);
         saveAudioConfig();
@@ -2135,10 +2135,10 @@ const createWindow = (): void => {
     // ready — anything sent earlier would be dropped by the loading page.
     mainWindow.webContents.on('did-finish-load', () => {
         flushPendingLogs();
-        if (pendingOutputNotice) {
-            const { notice, disconnected } = pendingOutputNotice;
-            pendingOutputNotice = null;
-            sendOutputNotice(notice, disconnected);
+        if (pendingDeviceNotice) {
+            const { notice, disconnected } = pendingDeviceNotice;
+            pendingDeviceNotice = null;
+            sendDeviceNotice(notice, disconnected);
         }
         fallbackWarnings.attach((warning) => {
             if (mainWindow && !mainWindow.isDestroyed()) {

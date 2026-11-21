@@ -7,10 +7,14 @@ use napi_derive::napi;
 
 use crate::Synthesizer;
 use crate::audio;
-use crate::output_choice::{MISSING_OUTPUT_CHECK, OutputChoice};
+use crate::output_choice::OutputChoice;
 use crate::stream_resolve::{
-    Fit, OpenRequest, OutputTarget, host_for_id, system_default_output_id,
+    Fit, OpenRequest, OutputTarget, host_for_id, resolve, system_default_output_id,
 };
+
+/// How often the device list is read for a chosen output that is not
+/// connected.
+const MISSING_OUTPUT_CHECK: Duration = Duration::from_secs(3);
 
 /// What happened to the audio devices.
 #[napi(string_enum)]
@@ -34,8 +38,7 @@ pub enum DeviceEvent {
     InputReopened,
 }
 
-/// What changed when the streams followed a new system default output, or
-/// lost and regained a device.
+/// What a device poll changed.
 #[napi(object)]
 #[derive(Debug)]
 pub struct DeviceReport {
@@ -47,40 +50,41 @@ pub struct DeviceReport {
     /// The input whose stream stopped and whose device is gone, which leaves
     /// the input off.
     pub disconnected_input_device_name: Option<String>,
-    /// The preferred input could not open at the sample rate the new output
-    /// runs at, which leaves the input off.
+    /// The chosen input could not open at the sample rate the output runs
+    /// at, which leaves the input off.
     pub unopened_input_device_name: Option<String>,
     pub previous_sample_rate: u32,
-    /// Differs from `previous_sample_rate` when the new output cannot run at
-    /// that rate, or changed its own.
+    /// Differs from `previous_sample_rate` when the output cannot run at that
+    /// rate, or changed its own.
     pub sample_rate: u32,
     /// The buffer size in frames; `None` is the host's default.
     pub previous_buffer_size: Option<u32>,
-    /// Differs from `previous_buffer_size` only when the new output cannot
-    /// use that buffer size.
+    /// Differs from `previous_buffer_size` only when the output cannot use
+    /// that buffer size.
     pub buffer_size: Option<u32>,
     /// A fresh engine replaced the one holding the patch, which stops
     /// playback.
     pub engine_reset: bool,
-    /// The file of the recording the move ended.
+    /// The file of the recording the engine reset ended.
     pub recording_path: Option<String>,
-    /// Why the streams could not be opened on the new device.
+    /// Why the streams could not open on the device.
     pub error: Option<String>,
-    /// The streams could not move and the device they play on is gone, so
-    /// nothing can be heard until the output changes again.
+    /// The streams could not open on the new default and the device they
+    /// play on is gone, so nothing can be heard until the output changes
+    /// again.
     pub output_lost: bool,
 }
 
-/// Check the devices once: move to the chosen output once it is connected,
-/// move to a new system default output, or reopen a stream that stopped.
-/// `None` when nothing changed.
+/// The checks in order, the first that changes something ending the poll,
+/// then the module updates waiting on a frozen engine go out.
 pub(crate) fn poll(synth: &mut Synthesizer) -> Option<DeviceReport> {
     synth.streams.adopt_returning_engine(Duration::ZERO);
-    synth.state.flush_commands();
-    move_to_missing_output(synth)
+    let report = move_to_missing_output(synth)
         .or_else(|| follow_system_default(synth))
         .or_else(|| reopen_stopped_stream(synth))
-        .or_else(|| reopen_stopped_input(synth))
+        .or_else(|| reopen_stopped_input(synth));
+    synth.state.flush_commands();
+    report
 }
 
 /// Move the streams to the chosen output once it is connected. A device that
@@ -123,7 +127,7 @@ fn follow_system_default(synth: &mut Synthesizer) -> Option<DeviceReport> {
     synth.refresh_device_cache(None);
     let mut report = open_on(synth, DeviceEvent::Moved, default_output, true);
     if report.error.is_some() {
-        report.output_lost = output_lost(synth);
+        report.output_lost = !output_listed(synth);
         if report.output_lost && !synth.streams.watchdog.take_first_loss() {
             return None;
         }
@@ -143,16 +147,9 @@ fn reopen_stopped_stream(synth: &mut Synthesizer) -> Option<DeviceReport> {
         return None;
     }
     let output_device_id = streams.output_device_id.clone();
-    let name = synth
-        .device_cache
-        .find_output_device(&output_device_id)
-        .map(|device| device.name.clone());
+    let name = synth.device_cache.output_name(&output_device_id);
     synth.refresh_device_cache(None);
-    let listed = synth
-        .device_cache
-        .find_output_device(&output_device_id)
-        .is_some();
-    if listed {
+    if output_listed(synth) {
         let report = if synth.streams.output_health.was_invalidated() {
             open_on(synth, DeviceEvent::RateChanged, output_device_id, false)
         } else {
@@ -176,7 +173,7 @@ fn reopen_stopped_stream(synth: &mut Synthesizer) -> Option<DeviceReport> {
 }
 
 /// Reopen the streams on the same output once the input's stream has
-/// stopped, with the preferred input where it is listed and runs at the
+/// stopped, with the chosen input where it is listed and runs at the
 /// engine's rate. A reopen that fails is reported once and retried.
 fn reopen_stopped_input(synth: &mut Synthesizer) -> Option<DeviceReport> {
     let streams = &mut synth.streams;
@@ -185,10 +182,7 @@ fn reopen_stopped_input(synth: &mut Synthesizer) -> Option<DeviceReport> {
         return None;
     }
     let output_device_id = streams.output_device_id.clone();
-    let input_name = synth
-        .device_cache
-        .find_input_device(&input_device_id)
-        .map(|device| device.name.clone());
+    let input_name = synth.device_cache.input_name(&input_device_id);
     synth.refresh_device_cache(None);
     let input_listed = synth
         .device_cache
@@ -227,7 +221,7 @@ fn empty_report(synth: &Synthesizer, event: DeviceEvent) -> DeviceReport {
 /// refreshed to list, with the settings it allows. `keep_rate` holds the
 /// engine's sample rate where the device runs at it; otherwise the device's
 /// own rate comes first. The engine's buffer size is held where the device
-/// allows it, and the preferred settings come next.
+/// allows it, and the chosen settings come next.
 fn open_on(
     synth: &mut Synthesizer,
     event: DeviceEvent,
@@ -246,29 +240,31 @@ fn open_on(
         output.sample_rate
     };
 
-    let opened = synth.open(OpenRequest {
+    let request = OpenRequest {
         output: OutputTarget::Listed(output_device_id),
-        sample_rate: Some(sample_rate),
         buffer_size: report.previous_buffer_size,
-        input_device_id: synth.preferred_input_device_id.clone(),
+        input_device_id: synth.chosen_input_device_id.clone(),
         fit: Fit::Closest {
-            fallback: (synth.preferred_sample_rate, synth.preferred_buffer_size),
+            sample_rate,
+            fallback: (synth.chosen_sample_rate, synth.chosen_buffer_size),
         },
+    };
+    let mut unopened_input = None;
+    let opened = resolve(&synth.device_cache, request).and_then(|mut plan| {
+        unopened_input = plan.unopened_input.take();
+        synth.open_streams(plan)
     });
     match opened {
-        Ok((change, unopened_input)) => {
-            let input_name = |id: &str| {
-                synth
-                    .device_cache
-                    .find_input_device(id)
-                    .map(|input| input.name.clone())
-            };
+        Ok(change) => {
+            let cache = &synth.device_cache;
             report.input_device_name = synth
                 .streams
                 .input_device_id
                 .as_deref()
-                .and_then(input_name);
-            report.unopened_input_device_name = unopened_input.as_deref().and_then(input_name);
+                .and_then(|id| cache.input_name(id));
+            report.unopened_input_device_name = unopened_input
+                .as_deref()
+                .and_then(|id| cache.input_name(id));
             report.sample_rate = synth.streams.sample_rate;
             report.buffer_size = synth.streams.buffer_size;
             report.engine_reset = change.engine_reset;
@@ -279,10 +275,10 @@ fn open_on(
     report
 }
 
-/// The device the streams play on has left the (just refreshed) device list.
-fn output_lost(synth: &Synthesizer) -> bool {
+/// The device the streams play on is in the device list.
+fn output_listed(synth: &Synthesizer) -> bool {
     synth
         .device_cache
         .find_output_device(&synth.streams.output_device_id)
-        .is_none()
+        .is_some()
 }

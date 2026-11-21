@@ -19,7 +19,7 @@ import {
     UpdateAvailableInfo,
 } from '../shared/ipcTypes';
 import type {
-    OutputDeviceNotice,
+    AudioDeviceNotice,
     FileChange,
     QueuedTrigger,
 } from '../shared/ipcTypes';
@@ -140,8 +140,8 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_RECREATE_STREAMS]
         >;
         onFallbackWarning: (callback: (warning: string) => void) => () => void;
-        onOutputNotice: (
-            callback: (notice: OutputDeviceNotice) => void,
+        onDeviceNotice: (
+            callback: (notice: AudioDeviceNotice) => void,
         ) => () => void;
         getInputChannels: Promisify<
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]
@@ -385,7 +385,7 @@ const electronAPI: ElectronAPI = {
             IPC_CHANNELS.AUDIO_FALLBACK_WARNING,
         ),
 
-        onOutputNotice: menuEventHandler(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE),
+        onDeviceNotice: menuEventHandler(IPC_CHANNELS.AUDIO_DEVICE_NOTICE),
 
         getInputChannels: (...args) =>
             invokeIPC('AUDIO_GET_INPUT_CHANNELS', ...args),
