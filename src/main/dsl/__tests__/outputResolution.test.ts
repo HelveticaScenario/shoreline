@@ -95,9 +95,9 @@ describe('resolution by input type', () => {
     test('a config-object input resolves by its own type', () => {
         expect(
             ports(
-                `const seq = $('c e')\nout: $saw(seq, { sync: seq })`,
+                `const seq = $('c e')\nout: $saw(seq, { restart: seq })`,
                 '$saw',
-                'sync',
+                'restart',
             ),
         ).toEqual(['trig']);
     });

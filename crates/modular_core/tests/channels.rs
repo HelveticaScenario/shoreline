@@ -605,7 +605,7 @@ const PER_SIDE: &[(&str, &[&str])] = &[
     ("$unstable.reverb2", &["input"]),
     ("$reverb", &["input"]),
     ("$mi.chorus", &["input"]),
-    ("$supersaw", &["freq", "detune", "fm", "sync"]),
+    ("$supersaw", &["freq", "detune", "fm", "sync", "restart"]),
 ];
 
 #[test]

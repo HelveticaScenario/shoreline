@@ -1,5 +1,5 @@
 //! `$sine` renders identically on the block and per-sample paths: held and
-//! modulated pitch, FM, phase offset and hard sync.
+//! modulated pitch, FM, phase offset, hard sync and restart.
 
 mod block_common;
 
@@ -23,7 +23,12 @@ fn sine_paths_agree() {
     );
     check_paths_agree(
         "$sine",
-        json!({ "freq": 1.0, "sync": poly_cable("src", LANES), "phaseOffset": cable("lfo", 0) }),
+        json!({ "freq": 1.0, "restart": poly_cable("src", LANES), "phaseOffset": cable("lfo", 0) }),
+    );
+    check_paths_agree("$sine", json!({ "freq": [0.0, 1.5], "sync": 1.3 }));
+    check_paths_agree(
+        "$sine",
+        json!({ "freq": poly_cable("lfo", LANES), "sync": cable("lfo", 1), "restart": cable("src", 0), "phaseOffset": 0.25 }),
     );
 }
 
@@ -32,7 +37,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$sine",
-            json!({ "freq": poly_cable("src", LANES), "fm": cable("src", 0), "sync": cable("src", 1) })
+            json!({ "freq": poly_cable("src", LANES), "fm": cable("src", 0), "restart": cable("src", 1), "sync": cable("lfo", 1) })
         ),
         0
     );
