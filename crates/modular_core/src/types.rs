@@ -3602,10 +3602,9 @@ pub struct VuMeterFrame {
     pub rms: Vec<f64>,
     /// Per-channel max |sample| since the previous poll, in volts.
     pub peak: Vec<f64>,
-    /// Live value of the signal-driven pan, when `pan_source` is set.
-    pub pan: Option<f64>,
-    /// Live value of the signal-driven gain, when `gain_source` is set.
-    pub gain: Option<f64>,
+    /// Live values of the meter's signal-driven controls, one per
+    /// `control_sources` entry, when it is set.
+    pub controls: Option<Vec<f64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3652,12 +3651,10 @@ pub struct VuMeterSpec {
     /// `$signal` module driving the mute gate (value 5 = audible, 0 =
     /// silenced). None for the end-of-chain master meter, which has no gate.
     pub mute_module_id: Option<String>,
-    /// When the out's pan is signal-driven, the output to sample so the
-    /// panel's locked knob can track it live.
-    pub pan_source: Option<ScopeLane>,
-    /// When the out's gain is signal-driven, the output to sample (in DSL
-    /// gain units, pre-curve) so the panel's locked fader can track it live.
-    pub gain_source: Option<ScopeLane>,
+    /// The outputs driving the track's signal-driven controls (gain, pan,
+    /// send levels), sampled so the panel's locked controls track them live.
+    #[serde(default)]
+    pub control_sources: Option<Vec<ScopeLane>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

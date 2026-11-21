@@ -16,6 +16,9 @@ export const OUT_GAIN_RANGE: ControlRange = { max: 10, min: 0 };
 /** An out's pan knob: -5 left … +5 right. */
 export const OUT_PAN_RANGE: ControlRange = { max: 5, min: -5 };
 
+/** A track's send level: linear, 5 = full. */
+export const SEND_LEVEL_RANGE: ControlRange = { max: 5, min: 0 };
+
 /** A video region's average: 0 dark … 1 bright. */
 export const VIDEO_CV_RANGE: ControlRange = { max: 1, min: 0 };
 
@@ -40,6 +43,10 @@ export const outGainParams = (value: number) =>
 /** An out pan knob's live params. */
 export const outPanParams = (value: number) =>
     controlParams(OUT_PAN_RANGE, value);
+
+/** A send dial's live params. */
+export const sendLevelParams = (value: number) =>
+    controlParams(SEND_LEVEL_RANGE, value);
 
 /** A video region's live params. */
 export const videoCvParams = (value: number) =>

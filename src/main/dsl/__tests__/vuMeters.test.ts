@@ -77,15 +77,16 @@ describe('vuMeters emission', () => {
         const main = meters[meters.length - 1];
         expect(main).toMatchObject({
             channels: 2,
-            gain: DEFAULT_OUTPUT_GAIN,
-            gainLocked: false,
-            gainModuleId: '__vuGain_main',
+            gain: {
+                locked: false,
+                moduleId: '__vuGain_main',
+                value: DEFAULT_OUTPUT_GAIN,
+            },
             key: '__main__',
             label: 'Main',
             main: true,
             moduleId: 'ROOT_OUTPUT',
             pan: null,
-            panModuleId: null,
             portName: 'output',
         });
         expect(main.muteModuleId).toBeUndefined();
@@ -102,7 +103,7 @@ describe('vuMeters emission', () => {
         `);
         expect(moduleById(patch, '__vuGain_main').params.value).toBe(4);
         const meters = vuMeters(patch);
-        expect(meters[meters.length - 1].gain).toBe(4);
+        expect(meters[meters.length - 1].gain.value).toBe(4);
     });
 
     test('a signal-valued output gain locks the master fader', () => {
@@ -112,10 +113,13 @@ describe('vuMeters emission', () => {
         `);
         const meters = vuMeters(patch);
         const main = meters[meters.length - 1];
-        expect(main.gain).toBeNull();
-        expect(main.gainModuleId).toBeNull();
-        expect(main.gainLocked).toBe(true);
-        expect(main.gainSource).toBeDefined();
+        expect(main.gain).toEqual({
+            locked: true,
+            moduleId: null,
+            sourceIndex: 0,
+            value: null,
+        });
+        expect(main.controlSources).toHaveLength(1);
         expect(patch.modules.some((m) => m.id === '__vuGain_main')).toBe(false);
     });
 
@@ -176,8 +180,11 @@ describe('pan lifting', () => {
         expect(pan.moduleType).toBe('_smoothControl');
         expect(pan.params.value).toBe(0);
         const meter = vuMeters(patch)[0];
-        expect(meter.pan).toBe(0);
-        expect(meter.panModuleId).toBe('__vuPan_lead');
+        expect(meter.pan).toEqual({
+            locked: false,
+            moduleId: '__vuPan_lead',
+            value: 0,
+        });
         // The out's `$pan` is cabled from the lifted signal.
         const mixers = patch.modules.filter(
             (m) =>
@@ -190,7 +197,7 @@ describe('pan lifting', () => {
     test('a numeric pan option seeds the lifted signal', () => {
         const patch = execPatch(`lead: $sine('c4').track({ pan: -2.5 })`);
         expect(moduleById(patch, '__vuPan_lead').params.value).toBe(-2.5);
-        expect(vuMeters(patch)[0].pan).toBe(-2.5);
+        expect(vuMeters(patch)[0].pan?.value).toBe(-2.5);
     });
 
     test('a signal-valued pan renders locked, with a live tap', () => {
@@ -199,25 +206,27 @@ describe('pan lifting', () => {
         );
         expect(patch.modules.some((m) => m.id === '__vuPan_lead')).toBe(false);
         const meter = vuMeters(patch)[0];
-        expect(meter.pan).toBeNull();
-        expect(meter.panModuleId).toBeNull();
-        expect(meter.panLocked).toBe(true);
-        expect(meter.panSource).toBeDefined();
-        expect(meter.panSource!.portName).toBe('output');
+        expect(meter.pan).toEqual({
+            locked: true,
+            moduleId: null,
+            sourceIndex: 0,
+            value: null,
+        });
+        expect(meter.controlSources![0].portName).toBe('output');
     });
 
     test('editable pans carry no lock or tap', () => {
         const patch = execPatch(`lead: $sine('c4')`);
         const meter = vuMeters(patch)[0];
-        expect(meter.panLocked).toBe(false);
-        expect(meter.panSource).toBeUndefined();
+        expect(meter.pan?.locked).toBe(false);
+        expect(meter.pan?.sourceIndex).toBeUndefined();
+        expect(meter.controlSources).toBeUndefined();
     });
 
     test('mono outs have no pan control', () => {
         const patch = execPatch(`bass$0m: $saw('c2')`);
         const meter = vuMeters(patch)[0];
         expect(meter.pan).toBeNull();
-        expect(meter.panModuleId).toBeNull();
         expect(patch.modules.some((m) => m.id.startsWith('__vuPan_'))).toBe(
             false,
         );
@@ -231,8 +240,11 @@ describe('gain lifting', () => {
         expect(gain.moduleType).toBe('_smoothControl');
         expect(gain.params.value).toBe(5);
         const meter = vuMeters(patch)[0];
-        expect(meter.gain).toBe(5);
-        expect(meter.gainModuleId).toBe('__vuGain_lead');
+        expect(meter.gain).toEqual({
+            locked: false,
+            moduleId: '__vuGain_lead',
+            value: 5,
+        });
         // The tap is the gain stage itself, fed by the lifted gain.
         const tap = moduleById(patch, '__vuTap_lead');
         expect(tap.moduleType).toBe('$gain');
@@ -242,7 +254,7 @@ describe('gain lifting', () => {
     test('a numeric gain option seeds the lifted signal', () => {
         const patch = execPatch(`bass$0m: $saw('c2').track({ gain: 2.5 })`);
         expect(moduleById(patch, '__vuGain_bass').params.value).toBe(2.5);
-        expect(vuMeters(patch)[0].gain).toBe(2.5);
+        expect(vuMeters(patch)[0].gain.value).toBe(2.5);
     });
 
     test('a signal-valued gain renders locked, with a live tap', () => {
@@ -251,10 +263,12 @@ describe('gain lifting', () => {
         );
         expect(patch.modules.some((m) => m.id === '__vuGain_lead')).toBe(false);
         const meter = vuMeters(patch)[0];
-        expect(meter.gain).toBeNull();
-        expect(meter.gainModuleId).toBeNull();
-        expect(meter.gainLocked).toBe(true);
-        expect(meter.gainSource).toBeDefined();
+        expect(meter.gain).toMatchObject({
+            locked: true,
+            moduleId: null,
+            value: null,
+        });
+        expect(meter.controlSources).toHaveLength(1);
         // The gain stage still compiles and carries the tap.
         expect(moduleById(patch, '__vuTap_lead').moduleType).toBe('$gain');
     });
@@ -650,7 +664,7 @@ describe('$trackTap', () => {
             lead: $sine('c5').track({ pan: $trackTap('bass').panning })
         `);
         const lead = vuMeters(patch).find((m) => m.key === 'lead')!;
-        expect(lead.panSource).toEqual({
+        expect(lead.controlSources![lead.pan!.sourceIndex!]).toEqual({
             lane: 0,
             moduleId: '__vuPan_bass',
             portName: 'output',

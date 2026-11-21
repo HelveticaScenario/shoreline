@@ -14,8 +14,14 @@ import {
     GATE_RANGE,
     OUT_GAIN_RANGE,
     OUT_PAN_RANGE,
+    SEND_LEVEL_RANGE,
 } from '../../shared/dsl/controlRanges';
-import type { VuMeterDef } from '../../shared/dsl/vuMeterTypes';
+import type {
+    ControlTap,
+    VuControl,
+    VuMeterDef,
+    VuSendDef,
+} from '../../shared/dsl/vuMeterTypes';
 import {
     EQ_MODULE_TYPE,
     EQ_SPECTRUM_MS_PER_FRAME,
@@ -34,6 +40,7 @@ import {
     type ChainHost,
 } from './chainModules';
 import { captureSourceLocation } from './captureSourceLocation';
+import { type FeedbackTrack, findBusFeedback } from './busFeedback';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import {
     markRoot,
@@ -247,7 +254,7 @@ function trackBindingName(value: unknown): string | undefined {
  */
 function controlSourceTap(
     value: PolySignal | undefined,
-): { moduleId: string; portName: string; lane: number } | undefined {
+): ControlTap | undefined {
     if (
         value == null ||
         typeof value === 'number' ||
@@ -270,7 +277,7 @@ export type OutGroup = StereoOutGroup | MonoOutGroup;
 
 interface SendGroup {
     outputs: ModuleOutput[];
-    level?: PolySignal;
+    level: PolySignal;
 }
 
 /**
@@ -294,8 +301,15 @@ export class Bus {
         builder.addBus(this);
     }
 
-    addSend(outputs: ModuleOutput[], level?: PolySignal): void {
+    addSend(outputs: ModuleOutput[], level: PolySignal): void {
         this.sendGroups.push({ level, outputs });
+    }
+
+    /** The module mixing the sends, once finalized; null with none. */
+    mixModuleId(): string | null {
+        return this.sendGroups.length === 0
+            ? null
+            : (this.mix.resolve()?.moduleId ?? null);
     }
 
     /** Build the mix of the sends and point the bus's signal at it. */
@@ -305,12 +319,12 @@ export class Bus {
             return;
         }
         const mixed = this.builder.getFactory('$mix')(
-            this.sendGroups.map((e) => {
-                const coll = this.builder.$c(e.outputs);
-                return e.level === undefined
-                    ? coll
-                    : this.builder.getFactory('$amp')(coll, e.level);
-            }),
+            this.sendGroups.map((e) =>
+                this.builder.getFactory('$amp')(
+                    this.builder.$c(e.outputs),
+                    e.level,
+                ),
+            ),
         );
         this.mix.set(this.builder.getFactory('$setLanes')(mixed, 1).items[0]);
     }
@@ -1302,7 +1316,46 @@ export class GraphBuilder implements ChainHost {
             string,
             { stage: MixStage; group: string | null }
         >();
-        const sending: { label: string; outputs: ModuleOutput[] }[] = [];
+        const sending: {
+            label: string;
+            sk: string;
+            outputs: ModuleOutput[];
+            meter: VuMeterDef;
+        }[] = [];
+        // Each locked control's live tap, resolved once every deferred is set.
+        const controlTaps = new Map<VuControl, ControlTap>();
+        /**
+         * A mixer control for `value` (`fallback` when absent): a number is
+         * lifted into a `_smoothControl` with id `id`, which the panel drives
+         * live; a signal locks the control, which the panel follows.
+         */
+        const liftControl = (
+            value: PolySignal | undefined,
+            fallback: number,
+            range: ControlRange,
+            id: string,
+        ): { control: VuControl; signal: PolySignal } => {
+            const v = value ?? fallback;
+            if (typeof v === 'number') {
+                return {
+                    control: { locked: false, moduleId: id, value: v },
+                    signal: smoothControlFactory(v, { ...range, id }),
+                };
+            }
+            const control: VuControl = {
+                locked: true,
+                moduleId: null,
+                value: null,
+            };
+            const tap = controlSourceTap(v);
+            if (tap) {
+                controlTaps.set(control, tap);
+            }
+            return { control, signal: v };
+        };
+
+        // Each track's tap, for the check that no track reads a bus.
+        const feedbackTracks: FeedbackTrack[] = [];
 
         // Each track's signals, by name, for `$trackTap` taps.
         const outsByLabel = new Map<
@@ -1312,6 +1365,7 @@ export class GraphBuilder implements ChainHost {
                 active: ModuleOutput;
                 level: PolySignal;
                 pan: PolySignal;
+                isBus: boolean;
             }
         >();
 
@@ -1345,6 +1399,7 @@ export class GraphBuilder implements ChainHost {
             // are unique too — 'main' is reserved for the main gain stage,
             // and names that sanitize alike get a numeric disambiguator.
             const skByOrdinal = new Map<number, string>();
+            const skByLabel = new Map<string, string>();
             const usedSk = new Set<string>(['main']);
             for (const group of allGroups) {
                 const skBase = group.label.replace(/[^a-zA-Z0-9_]/g, '_');
@@ -1354,6 +1409,7 @@ export class GraphBuilder implements ChainHost {
                 }
                 usedSk.add(sk);
                 skByOrdinal.set(group.ordinal, sk);
+                skByLabel.set(group.label, sk);
             }
 
             for (const baseChannel of sortedChannels) {
@@ -1366,55 +1422,37 @@ export class GraphBuilder implements ChainHost {
                     const sk = skByOrdinal.get(group.ordinal)!;
                     const tapId = `__vuTap_${sk}`;
 
-                    // A numeric (or absent) stereo pan is lifted into a
-                    // _smoothControl so the VU panel's knob can drive it live
-                    // via the single-module update path; a signal-valued pan
-                    // stays wired as given and renders as a locked knob that
-                    // tracks the signal.
-                    const panControllable =
-                        group.type === 'stereo' &&
-                        (group.pan === undefined ||
-                            typeof group.pan === 'number');
-                    const panValue = panControllable
-                        ? ((group.pan as number | undefined) ?? 0)
-                        : null;
-                    const panLocked =
-                        group.type === 'stereo' && !panControllable;
-
-                    // Likewise a numeric (or absent) gain is lifted into a
-                    // _smoothControl so the VU panel's fader triangle can
-                    // drive it; the gain stage always compiles so the fader
-                    // has a target (absent gain seeds unity).
-                    const gainControllable =
-                        group.gain === undefined ||
-                        typeof group.gain === 'number';
-                    const gainValue = gainControllable
-                        ? ((group.gain as number | undefined) ?? UNITY_OUT_GAIN)
-                        : null;
+                    // The gain stage always compiles, so the fader has a
+                    // target; absent gain seeds unity.
+                    const gain = liftControl(
+                        group.gain,
+                        UNITY_OUT_GAIN,
+                        OUT_GAIN_RANGE,
+                        `__vuGain_${sk}`,
+                    );
                     // A signal gain is averaged to one lane, so the track stays
                     // one lane wide, and a mono track's is folded with it.
-                    const gainSource = gainControllable
-                        ? smoothControlFactory(gainValue, {
-                              ...OUT_GAIN_RANGE,
-                              id: `__vuGain_${sk}`,
-                          })
-                        : setLanesFactory(
-                              group.type === 'stereo'
-                                  ? group.gain!
-                                  : monoFactory(group.gain!),
-                              1,
-                              { mode: 'average' },
-                          );
-
-                    const panSource: PolySignal =
-                        group.type !== 'stereo'
-                            ? 0
-                            : panControllable
-                              ? smoothControlFactory(panValue, {
-                                    ...OUT_PAN_RANGE,
-                                    id: `__vuPan_${sk}`,
-                                })
-                              : group.pan!;
+                    const gainSource =
+                        gain.control.locked && typeof gain.signal !== 'number'
+                            ? setLanesFactory(
+                                  group.type === 'stereo'
+                                      ? gain.signal
+                                      : monoFactory(gain.signal),
+                                  1,
+                                  { mode: 'average' },
+                              )
+                            : gain.signal;
+                    // A mono track has no pan knob.
+                    const pan =
+                        group.type === 'stereo'
+                            ? liftControl(
+                                  group.pan,
+                                  0,
+                                  OUT_PAN_RANGE,
+                                  `__vuPan_${sk}`,
+                              )
+                            : null;
+                    const panSource: PolySignal = pan ? pan.signal : 0;
 
                     const levels = {
                         gain: gainSource,
@@ -1424,6 +1462,12 @@ export class GraphBuilder implements ChainHost {
                         type: group.type,
                     };
                     const tapOutputs = gainStage(group.outputs, levels, tapId);
+                    feedbackTracks.push({
+                        isBus: group.isBus,
+                        label: group.label,
+                        sourceLocation: group.sourceLocation,
+                        tapId,
+                    });
 
                     // Mute/solo gate stage. The gate $signal holds 5 (unity
                     // for `$amp`) or 0 (silence); the VU panel
@@ -1456,19 +1500,13 @@ export class GraphBuilder implements ChainHost {
                         stage,
                     });
 
-                    if (sendsByTrack.has(group.label)) {
-                        sending.push({
-                            label: group.label,
-                            outputs: outputSignals,
-                        });
-                    }
-
                     outsByLabel.set(group.label, {
                         active: muteSig.items[0],
                         audio: outputSignals,
+                        isBus: group.isBus,
                         // The tap reads the gain as written, ranged as the
                         // user's own signal is.
-                        level: gainControllable ? gainSource : group.gain!,
+                        level: gain.control.locked ? gain.signal : gainSource,
                         pan: panSource,
                     });
 
@@ -1476,37 +1514,34 @@ export class GraphBuilder implements ChainHost {
                         this.addScope(tapOutputs, config, sourceLocation);
                     }
 
-                    vuMeters.push({
+                    const meter: VuMeterDef & { ordinal: number } = {
                         baseChannel,
                         channels: group.type === 'stereo' ? 2 : 1,
                         fromTrack: group.fromTrack,
                         group: group.group,
                         isGroup: group.isGroup,
                         isBus: group.isBus,
-                        gain: gainValue,
-                        gainLocked: !gainControllable,
-                        gainModuleId: gainControllable
-                            ? `__vuGain_${sk}`
-                            : null,
-                        gainSource: gainControllable
-                            ? undefined
-                            : controlSourceTap(group.gain),
+                        gain: gain.control,
                         key,
                         label: group.displayName,
                         moduleId: tapId,
                         mute: group.mute,
                         muteModuleId: `__vuMute_${sk}`,
                         ordinal: group.ordinal,
-                        pan: panValue,
-                        panLocked,
-                        panModuleId: panControllable ? `__vuPan_${sk}` : null,
-                        panSource: panLocked
-                            ? controlSourceTap(group.pan)
-                            : undefined,
+                        pan: pan?.control ?? null,
                         portName: 'output',
                         solo: group.solo,
                         sourceLocation: group.sourceLocation,
-                    });
+                    };
+                    vuMeters.push(meter);
+                    if (!group.isBus) {
+                        sending.push({
+                            label: group.label,
+                            meter,
+                            outputs: outputSignals,
+                            sk,
+                        });
+                    }
 
                     // A track with a group plays into it and nowhere else.
                     if (group.group !== null) {
@@ -1545,7 +1580,16 @@ export class GraphBuilder implements ChainHost {
             for (const group of this.groups) {
                 group.finalize();
             }
-            for (const { label, outputs } of sending) {
+            // Every track sends to every bus, at 0 where its source names
+            // none, so the mixer's send dial plays from its first move. A
+            // numeric level is lifted into a _smoothControl the dial drives.
+            const sendBuses = this.busses.filter(
+                (b) => b.trackName !== undefined,
+            );
+            const sendIds = new Set<string>();
+            for (const { label, outputs, sk, meter } of sendBuses.length > 0
+                ? sending
+                : []) {
                 let sent = outputs;
                 for (
                     let parent = stagesByLabel.get(label)!.group;
@@ -1555,9 +1599,40 @@ export class GraphBuilder implements ChainHost {
                     const { stage } = stagesByLabel.get(parent)!;
                     sent = gated(gainStage(sent, stage), stage.gate);
                 }
-                for (const [bus, level] of sendsByTrack.get(label)!) {
-                    bus.addSend(sent, level);
-                }
+                const named = sendsByTrack.get(label) ?? [];
+                meter.sends = sendBuses.map((bus): VuSendDef => {
+                    const busName = bus.trackName!;
+                    const levels = named
+                        .filter(([target]) => target === bus)
+                        .map(([, level]) => level ?? SEND_LEVEL_RANGE.max);
+                    // Two sends to one bus have no one level to set.
+                    if (levels.length > 1) {
+                        for (const each of levels) {
+                            bus.addSend(sent, each);
+                        }
+                        return {
+                            bus: busName,
+                            locked: true,
+                            moduleId: null,
+                            value: null,
+                        };
+                    }
+                    const idBase = `__vuSend_${sk}_${skByLabel.get(busName)}`;
+                    let id = idBase;
+                    for (let n = 2; sendIds.has(id); n++) {
+                        id = `${idBase}_${n}`;
+                    }
+                    sendIds.add(id);
+                    const { control, signal } = liftControl(
+                        levels[0],
+                        0,
+                        SEND_LEVEL_RANGE,
+                        id,
+                    );
+                    bus.addSend(sent, signal);
+                    // The same object, which its live tap is keyed by.
+                    return Object.assign(control, { bus: busName });
+                });
             }
             for (const bus of this.busses) {
                 bus.finalize();
@@ -1572,19 +1647,15 @@ export class GraphBuilder implements ChainHost {
             // through $setMainGain. A signal-valued main gain renders as
             // a locked, live-tracking fader.
             this.processingEndOfChain = true;
-            const mainGainControllable = typeof this.mainGain === 'number';
-            const mainGainValue = mainGainControllable
-                ? (this.mainGain as number)
-                : null;
-            const mainGainSignal = mainGainControllable
-                ? smoothControlFactory(this.mainGain, {
-                      ...OUT_GAIN_RANGE,
-                      id: '__vuGain_main',
-                  })
-                : this.mainGain;
+            const mainGain = liftControl(
+                this.mainGain,
+                DEFAULT_OUTPUT_GAIN,
+                OUT_GAIN_RANGE,
+                '__vuGain_main',
+            );
             const gainedMix = gainFactory(
                 this.endOfChainCb(finalMix),
-                mainGainSignal,
+                mainGain.signal,
             );
 
             // The root output's lanes are device channels, so whatever stereo
@@ -1598,12 +1669,7 @@ export class GraphBuilder implements ChainHost {
             vuMeters.push({
                 baseChannel: 0,
                 channels: 2,
-                gain: mainGainValue,
-                gainLocked: !mainGainControllable,
-                gainModuleId: mainGainControllable ? '__vuGain_main' : null,
-                gainSource: mainGainControllable
-                    ? undefined
-                    : controlSourceTap(this.mainGain),
+                gain: mainGain.control,
                 key: '__main__',
                 label: 'Main',
                 main: true,
@@ -1612,8 +1678,6 @@ export class GraphBuilder implements ChainHost {
                 muteModuleId: undefined,
                 ordinal: Number.MAX_SAFE_INTEGER,
                 pan: null,
-                panLocked: false,
-                panModuleId: null,
                 portName: 'output',
                 solo: false,
                 sourceLocation: undefined,
@@ -1671,12 +1735,37 @@ export class GraphBuilder implements ChainHost {
                 };
                 outSources.set(trackNameKey(label), sources);
             }
-            tap.resolve(sources);
+            if (out.isBus) {
+                // Every track sends to every bus, so a track reading a bus's
+                // audio would feed back into it.
+                const at = sourceLocation
+                    ? ` (line ${sourceLocation.line})`
+                    : '';
+                tap.resolveControls(
+                    sources,
+                    `${label} is a bus, so its audio can't be used here${at}. A bus's audio is processed only on its own track: chain the effect onto ${label}'s $bus() instead. Its name still works in sends, and .active, .level and .panning read its mixer controls.`,
+                );
+            } else {
+                tap.resolve(sources);
+            }
         }
 
         for (const meter of vuMeters) {
-            meter.panSource = this.resolveControlTap(meter.panSource);
-            meter.gainSource = this.resolveControlTap(meter.gainSource);
+            const sources: ControlTap[] = [];
+            for (const knob of [
+                meter.gain,
+                meter.pan,
+                ...(meter.sends ?? []),
+            ]) {
+                const tap =
+                    knob && this.resolveControlTap(controlTaps.get(knob));
+                if (tap) {
+                    knob.sourceIndex = sources.push(tap) - 1;
+                }
+            }
+            if (sources.length > 0) {
+                meter.controlSources = sources;
+            }
         }
 
         // The VU panel lists meters in source order, not channel order.
@@ -1764,6 +1853,23 @@ export class GraphBuilder implements ChainHost {
             // null-based VuMeterDef satisfies VuMeterSpec's optional fields.
             vuMeters: vuMeters as unknown as PatchGraph['vuMeters'],
         };
+
+        const feedback = findBusFeedback(
+            ret.modules,
+            feedbackTracks,
+            this.busses.flatMap((bus) => {
+                const mixId = bus.mixModuleId();
+                return bus.trackName !== undefined && mixId !== null
+                    ? [{ mixId, name: bus.trackName }]
+                    : [];
+            }),
+        );
+        if (feedback) {
+            const loc = feedback.track.sourceLocation;
+            throw new Error(
+                `track ${feedback.track.label} uses the audio of bus ${feedback.bus}${loc ? ` (line ${loc.line})` : ''}. A bus's audio is processed only on its own track: chain the effect onto ${feedback.bus}'s $bus() instead.`,
+            );
+        }
 
         if (
             process.env.MODULAR_DEBUG_LOG === '1' ||
@@ -2176,8 +2282,8 @@ export class GraphBuilder implements ChainHost {
      * set to. An unset deferred has nothing to sample, so it gets no tap.
      */
     private resolveControlTap(
-        tap: VuMeterDef['panSource'],
-    ): VuMeterDef['panSource'] {
+        tap: ControlTap | undefined,
+    ): ControlTap | undefined {
         const deferred = tap && this.deferredOutputs.get(tap.moduleId);
         if (!deferred) {
             return tap;
@@ -2203,7 +2309,8 @@ export class GraphBuilder implements ChainHost {
         const resolved = deferred.resolve();
         if (resolved === null) {
             throw new Error(
-                'Unset DeferredModuleOutput used in a scope — call .set(...) on the $deferred() before the end of the script',
+                deferred.unsetReason ??
+                    'Unset DeferredModuleOutput used in a scope — call .set(...) on the $deferred() before the end of the script',
             );
         }
         return {
@@ -2380,6 +2487,8 @@ export class DeferredModuleOutput extends ModuleOutput {
     private resolvedModuleOutput: ModuleOutput | null = null;
     private resolving: boolean = false;
     static idCounter = 0;
+    /** Why this output is never set, reported where the patch reads it. */
+    unsetReason: string | null = null;
 
     constructor(builder: GraphBuilder) {
         super(
@@ -2666,7 +2775,8 @@ function replaceDeferred(
                 const output = resolved.resolve();
                 if (output === null) {
                     throw new Error(
-                        'Unset DeferredModuleOutput used as a module param — call .set(...) on the $deferred() before the end of the script',
+                        resolved.unsetReason ??
+                            'Unset DeferredModuleOutput used as a module param — call .set(...) on the $deferred() before the end of the script',
                     );
                 }
                 return valueToSignal(output);

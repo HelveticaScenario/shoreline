@@ -26,10 +26,7 @@ async function rmsFor(
 }
 
 /** A saw at 25 V peak clips; a sine at 19 V peak sits just under 0 dB. */
-const CLIP_PATCH = [
-    `hot: $saw('c3').mul(5)`,
-    `near: $sine('c4').mul(3.8)`,
-].join('\n');
+const CLIP_PATCH = [`hot: $saw('c3').mul(5)`, `near: $sine('c4').mul(3.8)`];
 
 /** Whether a meter's bars draw in the clip reds, sampled at −30 dB, a zone
  *  every audible level fills. */
@@ -62,51 +59,66 @@ function readout(window: import('playwright').Page, key: string) {
     return window.locator(`.vu-meter[data-vu-key="${key}"] .vu-peak-readout`);
 }
 
-/** Run `patch` in a new buffer and wait until the mixer lists `track`. */
+/**
+ * Run `lines` in a new buffer until the mixer lists track `track`: a run that
+ * starts before the buffer holds the patch plays what the buffer held, so the
+ * patch runs again until it is the one playing.
+ */
 async function runPatch(
     window: import('playwright').Page,
-    patch: string,
+    lines: string[],
     track: string,
 ) {
     await openUntitledBuffer(window);
     await window.evaluate((p) => {
         window.__TEST_API__!.setEditorValue(p);
-    }, patch);
-    await window.evaluate(() => window.__TEST_API__!.executePatch());
+    }, lines.join('\n'));
     await expect
         .poll(
-            () =>
-                window.evaluate(() =>
+            async () => {
+                await window.evaluate(() =>
+                    window.__TEST_API__!.executePatch(),
+                );
+                return window.evaluate(() =>
                     window.__TEST_API__!.getVuOutputs().map((o: any) => o.key),
-                ),
+                );
+            },
             { timeout: 15_000 },
         )
         .toContain(track);
 }
 
-async function setupClipPatch(window: import('playwright').Page) {
+/** Skip the test when the app exposes no test API. */
+async function requireTestApi(window: import('playwright').Page) {
     await window.waitForTimeout(3000);
     const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
     test.skip(!hasTestAPI, '__TEST_API__ not available');
+}
 
-    await runPatch(window, CLIP_PATCH, 'hot');
+/** Play `lines` with the mixer showing track `track`. */
+async function playPatch(
+    window: import('playwright').Page,
+    lines: string[],
+    track: string,
+) {
+    await requireTestApi(window);
+    await runPatch(window, lines, track);
     await window.evaluate(() => {
         window.__TEST_API__!.setMixerVisible(true);
     });
+    await expect(
+        window.locator(`.vu-meter[data-vu-key="${track}"]`),
+    ).toHaveCount(1);
+}
+
+async function setupClipPatch(window: import('playwright').Page) {
+    await playPatch(window, CLIP_PATCH, 'hot');
     await expect(readout(window, 'hot')).toBeVisible();
 }
 
 async function setupTwoOutPatch(window: import('playwright').Page) {
-    await window.waitForTimeout(3000);
-    const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-    test.skip(!hasTestAPI, '__TEST_API__ not available');
-
-    await runPatch(window, TWO_OUT_PATCH, 'lead');
-
-    await window.evaluate(() => {
-        window.__TEST_API__!.setMixerVisible(true);
-    });
-    await window.waitForTimeout(500);
+    await playPatch(window, TWO_OUT_PATCH.split('\n'), 'bass');
+    await window.waitForTimeout(2000);
 }
 
 test.describe('vu meter panel', () => {
@@ -328,7 +340,7 @@ test.describe('vu meter panel', () => {
         const outputs = await window.evaluate(() =>
             window.__TEST_API__!.getVuOutputs(),
         );
-        expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
+        expect(outputs.find((o: any) => o.key === 'lead').gain.value).toBe(5);
 
         // Cmd-right-click reverts the source to the audio's unity gain
         // (the property is removed) and drops the ghost.
@@ -400,7 +412,9 @@ test.describe('vu meter panel', () => {
         let outputs = await window.evaluate(() =>
             window.__TEST_API__!.getVuOutputs(),
         );
-        expect(outputs.find((o: any) => o.key === 'lead').gain).not.toBe(5);
+        expect(outputs.find((o: any) => o.key === 'lead').gain.value).not.toBe(
+            5,
+        );
 
         // Plain right-click resets both back to unity; the source drops
         // the property.
@@ -416,24 +430,17 @@ test.describe('vu meter panel', () => {
         outputs = await window.evaluate(() =>
             window.__TEST_API__!.getVuOutputs(),
         );
-        expect(outputs.find((o: any) => o.key === 'lead').gain).toBe(5);
+        expect(outputs.find((o: any) => o.key === 'lead').gain.value).toBe(5);
     });
 
     test('the fader writes a .track() again after a reset drops it', async ({
         window,
     }) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
-        await runPatch(
+        await playPatch(
             window,
-            `lead: $sine($hz(440)).track({ gain: 3 })`,
+            [`lead: $sine($hz(440)).track({ gain: 3 })`],
             'lead',
         );
-        await window.evaluate(() => {
-            window.__TEST_API__!.setMixerVisible(true);
-        });
         await window.waitForTimeout(500);
 
         const canvas = window.locator(
@@ -455,21 +462,14 @@ test.describe('vu meter panel', () => {
     test('a bus track meters what is sent to it', async ({
         window,
     }, testInfo) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
-        await runPatch(
+        await playPatch(
             window,
             [
                 `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
                 `fx$2: $bus().lpf('c8')`,
-            ].join('\n'),
-            'dry',
+            ],
+            'fx',
         );
-        await window.evaluate(() => {
-            window.__TEST_API__!.setMixerVisible(true);
-        });
         // A bus strip sits just left of the main strip, lettered like a
         // return.
         const bus = window.locator(
@@ -489,14 +489,130 @@ test.describe('vu meter panel', () => {
             .toBeGreaterThan(0.01);
     });
 
+    test('send dials add, set and remove a send to a bus', async ({
+        window,
+    }, testInfo) => {
+        await playPatch(
+            window,
+            [
+                `lead: $sine($hz(440))`,
+                `pad: $saw($hz(220)).track({ sends: [verb, $sine(1).range(0, 5)] })`,
+                `fx$2: $bus().lpf('c8')`,
+                `verb$4: $bus()`,
+            ],
+            'verb',
+        );
+
+        // One dial per bus on each track, lettered like the buses; none on
+        // the buses or the main.
+        const lead = window.locator('.vu-meter[data-vu-key="lead"]');
+        await expect(lead.locator('.vu-send')).toHaveCount(2);
+        await expect(lead.locator('.vu-send-letter')).toHaveText(['A', 'B']);
+        await expect(
+            window.locator('.vu-meter[data-vu-key="fx"] .vu-send'),
+        ).toHaveCount(0);
+        await expect(window.locator('.vu-meter--main .vu-send')).toHaveCount(0);
+        // A signal-driven send is locked.
+        await expect(
+            window
+                .locator('.vu-meter[data-vu-key="pad"] .vu-send .vu-knob')
+                .nth(1),
+        ).toHaveClass(/vu-knob--locked/);
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'))
+            .toBeLessThan(0.001);
+
+        // Dragging up adds the send and plays it at once.
+        const dial = lead.locator('.vu-send .vu-knob').first();
+        const box = (await dial.boundingBox())!;
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        const source = () =>
+            window.evaluate(() => window.__TEST_API__!.getEditorValue());
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x, y - 20, { steps: 5 });
+        await window.mouse.move(x, y - 40, { steps: 5 });
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 10_000 })
+            .toBeGreaterThan(0.01);
+        await window.mouse.up();
+        await expect
+            .poll(source)
+            .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
+        await window.screenshot({ path: testInfo.outputPath('sends.png') });
+
+        // Released at 0, the send and then the `.track()` go.
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x, y + 60, { steps: 5 });
+        await window.mouse.up();
+        await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
+        await expect
+            .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 10_000 })
+            .toBeLessThan(0.001);
+    });
+
+    test('cmd-drag on a send dial edits the code only until reverted', async ({
+        window,
+    }) => {
+        await playPatch(
+            window,
+            [`lead: $sine($hz(440))`, `fx$2: $bus()`],
+            'fx',
+        );
+        const dial = window
+            .locator('.vu-meter[data-vu-key="lead"] .vu-send .vu-knob')
+            .first();
+        await expect(dial).toBeVisible();
+        const box = (await dial.boundingBox())!;
+        const x = box.x + box.width / 2;
+        const y = box.y + box.height / 2;
+        const source = () =>
+            window.evaluate(() => window.__TEST_API__!.getEditorValue());
+
+        await window.keyboard.down('Meta');
+        await window.mouse.move(x, y);
+        await window.mouse.down();
+        await window.mouse.move(x, y - 40, { steps: 10 });
+        await window.mouse.up();
+        await window.keyboard.up('Meta');
+
+        // The code gains the send; the audio keeps sending nothing, and the
+        // dial shows the code-side level as a ghost.
+        await expect
+            .poll(source)
+            .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
+        await expect(dial.locator('.vu-knob-ghost')).toHaveCount(1);
+        await window.waitForTimeout(1000);
+        expect(await rmsFor(window, '__vuTap_fx')).toBeLessThan(0.001);
+
+        // Cmd-right-click puts the code back to what is playing.
+        await dial.click({ button: 'right', modifiers: ['Meta'] });
+        await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
+        await expect(dial.locator('.vu-knob-ghost')).toHaveCount(0);
+    });
+
+    test('the sends hide together when the mixer is too short', async ({
+        window,
+    }) => {
+        const buses = 'abcdefghijkl'.split('');
+        await playPatch(
+            window,
+            [
+                `lead: $sine($hz(440))`,
+                ...buses.map((n, i) => `${n}$${2 + 2 * i}: $bus()`),
+            ],
+            'l',
+        );
+        // Four rows of dials need more height than the panel has: none show.
+        await expect(window.locator('.vu-sends')).toHaveCount(0);
+    });
+
     test('a group shows its tracks beside it and folds them away', async ({
         window,
     }, testInfo) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
-        await runPatch(
+        await playPatch(
             window,
             [
                 `kick$drums: $sine($hz(55))`,
@@ -505,12 +621,9 @@ test.describe('vu meter panel', () => {
                 `bass$rhythm: $saw($hz(110))`,
                 `rhythm: $group()`,
                 `lead: $sine($hz(440))`,
-            ].join('\n'),
+            ],
             'lead',
         );
-        await window.evaluate(() => {
-            window.__TEST_API__!.setMixerVisible(true);
-        });
 
         const drums = window.locator('.vu-group[data-vu-group="drums"]');
         await expect(drums.locator('.vu-meter')).toHaveCount(3);
@@ -545,9 +658,7 @@ test.describe('vu meter panel', () => {
     });
 
     test('placeholder shows when the patch has no outs', async ({ window }) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
+        await requireTestApi(window);
 
         await openUntitledBuffer(window);
         await window.evaluate(() => {
@@ -646,17 +757,16 @@ test.describe('vu meter panel', () => {
     test('a clip made while the mixer is closed shows when it opens', async ({
         window,
     }) => {
-        await window.waitForTimeout(3000);
-        const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
-        test.skip(!hasTestAPI, '__TEST_API__ not available');
-
+        await requireTestApi(window);
         await window.evaluate(() => {
             window.__TEST_API__!.setMixerVisible(false);
         });
         // Clips for the first 0.16 s of each 16 s cycle, then plays quietly.
         await runPatch(
             window,
-            `hot: $saw('c3').mul($pulse('0.0625hz', { width: 0.05 }).range(0.2, 5))`,
+            [
+                `hot: $saw('c3').mul($pulse('0.0625hz', { width: 0.05 }).range(0.2, 5))`,
+            ],
             'hot',
         );
         await window.waitForTimeout(1000);
