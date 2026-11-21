@@ -34,6 +34,7 @@ export const DSL_TYPE_NAMES = [
     'CollectionWithRange',
     'Note',
     'HZ',
+    'Chord',
     'Track labels',
     'TrackOptions',
 ] as const;
@@ -149,6 +150,20 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
         name: 'CollectionWithRange',
         seeAlso: ['Collection'],
+    },
+
+    Chord: {
+        definition: '`${Note}(${string})`',
+        description:
+            'A chord string: a note with a chord in parentheses, one lane per note, lowest first. ' +
+            'Add `invN` to raise the lowest N notes an octave, or write your own voicing as semitones above the root.',
+        examples: [
+            '"c3(maj7)"     // C3, E3, G3, B3',
+            '"eb(m7 inv1)"  // Eb minor 7, first inversion',
+            '"c3(0 7 16)"   // a custom voicing',
+        ],
+        name: 'Chord',
+        seeAlso: ['Signal', 'Note'],
     },
 
     HZ: {
@@ -313,7 +328,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     Signal: {
-        definition: 'number | Note | HZ | Collection | CollectionWithRange',
+        definition:
+            'number | Note | HZ | Chord | Collection | CollectionWithRange',
         description:
             'An audio signal value. This is the fundamental type for all audio connections in the modular system. ' +
             'Signals follow the 1V/octave convention where 0V corresponds to C4 (~261.63 Hz).',
@@ -321,6 +337,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$sine("C4")           // Note string - converted to 1V/oct',
             '$sine(440)            // Number - constant voltage',
             '$sine("440hz")        // Hz string - converted to voltage',
+            '$saw("c3(maj7)")      // Chord string - one lane per note',
             '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
@@ -330,6 +347,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Collection',
             'Note',
             'HZ',
+            'Chord',
         ],
     },
 

@@ -186,6 +186,15 @@ type Note = \`\${NoteNames}\${Accidental}\${number | ''}\`
 
 type HZ = \`\${number}hz\` | \`\${number}Hz\`
 
+/**
+ * A chord: a {@link Note} with a chord in parentheses, one lane per note,
+ * lowest first. \`invN\` raises the lowest N notes an octave, and intervals
+ * in semitones make your own voicing.
+ * @example $saw("c3(maj7)")        // four lanes: C3, E3, G3, B3
+ * @example $saw("eb(m7 inv1)")
+ */
+type Chord = \`\${Note}(\${string})\`
+
 type CaseVariants<T extends string> = 
   | Lowercase<T>
   | Uppercase<T>
@@ -252,6 +261,7 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * - A **number** (constant voltage)
  * - A **{@link Note}** string like \`"C4"\` or \`"A#3"\`
  * - A **{@link HZ}** string like \`"440hz"\`
+ * - A **{@link Chord}** string like \`"c3(maj7)"\`, one lane per note
  * - A **{@link Collection}** from another module, one voice per lane
  * 
  * @example $sine("C4")           // Note string
@@ -261,10 +271,10 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * @see {@link Poly<Signal>} - for multi-lane signals
  * @see {@link Collection} - for module connections
  */
-type Signal = number | Note | HZ | Collection | CollectionWithRange;
+type Signal = number | Note | HZ | Chord | Collection | CollectionWithRange;
 
-/** A {@link Signal} that holds still: a number, note or frequency. */
-type ConstantSignal = number | Note | HZ;
+/** A {@link Signal} that holds still: a number, note, frequency or chord. */
+type ConstantSignal = number | Note | HZ | Chord;
 
 /** A {@link Signal} whose range the engine knows, or a constant it carries along. */
 type RangedSignal = ConstantSignal | CollectionWithRange;
