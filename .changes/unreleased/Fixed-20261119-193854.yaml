@@ -1,3 +1,0 @@
-kind: Fixed
-body: Changing the audio device keeps the patch playing, along with any recording and Ableton Link, when the new device runs at the same sample rate and buffer size. Changing the sample rate or buffer size stops playback, and a banner says so. Unplugging the output device you picked pauses the patch, and it picks up where it left off when you plug the device back in. If that device isn't connected, the sound plays on your default output until it is, and your choice and its settings are kept. If your input device is unplugged or changes its sample rate, Shoreline reopens it or tells you the input is off.
-time: 2026-11-19T19:38:54.650435-05:00
