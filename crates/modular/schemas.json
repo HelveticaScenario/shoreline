@@ -15732,7 +15732,7 @@
     "name": "$wavetable",
     "docs": {
       "summary": "Wavetable oscillator",
-      "description": "Plays the single-cycle frames of a wavetable WAV and blends between them, for evolving glassy, vocal or digital timbres. Sweep `position` with an LFO or envelope, and bend each cycle further with a `$phase.*` warp.",
+      "description": "Plays the single-cycle frames of a wavetable WAV and blends between them, for evolving glassy, vocal or digital timbres. Sweep `position` with an LFO or envelope, and bend each cycle further with a `$phase.*` warp. Tables bundled with the app live under `'builtin/tables/'`.",
       "categories": [
         "oscillator"
       ],
@@ -15740,11 +15740,11 @@
       "examples": [
         {
           "title": "Scanning pad",
-          "code": "chord: $wavetable(\n  $chord('C3[m9]'),\n  '/wavs/tables/pad.wav',\n  $sine('0.1hz').range(0, 5),\n)"
+          "code": "chord: $wavetable(\n  $chord('C3[m9]'),\n  'builtin/tables/mi/formants.wav',\n  $sine('0.1hz').range(0, 5),\n)"
         },
         {
           "title": "Plucked table sweep",
-          "code": "const seq = $`c3 eb3 g3 bb3`\nconst env = $perc(seq, { decay: 0.5 })\nmelody: $wavetable(\n  seq,\n  '/wavs/tables/pad.wav',\n  env.range(0, 4),\n).amp(env)"
+          "code": "const seq = $`c3 eb3 g3 bb3`\nconst env = $perc(seq, { decay: 0.5 })\nmelody: $wavetable(\n  seq,\n  'builtin/tables/mi/fm-bell.wav',\n  env.range(0, 4),\n).amp(env)"
         }
       ]
     },
@@ -36418,10 +36418,972 @@
     "stereo": "lift"
   },
   {
+    "name": "$mi.chiptune",
+    "docs": {
+      "summary": "Chiptune chords and arpeggios",
+      "description": "Mutable Instruments Plaits' chiptune engine: chords of square waves over a stepped triangle bass, or, with `trigger` patched, an arpeggio through the chord, a note per trigger.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [
+        {
+          "title": "Chords",
+          "body": "`chord` picks one of eleven chords by number. The arpeggio plays each note once, leaving out notes that only double another.",
+          "table": {
+            "columns": [
+              "chord",
+              "Name"
+            ],
+            "rows": [
+              [
+                "0",
+                "octave"
+              ],
+              [
+                "1",
+                "fifth"
+              ],
+              [
+                "2",
+                "sus4"
+              ],
+              [
+                "3",
+                "minor"
+              ],
+              [
+                "4",
+                "minor 7th"
+              ],
+              [
+                "5",
+                "minor 9th"
+              ],
+              [
+                "6",
+                "minor 11th"
+              ],
+              [
+                "7",
+                "6/9"
+              ],
+              [
+                "8",
+                "major 9th"
+              ],
+              [
+                "9",
+                "major 7th"
+              ],
+              [
+                "10",
+                "major"
+              ]
+            ]
+          },
+          "examples": []
+        },
+        {
+          "title": "Patterns",
+          "body": "`pattern` picks the arpeggio's direction and how many octaves it climbs.",
+          "table": {
+            "columns": [
+              "pattern",
+              "Direction",
+              "Octaves"
+            ],
+            "rows": [
+              [
+                "0",
+                "up",
+                "1"
+              ],
+              [
+                "1",
+                "up",
+                "2"
+              ],
+              [
+                "2",
+                "up",
+                "4"
+              ],
+              [
+                "3",
+                "down",
+                "1"
+              ],
+              [
+                "4",
+                "down",
+                "2"
+              ],
+              [
+                "5",
+                "down",
+                "4"
+              ],
+              [
+                "6",
+                "up and down",
+                "1"
+              ],
+              [
+                "7",
+                "up and down",
+                "2"
+              ],
+              [
+                "8",
+                "up and down",
+                "4"
+              ],
+              [
+                "9",
+                "random",
+                "1"
+              ],
+              [
+                "10",
+                "random",
+                "2"
+              ],
+              [
+                "11",
+                "random",
+                "4"
+              ]
+            ]
+          },
+          "examples": []
+        }
+      ],
+      "examples": [
+        {
+          "title": "Square-wave chord",
+          "code": "chip: $mi.chiptune('c3', { chord: 9 })"
+        },
+        {
+          "title": "Arpeggio",
+          "code": "arp: $mi.chiptune('a2', {\n  trigger: $pulse('8hz'),\n  chord: 5,\n  pattern: 7,\n  decay: 3,\n})"
+        },
+        {
+          "title": "Chord and bass apart",
+          "code": "const chip = $mi.chiptune('e3', { chord: 3, shape: 1 })\nchords: chip\nbass: chip._bass"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiChiptuneParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the root: the chord is built on it, the arpeggio climbs from it and the bass sounds an octave below",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "trigger": {
+          "description": "steps the arpeggio to its next note; once patched, the `chord` output is silent until the first trigger. Unpatched, the whole chord sounds",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "trig"
+          }
+        },
+        "chord": {
+          "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark. While `trigger` is patched it changes on the next trigger",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 10.0,
+            "minValue": 0.0,
+            "maxValue": 10.0,
+            "controlMin": 0.0,
+            "controlMax": 10.0
+          }
+        },
+        "inversion": {
+          "description": "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "pattern": {
+          "description": "the arpeggio's pattern, numbered as in the Patterns table; it changes on the next trigger",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 11.0,
+            "controlMin": 0.0,
+            "controlMax": 11.0
+          }
+        },
+        "shape": {
+          "description": "the squares' tone: a thin pulse (0) widening to a square (2.5), then hard sync rising to a nasal buzz",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "decay": {
+          "description": "how long each arpeggio note rings, from a blip (0) to held until the next (5); unused while `trigger` is unpatched",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 5.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "bassDecay": {
+          "description": "whether the bass fades with each arpeggio note too, or holds",
+          "type": "boolean",
+          "default": false
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero reflects frequencies below zero back up",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `chord` into `bass`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "blend",
+        "description": "`chord` crossfaded into `bass` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "chord",
+        "description": "the chord, or the arpeggio while `trigger` is patched",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "bass",
+        "description": "a stepped triangle an octave below `freq`, following the arpeggio's octave",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the root: the chord is built on it, the arpeggio climbs from it and the bass sounds an octave below",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "trigger",
+        "description": "steps the arpeggio to its next note; once patched, the `chord` output is silent until the first trigger. Unpatched, the whole chord sounds",
+        "paramType": "trig",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "chord",
+        "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark. While `trigger` is patched it changes on the next trigger",
+        "paramType": "control",
+        "defaultValue": 10.0,
+        "minValue": 0.0,
+        "maxValue": 10.0,
+        "controlMin": 0.0,
+        "controlMax": 10.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "inversion",
+        "description": "the chord's voicing while `trigger` is unpatched: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "pattern",
+        "description": "the arpeggio's pattern, numbered as in the Patterns table; it changes on the next trigger",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 11.0,
+        "controlMin": 0.0,
+        "controlMax": 11.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "shape",
+        "description": "the squares' tone: a thin pulse (0) widening to a square (2.5), then hard sync rising to a nasal buzz",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "decay",
+        "description": "how long each arpeggio note rings, from a blip (0) to held until the next (5); unused while `trigger` is unpatched",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero reflects frequencies below zero back up",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `chord` into `bass`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$mi.chords",
+    "docs": {
+      "summary": "Organ and wavetable chords",
+      "description": "Mutable Instruments Plaits' chord engine: four-note chords played on divide-down organ voices or on wavetable voices.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [
+        {
+          "title": "Chords",
+          "body": "`chord` picks one of eleven chords by number.",
+          "table": {
+            "columns": [
+              "chord",
+              "Name"
+            ],
+            "rows": [
+              [
+                "0",
+                "octave"
+              ],
+              [
+                "1",
+                "fifth"
+              ],
+              [
+                "2",
+                "sus4"
+              ],
+              [
+                "3",
+                "minor"
+              ],
+              [
+                "4",
+                "minor 7th"
+              ],
+              [
+                "5",
+                "minor 9th"
+              ],
+              [
+                "6",
+                "minor 11th"
+              ],
+              [
+                "7",
+                "6/9"
+              ],
+              [
+                "8",
+                "major 9th"
+              ],
+              [
+                "9",
+                "major 7th"
+              ],
+              [
+                "10",
+                "major"
+              ]
+            ]
+          },
+          "examples": []
+        }
+      ],
+      "examples": [
+        {
+          "title": "Minor 7th organ",
+          "code": "keys: $mi.chords('c3', { chord: 4 })"
+        },
+        {
+          "title": "Rising voicing",
+          "code": "const lift = $sine('0.05hz').range(0, 5)\npad: $mi.chords('a2', { chord: 5, inversion: lift })"
+        },
+        {
+          "title": "Wavetable chords and their root",
+          "code": "const keys = $mi.chords('e3', { chord: 9, waveform: 4 })\nchords: keys\nroot: keys._root"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiChordsParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "root pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "chord": {
+          "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 10.0,
+            "minValue": 0.0,
+            "maxValue": 10.0,
+            "controlMin": 0.0,
+            "controlMax": 10.0
+          }
+        },
+        "inversion": {
+          "description": "the voicing: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "waveform": {
+          "description": "the tone: organ registrations from a bright mixture (0) to a hollow square (2.3), then wavetable waves, which take over a voice at a time from 2.35 to 2.85",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `chord` into `root`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "blend",
+        "description": "`chord` crossfaded into `root` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "chord",
+        "description": "the whole chord",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "root",
+        "description": "the root alone, in each octave the voicing plays it, louder: to double it or give it an effect of its own",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "root pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "chord",
+        "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+        "paramType": "control",
+        "defaultValue": 10.0,
+        "minValue": 0.0,
+        "maxValue": 10.0,
+        "controlMin": 0.0,
+        "controlMax": 10.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "inversion",
+        "description": "the voicing: each volt lifts the four notes an octave, one after another, from close position (0) up through five rotations",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "waveform",
+        "description": "the tone: organ registrations from a bright mixture (0) to a hollow square (2.3), then wavetable waves, which take over a voice at a time from 2.35 to 2.85",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `chord` into `root`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
     "name": "$mi.chorus",
     "docs": {
       "summary": "Stereo ensemble chorus",
-      "description": "Mutable Instruments Plaits' ensemble: three delay taps per side, crossed between the sides and swept by a slow and a fast LFO, for the lush shimmer of a string machine. After `$mi.divideDown` and a low-pass it makes Plaits' string machine.",
+      "description": "Mutable Instruments Plaits' ensemble: three delay taps per side, crossed between the sides and swept by a slow and a fast LFO, for the lush shimmer of a string machine. `$mi.stringMachine` plays Plaits' string machine through it.",
       "categories": [
         "effect"
       ],
@@ -36630,7 +37592,7 @@
     "name": "$mi.divideDown",
     "docs": {
       "summary": "Divide-down string-machine oscillator",
-      "description": "Mutable Instruments Plaits' divide-down oscillator: four saws an octave apart from one phase, mixed into saw, square and organ registrations like a string machine's footages. Through a low-pass and `$mi.chorus` it makes Plaits' string machine.",
+      "description": "Mutable Instruments Plaits' divide-down oscillator: four saws an octave apart from one phase, mixed into saw, square and organ registrations like a string machine's footages. `$mi.stringMachine` plays chords on it through a low-pass and `$mi.chorus`.",
       "categories": [
         "oscillator"
       ],
@@ -38727,6 +39689,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `body` into `exciter`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -38814,11 +39795,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`body` crossfaded into `exciter` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -10.0,
+        "maxValue": 10.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "body",
         "description": "the ringing body; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
         "mono": false,
@@ -38927,6 +39920,383 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `body` into `exciter`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$mi.noise",
+    "docs": {
+      "summary": "Clocked, filtered noise",
+      "description": "Mutable Instruments Plaits' filtered noise: white noise, held between ticks of a clock, through a resonant filter, for wind, surf and whistles or stepped, digital hiss.",
+      "categories": [
+        "oscillator",
+        "random"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Whistling wind",
+          "code": "wind: $mi.noise('c5', { resonance: 4 })"
+        },
+        {
+          "title": "Two bands",
+          "code": "air: $mi.noise('c4', { mode: 3.75, resonance: 3 })._bands"
+        },
+        {
+          "title": "Stepped noise",
+          "code": "const beat = $clock._beatTrigger\nbits: $mi.noise('c3', { trigger: beat, rate: 0 })"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "MiNoiseParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "the frequency the filters centre on",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "trigger": {
+          "description": "restarts the noise clock, so each hit steps to a fresh value; patched, `rate` reaches two octaves lower",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "trig"
+          }
+        },
+        "rate": {
+          "description": "the noise clock, from slow, stepped crackle (0) to smooth hiss (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 5.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "mode": {
+          "description": "sweeps `filtered` from lowpass (0) through bandpass to highpass (5), and moves `bands`' second band from two octaves below `freq` to two above",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "resonance": {
+          "description": "from a gentle slope (0) to a whistling, pitched peak (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 1.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `filtered` into `bands`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "blend",
+        "description": "`filtered` crossfaded into `bands` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "filtered",
+        "description": "the noise through one filter that `mode` sweeps",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "bands",
+        "description": "the noise through two bandpass filters, one at `freq` and one that `mode` moves",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "the frequency the filters centre on",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "trigger",
+        "description": "restarts the noise clock, so each hit steps to a fresh value; patched, `rate` reaches two octaves lower",
+        "paramType": "trig",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "rate",
+        "description": "the noise clock, from slow, stepped crackle (0) to smooth hiss (5)",
+        "paramType": "control",
+        "defaultValue": 5.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mode",
+        "description": "sweeps `filtered` from lowpass (0) through bandpass to highpass (5), and moves `bands`' second band from two octaves below `freq` to two above",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "from a gentle slope (0) to a whistling, pitched peak (5)",
+        "paramType": "control",
+        "defaultValue": 1.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `filtered` into `bands`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -39064,6 +40434,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `filtered` into `raw`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -39151,11 +40540,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`filtered` crossfaded into `raw` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "filtered",
         "description": "the particles ringing through their filters",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -39241,6 +40642,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `filtered` into `raw`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -40752,6 +42167,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -40839,11 +42273,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -10.0,
+        "maxValue": 10.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
         "mono": false,
@@ -40971,6 +42417,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -41140,6 +42600,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `strings` into `exciter`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -41227,11 +42706,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`strings` crossfaded into `exciter` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -10.0,
+        "maxValue": 10.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "strings",
         "description": "the ringing strings; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
         "mono": false,
@@ -41344,6 +42835,20 @@
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `strings` into `exciter`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
       }
     ],
     "nestedFolds": [],
@@ -41354,6 +42859,346 @@
     ],
     "experimental": false,
     "stereo": "lift"
+  },
+  {
+    "name": "$mi.stringMachine",
+    "docs": {
+      "summary": "Stereo string-machine chords",
+      "description": "Mutable Instruments Plaits' string machine: four-note chords on divide-down organ voices, low-pass filtered and spread across a stereo ensemble chorus.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [
+        {
+          "title": "Chords",
+          "body": "`chord` picks one of eleven chords by number.",
+          "table": {
+            "columns": [
+              "chord",
+              "Name"
+            ],
+            "rows": [
+              [
+                "0",
+                "octave"
+              ],
+              [
+                "1",
+                "fifth"
+              ],
+              [
+                "2",
+                "sus4"
+              ],
+              [
+                "3",
+                "minor"
+              ],
+              [
+                "4",
+                "minor 7th"
+              ],
+              [
+                "5",
+                "minor 9th"
+              ],
+              [
+                "6",
+                "minor 11th"
+              ],
+              [
+                "7",
+                "6/9"
+              ],
+              [
+                "8",
+                "major 9th"
+              ],
+              [
+                "9",
+                "major 7th"
+              ],
+              [
+                "10",
+                "major"
+              ]
+            ]
+          },
+          "examples": []
+        }
+      ],
+      "examples": [
+        {
+          "title": "Minor 7th strings",
+          "code": "pad: $mi.stringMachine('c3', { chord: 4 })"
+        },
+        {
+          "title": "Swelling ensemble",
+          "code": "const swell = $sine('0.07hz').range(2.5, 5)\npad: $mi.stringMachine('a2', { chord: 6, tone: swell })"
+        },
+        {
+          "title": "Square organ chords",
+          "code": "keys: $mi.stringMachine('e3', {\n  chord: 9,\n  registration: 5,\n  tone: 1,\n})"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "StringMachineParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "root pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "chord": {
+          "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 10.0,
+            "minValue": 0.0,
+            "maxValue": 10.0,
+            "controlMin": 0.0,
+            "controlMax": 10.0
+          }
+        },
+        "registration": {
+          "description": "the mix of saw and square footages, from a bright saw (0) through organ-like mixtures to a hollow square (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "tone": {
+          "description": "the filter opens from dark (0) to bright (5), while the ensemble fades out toward 2.5 and back in, shallow below it and deep above",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 3.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the strings, as one stereo lane: alternate notes of the chord lead on each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "root pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "chord",
+        "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+        "paramType": "control",
+        "defaultValue": 10.0,
+        "minValue": 0.0,
+        "maxValue": 10.0,
+        "controlMin": 0.0,
+        "controlMax": 10.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "registration",
+        "description": "the mix of saw and square footages, from a bright saw (0) through organ-like mixtures to a hollow square (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "tone",
+        "description": "the filter opens from dark (0) to bright (5), while the ensemble fades out toward 2.5 and back in, shallow below it and deep above",
+        "paramType": "control",
+        "defaultValue": 3.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "stereo"
   },
   {
     "name": "$mi.swarm",
@@ -41476,6 +43321,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `saw` into `sine`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -41563,11 +43427,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`saw` crossfaded into `sine` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "saw",
         "description": "the swarm of saws",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -41653,6 +43529,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `saw` into `sine`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -41775,6 +43665,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `fm` into `subOctave`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -41862,11 +43771,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`fm` crossfaded into `subOctave` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "fm",
         "description": "the FM tone",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -41943,6 +43864,727 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs both operators backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `fm` into `subOctave`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$mi.va",
+    "docs": {
+      "summary": "Virtual analog dual oscillator",
+      "description": "Mutable Instruments Plaits' virtual analog oscillator: a square and a saw, each with a morphing shape, tuned an interval apart, and a second output of two hard-synced oscillators for tearing sync leads.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Fifths",
+          "code": "lead: $mi.va('c3', { detune: 3.1, shape: 1 })"
+        },
+        {
+          "title": "Sync sweep",
+          "code": "const sweep = $sine('0.1hz').range(0.5, 4.5)\nlead: $mi.va('a2', { square: sweep })._sync"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "VirtualAnalogParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "oscillator pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "detune": {
+          "description": "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "square": {
+          "description": "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "shape": {
+          "description": "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `dual` into `sync`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "blend",
+        "description": "`dual` crossfaded into `sync` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "dual",
+        "description": "a square and a saw, the saw tuned by `detune`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "sync",
+        "description": "two hard-synced oscillators, `detune` apart, one subtracted from the other",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "oscillator pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "detune",
+        "description": "the second oscillator's interval, lingering on unison, fifths and octaves, out to two octaves down or up",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "square",
+        "description": "on `dual`, the square from silent through narrow pulses to hollow, then hard-synced; on `sync`, how far the sync sweeps",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "shape",
+        "description": "on `dual`, the saw from triangle to bright saw to thin spike; on `sync`, the waveform from triangle to narrow pulse",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `dual` into `sync`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$mi.vcf",
+    "docs": {
+      "summary": "Oscillator into a resonant filter",
+      "description": "Mutable Instruments Plaits' virtual analog VCF voice: a saw, square or narrow pulse, with a sub-octave square to mix in, through a resonant filter that follows the note.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Resonant sweep",
+          "code": "const sweep = $sine('0.25hz').range(1, 4)\nbass: $mi.vcf('c2', { cutoff: sweep, resonance: 3 })"
+        },
+        {
+          "title": "Sub bass",
+          "code": "bass: $mi.vcf('a1', { shape: 0, cutoff: 1.5 })"
+        },
+        {
+          "title": "High-pass buzz",
+          "code": "buzz: $mi.vcf('c3', { cutoff: 3, slope: 5 })._highpass"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "VcfParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "oscillator pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "cutoff": {
+          "description": "filter cutoff, following the pitch: from two octaves below it (0) to eight above (5), up to 12 kHz",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "resonance": {
+          "description": "filter resonance, from none (0) to a sharp ringing peak (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "slope": {
+          "description": "filter slope, from a steep 4-pole filter (0) to a gentler 2-pole one driven harder (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "shape": {
+          "description": "the waveform: a saw with a sub-octave square (0), a saw, a square (2.5), a narrow pulse, then a square with the sub (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `lowpass` into `highpass`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "blend",
+        "description": "`lowpass` crossfaded into `highpass` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "lowpass",
+        "description": "the filtered voice",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
+        "name": "highpass",
+        "description": "the same filter's high-pass output, thin and buzzy",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "oscillator pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "filter cutoff, following the pitch: from two octaves below it (0) to eight above (5), up to 12 kHz",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "filter resonance, from none (0) to a sharp ringing peak (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "slope",
+        "description": "filter slope, from a steep 4-pole filter (0) to a gentler 2-pole one driven harder (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "shape",
+        "description": "the waveform: a saw with a sub-octave square (0), a saw, a square (2.5), a narrow pulse, then a square with the sub (5)",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `lowpass` into `highpass`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -42056,6 +44698,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -42143,11 +44804,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -42219,6 +44892,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -42332,6 +45019,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -42419,11 +45125,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -42495,6 +45213,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -42608,6 +45340,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -42695,11 +45446,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -42771,6 +45534,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -42893,6 +45670,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `height` into `pm`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -42980,11 +45776,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`height` crossfaded into `pm` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "height",
         "description": "the height of the surface under the circle",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -43061,6 +45869,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero traces the circle backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `height` into `pm`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -43183,6 +46005,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `shaped` into `overtones`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -43270,11 +46111,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`shaped` crossfaded into `overtones` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "shaped",
         "description": "the shaped and folded wave",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -43351,6 +46204,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waves backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `shaped` into `overtones`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

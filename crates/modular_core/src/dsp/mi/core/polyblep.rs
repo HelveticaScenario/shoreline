@@ -38,3 +38,12 @@ pub fn edge_time(distance: f32, speed: f32) -> f32 {
     let t = distance / speed;
     if t.is_nan() { 0.0 } else { t.clamp(-1.0, 2.0) }
 }
+
+/// Whether a width crossing timed by [`edge_time`] against the width's own
+/// motion falls within the current sample, give or take rounding. A width
+/// swept past the phase in an earlier sample times far outside it, and that
+/// crossing takes no band-limited step now.
+#[inline(always)]
+pub fn within_sample(t: f32) -> bool {
+    (-1e-3..=1.0 + 1e-3).contains(&t)
+}

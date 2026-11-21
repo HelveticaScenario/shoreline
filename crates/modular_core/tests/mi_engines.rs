@@ -4,7 +4,8 @@
 //! `out` and `aux` reach the same level, spectrum and polarity once both have
 //! settled. String and modal draw the same grains as Plaits, from the seed
 //! the test pins. The drums are struck on a steady pulse as well as droning
-//! or, for the hi-hats, hissing.
+//! or, for the hi-hats, hissing; the filtered noise is clocked by its trigger
+//! as well as running free.
 //! The per-sample fixtures compare waveforms; this pins the knob mappings and
 //! output gains.
 
@@ -31,6 +32,8 @@ struct Port {
     module: &'static str,
     params: Value,
     port: &'static str,
+    /// The lane read: a stereo module's left side is lane 0, its right 1.
+    lane: usize,
     /// Samples between strikes, for a module whose `trigger` is patched.
     trigger_period: Option<f32>,
 }
@@ -46,10 +49,23 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             module,
             params,
             port,
+            lane: 0,
             trigger_period,
         }
     };
     match engine {
+        0 => {
+            // Plaits' `harmonics` sets resonance, which rises either side of
+            // its centre, and slope, which crossfades from 4-pole below 0.4
+            // to 2-pole above 0.65.
+            let resonance = 2.667 * ((h - 0.5).abs() - 0.125).max(0.0);
+            let slope = ((h - 0.4) * 4.0).clamp(0.0, 1.0);
+            let knobs = json!({ "cutoff": 5.0 * t, "resonance": 5.0 * resonance, "slope": 5.0 * slope, "shape": 5.0 * m });
+            [
+                port("$mi.vcf", knobs.clone(), "lowpass"),
+                port("$mi.vcf", knobs, "highpass"),
+            ]
+        }
         1 => {
             let knobs = |sync| json!({ "ratio": 5.0 * h, "amount": 5.0 * t, "asymmetry": 5.0 * m, "sync": sync });
             [
@@ -72,6 +88,40 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             [
                 port("$mi.waveTerrain", knobs.clone(), "height"),
                 port("$mi.waveTerrain", knobs, "pm"),
+            ]
+        }
+        6 => {
+            // Plaits' quantiser picks chord `floor(11.22 h - 0.075)` from
+            // `harmonics`, rising from its initial 0; `out` and `aux` are the
+            // module's left and right sides.
+            let chord = (h * 1.02 * 11.0 - 0.075).floor();
+            let knobs = json!({ "chord": chord, "registration": 5.0 * m, "tone": 5.0 * t });
+            let mut right = port("$mi.stringMachine", knobs.clone(), "output");
+            right.lane = 1;
+            [port("$mi.stringMachine", knobs, "output"), right]
+        }
+        7 => {
+            // Plaits' quantisers pick chord `floor(11.22 h - 0.075)` from
+            // `harmonics` and pattern `floor(12 t - 0.075)` from `timbre`,
+            // rising from their initial 0. Its envelope is off, as the
+            // module's is at full `decay` once the first trigger strikes it.
+            let chord = (h * 1.02 * 11.0 - 0.075).floor();
+            let pattern = (t * 12.0 - 0.075).floor();
+            let knobs = json!({ "chord": chord, "inversion": 5.0 * t, "pattern": pattern, "shape": 5.0 * m });
+            let mut chord = port("$mi.chiptune", knobs.clone(), "chord");
+            // Unclocked, the module's chord stands on `freq`, two octaves
+            // above Plaits' voicing of the same note; its bass keeps Plaits'
+            // pitch.
+            if trigger_period.is_none() {
+                chord.params["freq"] = json!(freq - 2.0);
+            }
+            [chord, port("$mi.chiptune", knobs, "bass")]
+        }
+        8 => {
+            let knobs = json!({ "detune": 5.0 * h, "square": 5.0 * t, "shape": 5.0 * m });
+            [
+                port("$mi.va", knobs.clone(), "dual"),
+                port("$mi.va", knobs, "sync"),
             ]
         }
         9 => {
@@ -108,6 +158,21 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
                 port("$mi.additive", knobs("organ"), "output"),
             ]
         }
+        14 => {
+            // Plaits' quantiser picks chord `floor(11.22 h - 0.075)` from
+            // `harmonics`, rising from its initial 0.
+            let chord = (h * 1.02 * 11.0 - 0.075).floor();
+            let knobs = json!({ "chord": chord, "inversion": 5.0 * t, "waveform": 5.0 * m });
+            // The module's `freq` is the root, two octaves below Plaits' note.
+            [
+                port("$mi.chords", knobs.clone(), "chord"),
+                port("$mi.chords", knobs, "root"),
+            ]
+            .map(|mut p| {
+                p.params["freq"] = json!(freq - 2.0);
+                p
+            })
+        }
         15 if h < 0.4 => {
             // The vowel path, where harmonics sounds one synth alone: the
             // formant filters at 0, SAM at 1/6 and LPC just below 1/3.
@@ -139,6 +204,13 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             [
                 port("$mi.swarm", knobs.clone(), "saw"),
                 port("$mi.swarm", knobs, "sine"),
+            ]
+        }
+        17 => {
+            let knobs = json!({ "rate": 5.0 * t, "mode": 5.0 * h, "resonance": 5.0 * m });
+            [
+                port("$mi.noise", knobs.clone(), "filtered"),
+                port("$mi.noise", knobs, "bands"),
             ]
         }
         18 => {
@@ -264,7 +336,7 @@ fn render(port: &Port, samples: usize) -> Vec<f32> {
         let dut = &patch.sampleables["dut"];
         dut.ensure_processed_to(BLOCK);
         for index in 0..BLOCK {
-            out.push(dut.get_value_at(port.port, 0, index));
+            out.push(dut.get_value_at(port.port, port.lane, index));
         }
     }
     out.truncate(samples);
@@ -449,7 +521,22 @@ fn matches_plaits_engines() {
             let snares = engine == 22 && h > 0.0;
             // The engine's two hi-hats share its noise generator too.
             let noisy = snares || (engine == 23 && h > 0.0);
-            let (level_db, near_db) = if noisy { (0.25, 1.5) } else { (0.1, near_db) };
+            // The filtered noise draws its two clocks' values a sample at a
+            // time, where the engine draws each clock's block in turn, so it
+            // matches the engine only to the noise's spread, and has no
+            // polarity to compare. A slow, synced clock through a narrow band
+            // spreads its level about 0.3 dB from one draw to the next.
+            // The engine's chord voices take their phases from the sweep its
+            // knob smoothing starts with, which the module does not repeat, so
+            // their nearly coinciding partials beat in another phase.
+            let chords = engine == 14;
+            let (level_db, near_db) = if engine == 17 {
+                (if trigger_period.is_some() { 1.5 } else { 0.5 }, 2.0)
+            } else if noisy || chords {
+                (0.5, 1.5)
+            } else {
+                (0.1, near_db)
+            };
             assert_sounds_alike(&name, &actual, &expected, level_db, near_db, 3.0);
             // Particles draw Plaits' values in Plaits' order on its block
             // timing, and the snare drums with no snares mute their noise, so
@@ -475,8 +562,12 @@ fn matches_plaits_engines() {
                     .fold(0.0f32, |m, (a, e)| m.max((a - e).abs()));
                 assert!(error < 1e-4, "{name}: max error {error}");
             }
+            // The chord's voices keep no single phase offset from the
+            // engine's, so no lag lines the two up.
             assert!(
                 h >= 0.5 && snares
+                    || engine == 17
+                    || chords
                     || aligned_error(&actual, &expected) < aligned_error(&inverted, &expected),
                 "{name}: inverted"
             );

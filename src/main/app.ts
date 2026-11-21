@@ -77,6 +77,7 @@ import {
 import { PERFORMANCE_WINDOW_NAME } from '../shared/video/performanceWindowName';
 import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
+import { builtinAssetsDir } from './builtinAssetsDir';
 import { assetKind } from '../shared/assetFiles';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
@@ -600,6 +601,7 @@ const audioConfigOptions: AudioConfigOptions | undefined =
 // Initialize the synthesizer instance with saved config
 console.log('Initializing Synthesizer with config:', audioConfigOptions);
 const synth = new Synthesizer(audioConfigOptions);
+synth.setBuiltinAssets(builtinAssetsDir());
 
 // Get the actual audio state after construction (may have fallen back to defaults)
 const actualAudioState = synth.getCurrentAudioState();
