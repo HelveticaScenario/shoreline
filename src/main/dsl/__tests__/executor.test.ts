@@ -964,6 +964,21 @@ describe('sequencing', () => {
         );
     });
 
+    test('a chord literal is one lane per note', () => {
+        const semitones = (freq: unknown[]) =>
+            freq.map((v) => (typeof v === 'number' ? Math.round(v * 12) : v));
+        const [saw] = findModules(execPatch('out: $saw("c3(maj7)")'), '$saw');
+        expect(semitones(saw.params.freq)).toEqual([-12, -8, -5, -1]);
+        const [mixed] = findModules(
+            execPatch('out: $saw(["c2", "eb(m inv1)"])'),
+            '$saw',
+        );
+        expect(semitones(mixed.params.freq)).toEqual(['c2', 6, 10, 15]);
+        expect(() => execPatch('out: $saw("c3(nope)")')).toThrow(
+            /"c3\(nope\)": unknown chord/,
+        );
+    });
+
     test('$cycle accepts mixed numeric, note, and hz atoms', () => {
         const patch = execPatch('out: $cycle($("0.5 c4 440hz -1"))');
         expect(findModules(patch, '$cycle').length).toBe(1);

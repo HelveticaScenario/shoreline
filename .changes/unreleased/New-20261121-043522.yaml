@@ -1,3 +1,3 @@
 kind: New
-body: 'Patterns can play chords: write a chord after a note in parentheses, like `c3(maj7) eb(m7 inv1)`; `invN` inverts a chord. Chords are not allowed in `.scale` patterns.'
+body: 'Write a chord after a note in parentheses, like `c3(maj7)` or `eb(m7 inv1)`, to play all its notes at once, both in patterns and anywhere a signal goes (`$saw(''c3(maj7)'')` is four voices); `invN` inverts a chord. Chords are not allowed in `.scale` patterns.'
 time: 2026-11-21T04:35:22.457443-05:00

@@ -214,15 +214,7 @@ impl ScaleSpec {
                 );
             }
         };
-        if !source.ends_with(close) {
-            return Err(format!("missing closing '{close}'"));
-        }
-
-        let root_str = &source[..open];
-        let root = FixedRoot::parse(root_str)
-            .ok_or_else(|| format!("invalid root note \"{root_str}\""))?;
-        let body = &source[open + 1..source.len() - close.len_utf8()];
-
+        let (root, body) = split_root(source, open, close)?;
         if is_chord {
             Self::parse_chord(&root, body)
         } else {
@@ -270,6 +262,17 @@ impl ScaleSpec {
         }
         pitch_classes.sort_unstable();
         Self::new(base_midi, tuning, &pitch_classes)
+    }
+
+    /// The chord a signal literal like `c3(maj7)` names, read as `note_chord`
+    /// reads a pattern's.
+    pub fn chord_literal(source: &str) -> Result<Self, String> {
+        let source = source.trim();
+        let open = source
+            .find('(')
+            .ok_or_else(|| format!("expected note(chord), e.g. \"c3(maj7)\", got \"{source}\""))?;
+        let (root, body) = split_root(source, open, ')')?;
+        Self::note_chord(&root, body)
     }
 
     /// A chord written after a note, as in a pattern's `c3(maj7)`: the chord
@@ -389,6 +392,17 @@ impl ScaleSpec {
         let note = self.voicing[degree.rem_euclid(len) as usize] as i32;
         self.interval_voltage(note) + (period * self.period_semitones / 12) as f64
     }
+}
+
+/// Split `root<open>body<close>` at the bracket at byte `open`.
+fn split_root(source: &str, open: usize, close: char) -> Result<(FixedRoot, &str), String> {
+    let inner = source[open + 1..]
+        .strip_suffix(close)
+        .ok_or_else(|| format!("missing closing '{close}'"))?;
+    let root_str = &source[..open];
+    let root =
+        FixedRoot::parse(root_str).ok_or_else(|| format!("invalid root note \"{root_str}\""))?;
+    Ok((root, inner))
 }
 
 trait DedupSorted {
@@ -539,6 +553,16 @@ mod tests {
         assert_eq!(semitones("C3[maj7]"), [-12.0, -8.0, -5.0, -1.0]);
         assert_eq!(semitones("A[m7]"), [9.0, 12.0, 16.0, 19.0]);
         assert_eq!(semitones("C[9]"), [0.0, 4.0, 7.0, 10.0, 14.0]);
+    }
+
+    #[test]
+    fn chord_literal_reads_a_note_then_its_chord() {
+        let literal = ScaleSpec::chord_literal("eb3(m7 inv1)").unwrap();
+        assert_eq!(literal, ScaleSpec::parse("eb3[m7 inv1]").unwrap());
+        assert!(ScaleSpec::chord_literal("c3(nope)").is_err());
+        assert!(ScaleSpec::chord_literal("c(3)").is_err());
+        assert!(ScaleSpec::chord_literal("h(maj)").is_err());
+        assert!(ScaleSpec::chord_literal("c3maj").is_err());
     }
 
     #[test]
