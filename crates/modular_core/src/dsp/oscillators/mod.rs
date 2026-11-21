@@ -72,12 +72,12 @@ pub fn sync_ratio(octaves: f32) -> f32 {
     octaves.max(0.0).exp2()
 }
 
-/// The fastest a synced oscillator runs, in cycles per sample. At Nyquist its
-/// band-limiting corrections still keep it within its range.
+/// The fastest a synced oscillator runs, in cycles per sample: Nyquist.
 pub const MAX_SYNCED_INCREMENT: f32 = 0.5;
 
 /// A restart of an oscillator's cycle, landing `frac` of a sample into the
-/// upcoming interval.
+/// step its oscillator's [`Landing`] names. The cycle starts over exactly
+/// there, so a restart at audio rate keeps its pitch.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Reset {
     /// A rising edge on `restart`.
@@ -99,23 +99,12 @@ impl Reset {
         restarted.map(Reset::Restart).or(wrapped.map(Reset::Sync))
     }
 
-    /// How far into the step it lands in the restarted cycle starts running.
-    /// A restart runs the cycle from its beginning through the whole step; a
-    /// sync reset starts it exactly where its source completed a cycle, so
-    /// the synced pitch holds.
-    #[inline(always)]
-    pub fn cycle_start(self) -> f32 {
-        match self {
-            Reset::Restart(_) => 0.0,
-            Reset::Sync(frac) => frac,
-        }
-    }
-
     /// The phase to store so that the next step of `dt` lands where the
-    /// restarted cycle stands at its end.
+    /// restarted cycle stands at its end, the cycle starting `frac` into the
+    /// step.
     #[inline(always)]
     pub fn phase(self, dt: f32) -> f32 {
-        wrap_phase(-self.cycle_start() * dt)
+        wrap_phase(-self.frac() * dt)
     }
 }
 
@@ -140,6 +129,16 @@ impl Landing {
             Landing::Next => wrap_phase(before + moved),
         };
         wrap_fraction(start, moved)
+    }
+
+    /// The sync source's phase once a reset `frac` into the landing step
+    /// restarts its cycle, mirroring the oscillator's.
+    #[inline(always)]
+    pub fn restarted(self, frac: f32, dt: f32) -> f32 {
+        match self {
+            Landing::Now => wrap_phase((1.0 - frac) * dt),
+            Landing::Next => wrap_phase(-frac * dt),
+        }
     }
 }
 
@@ -263,12 +262,37 @@ impl Resets {
             None => (dt, None),
         };
         self.source = match (restarted, sync_ratio) {
-            (Some(_), _) => 0.0,
+            (Some(frac), _) => landing.restarted(frac, dt),
             (None, Some(_)) => wrap_phase(self.source + dt),
             (None, None) => wrap_phase(phase + dt),
         };
         (increment, Reset::first(restarted, wrapped))
     }
+}
+
+/// Two-point PolyBLAMP correction for a reset's change of slope:
+/// `slope_change` is the slope after the reset minus the slope before, in
+/// output units per sample, located `frac` of a sample into the upcoming
+/// interval. Returns `(this_sample, next_sample)` like [`sync_blep`], whose
+/// residual this one integrates.
+#[inline]
+pub fn sync_blamp(slope_change: f32, frac: f32) -> (f32, f32) {
+    let sixth = slope_change / 6.0;
+    let before = 1.0 - frac;
+    (sixth * before * before * before, sixth * frac * frac * frac)
+}
+
+/// [`sync_blep`] for a reset's `jump` plus [`sync_blamp`] for its
+/// `slope_change`, both `frac` into the upcoming interval, summed as
+/// `(this_sample, next_sample)`, for a wave running `dt` cycles a sample. The
+/// PolyBLAMP fades out toward Nyquist, where the wave no longer runs straight
+/// across a sample and the two-point correction would overshoot.
+#[inline]
+pub fn sync_corner(jump: f32, slope_change: f32, frac: f32, dt: f32) -> (f32, f32) {
+    let fade = (1.0 - dt.abs() / MAX_SYNCED_INCREMENT).max(0.0);
+    let (jump_now, jump_next) = sync_blep(jump, frac);
+    let (bend_now, bend_next) = sync_blamp(slope_change * fade * fade, frac);
+    (jump_now + bend_now, jump_next + bend_next)
 }
 
 pub mod enosc;
@@ -385,6 +409,16 @@ mod tests {
         // Non-rising / degenerate inputs fall back to 0.
         assert_eq!(sync_edge_fraction(2.0, 1.0), 0.0);
         assert_eq!(sync_edge_fraction(3.0, 3.0), 0.0);
+    }
+
+    #[test]
+    fn sync_blamp_integrates_the_blep_residual() {
+        // A corner exactly on a sample bends that sample by a sixth of the
+        // slope change and leaves the next untouched; at frac 1 the roles
+        // swap. Halfway, both samples share the bend.
+        assert_eq!(sync_blamp(6.0, 0.0), (1.0, 0.0));
+        assert_eq!(sync_blamp(6.0, 1.0), (0.0, 1.0));
+        assert_eq!(sync_blamp(6.0, 0.5), (0.125, 0.125));
     }
 
     #[test]

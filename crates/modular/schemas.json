@@ -12403,9 +12403,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -12563,9 +12564,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -12690,9 +12692,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -12869,9 +12872,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -13011,9 +13015,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -13199,9 +13204,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -14069,9 +14075,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -14226,9 +14233,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -15349,9 +15357,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -15723,9 +15732,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

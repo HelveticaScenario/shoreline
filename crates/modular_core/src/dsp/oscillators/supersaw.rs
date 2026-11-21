@@ -70,8 +70,9 @@ struct SupersawParams {
     #[input(
         "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -499,26 +500,24 @@ impl VoiceState {
         self.restarted = reset.is_some();
 
         // A reset restarts the saw, band-limited with a PolyBLEP at the
-        // subsample point `frac` into the next interval. A sync reset lands
-        // where its source wrapped, with a rising saw at the bottom of its
-        // ramp and a falling one at the top; the phase sits `frac` of a step
-        // before the restart, so the next sample lands on the ramp the
-        // restart began. A restart puts the saw and its source back at the
-        // voice's starting phase.
+        // subsample point `frac` into the next interval. A sync reset puts a
+        // rising saw at the bottom of its ramp and a falling one at the top;
+        // a restart puts the saw and its source back at the voice's starting
+        // phase. Either way the phase sits `frac` of a step before the
+        // restart, so the next sample lands on the ramp the restart began.
         if let Some(reset) = reset {
-            let mut before = 2.0 * read - 1.0;
+            let frac = reset.frac();
+            // The saw as it reaches the reset; one that would wrap first
+            // counts as reaching the end of its ramp.
+            let before = 2.0 * (read + frac * saw_dt).clamp(0.0, 1.0) - 1.0;
             let after = match reset {
-                Reset::Sync(frac) => {
-                    // The saw as it reaches the reset; one that would wrap
-                    // first counts as reaching the end of its ramp.
-                    let reached = read + frac * saw_dt;
-                    before = 2.0 * reached.clamp(0.0, 1.0) - 1.0;
+                Reset::Sync(_) => {
                     phase = wrap_phase(-offset - frac * saw_dt);
                     if saw_dt < 0.0 { 1.0 } else { -1.0 }
                 }
                 Reset::Restart(_) => {
-                    phase = 0.0;
-                    self.sync_phase = 0.0;
+                    phase = wrap_phase(-frac * saw_dt);
+                    self.sync_phase = wrap_phase(-frac * dt);
                     self.sync_offset = offset;
                     let start = wrap_phase(offset);
                     if saw_dt < 0.0 && start == 0.0 {
@@ -528,7 +527,7 @@ impl VoiceState {
                     }
                 }
             };
-            let (now, carry) = sync_blep(after - before, reset.frac());
+            let (now, carry) = sync_blep(after - before, frac);
             saw += now;
             self.blep_carry = carry;
             // A restarted saw that starts just short of its wrap crosses it
@@ -540,7 +539,7 @@ impl VoiceState {
                 } else {
                     ((1.0 - start).rem_euclid(1.0), -2.0)
                 };
-                let at = ahead / saw_dt.abs();
+                let at = frac + ahead / saw_dt.abs();
                 if ahead > 0.0 && at < 1.0 {
                     let (now, carry) = sync_blep(jump, at);
                     saw += now;
@@ -1021,7 +1020,7 @@ mod tests {
     }
 
     #[test]
-    fn restart_puts_every_saw_back_on_its_starting_phase() {
+    fn restart_starts_every_saw_where_the_trigger_crosses() {
         let mut s = make_supersaw(SupersawParams {
             restart: Some(mono(0.0)),
             ..params(mono(0.0), 5, 0.3)
@@ -1031,18 +1030,29 @@ mod tests {
         }
         s.params.restart = Some(mono(5.0));
         s.update(48000.0);
+        s.update(48000.0);
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the sample, so the sample after the restart lands stands
+        // four fifths of each saw's step into its new cycle, its source with
+        // it.
+        let note = crate::dsp::utils::voct_to_hz(0.0);
         for voice in 0..5 {
             let cell = &s.lane_state[voice * PORT_MAX_LANES];
-            assert_eq!(cell.phase, 0.0, "voice {voice}");
-            assert_eq!(cell.sync_phase, 0.0, "voice {voice}");
+            let step = voice_increment(s.state.positions[voice], note, 0.3, 1.0 / 48000.0);
+            assert!(
+                (cell.phase - 0.8 * step).abs() < 1e-6,
+                "voice {voice}: {}",
+                cell.phase
+            );
+            assert_eq!(cell.sync_phase, cell.phase, "voice {voice}");
         }
     }
 
     #[test]
     fn a_restarted_saw_band_limits_a_wrap_it_crosses_at_once() {
-        // Restarted a step short of its wrap, the saw crosses it half a step
-        // later: the samples either side share its band-limiting, and
-        // neither overshoots.
+        // Restarted a fifth of the way into a step, half a step short of its
+        // wrap, the saw crosses it at 0.7 of the step: the samples either side
+        // share its band-limiting, and neither overshoots.
         let mut cell = VoiceState {
             phase: 0.3,
             gate_open: true,
@@ -1050,7 +1060,7 @@ mod tests {
         };
         let first = cell.step(0.01, 0.995, Some(5.0), None);
         let second = cell.step(0.01, 0.995, Some(5.0), None);
-        assert!((first + 0.1984).abs() < 1e-4, "{first}");
-        assert!((second + 0.7676).abs() < 1e-4, "{second}");
+        assert!((first + 0.0397).abs() < 1e-4, "{first}");
+        assert!((second + 0.5315).abs() < 1e-4, "{second}");
     }
 }
