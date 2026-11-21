@@ -109,16 +109,32 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
+struct UnisonState {
+    phases: UnisonPhases,
+    /// Each copy's place in the detune spread, from -0.5 for the lowest
+    /// copy to 0.5 for the highest.
+    positions: [f32; PORT_MAX_LANES],
+}
+
+impl Default for UnisonState {
+    fn default() -> Self {
+        Self {
+            phases: UnisonPhases::default(),
+            positions: [0.0; PORT_MAX_LANES],
+        }
+    }
+}
+
 #[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread), patch_update)]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
-    state: UnisonPhases,
+    state: UnisonState,
 }
 
 impl Unison {
     fn update(&mut self, sample_rate: f32) {
-        let count = self.state.count();
+        let count = self.state.phases.count();
         let input = &self.params.input;
         let spread = &self.params.spread;
 
@@ -127,7 +143,8 @@ impl Unison {
         let channels = self.channels();
         let poly_lanes = unison_poly_lanes(input, spread) / channels;
         let output_lanes = self.lane_count();
-        let phases = self.state.advance(phase_glide_step(sample_rate));
+        let positions = &self.state.positions;
+        let phases = self.state.phases.advance(phase_glide_step(sample_rate));
 
         for poly_ch in 0..poly_lanes {
             for side in 0..channels {
@@ -137,13 +154,15 @@ impl Unison {
                 let spread =
                     spread.value_or(poly_ch * channels + side, UnisonParams::SPREAD_DEFAULT);
 
-                for (voice, &phase) in phases.iter().enumerate().take(count) {
+                for (voice, (&phase, &position)) in
+                    phases.iter().zip(positions).enumerate().take(count)
+                {
                     let out_ch = unison_lane(voice, poly_ch, poly_lanes) * channels + side;
                     if out_ch >= output_lanes {
                         break;
                     }
 
-                    let offset = detune_octaves(spread_position(voice, count), spread);
+                    let offset = detune_octaves(position, spread);
                     self.outputs.sample.set(out_ch, input_val + offset);
                     self.outputs.phase.set(out_ch, phase);
                 }
@@ -154,7 +173,11 @@ impl Unison {
 
 impl crate::types::PatchUpdateHandler for Unison {
     fn on_patch_update(&mut self) {
-        self.state.set_count(self.params.copies());
+        let count = self.params.copies();
+        self.state.phases.set_count(count);
+        for (voice, position) in self.state.positions.iter_mut().enumerate().take(count) {
+            *position = spread_position(voice, count);
+        }
     }
 }
 
@@ -175,7 +198,7 @@ mod tests {
         let mut u = Unison {
             params,
             outputs,
-            state: UnisonPhases::default(),
+            state: UnisonState::default(),
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),

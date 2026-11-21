@@ -47,6 +47,8 @@ import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $, $arrange } from './miniNotation';
 import { DELAY_SITE, SUPER_SITE } from './signalSiteTables';
+import { outputSetOf } from './outputResolution';
+import { superDefaults } from '../../shared/dsl/superDefaults';
 import { setActiveCycleFactory } from './patterns';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
@@ -600,9 +602,14 @@ export function executePatchScript(
 
     const $unison = userNamespaceTree['$unison'];
     const $stereoFold = userNamespaceTree['$stereoFold'];
-    if (typeof $unison !== 'function' || typeof $stereoFold !== 'function') {
+    const superDefault = superDefaults(schemas);
+    if (
+        typeof $unison !== 'function' ||
+        typeof $stereoFold !== 'function' ||
+        !superDefault
+    ) {
         throw new Error(
-            'DSL execution error: "$super" requires "$unison" and "$stereoFold"',
+            'DSL execution error: "$super" requires "$unison", "$stereoFold" and "$supersaw"',
         );
     }
 
@@ -633,7 +640,12 @@ export function executePatchScript(
                 "$super: the second argument builds one voice, e.g. $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))",
             );
         }
-        const { unison = 5, detune, width } = opts;
+        if (typeof opts !== 'object' || opts === null) {
+            throw new TypeError(
+                '$super: options must be an object, e.g. { unison: 7, detune: 0.3, width: 4 }',
+            );
+        }
+        const { unison = superDefault.unison, detune, width } = opts;
         const signals: Record<string, unknown> = { detune, freq, width };
         return builder.outputResolver.withCall(
             Object.entries(SUPER_SITE.inputs).map(([name, inputClass]) => [
@@ -642,11 +654,13 @@ export function executePatchScript(
                 inputClass,
             ]),
             () => {
-                const voices = $unison(freq, unison, detune) as Collection & {
-                    _phase: Collection;
-                };
+                const voices = $unison(freq, unison, detune) as Collection;
+                // Read past the root, so offering the phase does not count as
+                // taking the copies as their phase.
+                const phaseOffset = outputSetOf(voices)?.values
+                    .phase as Collection;
                 const voice = builder.outputResolver.withUserCode(() =>
-                    cb(voices, { phaseOffset: voices._phase }),
+                    cb(voices, { phaseOffset }),
                 );
                 return $stereoFold(voice, unison, width) as Collection;
             },
