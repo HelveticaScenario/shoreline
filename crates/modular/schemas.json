@@ -31312,15 +31312,15 @@
       "examples": [
         {
           "title": "Thick seven-voice saw",
-          "code": "melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"
+          "code": "melody: $saw($unison('c3', 7, 0.3)).lpf('c6', 1)"
         },
         {
           "title": "Copies that start apart",
-          "code": "const voices = $unison('c3', 7, 1)\nmelody: $saw(voices, { phaseOffset: voices._phase })"
+          "code": "const voices = $unison('c3', 7)\nmelody: $saw(voices, { phaseOffset: voices._phase })"
         },
         {
           "title": "Chord with breathing detune",
-          "code": "melody: $saw(\n  $unison($chord('C3[m9]'), 3, $sine('0.1hz').range(0, 4)),\n)"
+          "code": "melody: $saw(\n  $unison(\n    $chord('C3[m9]'),\n    3,\n    $sine('0.1hz').range(0, 0.5),\n  ),\n)"
         }
       ]
     },
@@ -31345,7 +31345,7 @@
           "default": 1
         },
         "spread": {
-          "description": "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
+          "description": "spread between the lowest and highest copy, in semitones",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -31356,10 +31356,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.18,
             "minValue": 0.0,
-            "maxValue": 10.0,
             "controlMin": 0.0,
-            "controlMax": 10.0
+            "controlMax": 12.0
           }
         }
       },
@@ -31463,12 +31463,12 @@
       },
       {
         "name": "spread",
-        "description": "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
+        "description": "spread between the lowest and highest copy, in semitones",
         "paramType": "control",
+        "defaultValue": 0.18,
         "minValue": 0.0,
-        "maxValue": 10.0,
         "controlMin": 0.0,
-        "controlMax": 10.0,
+        "controlMax": 12.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

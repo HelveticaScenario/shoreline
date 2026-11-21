@@ -17,7 +17,9 @@ use crate::{
             fade::{DEFAULT_FADE_IN_SECS, FadeIn},
             phase_delta, sanitize,
             unison_phase::{UnisonPhases, phase_glide_step, voice_phase},
-            unison_voices::{SlotOrder, centred_position, detune_position, unison_gain},
+            unison_voices::{
+                SlotOrder, centred_position, detune_octaves, spread_position, unison_gain,
+            },
             wrap_phase,
         },
     },
@@ -282,7 +284,7 @@ impl Supersaw {
         let fresh = state.phases.count() == 0;
         let changed = state.phases.set_count(voices);
         for (voice, position) in state.positions.iter_mut().enumerate().take(voices) {
-            *position = detune_position(voice, voices) - 0.5;
+            *position = spread_position(voice, voices);
         }
 
         let gain = 5.0 * unison_gain(voices);
@@ -452,7 +454,7 @@ impl SupersawState {
 /// lane at `base_freq` Hz with `detune` semitones of spread.
 #[inline(always)]
 fn voice_increment(position: f32, base_freq: f32, detune: f32, inv_sample_rate: f32) -> f32 {
-    let freq = base_freq * (2.0f32).powf(position * detune / 12.0);
+    let freq = base_freq * (2.0f32).powf(detune_octaves(position, detune));
     freq * inv_sample_rate
 }
 

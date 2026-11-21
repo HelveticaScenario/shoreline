@@ -85,6 +85,11 @@ export const API_CONTROLS: Record<
         '$phase.pwm': { width: { spec: closedControl(0, 5, 2.5) } },
         pipeMix: { mix: { spec: MIX_SPEC } },
         wet: { mix: { spec: MIX_SPEC } },
+        // `$super` passes these straight to `$unison` and `$stereoFold`.
+        $super: {
+            detune: { module: '$unison', param: 'spread' },
+            width: { module: '$stereoFold', param: 'width' },
+        },
     },
     video: {
         pipeMix: { mix: { spec: VIDEO_MIX_SPEC } },

@@ -26,6 +26,21 @@ pub fn detune_position(voice: usize, voices: usize) -> f32 {
     }
 }
 
+/// Voice `voice`'s place in the detune spread, from -0.5 for the flattest
+/// voice to 0.5 for the sharpest; a lone voice sits at 0.
+#[inline]
+pub fn spread_position(voice: usize, voices: usize) -> f32 {
+    detune_position(voice, voices) - 0.5
+}
+
+/// How far, in octaves, the voice at `position` in the detune spread sits
+/// from the note when the flattest and sharpest voices are `semitones`
+/// apart.
+#[inline(always)]
+pub fn detune_octaves(position: f32, semitones: f32) -> f32 {
+    position * semitones / 12.0
+}
+
 /// Which voice plays in each stereo slot.
 ///
 /// Slots and voices both pair up from the outside in: slot `k` with its

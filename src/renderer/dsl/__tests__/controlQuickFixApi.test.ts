@@ -67,6 +67,21 @@ describe('computeControlQuickFixes — API methods and functions', () => {
         );
     });
 
+    test("$super's options take the controls of the modules they feed", () => {
+        const voice = `(f) => $saw(f)`;
+        const { source, fixes } = fixesAt(`$super('c3', ${voice}|)`);
+        expect(apply(source, addFix(fixes, 'detune'))).toContain(
+            `detune: $slider('detune', 0.18, 0, 12)`,
+        );
+        expect(apply(source, addFix(fixes, 'width'))).toContain(
+            `width: $slider('width', 5, 0, 5)`,
+        );
+        const opts = fixesAt(`$super('c3', ${voice}, { unison: 7| })`);
+        const out = apply(opts.source, addFix(opts.fixes, 'detune'));
+        expect(out).toContain(`unison: 7`);
+        expect(out).toContain(`detune: $slider('detune', 0.18, 0, 12)`);
+    });
+
     test('a doc-stated range sets the slider range', () => {
         const { source, fixes } = fixesAt(`$phase.bend(1.|5)`);
         expect(apply(source, wrapFix(fixes))).toBe(
