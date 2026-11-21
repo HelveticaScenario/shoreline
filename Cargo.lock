@@ -1283,15 +1283,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
-name = "mi-plaits-dsp"
-version = "0.1.0"
-dependencies = [
- "dyn-clone",
- "num-traits",
- "spin",
-]
-
-[[package]]
 name = "midir"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1381,7 +1372,6 @@ dependencies = [
  "fasteval",
  "keyframe",
  "lazy_static",
- "mi-plaits-dsp",
  "modular_derive",
  "napi",
  "napi-derive",
@@ -2199,15 +2189,6 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
-
-[[package]]
-name = "spin"
-version = "0.12.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0134f9043ed38b087ac4f7d4af44c79e2c9e5094421fe3164f435ce585953b10"
-dependencies = [
- "lock_api",
-]
 
 [[package]]
 name = "strength_reduce"
