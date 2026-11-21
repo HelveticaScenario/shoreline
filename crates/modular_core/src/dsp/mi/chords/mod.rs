@@ -1,6 +1,5 @@
 mod wavetable;
 
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -10,6 +9,7 @@ use crate::{
     dsp::{
         mi::{
             core::{
+                blend::Blend,
                 chords::{ChordBank, Inversion, NUM_VOICES},
                 phase::{limit_frequency, max_frequency},
             },
@@ -368,7 +368,10 @@ impl MiChords {
             let aux = OUTPUT_GAIN * root;
             self.outputs.chord.set(lane, main);
             self.outputs.root.set(lane, aux);
-            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            let mix = (
+                p.mix.value_or(lane, MiChordsParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
             self.outputs
                 .blend
                 .set(lane, voice.blend.step(main, aux, mix, sample_rate));

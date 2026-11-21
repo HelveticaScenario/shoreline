@@ -1,7 +1,6 @@
 mod diffuser;
 mod particle;
 
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -10,6 +9,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             filter::{Svf, tan_dirty},
             limiter::{Limiter, LimiterRates},
             phase::limit_frequency,
@@ -418,7 +418,7 @@ impl MiParticles {
             self.outputs.sample.set(lane_index, main);
             self.outputs.raw.set(lane_index, aux);
             let mix = (
-                p.mix.value_or(lane_index, 0.0),
+                p.mix.value_or(lane_index, MiParticlesParams::MIX_DEFAULT),
                 p.mix.glide_mark(lane_index),
             );
             self.outputs

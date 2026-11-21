@@ -1,4 +1,3 @@
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -7,6 +6,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             downsampler::{Downsampler, OVERSAMPLING},
             ratio::{ratio_multiplier, ratio_semitones},
             sine::{phase_increment, sine_pm},
@@ -334,7 +334,10 @@ impl TwoOp {
             let aux = OUTPUT_GAIN * sub;
             self.outputs.sample.set(lane, main);
             self.outputs.sub_octave.set(lane, aux);
-            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            let mix = (
+                p.mix.value_or(lane, TwoOpParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
             self.outputs
                 .blend
                 .set(lane, voice.blend.step(main, aux, mix, sample_rate));

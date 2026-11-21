@@ -3,7 +3,6 @@
 
 mod speaker;
 
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -13,6 +12,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             limiter::{Limiter, LimiterRates},
             lpc::{CORRECTED_SAMPLE_RATE, SYNTHESIS_RATE},
             phase::limit_frequency,
@@ -359,17 +359,16 @@ impl Speak {
             };
             let (out, excitation) = lane.output(f0, knobs, trigger, rates);
             let out = lane.accent_state.apply(out, ACCENT_TRIM, rates.sample_rate);
-            let main = out;
-            let aux = excitation;
-            self.outputs.sample.set(lane_index, main);
-            self.outputs.excitation.set(lane_index, aux);
+            self.outputs.sample.set(lane_index, out);
+            self.outputs.excitation.set(lane_index, excitation);
             let mix = (
-                p.mix.value_or(lane_index, 0.0),
+                p.mix.value_or(lane_index, SpeakParams::MIX_DEFAULT),
                 p.mix.glide_mark(lane_index),
             );
-            self.outputs
-                .blend
-                .set(lane_index, lane.blend.step(main, aux, mix, sample_rate));
+            self.outputs.blend.set(
+                lane_index,
+                lane.blend.step(out, excitation, mix, sample_rate),
+            );
         }
     }
 }

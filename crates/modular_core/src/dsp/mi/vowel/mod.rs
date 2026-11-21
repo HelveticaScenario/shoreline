@@ -7,10 +7,10 @@ pub mod lpc;
 pub mod naive;
 pub mod sam;
 
-use crate::dsp::mi::core::blend::Blend;
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             filter::tan_dirty,
             limiter::{Limiter, LimiterRates},
             lpc::{CORRECTED_SAMPLE_RATE, SYNTHESIS_RATE},
@@ -231,7 +231,7 @@ macro_rules! update_lanes {
             module.outputs.sample.set(lane_index, out);
             module.outputs.excitation.set(lane_index, excitation);
             let mix = (
-                p.mix.value_or(lane_index, 0.0),
+                p.mix.value_or(lane_index, $params::MIX_DEFAULT),
                 p.mix.glide_mark(lane_index),
             );
             module.outputs.blend.set(

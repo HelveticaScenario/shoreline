@@ -1,4 +1,3 @@
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -7,6 +6,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             control::Ramp,
             dsp::soft_clip,
             filter::{Svf, tan_fast},
@@ -351,7 +351,10 @@ impl Vcf {
             let aux = OUTPUT_GAIN * hp;
             self.outputs.lowpass.set(lane, main);
             self.outputs.highpass.set(lane, aux);
-            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            let mix = (
+                p.mix.value_or(lane, VcfParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
             self.outputs
                 .blend
                 .set(lane, voice.blend.step(main, aux, mix, sample_rate));

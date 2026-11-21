@@ -1,6 +1,5 @@
 mod terrain;
 
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -8,7 +7,9 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        mi::core::{fast_sine::QuadratureOscillator, phase::limit_frequency, sine::sine},
+        mi::core::{
+            blend::Blend, fast_sine::QuadratureOscillator, phase::limit_frequency, sine::sine,
+        },
         oscillators::{FmMode, apply_fm},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -312,7 +313,10 @@ impl WaveTerrain {
             let aux = OUTPUT_GAIN * pm;
             self.outputs.sample.set(lane, main);
             self.outputs.pm.set(lane, aux);
-            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            let mix = (
+                p.mix.value_or(lane, WaveTerrainParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
             self.outputs
                 .blend
                 .set(lane, voice.blend.step(main, aux, mix, sample_rate));

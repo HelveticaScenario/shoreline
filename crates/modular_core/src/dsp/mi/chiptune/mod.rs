@@ -2,7 +2,6 @@ mod arpeggiator;
 mod nes_triangle;
 mod super_square;
 
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -13,6 +12,7 @@ use crate::{
         mi::{
             chords::CHORD_TABLE,
             core::{
+                blend::Blend,
                 chords::{ChordBank, Inversion, NUM_NOTES, NUM_VOICES, quantize},
                 phase::{limit_frequency, max_frequency},
                 random::Random,
@@ -471,7 +471,7 @@ impl MiChiptune {
             self.outputs.chord.set(lane_index, main);
             self.outputs.bass.set(lane_index, aux);
             let mix = (
-                p.mix.value_or(lane_index, 0.0),
+                p.mix.value_or(lane_index, MiChiptuneParams::MIX_DEFAULT),
                 p.mix.glide_mark(lane_index),
             );
             self.outputs

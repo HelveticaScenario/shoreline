@@ -1,6 +1,5 @@
 mod resonator;
 
-use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -10,6 +9,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             limiter::{Limiter, LimiterRates},
             phase::limit_frequency,
             random::Random,
@@ -420,14 +420,16 @@ impl Modal {
                 ACCENT_TRIM,
                 self.state.sample_rate,
             );
-            let main = out;
             let aux = (EXCITER_GAIN * exciter).clamp(-5.0, 5.0);
-            self.outputs.sample.set(lane, main);
+            self.outputs.sample.set(lane, out);
             self.outputs.exciter.set(lane, aux);
-            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            let mix = (
+                p.mix.value_or(lane, ModalParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
             self.outputs
                 .blend
-                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
+                .set(lane, voice.blend.step(out, aux, mix, sample_rate));
         }
     }
 }
