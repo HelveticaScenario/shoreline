@@ -52,8 +52,7 @@
         "prepublishOnly": "napi prepublish -t npm",
         "test": "vitest run",
         "preversion": "napi build --platform && git add .",
-        "version": "napi version",
-        "prepare": "husky"
+        "version": "napi version"
     },
     "devDependencies": {
         "@emnapi/core": "^1.5.0",
@@ -62,7 +61,6 @@
         "@taplo/cli": "^0.7.0",
         "@tybys/wasm-util": "^0.10.0",
         "chalk": "^5.6.2",
-        "husky": "^9.1.7",
         "lint-staged": "^16.1.6",
         "npm-run-all2": "^8.0.4",
         "oxlint": "^1.14.0",
