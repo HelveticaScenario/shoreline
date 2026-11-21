@@ -6,6 +6,7 @@ pub mod fade;
 pub mod halfband;
 pub mod one_pole;
 pub mod rng;
+pub mod unison_phase;
 pub mod unison_voices;
 
 use crate::dsp::consts::{LUT_PITCH_RATIO_HIGH, LUT_PITCH_RATIO_LOW};
@@ -83,6 +84,13 @@ pub fn sanitize(x: f32) -> f32 {
 #[inline]
 pub fn wrap_phase(phase: f32) -> f32 {
     sanitize(phase.rem_euclid(1.0))
+}
+
+/// How far phase `to` is from phase `from` going the short way around the
+/// cycle, in `[-0.5, 0.5)`.
+#[inline]
+pub fn phase_delta(from: f32, to: f32) -> f32 {
+    (to - from + 0.5).rem_euclid(1.0) - 0.5
 }
 
 /// [`wrap_phase`] for the f64 accumulators used by DPW-based oscillators.
