@@ -81,8 +81,6 @@ export const API_CONTROLS: Record<
             pan: { spec: closedControl(-5, 5, 0) },
             spread: { spec: { ...LEVEL, defaultValue: 0 } },
         },
-        // An even duty cycle leaves the phase unwarped.
-        '$phase.pwm': { width: { spec: closedControl(0, 5, 2.5) } },
         pipeMix: { mix: { spec: MIX_SPEC } },
         wet: { mix: { spec: MIX_SPEC } },
     },

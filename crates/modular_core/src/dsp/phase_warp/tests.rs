@@ -13,7 +13,7 @@ fn warp_with(
     state: &mut PhaseWarpState,
 ) -> f32 {
     let resolved = t.resolve(0, SAMPLE_RATE, glides);
-    t.evaluate(x, &resolved, freq_norm, state)
+    t.evaluate(x, &resolved, freq_norm, state).phase
 }
 
 /// Parse `json` the way the engine reads params.
@@ -49,19 +49,13 @@ fn identity_evaluates_as_passthrough() {
 
 #[test]
 fn mirror_evaluates_with_constant_signal() {
-    let t = PhaseWarp::Mirror {
-        amount: constant(0.0),
-    };
-    // amount=0 => identity.
-    for i in 0..=10 {
-        let x = i as f32 / 10.0;
-        assert!((ev(&t, x) - x).abs() < 1e-6);
-    }
-    // amount=5 (full) at midpoint => 1.0.
+    // A triangle peaking at its knee: 0.505 at full amount.
     let t = PhaseWarp::Mirror {
         amount: constant(5.0),
     };
-    assert!((ev(&t, 0.5) - 1.0).abs() < 1e-6);
+    assert!(ev(&t, 0.0).abs() < 1e-6);
+    assert!((ev(&t, 0.505) - 1.0).abs() < 1e-5);
+    assert!(ev(&t, 1.0).abs() < 1e-5);
 }
 
 #[test]
@@ -83,7 +77,7 @@ fn bend_evaluates_with_constant_signal() {
 
 #[test]
 fn sync_evaluates_with_constant_signal() {
-    // ratio=0 => 1x (identity on [0, 1)).
+    // ratio 0 runs at 1× (the identity on [0, 1)).
     let t = PhaseWarp::Sync {
         ratio: constant(0.0),
     };
@@ -95,20 +89,19 @@ fn sync_evaluates_with_constant_signal() {
 
 #[test]
 fn fold_evaluates_with_constant_signal() {
-    // amount=0 => identity.
+    // amount 0 folds twice: down from 1 to 0 and back, twice per cycle.
     let t = PhaseWarp::Fold {
         amount: constant(0.0),
     };
-    for i in 0..=10 {
-        let x = i as f32 / 10.0;
-        assert!((ev(&t, x) - x).abs() < 1e-6);
-    }
+    assert!((ev(&t, 0.0) - 1.0).abs() < 1e-6);
+    assert!(ev(&t, 0.25).abs() < 1e-6);
+    assert!((ev(&t, 0.5) - 1.0).abs() < 1e-6);
 }
 
 #[test]
 fn pwm_evaluates_with_constant_signal() {
     let t = PhaseWarp::Pwm {
-        width: constant(2.5),
+        width: constant(0.0),
     };
     assert!(ev(&t, 0.0).abs() < 1e-6);
     assert!((ev(&t, 1.0) - 1.0).abs() < 1e-6);
@@ -165,11 +158,10 @@ fn connect_resolves_polysignal_for_every_variant() {
     let patch = Patch::new();
 
     let mut mirror = PhaseWarp::Mirror {
-        amount: constant(1.25),
+        amount: constant(5.0),
     };
     mirror.connect(&patch);
-    // At x=0.5 the reflection is 1.0; a quarter mirror (1.25 of 5) gives 0.625.
-    assert!((ev(&mirror, 0.5) - 0.625).abs() < 1e-4);
+    assert!((ev(&mirror, 0.505) - 1.0).abs() < 1e-4);
 
     let mut bend = PhaseWarp::Bend {
         amount: constant(0.0),
@@ -187,10 +179,10 @@ fn connect_resolves_polysignal_for_every_variant() {
         amount: constant(0.0),
     };
     fold.connect(&patch);
-    assert!((ev(&fold, 0.5) - 0.5).abs() < 1e-6);
+    assert!(ev(&fold, 0.25).abs() < 1e-6);
 
     let mut pwm = PhaseWarp::Pwm {
-        width: constant(2.5),
+        width: constant(0.0),
     };
     pwm.connect(&patch);
     assert!((ev(&pwm, 0.5) - 0.5).abs() < 1e-6);
@@ -285,7 +277,7 @@ fn warp_deserr_rejects_unknown_type() {
 
 #[test]
 fn pipe_chains_evaluate_first_then_second() {
-    // A full mirror maps x=0.5 to 1.0; bend at 0 is the identity.
+    // A mirror peaks at its knee; bend at 0 is the identity.
     let t = PhaseWarp::Pipe {
         first: Box::new(PhaseWarp::Mirror {
             amount: constant(5.0),
@@ -294,8 +286,36 @@ fn pipe_chains_evaluate_first_then_second() {
             amount: constant(0.0),
         }),
     };
-    let out = ev(&t, 0.5);
+    let out = ev(&t, 0.505);
     assert!((out - 1.0).abs() < 1e-4, "expected ~1.0 got {out}");
+}
+
+#[test]
+fn pipe_multiplies_flip_signs() {
+    let flip = || {
+        Box::new(PhaseWarp::Flip {
+            amount: constant(2.5),
+        })
+    };
+    let t = PhaseWarp::Pipe {
+        first: flip(),
+        second: flip(),
+    };
+    let resolved = t.resolve(0, SAMPLE_RATE, &mut PhaseWarpGlides::default());
+    let warped = t.evaluate(0.3, &resolved, 0.0, &mut PhaseWarpState::default());
+    assert_eq!(
+        warped,
+        Warped {
+            phase: 0.3,
+            sign: 1.0
+        }
+    );
+    let single = PhaseWarp::Flip {
+        amount: constant(2.5),
+    };
+    let resolved = single.resolve(0, SAMPLE_RATE, &mut PhaseWarpGlides::default());
+    let warped = single.evaluate(0.3, &resolved, 0.0, &mut PhaseWarpState::default());
+    assert_eq!(warped.sign, -1.0);
 }
 
 #[test]
@@ -450,8 +470,28 @@ fn deserr_rejects_too_many_feedback_stages() {
 }
 
 #[test]
-fn deserr_parses_twists() {
-    for kind in ["pulsar", "crush", "feedback"] {
+fn deserr_parses_every_amount_stage() {
+    for kind in [
+        "asym",
+        "mirror",
+        "bend",
+        "quant",
+        "fold",
+        "orbit",
+        "spin",
+        "chaos",
+        "primes",
+        "binary",
+        "brownian",
+        "reciprocal",
+        "logistic",
+        "sigmoid",
+        "fractal",
+        "flip",
+        "pulsar",
+        "crush",
+        "feedback",
+    ] {
         let value: serde_json::Value =
             serde_json::from_str(&format!(r#"{{"type":"{kind}","amount":2}}"#)).unwrap();
         let warp = deserr::deserialize::<PhaseWarp, _, deserr::errors::JsonError>(value)
@@ -476,7 +516,7 @@ fn swapped(old: &PhaseWarp, mut new: PhaseWarp) -> (PhaseWarp, PhaseWarpGlides) 
 /// The value `new` reads on its first sample after replacing `old`.
 fn first_value_after_swap(old: &PhaseWarp, new: PhaseWarp) -> f32 {
     let (new, mut glides) = swapped(old, new);
-    new.resolve(0, SAMPLE_RATE, &mut glides).values[0]
+    new.resolve(0, SAMPLE_RATE, &mut glides).values[0].a
 }
 
 #[test]
@@ -490,16 +530,16 @@ fn an_edited_amount_glides_from_the_old_value() {
             amount: constant(5.0),
         },
     );
-    // Resolved values are shape parameters: a mirror knob of 5 is 1.
-    let first = new.resolve(0, SAMPLE_RATE, &mut glides).values[0];
-    assert!(first < 0.1, "expected to start near 0, got {first}");
+    // Resolved values are shape parameters: a mirror's turn, from 1 at 0 to 0.505 at 5.
+    let first = new.resolve(0, SAMPLE_RATE, &mut glides).values[0].a;
+    assert!(first > 0.99, "expected to start near 1, got {first}");
     let mut last = first;
     for _ in 0..(SAMPLE_RATE as usize) {
-        last = new.resolve(0, SAMPLE_RATE, &mut glides).values[0];
+        last = new.resolve(0, SAMPLE_RATE, &mut glides).values[0].a;
     }
     assert!(
-        (last - 1.0).abs() < 1e-3,
-        "expected to settle on 1, got {last}"
+        (last - 0.505).abs() < 1e-3,
+        "expected to settle on 0.505, got {last}"
     );
 }
 
@@ -536,11 +576,11 @@ fn nested_stages_glide_independently() {
     let (new, mut glides) = swapped(&pipe(0.0, 2.5), pipe(5.0, 2.5));
     let resolved = new.resolve(0, SAMPLE_RATE, &mut glides);
     assert!(
-        resolved.values[0] < 0.1,
+        resolved.values[0].a < 0.1,
         "edited stage glides: {}",
-        resolved.values[0]
+        resolved.values[0].a
     );
-    assert_eq!(resolved.values[1], 0.5, "unedited stage passes through");
+    assert_eq!(resolved.values[1].a, 5.0, "unedited stage passes through");
 }
 
 #[test]

@@ -331,14 +331,9 @@ type LaneSum<T extends Signal = Signal> = OrArray<T | Collection | CollectionWit
  * helper feeds this warp's output phase into that warp.
  */
 type PhaseWarpDescriptor =
-  | { readonly type: "mirror"; readonly amount: Signal }
-  | { readonly type: "bend"; readonly amount: Signal }
+  | { readonly type: "asym" | "mirror" | "bend" | "quant" | "fold" | "orbit" | "spin" | "chaos" | "primes" | "binary" | "brownian" | "reciprocal" | "logistic" | "sigmoid" | "fractal" | "flip" | "pulsar" | "crush" | "feedback"; readonly amount: Signal }
   | { readonly type: "sync"; readonly ratio: Signal }
-  | { readonly type: "fold"; readonly amount: Signal }
   | { readonly type: "pwm"; readonly width: Signal }
-  | { readonly type: "pulsar"; readonly amount: Signal }
-  | { readonly type: "crush"; readonly amount: Signal }
-  | { readonly type: "feedback"; readonly amount: Signal }
   | { readonly type: "identity" }
   | { readonly type: "pipe"; readonly first: PhaseWarp; readonly second: PhaseWarp };
 
@@ -1648,9 +1643,14 @@ function $cross(
  * Warps compose via the optional second argument. \`.pipe(fn)\` passes
  * the warp to \`fn\` and returns the result — same API as \`Collection.pipe\`.
  *
- * \`pulsar\`, \`crush\` and \`feedback\` are the 4ms Ensemble Oscillator's
- * twist modes. Every amount is a 0–5 knob (bend: -5..5). A warp can hold at
- * most 8 stages, 4 of them \`feedback\`.
+ * Most warps are the wavetable warp modes of Strudel
+ * (https://strudel.cc), by the Strudel contributors, with Strudel's 0–1
+ * warp amount spread over 0–5. \`bend\` is Shoreline's own, and \`pulsar\`,
+ * \`crush\` and \`feedback\` are the 4ms Ensemble Oscillator's twist modes.
+ * Every amount is a 0–5 knob, except the warps with a neutral middle:
+ * \`asym\`, \`bend\` and \`pwm\` span -5..5 around 0. \`quant\`, \`fold\`
+ * and \`logistic\` reshape the wave even at 0. A
+ * warp can hold at most 8 stages, 4 of them \`feedback\`.
  *
  * @example
  * // Compose two warps (mirror feeds into bend):
@@ -1664,16 +1664,46 @@ function $cross(
  * $phase.mirror(2.5).pipe(addBend)
  */
 declare const $phase: {
-    /** Reflect the phase around its midpoint by \`amount\` (0–5). */
+    /** Move the wave's midpoint along the cycle (-5..5): the start at -5, the end at 5, even at 0. */
+    asym(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Play the wave forward, then back (0–5): the plain wave at 0, turning halfway at 5. */
     mirror(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Bend the phase curve by \`amount\` (-5..5; 0 is linear, negative bends the other way). */
     bend(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /** Hard-sync: run the phase 1× to 16× faster, restarting each cycle (0–5). */
     sync(ratio: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
-    /** Fold the phase back on itself by \`amount\` (0–5). */
+    /** Step the phase for lo-fi stairs (0–5): 4096 steps per cycle at 0, down to 4 at 5. */
+    quant(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Fold the wave back and forth, 2 to 8 times per cycle (0–5). */
     fold(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
-    /** Pulse-width modulation warp with duty cycle \`width\` (0–5; 2.5 is even). */
+    /** Pulse-width warp: move the wave's midpoint along the cycle (-5..5; 0 is even). */
     pwm(width: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Wobble the phase with three sine ripples per cycle (0–5). */
+    orbit(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Wobble the phase with fine ripples that grow fewer and deeper as \`amount\` rises (0–5). */
+    spin(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Blend the phase toward a chaotic logistic-map curve (0–5). */
+    chaos(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Step the phase a prime number of times per cycle (0–5): 4099 at 0, down to 11 at 5. */
+    primes(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Read the cycle's steps in bit-reversed order, glitchy and scrambled (0–5): 12 bits at 0, down to 3 at 5. */
+    binary(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Jitter the phase with smooth noise that repeats every cycle (0–5). */
+    brownian(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Curve the phase so the wave rushes its start and eases into its end (0–5). */
+    reciprocal(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Run the phase through one to three rounds of the logistic map: harsh and chaotic (0–5). */
+    logistic(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Push the phase along an S-curve: the wave lingers at its ends and rushes its middle (0–5). */
+    sigmoid(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /** Wobble the phase with one sine ripple per cycle (0–5). */
+    fractal(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
+    /**
+     * Invert the wave for the first part of each cycle, the whole cycle at 5
+     * (0–5). \`$pWarp\` passes the phase through and gives the inversion as
+     * its \`_sign\` output.
+     */
+    flip(amount: Poly<Signal>, next?: PhaseWarp): PhaseWarp;
     /**
      * Pulsar: play each cycle up to 64× faster, then rest (0–5). Antialiased
      * when the reading module knows its pitch.

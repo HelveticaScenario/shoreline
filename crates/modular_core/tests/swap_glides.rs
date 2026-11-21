@@ -225,22 +225,27 @@ fn block_path_hands_an_edit_to_the_glide() {
     assert_eq!(prev, 4.0, "settles exactly on the new value");
 }
 
-/// A `$pWarp` reading phase 0.3 through a mirror of `amount`: its output is
-/// `0.3 · (1 + amount / 5)`, so it shows the amount the warp reads.
-fn mirrored(amount: f32) -> PatchGraph {
+/// A `$pWarp` reading phase 0.3 through a `fractal` warp of `amount`: its
+/// output is `0.3 + 0.1 · amount · sin(0.6π)`, so it shows the amount the warp reads.
+fn warped(amount: f32) -> PatchGraph {
     graph(vec![(
         "warp",
         "$pWarp",
-        json!({ "input": 0.3, "phase": { "type": "mirror", "amount": amount } }),
+        json!({ "input": 0.3, "phase": { "type": "fractal", "amount": amount } }),
     )])
+}
+
+/// What [`warped`] outputs once its amount has settled on `amount`.
+fn warped_output(amount: f32) -> f32 {
+    0.3 + 0.1 * amount * (0.6 * std::f32::consts::PI).sin()
 }
 
 #[test]
 fn edited_phase_warp_amount_glides() {
-    let patch = build(&mirrored(0.0));
+    let patch = build(&warped(0.0));
     patch.connect_all();
     step(&patch);
-    let patch = swap(&patch, &mirrored(5.0), &SameIds);
+    let patch = swap(&patch, &warped(5.0), &SameIds);
     let mut prev = 0.3;
     for frame in 0..4800 {
         step(&patch);
@@ -251,17 +256,17 @@ fn edited_phase_warp_amount_glides() {
         );
         prev = y;
     }
-    assert!((prev - 0.6).abs() < 1e-4);
+    assert!((prev - warped_output(5.0)).abs() < 1e-4);
 }
 
 #[test]
 fn unchanged_phase_warp_amount_does_not_glide() {
-    let patch = build(&mirrored(5.0));
+    let patch = build(&warped(5.0));
     patch.connect_all();
     step(&patch);
-    let patch = swap(&patch, &mirrored(5.0), &SameIds);
+    let patch = swap(&patch, &warped(5.0), &SameIds);
     step(&patch);
-    assert!((out(&patch, "warp") - 0.6).abs() < 1e-6);
+    assert!((out(&patch, "warp") - warped_output(5.0)).abs() < 1e-6);
 }
 
 #[test]

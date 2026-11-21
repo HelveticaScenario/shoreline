@@ -4,8 +4,10 @@
 //! module resolves them via `connect()`, then per sample on the audio thread reads them
 //! once per lane with [`PhaseWarp::resolve`] and warps each phase with
 //! [`PhaseWarp::evaluate`]. The DSL builds these with the `$phase.*` helpers.
+//! Most stages are Strudel's wavetable warp modes ([`strudel`]).
 
 pub mod shapes;
+pub mod strudel;
 
 use std::borrow::Cow;
 use std::result::Result as StdResult;
@@ -16,6 +18,7 @@ use serde::Serialize;
 
 use crate::poly::PolySignal;
 use crate::types::SwapGlide;
+use strudel::{Mode, Prepared};
 
 /// Most `feedback` stages one warp may contain; each needs its own slot in
 /// [`PhaseWarpState`].
@@ -39,31 +42,25 @@ pub struct PhaseWarpState {
 enum StageKind {
     #[default]
     Unused,
-    Mirror,
     Bend,
-    Sync,
-    Fold,
-    Pwm,
     Pulsar,
     Crush,
     Feedback,
+    Strudel(Mode),
 }
 
 impl StageKind {
-    /// The stage's shape parameter for a knob value. Every amount is a 0–5
+    /// The stage's shape constants for a knob value. Every amount is a 0–5
     /// knob (bend: -5..5).
     #[inline]
-    fn prepare(self, value: f32) -> f32 {
+    fn prepare(self, value: f32) -> Prepared {
         match self {
-            StageKind::Unused => value,
-            StageKind::Mirror
-            | StageKind::Bend
-            | StageKind::Sync
-            | StageKind::Fold
-            | StageKind::Pwm => value / 5.0,
-            StageKind::Pulsar => shapes::pulsar_amount(value),
-            StageKind::Crush => shapes::crush_amount(value),
-            StageKind::Feedback => shapes::feedback_amount(value),
+            StageKind::Unused => Prepared::one(value),
+            StageKind::Bend => Prepared::one(value / 5.0),
+            StageKind::Pulsar => Prepared::one(shapes::pulsar_amount(value)),
+            StageKind::Crush => Prepared::one(shapes::crush_amount(value)),
+            StageKind::Feedback => Prepared::one(shapes::feedback_amount(value)),
+            StageKind::Strudel(mode) => strudel::prepare(mode, value),
         }
     }
 }
@@ -77,32 +74,30 @@ pub struct PhaseWarpGlides {
     kinds: [StageKind; MAX_SIGNAL_STAGES],
 }
 
-/// Every stage's shape parameter for one lane and sample, read, glided and
+/// Every stage's shape constants for one lane and sample, read, glided and
 /// prepared by [`PhaseWarp::resolve`], in evaluation order.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ResolvedWarp {
-    values: [f32; MAX_SIGNAL_STAGES],
+    values: [Prepared; MAX_SIGNAL_STAGES],
+}
+
+/// A warped phase and the sign to read the wave at it with: -1 where a
+/// `flip` stage inverts the wave, otherwise 1.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Warped {
+    pub phase: f32,
+    pub sign: f32,
 }
 
 /// A parameterized phase warp, used by modules that read a phase (`$wavetable`,
-/// `$pWarp`, `$enosc`).
-///
-/// JSON shape (serialized/deserialized):
-/// ```json
-/// { "type": "identity" }
-/// { "type": "mirror",   "amount": <signal> }
-/// { "type": "bend",     "amount": <signal> }
-/// { "type": "sync",     "ratio":  <signal> }
-/// { "type": "fold",     "amount": <signal> }
-/// { "type": "pwm",      "width":  <signal> }
-/// { "type": "pulsar",   "amount": <signal> }
-/// { "type": "crush",    "amount": <signal> }
-/// { "type": "feedback", "amount": <signal> }
-/// { "type": "pipe",     "first":  <warp>, "second": <warp> }
-/// ```
+/// `$pWarp`, `$enosc`). Serialized as an object tagged by `type`, its one
+/// signal under the stage's field name; `pipe` holds `first` and `second` warps.
 #[derive(Clone, Debug, Connect)]
 pub enum PhaseWarp {
     Identity,
+    Asym {
+        amount: PolySignal,
+    },
     Mirror {
         amount: PolySignal,
     },
@@ -112,11 +107,47 @@ pub enum PhaseWarp {
     Sync {
         ratio: PolySignal,
     },
+    Quant {
+        amount: PolySignal,
+    },
     Fold {
         amount: PolySignal,
     },
     Pwm {
         width: PolySignal,
+    },
+    Orbit {
+        amount: PolySignal,
+    },
+    Spin {
+        amount: PolySignal,
+    },
+    Chaos {
+        amount: PolySignal,
+    },
+    Primes {
+        amount: PolySignal,
+    },
+    Binary {
+        amount: PolySignal,
+    },
+    Brownian {
+        amount: PolySignal,
+    },
+    Reciprocal {
+        amount: PolySignal,
+    },
+    Logistic {
+        amount: PolySignal,
+    },
+    Sigmoid {
+        amount: PolySignal,
+    },
+    Fractal {
+        amount: PolySignal,
+    },
+    Flip {
+        amount: PolySignal,
     },
     Pulsar {
         amount: PolySignal,
@@ -134,22 +165,110 @@ pub enum PhaseWarp {
     },
 }
 
-impl PhaseWarp {
-    /// The stage's kind and signal; `None` for `identity` and `pipe`.
-    fn stage(&self) -> Option<(StageKind, &PolySignal)> {
-        match self {
-            PhaseWarp::Identity | PhaseWarp::Pipe { .. } => None,
-            PhaseWarp::Mirror { amount } => Some((StageKind::Mirror, amount)),
-            PhaseWarp::Bend { amount } => Some((StageKind::Bend, amount)),
-            PhaseWarp::Sync { ratio } => Some((StageKind::Sync, ratio)),
-            PhaseWarp::Fold { amount } => Some((StageKind::Fold, amount)),
-            PhaseWarp::Pwm { width } => Some((StageKind::Pwm, width)),
-            PhaseWarp::Pulsar { amount } => Some((StageKind::Pulsar, amount)),
-            PhaseWarp::Crush { amount } => Some((StageKind::Crush, amount)),
-            PhaseWarp::Feedback { amount } => Some((StageKind::Feedback, amount)),
+/// Declares every stage of [`PhaseWarp`] once: its variant, its signal field,
+/// its JSON `type` and its kind. Generates the stage lookup, the serialized
+/// and schema forms and the deserializer's stage arms; their exhaustive
+/// matches keep them in step with the enum.
+macro_rules! phase_warp_stages {
+    ($($variant:ident { $field:ident } = $name:literal => $kind:expr,)*) => {
+        impl PhaseWarp {
+            /// The stage's kind and signal; `None` for `identity` and `pipe`.
+            fn stage(&self) -> Option<(StageKind, &PolySignal)> {
+                match self {
+                    PhaseWarp::Identity | PhaseWarp::Pipe { .. } => None,
+                    $(PhaseWarp::$variant { $field } => Some(($kind, $field)),)*
+                }
+            }
         }
-    }
 
+        #[derive(Serialize)]
+        #[serde(tag = "type", rename_all = "camelCase")]
+        enum PhaseWarpSerdeRef<'a> {
+            Identity,
+            $(#[serde(rename = $name)] $variant { $field: &'a PolySignal },)*
+            Pipe {
+                first: Box<PhaseWarpSerdeRef<'a>>,
+                second: Box<PhaseWarpSerdeRef<'a>>,
+            },
+        }
+
+        impl<'a> From<&'a PhaseWarp> for PhaseWarpSerdeRef<'a> {
+            fn from(t: &'a PhaseWarp) -> Self {
+                match t {
+                    PhaseWarp::Identity => PhaseWarpSerdeRef::Identity,
+                    $(PhaseWarp::$variant { $field } => PhaseWarpSerdeRef::$variant { $field },)*
+                    PhaseWarp::Pipe { first, second } => PhaseWarpSerdeRef::Pipe {
+                        first: Box::new(PhaseWarpSerdeRef::from(first.as_ref())),
+                        second: Box::new(PhaseWarpSerdeRef::from(second.as_ref())),
+                    },
+                }
+            }
+        }
+
+        /// The stage named `type_str`, reading its signal from `map`; `None`
+        /// when no stage has that name.
+        fn deserialize_stage<E: DeserializeError, V: IntoValue>(
+            type_str: &str,
+            map: &mut impl DeserrMap<Value = V>,
+            location: ValuePointerRef<'_>,
+        ) -> Option<StdResult<PhaseWarp, E>> {
+            match type_str {
+                $($name => Some(
+                    take_signal::<E, V>(map, stringify!($field), location)
+                        .map(|$field| PhaseWarp::$variant { $field }),
+                ),)*
+                _ => None,
+            }
+        }
+
+        impl JsonSchema for PhaseWarp {
+            fn schema_name() -> Cow<'static, str> {
+                Cow::Borrowed("PhaseWarp")
+            }
+
+            fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
+                #[derive(JsonSchema)]
+                #[serde(tag = "type", rename_all = "camelCase")]
+                #[allow(dead_code)]
+                enum PhaseWarpSchema {
+                    Identity,
+                    $(#[serde(rename = $name)] $variant { $field: PolySignal },)*
+                    Pipe {
+                        first: Box<PhaseWarp>,
+                        second: Box<PhaseWarp>,
+                    },
+                }
+                PhaseWarpSchema::json_schema(r#gen)
+            }
+        }
+    };
+}
+
+phase_warp_stages! {
+    Asym { amount } = "asym" => StageKind::Strudel(Mode::Asym),
+    Mirror { amount } = "mirror" => StageKind::Strudel(Mode::Mirror),
+    Bend { amount } = "bend" => StageKind::Bend,
+    Sync { ratio } = "sync" => StageKind::Strudel(Mode::Sync),
+    Quant { amount } = "quant" => StageKind::Strudel(Mode::Quant),
+    Fold { amount } = "fold" => StageKind::Strudel(Mode::Fold),
+    Pwm { width } = "pwm" => StageKind::Strudel(Mode::Pwm),
+    Orbit { amount } = "orbit" => StageKind::Strudel(Mode::Orbit),
+    Spin { amount } = "spin" => StageKind::Strudel(Mode::Spin),
+    Chaos { amount } = "chaos" => StageKind::Strudel(Mode::Chaos),
+    Primes { amount } = "primes" => StageKind::Strudel(Mode::Primes),
+    Binary { amount } = "binary" => StageKind::Strudel(Mode::Binary),
+    Brownian { amount } = "brownian" => StageKind::Strudel(Mode::Brownian),
+    Reciprocal { amount } = "reciprocal" => StageKind::Strudel(Mode::Reciprocal),
+    Logistic { amount } = "logistic" => StageKind::Strudel(Mode::Logistic),
+    Sigmoid { amount } = "sigmoid" => StageKind::Strudel(Mode::Sigmoid),
+    Fractal { amount } = "fractal" => StageKind::Strudel(Mode::Fractal),
+    Flip { amount } = "flip" => StageKind::Strudel(Mode::Flip),
+    Pulsar { amount } = "pulsar" => StageKind::Pulsar,
+    Crush { amount } = "crush" => StageKind::Crush,
+    Feedback { amount } = "feedback" => StageKind::Feedback,
+}
+
+impl PhaseWarp {
     /// Read every stage's signal for `lane`, gliding values whose source
     /// changed in the last patch swap. Call once per lane and sample, then
     /// [`evaluate`](Self::evaluate) each phase the lane warps.
@@ -224,7 +343,7 @@ impl PhaseWarp {
     /// Warp phase `x` with the stage values `resolved` for its lane.
     /// `freq_norm` is the oscillator frequency over the sample rate, used to
     /// antialias the pulsar and feedback stages; pass 0 when the pitch is
-    /// unknown.
+    /// unknown. Multiply the wave read at the warped phase by its `sign`.
     ///
     /// Allocation-free — called per sample on the audio thread.
     #[inline]
@@ -234,7 +353,7 @@ impl PhaseWarp {
         resolved: &ResolvedWarp,
         freq_norm: f32,
         state: &mut PhaseWarpState,
-    ) -> f32 {
+    ) -> Warped {
         let (mut value_slot, mut feedback_slot) = (0, 0);
         self.evaluate_from(
             x,
@@ -254,31 +373,46 @@ impl PhaseWarp {
         state: &mut PhaseWarpState,
         value_slot: &mut usize,
         feedback_slot: &mut usize,
-    ) -> f32 {
+    ) -> Warped {
         if let PhaseWarp::Pipe { first, second } = self {
-            let y = first.evaluate_from(x, resolved, freq_norm, state, value_slot, feedback_slot);
-            return second.evaluate_from(y, resolved, freq_norm, state, value_slot, feedback_slot);
+            let a = first.evaluate_from(x, resolved, freq_norm, state, value_slot, feedback_slot);
+            let b = second.evaluate_from(
+                a.phase,
+                resolved,
+                freq_norm,
+                state,
+                value_slot,
+                feedback_slot,
+            );
+            return Warped {
+                phase: b.phase,
+                sign: a.sign * b.sign,
+            };
         }
         let Some((kind, _)) = self.stage() else {
-            return x;
+            return Warped {
+                phase: x,
+                sign: 1.0,
+            };
         };
-        let v = resolved.values[*value_slot];
+        let p = &resolved.values[*value_slot];
         *value_slot += 1;
-        match kind {
+        let phase = match kind {
             StageKind::Unused => x,
-            StageKind::Mirror => shapes::mirror(x, v),
-            StageKind::Bend => shapes::bend(x, v),
-            StageKind::Sync => shapes::sync(x, v),
-            StageKind::Fold => shapes::fold(x, v),
-            StageKind::Pwm => shapes::pwm(x, v),
-            StageKind::Pulsar => shapes::pulsar(x, v, freq_norm),
-            StageKind::Crush => shapes::crush(x, v),
+            StageKind::Bend => shapes::bend(x, p.a),
+            StageKind::Pulsar => shapes::pulsar(x, p.a, freq_norm),
+            StageKind::Crush => shapes::crush(x, p.a),
             StageKind::Feedback => {
                 let lp = &mut state.feedback[*feedback_slot];
                 *feedback_slot += 1;
-                shapes::feedback(x, v, freq_norm, lp)
+                shapes::feedback(x, p.a, freq_norm, lp)
             }
-        }
+            StageKind::Strudel(mode) => {
+                let (phase, sign) = strudel::warp(mode, x, p);
+                return Warped { phase, sign };
+            }
+        };
+        Warped { phase, sign: 1.0 }
     }
 
     pub fn lanes(&self) -> usize {
@@ -304,62 +438,6 @@ impl PhaseWarp {
     }
 }
 
-// --- Serde Serialize (internally-tagged on "type") ---
-
-impl<'a> From<&'a PhaseWarp> for PhaseWarpSerdeRef<'a> {
-    fn from(t: &'a PhaseWarp) -> Self {
-        match t {
-            PhaseWarp::Identity => PhaseWarpSerdeRef::Identity,
-            PhaseWarp::Mirror { amount } => PhaseWarpSerdeRef::Mirror { amount },
-            PhaseWarp::Bend { amount } => PhaseWarpSerdeRef::Bend { amount },
-            PhaseWarp::Sync { ratio } => PhaseWarpSerdeRef::Sync { ratio },
-            PhaseWarp::Fold { amount } => PhaseWarpSerdeRef::Fold { amount },
-            PhaseWarp::Pwm { width } => PhaseWarpSerdeRef::Pwm { width },
-            PhaseWarp::Pulsar { amount } => PhaseWarpSerdeRef::Pulsar { amount },
-            PhaseWarp::Crush { amount } => PhaseWarpSerdeRef::Crush { amount },
-            PhaseWarp::Feedback { amount } => PhaseWarpSerdeRef::Feedback { amount },
-            PhaseWarp::Pipe { first, second } => PhaseWarpSerdeRef::Pipe {
-                first: Box::new(PhaseWarpSerdeRef::from(first.as_ref())),
-                second: Box::new(PhaseWarpSerdeRef::from(second.as_ref())),
-            },
-        }
-    }
-}
-
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
-enum PhaseWarpSerdeRef<'a> {
-    Identity,
-    Mirror {
-        amount: &'a PolySignal,
-    },
-    Bend {
-        amount: &'a PolySignal,
-    },
-    Sync {
-        ratio: &'a PolySignal,
-    },
-    Fold {
-        amount: &'a PolySignal,
-    },
-    Pwm {
-        width: &'a PolySignal,
-    },
-    Pulsar {
-        amount: &'a PolySignal,
-    },
-    Crush {
-        amount: &'a PolySignal,
-    },
-    Feedback {
-        amount: &'a PolySignal,
-    },
-    Pipe {
-        first: Box<PhaseWarpSerdeRef<'a>>,
-        second: Box<PhaseWarpSerdeRef<'a>>,
-    },
-}
-
 impl Serialize for PhaseWarp {
     fn serialize<S>(&self, serializer: S) -> StdResult<S::Ok, S::Error>
     where
@@ -369,7 +447,28 @@ impl Serialize for PhaseWarp {
     }
 }
 
-// --- deserr impl (mirrors the serde shape: object with "type" discriminant) ---
+fn take_field<E: DeserializeError, V: IntoValue>(
+    map: &mut impl DeserrMap<Value = V>,
+    field: &'static str,
+    location: ValuePointerRef<'_>,
+) -> StdResult<V, E> {
+    map.remove(field).ok_or_else(|| {
+        deserr::take_cf_content(E::error::<V>(
+            None,
+            ErrorKind::MissingField { field },
+            location,
+        ))
+    })
+}
+
+fn take_signal<E: DeserializeError, V: IntoValue>(
+    map: &mut impl DeserrMap<Value = V>,
+    field: &'static str,
+    location: ValuePointerRef<'_>,
+) -> StdResult<PolySignal, E> {
+    let raw = take_field::<E, V>(map, field, location)?;
+    <PolySignal as deserr::Deserr<E>>::deserialize_from_value(raw.into_value(), location)
+}
 
 impl<E: DeserializeError> deserr::Deserr<E> for PhaseWarp {
     fn deserialize_from_value<V: IntoValue>(
@@ -402,55 +501,8 @@ impl<E: DeserializeError> deserr::Deserr<E> for PhaseWarp {
             ))
         })?;
 
-        fn take_field<E2: DeserializeError, V2: IntoValue>(
-            map: &mut impl DeserrMap<Value = V2>,
-            field: &'static str,
-            location: ValuePointerRef<'_>,
-        ) -> StdResult<V2, E2> {
-            map.remove(field).ok_or_else(|| {
-                deserr::take_cf_content(E2::error::<V2>(
-                    None,
-                    ErrorKind::MissingField { field },
-                    location,
-                ))
-            })
-        }
-
-        fn take_signal<E2: DeserializeError, V2: IntoValue>(
-            map: &mut impl DeserrMap<Value = V2>,
-            field: &'static str,
-            location: ValuePointerRef<'_>,
-        ) -> StdResult<PolySignal, E2> {
-            let raw = take_field::<E2, V2>(map, field, location)?;
-            PolySignal::deserialize_from_value(raw.into_value(), location)
-        }
-
         match type_str.as_str() {
             "identity" => Ok(PhaseWarp::Identity),
-            "mirror" => Ok(PhaseWarp::Mirror {
-                amount: take_signal::<E, V>(&mut map, "amount", location)?,
-            }),
-            "bend" => Ok(PhaseWarp::Bend {
-                amount: take_signal::<E, V>(&mut map, "amount", location)?,
-            }),
-            "sync" => Ok(PhaseWarp::Sync {
-                ratio: take_signal::<E, V>(&mut map, "ratio", location)?,
-            }),
-            "fold" => Ok(PhaseWarp::Fold {
-                amount: take_signal::<E, V>(&mut map, "amount", location)?,
-            }),
-            "pwm" => Ok(PhaseWarp::Pwm {
-                width: take_signal::<E, V>(&mut map, "width", location)?,
-            }),
-            "pulsar" => Ok(PhaseWarp::Pulsar {
-                amount: take_signal::<E, V>(&mut map, "amount", location)?,
-            }),
-            "crush" => Ok(PhaseWarp::Crush {
-                amount: take_signal::<E, V>(&mut map, "amount", location)?,
-            }),
-            "feedback" => Ok(PhaseWarp::Feedback {
-                amount: take_signal::<E, V>(&mut map, "amount", location)?,
-            }),
             "pipe" => {
                 let first_raw = take_field::<E, V>(&mut map, "first", location)?;
                 let second_raw = take_field::<E, V>(&mut map, "second", location)?;
@@ -474,53 +526,9 @@ impl<E: DeserializeError> deserr::Deserr<E> for PhaseWarp {
                 }
                 Ok(pipe)
             }
-            other => Err(unexpected(format!("unknown phase warp type: {other}"))),
+            other => deserialize_stage::<E, V>(other, &mut map, location)
+                .unwrap_or_else(|| Err(unexpected(format!("unknown phase warp type: {other}")))),
         }
-    }
-}
-
-impl JsonSchema for PhaseWarp {
-    fn schema_name() -> Cow<'static, str> {
-        Cow::Borrowed("PhaseWarp")
-    }
-
-    fn json_schema(r#gen: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        // Schema matches the serialized form: internally-tagged on "type", camelCase.
-        #[derive(JsonSchema)]
-        #[serde(tag = "type", rename_all = "camelCase")]
-        #[allow(dead_code)]
-        enum PhaseWarpSchema {
-            Identity,
-            Mirror {
-                amount: PolySignal,
-            },
-            Bend {
-                amount: PolySignal,
-            },
-            Sync {
-                ratio: PolySignal,
-            },
-            Fold {
-                amount: PolySignal,
-            },
-            Pwm {
-                width: PolySignal,
-            },
-            Pulsar {
-                amount: PolySignal,
-            },
-            Crush {
-                amount: PolySignal,
-            },
-            Feedback {
-                amount: PolySignal,
-            },
-            Pipe {
-                first: Box<PhaseWarp>,
-                second: Box<PhaseWarp>,
-            },
-        }
-        PhaseWarpSchema::json_schema(r#gen)
     }
 }
 
