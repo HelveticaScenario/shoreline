@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `$supersaw`'s `sync` is now internal sync, set in octaves instead of a trigger: each saw runs that many octaves above its own detuned copy of the note and restarts with it, so every saw syncs the same way and the stack keeps its level. Sweep it for sync tearing. Move a sync trigger's pitch into the note:
+
+    ```js
+    // before: saws at c3, restarted by a c2 pulse
+    keys: $supersaw('c3', { sync: $pulse('c2') })
+    // after: each saw runs an octave above its restart pitch
+    keys: $supersaw('c2', { sync: 1 })
+    ```
+time: 2026-11-20T19:41:43.404658-05:00
