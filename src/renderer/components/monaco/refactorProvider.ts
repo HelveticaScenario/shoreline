@@ -10,6 +10,7 @@ import type { ResolvedPrettierOptions } from './formattingProvider';
 import type { DslTypeScriptWorkerApi } from './dslTsWorker';
 import { LOCAL_REFACTOR_KINDS } from './localRefactors';
 import type { LocalRefactor } from './localRefactors';
+import { isPatchPath } from '../../../shared/patchFiles';
 
 const RENAME_CMD = 'modular.renameAfterRefactor';
 
@@ -60,8 +61,7 @@ export function registerRefactorProvider(
     const provider: languages.CodeActionProvider = {
         async provideCodeActions(model, range, context, token) {
             const empty = { actions: [], dispose() {} };
-            const path = model.uri.path;
-            if (!path.endsWith('.js') && !path.endsWith('.mjs')) {
+            if (!isPatchPath(model.uri.path)) {
                 return empty;
             }
             if (context.only && !context.only.startsWith('refactor')) {
