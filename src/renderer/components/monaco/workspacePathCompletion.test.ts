@@ -15,7 +15,7 @@ import {
 } from '../../../shared/builtinAssets';
 
 const TREE: FileTreeEntry[] = [
-    { name: 'song.js', path: 'song.js', type: 'file', fileType: 'js' },
+    { name: 'song.js', path: 'song.js', type: 'file', fileType: 'patch' },
     {
         name: 'wavs',
         path: 'wavs',

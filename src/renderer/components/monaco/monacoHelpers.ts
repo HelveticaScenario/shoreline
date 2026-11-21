@@ -29,10 +29,10 @@ export function formatPath(currentFile: string) {
     if (!currentFile.startsWith('/')) {
         currentFile = '/' + currentFile;
     }
-    // Append .mjs so extensionless/untitled buffers are treated as ES modules
-    // by Monaco's TypeScript tooling. Real extensions are left intact — in
-    // particular .json keeps a JSON model URI (keybindings.json, config.json),
-    // rather than becoming a misleading .json.mjs.
+    // Append .mjs so untitled buffers and .sl patches are treated as ES
+    // modules by Monaco's TypeScript tooling, exactly as .mjs patches are.
+    // .js, .mjs and .json keep their own URI, so keybindings.json and
+    // config.json stay JSON models.
     if (
         !currentFile.endsWith('.js') &&
         !currentFile.endsWith('.mjs') &&

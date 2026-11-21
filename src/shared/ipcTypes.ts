@@ -263,7 +263,7 @@ export interface FileTreeEntry {
     name: string;
     path: string; // Relative to workspace root
     type: 'file' | 'directory';
-    fileType?: 'js' | AssetKind;
+    fileType?: 'patch' | AssetKind;
     children?: FileTreeEntry[];
 }
 

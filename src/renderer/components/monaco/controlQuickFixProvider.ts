@@ -13,6 +13,7 @@ import { computeControlQuickFixes } from '../../dsl/controlQuickFix';
 import { formatControlQuickFix } from '../../dsl/controlFixFormat';
 import { codeStyleFromPrettier } from '../../dsl/listEdits';
 import type { PrettierConfig } from '../../../shared/ipcTypes';
+import { isPatchPath } from '../../../shared/patchFiles';
 
 const CURSOR_CMD = 'modular.placeCursorAfterControl';
 
@@ -97,8 +98,7 @@ export function registerControlQuickFixProvider(
             const empty = { actions: [], dispose() {} };
             // Patch buffers only — keybindings/config are json models, and
             // the DSL lib extra model is a .d.ts.
-            const path = model.uri.path;
-            if (!path.endsWith('.js') && !path.endsWith('.mjs')) {
+            if (!isPatchPath(model.uri.path)) {
                 return empty;
             }
             const api = getApi();
