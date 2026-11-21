@@ -1,5 +1,6 @@
 mod resonator;
 
+use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -97,12 +98,28 @@ struct ModalParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `blend` from `body` into `exciter`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ModalOutputs {
-    #[output("body", "the ringing body; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
+    #[output(
+        "blend",
+        "`body` crossfaded into `exciter` by `mix`",
+        type = cv,
+        default,
+        range = (-10.0, 10.0),
+    )]
+    blend: PolyOutput,
+    #[output("body", "the ringing body; unaccented, within ±5 V", type = cv, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output(
         "exciter",
@@ -220,6 +237,7 @@ impl ExcitationFilter {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
+    blend: Blend,
     excitation: ExcitationFilter,
     resonator: Resonator,
     limiter: Limiter,
@@ -243,6 +261,7 @@ struct Voice {
 impl Voice {
     fn new(seed: u32) -> Self {
         Self {
+            blend: Blend::default(),
             seeded: false,
             excitation: ExcitationFilter::default(),
             resonator: Resonator::default(),
@@ -354,7 +373,7 @@ impl Modal {
         self.state = ModalState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         let sustain = p.trigger.is_none();
@@ -401,10 +420,14 @@ impl Modal {
                 ACCENT_TRIM,
                 self.state.sample_rate,
             );
-            self.outputs.sample.set(lane, out);
+            let main = out;
+            let aux = (EXCITER_GAIN * exciter).clamp(-5.0, 5.0);
+            self.outputs.sample.set(lane, main);
+            self.outputs.exciter.set(lane, aux);
+            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
             self.outputs
-                .exciter
-                .set(lane, (EXCITER_GAIN * exciter).clamp(-5.0, 5.0));
+                .blend
+                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

@@ -7,6 +7,7 @@ pub mod lpc;
 pub mod naive;
 pub mod sam;
 
+use crate::dsp::mi::core::blend::Blend;
 use crate::{
     dsp::{
         mi::core::{
@@ -113,6 +114,7 @@ fn knob(volts: f32) -> f32 {
 /// One lane of a vowel module: its synth, then Plaits' limiter.
 #[derive(Clone, Copy)]
 pub struct Lane<V> {
+    blend: Blend,
     voice: V,
     limiter: Limiter,
     trigger: SchmittTrigger,
@@ -135,6 +137,7 @@ impl<V: Voice> crate::types::SeedSide for Lane<V> {
 impl<V: Voice> Default for Lane<V> {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             voice: V::default(),
             limiter: Limiter::default(),
             trigger: SchmittTrigger::default(),
@@ -227,6 +230,14 @@ macro_rules! update_lanes {
             let (out, excitation) = lane.output(f0, knobs, trigger, rates);
             module.outputs.sample.set(lane_index, out);
             module.outputs.excitation.set(lane_index, excitation);
+            let mix = (
+                p.mix.value_or(lane_index, 0.0),
+                p.mix.glide_mark(lane_index),
+            );
+            module.outputs.blend.set(
+                lane_index,
+                lane.blend.step(out, excitation, mix, rates.sample_rate),
+            );
         }
     }};
 }

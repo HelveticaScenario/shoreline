@@ -1,3 +1,4 @@
+use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -61,12 +62,28 @@ struct TwoOpParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `blend` from `fm` into `subOctave`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct TwoOpOutputs {
-    #[output("fm", "the FM tone", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "blend",
+        "`fm` crossfaded into `subOctave` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output("fm", "the FM tone", type = cv, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "subOctave",
@@ -145,6 +162,7 @@ struct Controls {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
+    blend: Blend,
     carrier_phase: u32,
     modulator_phase: u32,
     sub_phase: u32,
@@ -174,6 +192,7 @@ struct Voice {
 impl Default for Voice {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             carrier_phase: 0,
             modulator_phase: 0,
             sub_phase: 0,
@@ -286,7 +305,7 @@ impl TwoOp {
         self.state = TwoOpState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -311,8 +330,14 @@ impl TwoOp {
             };
             let controls = voice.control(f0, knobs, &self.state);
             let (out, sub) = voice.step(controls, &self.state);
-            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
-            self.outputs.sub_octave.set(lane, OUTPUT_GAIN * sub);
+            let main = OUTPUT_GAIN * out;
+            let aux = OUTPUT_GAIN * sub;
+            self.outputs.sample.set(lane, main);
+            self.outputs.sub_octave.set(lane, aux);
+            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            self.outputs
+                .blend
+                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

@@ -1,3 +1,4 @@
+use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -76,12 +77,28 @@ struct WaveshaperParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `blend` from `shaped` into `overtones`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WaveshaperOutputs {
-    #[output("shaped", "the shaped and folded wave", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "blend",
+        "`shaped` crossfaded into `overtones` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output("shaped", "the shaped and folded wave", type = cv, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "overtones",
@@ -159,6 +176,7 @@ struct Controls {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
+    blend: Blend,
     slope: SlopeOscillator,
     triangle: SlopeOscillator,
     shape: SwapGlide,
@@ -171,6 +189,7 @@ struct Voice {
 impl Default for Voice {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             slope: SlopeOscillator::default(),
             triangle: SlopeOscillator::default(),
             shape: SwapGlide::default(),
@@ -282,7 +301,7 @@ impl Waveshaper {
         self.state = WaveshaperState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -308,8 +327,14 @@ impl Waveshaper {
             };
             let controls = voice.control(f0, knobs, &self.state);
             let (out, overtones) = voice.step(controls);
-            self.outputs.sample.set(lane, OUTPUT_GAIN * out);
-            self.outputs.overtones.set(lane, OVERTONES_GAIN * overtones);
+            let main = OUTPUT_GAIN * out;
+            let aux = OVERTONES_GAIN * overtones;
+            self.outputs.sample.set(lane, main);
+            self.outputs.overtones.set(lane, aux);
+            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            self.outputs
+                .blend
+                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

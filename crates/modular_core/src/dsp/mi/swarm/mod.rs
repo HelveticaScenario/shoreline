@@ -1,5 +1,6 @@
 mod voice;
 
+use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -84,12 +85,28 @@ struct SwarmParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `blend` from `saw` into `sine`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SwarmOutputs {
-    #[output("saw", "the swarm of saws", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "blend",
+        "`saw` crossfaded into `sine` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output("saw", "the swarm of saws", type = cv, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "sine",
@@ -157,6 +174,7 @@ impl SwarmState {
 /// One lane's swarm.
 #[derive(Clone, Copy, SeedSide)]
 struct Lane {
+    blend: Blend,
     voices: [SwarmVoice; VOICES],
     #[seed_side(keep)]
     random: Random,
@@ -179,6 +197,7 @@ struct Lane {
 impl Default for Lane {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             voices: [SwarmVoice::default(); VOICES],
             random: Random::new(0),
             seeded: false,
@@ -306,7 +325,7 @@ impl Swarm {
         self.state = SwarmState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         let burst_mode = p.trigger.is_some();
@@ -330,12 +349,17 @@ impl Swarm {
             lane.control(knobs, burst_mode, start_burst, &self.state);
             let (saws, sines) = lane.step(f0, &self.state);
             // Plaits clips after its slow limiter.
+            let main = (OUTPUT_GAIN * saws).clamp(-5.0, 5.0);
+            let aux = (SINE_GAIN * sines).clamp(-5.0, 5.0);
+            self.outputs.sample.set(lane_index, main);
+            self.outputs.sine.set(lane_index, aux);
+            let mix = (
+                p.mix.value_or(lane_index, 0.0),
+                p.mix.glide_mark(lane_index),
+            );
             self.outputs
-                .sample
-                .set(lane_index, (OUTPUT_GAIN * saws).clamp(-5.0, 5.0));
-            self.outputs
-                .sine
-                .set(lane_index, (SINE_GAIN * sines).clamp(-5.0, 5.0));
+                .blend
+                .set(lane_index, lane.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

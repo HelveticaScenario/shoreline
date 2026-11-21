@@ -211,12 +211,28 @@ struct SamVowelParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `blend` from `output` into `excitation`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SamVowelOutputs {
-    #[output("output", "the voice", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "blend",
+        "`output` crossfaded into `excitation` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output("output", "the voice", type = cv, range = (-5.0, 5.0))]
     sample: PolyOutput,
     #[output(
         "excitation",

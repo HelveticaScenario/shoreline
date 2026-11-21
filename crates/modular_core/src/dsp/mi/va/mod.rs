@@ -1,3 +1,4 @@
+use crate::dsp::mi::core::blend::Blend;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -61,16 +62,31 @@ struct VirtualAnalogParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `blend` from `dual` into `sync`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct VirtualAnalogOutputs {
     #[output(
+        "blend",
+        "`dual` crossfaded into `sync` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output(
         "dual",
         "a square and a saw, the saw tuned by `detune`",
         type = cv,
-        default,
         range = (-5.0, 5.0),
     )]
     dual: PolyOutput,
@@ -177,6 +193,7 @@ struct SquareCache {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
+    blend: Blend,
     primary: VariableShapeOscillator,
     auxiliary: VariableShapeOscillator,
     square: VariableShapeOscillator,
@@ -193,6 +210,7 @@ struct Voice {
 impl Default for Voice {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             primary: VariableShapeOscillator::default(),
             auxiliary: VariableShapeOscillator::with_master_phase(0.25),
             square: VariableShapeOscillator::default(),
@@ -315,7 +333,7 @@ impl VirtualAnalog {
         self.state = VirtualAnalogState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -339,8 +357,14 @@ impl VirtualAnalog {
                 ),
             };
             let (dual, sync) = voice.step(f0, knobs, &self.state);
-            self.outputs.dual.set(lane, OUTPUT_GAIN * dual);
-            self.outputs.sync.set(lane, OUTPUT_GAIN * sync);
+            let main = OUTPUT_GAIN * dual;
+            let aux = OUTPUT_GAIN * sync;
+            self.outputs.dual.set(lane, main);
+            self.outputs.sync.set(lane, aux);
+            let mix = (p.mix.value_or(lane, 0.0), p.mix.glide_mark(lane));
+            self.outputs
+                .blend
+                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

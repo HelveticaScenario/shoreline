@@ -311,3 +311,71 @@ fn resonator_outputs_stay_in_range() {
         }
     }
 }
+
+/// Each module with Plaits' main and aux outputs reads by default as `blend`:
+/// the two crossfaded by `mix`, exactly the main at 0 V and the aux at 5 V.
+#[test]
+fn blend_crossfades_main_into_aux() {
+    let pairs = [
+        ("$mi.va", "dual", "sync"),
+        ("$mi.vcf", "lowpass", "highpass"),
+        ("$mi.noise", "filtered", "bands"),
+        ("$mi.chords", "chord", "root"),
+        ("$mi.chiptune", "chord", "bass"),
+        ("$mi.twoOp", "fm", "subOctave"),
+        ("$mi.waveshaper", "shaped", "overtones"),
+        ("$mi.waveTerrain", "height", "pm"),
+        ("$mi.swarm", "saw", "sine"),
+        ("$mi.modal", "body", "exciter"),
+        ("$mi.string", "strings", "exciter"),
+        ("$mi.particles", "filtered", "raw"),
+        ("$mi.speak", "output", "excitation"),
+        ("$mi.formantVowel", "output", "excitation"),
+        ("$mi.samVowel", "output", "excitation"),
+        ("$mi.lpcVowel", "output", "excitation"),
+    ];
+    let freq = json!([-1.0, 0.0, 0.5, 1.0]);
+    for (module, main, aux) in pairs {
+        assert_eq!(default_port(module), "blend", "{module}");
+        for mix in [json!(0.0), json!(5.0), json!(2.5), poly_cable("lfo", LANES)] {
+            let mut params = json!({ "freq": freq, "mix": mix });
+            if matches!(module, "$mi.modal" | "$mi.string") {
+                params["brightness"] = json!(5.0);
+            }
+            if module == "$mi.particles" {
+                params["density"] = json!(5.0);
+            }
+            let patch = build(
+                ProcessingMode::Block,
+                ProcessingMode::Sample,
+                module,
+                params,
+            );
+            let (mut heard_main, mut heard_aux) = (false, false);
+            for _ in 0..40 {
+                render(&patch, &[BLOCK_SIZE]);
+                for index in 0..BLOCK_SIZE {
+                    for lane in 0..LANES {
+                        let read = |id: &str, port: &str| {
+                            patch.sampleables[id].get_value_at(port, lane, index)
+                        };
+                        let (m, a) = (read("dut", main), read("dut", aux));
+                        let volts = match mix.as_f64() {
+                            Some(volts) => volts as f32,
+                            None => read("lfo", "output"),
+                        };
+                        let t = volts.clamp(0.0, 5.0) * 0.2;
+                        assert_eq!(
+                            read("dut", "blend"),
+                            m * (1.0 - t) + a * t,
+                            "{module} mix {mix} lane {lane}"
+                        );
+                        heard_main |= m != 0.0;
+                        heard_aux |= a != 0.0;
+                    }
+                }
+            }
+            assert!(heard_main && heard_aux, "{module}: silent output");
+        }
+    }
+}
