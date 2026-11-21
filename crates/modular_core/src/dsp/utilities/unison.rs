@@ -1,6 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
+use crate::dsp::utils::unison_phase::{UnisonPhases, phase_glide_step};
+use crate::dsp::utils::unison_voices::{centred_position, unison_lane};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
@@ -38,12 +40,18 @@ fn unison_poly_lanes(input: &PolySignal, spread: &Option<PolySignal>) -> usize {
     input.lanes().max(spread.lane_count()).max(1)
 }
 
+impl UnisonParams {
+    /// The copy count, clamped to the lanes a port can hold.
+    fn copies(&self) -> usize {
+        self.count.clamp(1, PORT_MAX_LANES)
+    }
+}
+
 /// Custom lane count: max(input, spread) lanes * count, clamped to 64.
 #[allow(private_interfaces)]
 pub fn unison_derive_lane_count(params: &UnisonParams) -> usize {
     let poly_lanes = unison_poly_lanes(&params.input, &params.spread);
-    let count = params.count.clamp(1, PORT_MAX_LANES);
-    (poly_lanes * count).min(PORT_MAX_LANES)
+    (poly_lanes * params.copies()).min(PORT_MAX_LANES)
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -56,6 +64,13 @@ struct UnisonOutputs {
         default
     )]
     sample: PolyOutput,
+    #[output(
+        "phase",
+        "a starting phase per copy: feed it to an oscillator's phaseOffset so the copies never line up",
+        type = cv,
+        range = (0.0, 1.0)
+    )]
+    phase: PolyOutput,
 }
 
 const UNISON_DOCS: ModuleDocs = ModuleDocs {
@@ -71,6 +86,13 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
             code: r#"melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"#,
         },
         DocExample {
+            title: "Copies that start apart",
+            code: r#"
+                const voices = $unison('c3', 7, 1)
+                melody: $saw(voices, { phaseOffset: voices._phase })
+            "#,
+        },
+        DocExample {
             title: "Chord with breathing detune",
             code: r#"
                 melody: $saw(
@@ -81,15 +103,16 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread))]
+#[module(name = "$unison", docs = UNISON_DOCS, lanes_derive = unison_derive_lane_count, args(input, count, spread), patch_update)]
 pub struct Unison {
     outputs: UnisonOutputs,
     params: UnisonParams,
+    state: UnisonPhases,
 }
 
 impl Unison {
-    fn update(&mut self, _sample_rate: f32) {
-        let count = self.params.count.clamp(1, PORT_MAX_LANES);
+    fn update(&mut self, sample_rate: f32) {
+        let count = self.state.count();
         let input = &self.params.input;
         let spread = &self.params.spread;
 
@@ -98,6 +121,7 @@ impl Unison {
         let channels = self.channels();
         let poly_lanes = unison_poly_lanes(input, spread) / channels;
         let output_lanes = self.lane_count();
+        let phases = self.state.advance(phase_glide_step(sample_rate));
 
         for poly_ch in 0..poly_lanes {
             for side in 0..channels {
@@ -111,23 +135,26 @@ impl Unison {
                 let normalized = spread_v / 10.0;
                 let max_detune_voct = normalized * normalized;
 
-                for voice in 0..count {
-                    let out_ch = (voice * poly_lanes + poly_ch) * channels + side;
+                for (voice, &phase) in phases.iter().enumerate().take(count) {
+                    let out_ch = unison_lane(voice, poly_ch, poly_lanes) * channels + side;
                     if out_ch >= output_lanes {
                         break;
                     }
 
-                    let offset = if count > 1 {
-                        // Symmetric fan-out: -max_detune to +max_detune
-                        max_detune_voct * (2.0 * voice as f32 / (count - 1) as f32 - 1.0)
-                    } else {
-                        0.0
-                    };
+                    // Symmetric fan-out: -max_detune to +max_detune
+                    let offset = max_detune_voct * centred_position(voice, count);
 
                     self.outputs.sample.set(out_ch, input_val + offset);
+                    self.outputs.phase.set(out_ch, phase);
                 }
             }
         }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Unison {
+    fn on_patch_update(&mut self) {
+        self.state.set_count(self.params.copies());
     }
 }
 
@@ -136,20 +163,25 @@ message_handlers!(impl Unison {});
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dsp::utils::{phase_delta, unison_phase::voice_phase};
     use crate::types::{OutputStruct, Signal};
 
     /// Create a Unison with params and properly initialize _lane_count and output lanes.
     fn make_unison(params: UnisonParams) -> Unison {
+        use crate::types::PatchUpdateHandler;
         let lanes = unison_derive_lane_count(&params);
         let mut outputs = UnisonOutputs::default();
         outputs.set_all_lanes(lanes);
-        Unison {
+        let mut u = Unison {
             params,
             outputs,
+            state: UnisonPhases::default(),
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
-        }
+        };
+        u.on_patch_update();
+        u
     }
 
     #[test]
@@ -360,6 +392,92 @@ mod tests {
         let expected = [1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 1.0, 2.0, 3.0];
         for (lane, want) in expected.iter().enumerate() {
             assert_eq!(u.outputs.sample.get(lane), *want, "lane {lane}");
+        }
+    }
+
+    #[test]
+    fn test_phase_is_one_offset_per_copy() {
+        // 2-lane input, count=4: every input lane of a copy shares
+        // that copy's phase, and `phase` has the same lanes as `output`.
+        let mut u = make_unison(UnisonParams {
+            input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0)]),
+            count: 4,
+            spread: None,
+        });
+        u.update(48000.0);
+        assert_eq!(u.outputs.phase.lanes(), u.outputs.sample.lanes());
+        let expected = [0.0, 0.125, 0.5, 0.125];
+        for (voice, want) in expected.iter().enumerate() {
+            for lane in 0..2 {
+                assert_eq!(u.outputs.phase.get(voice * 2 + lane), *want);
+            }
+        }
+    }
+
+    #[test]
+    fn test_count_change_glides_phase_without_jumps() {
+        // A patch update from count 3 to 4 carries the phases over: copies
+        // that existed slide to their new phase no faster than the glide
+        // step, and the added copy starts on its target.
+        let sample_rate = 48000.0;
+        let max_step = phase_glide_step(sample_rate);
+        let params = |count| UnisonParams {
+            input: PolySignal::mono(Signal::Volts(0.0)),
+            count,
+            spread: None,
+        };
+        let mut old = make_unison(params(3));
+        old.update(sample_rate);
+        let mut new = make_unison(params(4));
+        std::mem::swap(&mut new.state, &mut old.state);
+        crate::types::PatchUpdateHandler::on_patch_update(&mut new);
+
+        let mut prev: Vec<f32> = (0..3).map(|v| voice_phase(v, 3)).collect();
+        new.update(sample_rate);
+        assert_eq!(new.outputs.phase.get(3), voice_phase(3, 4));
+        for _ in 0..sample_rate as usize {
+            for (voice, last) in prev.iter_mut().enumerate() {
+                let now = new.outputs.phase.get(voice);
+                let moved = phase_delta(*last, now);
+                assert!(
+                    moved.abs() <= max_step + 1e-6,
+                    "voice {voice} jumped {moved}"
+                );
+                *last = now;
+            }
+            new.update(sample_rate);
+        }
+        for voice in 0..4 {
+            assert_eq!(
+                new.outputs.phase.get(voice),
+                voice_phase(voice, 4),
+                "voice {voice}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_more_notes_keep_every_copys_phase() {
+        // A chord gaining a note shifts which lane holds which copy; every
+        // lane still reads its own copy's phase straight away.
+        let chord = |notes: usize| UnisonParams {
+            input: PolySignal::poly(&vec![Signal::Volts(0.0); notes]),
+            count: 4,
+            spread: None,
+        };
+        let mut old = make_unison(chord(3));
+        old.update(48000.0);
+        let mut new = make_unison(chord(4));
+        std::mem::swap(&mut new.state, &mut old.state);
+        crate::types::PatchUpdateHandler::on_patch_update(&mut new);
+        new.update(48000.0);
+        for voice in 0..4 {
+            for note in 0..4 {
+                assert_eq!(
+                    new.outputs.phase.get(voice * 4 + note),
+                    voice_phase(voice, 4)
+                );
+            }
         }
     }
 

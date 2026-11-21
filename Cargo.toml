@@ -5,6 +5,8 @@ members = [
     "crates/modular_derive",
     "crates/modular",
 ]
+# A dependency of modular_core only. Its own examples and tests pull in an
+# ALSA binding that conflicts with cpal's, so they run from its own directory.
 default-members = [
     "crates/modular_core",
     "crates/modular_derive",

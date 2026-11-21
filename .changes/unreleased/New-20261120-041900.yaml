@@ -1,0 +1,3 @@
+kind: New
+body: '`$unison` has a `phase` output: feed it to an oscillator''s `phaseOffset` and the copies never all line up, so the stack holds a steady level instead of swelling as they drift, e.g. `$saw(voices, { phaseOffset: voices._phase })`.'
+time: 2026-11-20T04:19:00.852514-05:00

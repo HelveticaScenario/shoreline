@@ -485,7 +485,8 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$curve" => json!({ "input": 0.0, "exp": 1.0 }),
         "$cycle" => json!({ "pattern": mini_payload("0") }),
         "$lpg" | "$slew" | "$hold" | "$motionFollower" | "$quantizer" | "$unison" | "$rising"
-        | "$falling" | "$setLanes" | "$mono" | "$left" | "$right" | "$mid" | "$side" | "$pan" => {
+        | "$falling" | "$setLanes" | "$mono" | "$left" | "$right" | "$mid" | "$side" | "$pan"
+        | "$stereoFold" => {
             json!({ "input": 0.0 })
         }
         "$stereo" => json!({ "left": 0.0, "right": 0.0 }),
