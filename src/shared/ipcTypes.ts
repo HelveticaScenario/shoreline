@@ -341,6 +341,17 @@ export interface ContextMenuAction {
     commandId?: string;
 }
 
+/** The banner shown when the output device changes, goes or comes back. */
+export interface OutputDeviceNotice {
+    message: string;
+    /** Stays up until dismissed or replaced by the next notice. */
+    persists: boolean;
+    /** The patch that was playing stopped. */
+    stopped: boolean;
+    /** The recording in progress ended. */
+    recordingStopped: boolean;
+}
+
 /**
  * IPC Channel names - centralized to avoid typos
  */
@@ -385,18 +396,11 @@ export const IPC_CHANNELS = {
     AUDIO_GET_DEVICE_CACHE: 'modular:audio:get-device-cache',
     AUDIO_GET_CURRENT_STATE: 'modular:audio:get-current-state',
     AUDIO_RECREATE_STREAMS: 'modular:audio:recreate-streams',
-    // Legacy (kept for backward compatibility)
-    AUDIO_REFRESH_DEVICE_LIST: 'modular:audio:refresh-device-list',
-    AUDIO_LIST_HOSTS: 'modular:audio:list-hosts',
-    AUDIO_LIST_OUTPUT_DEVICES: 'modular:audio:list-output-devices',
-    AUDIO_LIST_INPUT_DEVICES: 'modular:audio:list-input-devices',
-    AUDIO_GET_OUTPUT_DEVICE: 'modular:audio:get-output-device',
-    AUDIO_GET_INPUT_DEVICE: 'modular:audio:get-input-device',
-    AUDIO_SET_OUTPUT_DEVICE: 'modular:audio:set-output-device',
-    AUDIO_SET_INPUT_DEVICE: 'modular:audio:set-input-device',
     AUDIO_GET_INPUT_CHANNELS: 'modular:audio:get-input-channels',
     // Fallback warning notification
     AUDIO_FALLBACK_WARNING: 'modular:audio:fallback-warning',
+    // The output device changed, went away or came back
+    AUDIO_OUTPUT_NOTICE: 'modular:audio:output-notice',
 
     // MIDI device operations
     MIDI_LIST_INPUTS: 'modular:midi:list-inputs',
@@ -563,17 +567,9 @@ export interface IPCHandlers {
     [IPC_CHANNELS.AUDIO_GET_DEVICE_CACHE]: typeof Synthesizer.prototype.getDeviceCache;
     [IPC_CHANNELS.AUDIO_GET_CURRENT_STATE]: typeof Synthesizer.prototype.getCurrentAudioState;
     [IPC_CHANNELS.AUDIO_RECREATE_STREAMS]: typeof Synthesizer.prototype.recreateStreams;
-    // Legacy (kept for backward compatibility)
-    [IPC_CHANNELS.AUDIO_REFRESH_DEVICE_LIST]: typeof Synthesizer.prototype.refreshDeviceList;
-    [IPC_CHANNELS.AUDIO_LIST_HOSTS]: typeof Synthesizer.prototype.listAudioHosts;
-    [IPC_CHANNELS.AUDIO_LIST_OUTPUT_DEVICES]: typeof Synthesizer.prototype.listAudioOutputDevices;
-    [IPC_CHANNELS.AUDIO_LIST_INPUT_DEVICES]: typeof Synthesizer.prototype.listAudioInputDevices;
-    [IPC_CHANNELS.AUDIO_GET_OUTPUT_DEVICE]: typeof Synthesizer.prototype.getOutputDeviceId;
-    [IPC_CHANNELS.AUDIO_GET_INPUT_DEVICE]: typeof Synthesizer.prototype.getInputDeviceId;
-    [IPC_CHANNELS.AUDIO_SET_OUTPUT_DEVICE]: typeof Synthesizer.prototype.setAudioOutputDevice;
-    [IPC_CHANNELS.AUDIO_SET_INPUT_DEVICE]: typeof Synthesizer.prototype.setAudioInputDevice;
     [IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]: typeof Synthesizer.prototype.inputChannels;
     [IPC_CHANNELS.AUDIO_FALLBACK_WARNING]: (warning: string) => void;
+    [IPC_CHANNELS.AUDIO_OUTPUT_NOTICE]: (notice: OutputDeviceNotice) => void;
 
     // MIDI device operations
     [IPC_CHANNELS.MIDI_LIST_INPUTS]: typeof Synthesizer.prototype.listMidiInputs;

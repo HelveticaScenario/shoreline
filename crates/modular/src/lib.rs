@@ -6,6 +6,12 @@ mod commands;
 #[cfg(target_os = "macos")]
 mod coreaudio_devices;
 mod denormals;
+mod device_follow;
+#[cfg(all(test, target_os = "macos"))]
+mod device_loss_tests;
+#[cfg(all(test, target_os = "macos"))]
+mod pinned_output_tests;
+use device_follow::{DeviceFollowReport, MissingOutput};
 mod graph_analysis;
 mod link;
 mod media_audio;
@@ -13,6 +19,7 @@ mod midi;
 mod panic_log;
 mod params_cache;
 mod recording;
+mod stream_health;
 mod tap;
 mod validation;
 #[cfg(target_os = "windows")]
@@ -41,18 +48,20 @@ use napi::Result;
 use napi_derive::napi;
 
 use crate::audio::{
-    ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioDeviceInfo, AudioState,
-    AudioThreadEndpoints, CurrentAudioState, DeviceCacheSnapshot, HostDeviceInfo, HostInfo,
-    InputBufferWriter, PatchSubmission, TransportSnapshot, create_audio_channels,
-    create_input_ring_buffer, find_input_device_in_host, find_output_device_in_host,
-    get_host_by_preference, make_input_stream, make_stream, preferred_default_sample_rate,
+    ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioState, CurrentAudioState,
+    DeviceCacheSnapshot, Engine, EngineSlot, HostDeviceInfo, InputBufferWriter, PatchSubmission,
+    TransportSnapshot, create_audio_channels, create_input_ring_buffer, find_input_device_in_host,
+    find_output_device_in_host, get_host_by_preference, make_input_stream, make_stream,
+    preferred_default_sample_rate,
 };
 use crate::commands::{GraphCommand, QueuedTrigger, TransportMeta};
 use crate::midi::MidiInputManager;
+use crate::stream_health::{StreamHealth, StreamWatchdog};
+use parking_lot::Mutex;
 
 use modular_core::dsp::utilities::video_tap;
 use std::path::{Path, PathBuf};
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -694,6 +703,7 @@ pub struct ModuleProfileSample {
 #[derive(Debug, Clone, Default)]
 pub struct AudioConfigOptions {
     pub host_id: Option<String>,
+    /// `None` follows the host's system default output.
     pub output_device_id: Option<String>,
     pub input_device_id: Option<String>,
     pub sample_rate: Option<u32>,
@@ -703,8 +713,18 @@ pub struct AudioConfigOptions {
 #[napi(js_name = "Synthesizer")]
 pub struct Synthesizer {
     state: Arc<AudioState>,
+    /// Where the output stream's callback finds the engine, and where the
+    /// engine goes back when that stream is dropped.
+    engine_slot: EngineSlot,
     _output_stream: cpal::Stream,
     _input_stream: Option<cpal::Stream>,
+    stream_health: Arc<StreamHealth>,
+    input_health: Arc<StreamHealth>,
+    stream_watchdog: StreamWatchdog,
+    /// The slot of a dropped output stream whose callback outlived the drop
+    /// (cpal's CoreAudio notification thread can hold it a moment longer).
+    /// Its engine is moved to `engine_slot` once the callback lets it go.
+    returning_engine: Option<EngineSlot>,
     midi_manager: Arc<MidiInputManager>,
     sample_rate: f32,
     buffer_size: Option<u32>,
@@ -713,7 +733,20 @@ pub struct Synthesizer {
     is_recording: bool,
     host_id: String,
     output_device_id: Option<String>,
+    follows_system_default_output: bool,
     input_device_id: Option<String>,
+    /// The system default output last moved to, so a default that cannot be
+    /// opened is not retried until it changes again.
+    seen_default_output: Option<String>,
+    /// The chosen output, while it is not connected. Until it is, the output
+    /// plays on the system default and follows it; once it is listed the
+    /// streams move to it.
+    missing_output: Option<MissingOutput>,
+    /// The settings last asked for, which following the system default
+    /// output returns to whenever the new device allows them.
+    preferred_sample_rate: u32,
+    preferred_buffer_size: Option<u32>,
+    preferred_input_device_id: Option<String>,
     device_cache: AudioDeviceCache,
     fallback_warning: Option<String>,
     next_update_id: u64,
@@ -724,14 +757,7 @@ pub struct Synthesizer {
 fn resolve_devices(
     config: &AudioConfigOptions,
     fallback_warning: &mut Option<String>,
-) -> (
-    cpal::Host,
-    String,
-    cpal::Device,
-    String,
-    Option<cpal::Device>,
-    Option<String>,
-) {
+) -> Result<ResolvedDevices> {
     // Try to get requested host, fall back to preference
     let (host, host_id) = if let Some(ref requested_host_id) = config.host_id {
         // Try to parse host ID
@@ -764,65 +790,31 @@ fn resolve_devices(
         (host, id)
     };
 
-    // Try to get requested output device, fall back to default
-    let (output_device, output_device_id) =
-        if let Some(ref requested_device_id) = config.output_device_id {
-            match find_output_device_in_host(&host, requested_device_id) {
-                Some(device) => {
-                    let id = device
-                        .id()
-                        .ok()
-                        .map(|id| id.to_string())
-                        .unwrap_or_else(|| requested_device_id.clone());
-                    (device, id)
-                }
-                None => {
-                    *fallback_warning = Some(format!(
-                        "{}Output device '{}' not found, using default. ",
-                        fallback_warning.clone().unwrap_or_default(),
-                        requested_device_id
-                    ));
-                    let device = host
-                        .default_output_device()
-                        .expect("No default output device available");
-                    let id = device
-                        .id()
-                        .ok()
-                        .map(|id| id.to_string())
-                        .unwrap_or_default();
-                    (device, id)
-                }
-            }
-        } else {
-            let device = host
-                .default_output_device()
-                .expect("No default output device available");
-            let id = device
-                .id()
-                .ok()
-                .map(|id| id.to_string())
-                .unwrap_or_default();
-            (device, id)
-        };
+    // The requested output, or the system default while it is not connected.
+    let requested_output = config
+        .output_device_id
+        .as_ref()
+        .and_then(|id| find_output_device_in_host(&host, id));
+    if requested_output.is_none()
+        && let Some(requested_device_id) = &config.output_device_id
+    {
+        *fallback_warning = Some(format!(
+            "{}Output device '{}' is not connected, so the sound plays on the system default until it is. ",
+            fallback_warning.clone().unwrap_or_default(),
+            requested_device_id
+        ));
+    }
+    let output_device = requested_output
+        .or_else(|| pinned_default_output(&host))
+        .ok_or_else(|| napi::Error::from_reason("No output device is available"))?;
+    let output_device_id = output_device
+        .id()
+        .map(|id| id.to_string())
+        .map_err(|err| napi::Error::from_reason(format!("The output device has no id: {err}")))?;
 
     // Try to get requested input device (None is valid = no input)
-    let (input_device, input_device_id) = match &config.input_device_id {
-        None => {
-            // No input requested, try default
-            match host.default_input_device() {
-                Some(device) => {
-                    let id = device.id().ok().map(|id| id.to_string());
-                    (Some(device), id)
-                }
-                None => (None, None),
-            }
-        }
-        Some(requested_device_id)
-            if requested_device_id == "none" || requested_device_id.is_empty() =>
-        {
-            // Explicitly no input
-            (None, None)
-        }
+    let (input_device, input_device_id) = match &chosen_input(config.input_device_id.clone()) {
+        None => (None, None),
         Some(requested_device_id) => match find_input_device_in_host(&host, requested_device_id) {
             Some(device) => {
                 let id = device.id().ok().map(|id| id.to_string());
@@ -845,14 +837,48 @@ fn resolve_devices(
         },
     };
 
-    (
-        host,
+    Ok(ResolvedDevices {
         host_id,
         output_device,
         output_device_id,
         input_device,
         input_device_id,
-    )
+    })
+}
+
+/// The devices a new synthesizer opens.
+struct ResolvedDevices {
+    host_id: String,
+    output_device: cpal::Device,
+    output_device_id: String,
+    input_device: Option<cpal::Device>,
+    input_device_id: Option<String>,
+}
+
+/// The input device an id asks for: `None` for no input, which the renderer
+/// sends as `"none"` or an empty id.
+fn chosen_input(input_device_id: Option<String>) -> Option<String> {
+    input_device_id.filter(|id| !id.is_empty() && id != "none")
+}
+
+fn host_for_id(host_id: &str) -> Option<cpal::Host> {
+    parse_host_id(host_id).and_then(|id| cpal::host_from_id(id).ok())
+}
+
+/// The system default output as a device of its own. A stream built from
+/// `host.default_output_device()` reroutes itself when the default changes,
+/// behind the engine's back, so that one is opened only when the default is
+/// not listed; the device opened here stays put, and `device_follow` moves
+/// the streams to a new default.
+fn pinned_default_output(host: &cpal::Host) -> Option<cpal::Device> {
+    system_default_output_id(host)
+        .and_then(|id| find_output_device_in_host(host, &id))
+        .or_else(|| host.default_output_device())
+}
+
+fn system_default_output_id(host: &cpal::Host) -> Option<String> {
+    let device = host.default_output_device()?;
+    device.id().ok().map(|id| id.to_string())
 }
 
 /// Parse a host ID string to cpal::HostId
@@ -877,14 +903,13 @@ fn build_output_stream(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     sample_format: cpal::SampleFormat,
-    endpoints: AudioThreadEndpoints,
-    block_size: usize,
+    endpoints: audio::AudioThreadEndpoints,
 ) -> Result<cpal::Stream> {
     match sample_format {
-        cpal::SampleFormat::I8 => make_stream::<i8>(device, config, endpoints, block_size),
-        cpal::SampleFormat::I16 => make_stream::<i16>(device, config, endpoints, block_size),
-        cpal::SampleFormat::I32 => make_stream::<i32>(device, config, endpoints, block_size),
-        cpal::SampleFormat::F32 => make_stream::<f32>(device, config, endpoints, block_size),
+        cpal::SampleFormat::I8 => make_stream::<i8>(device, config, endpoints),
+        cpal::SampleFormat::I16 => make_stream::<i16>(device, config, endpoints),
+        cpal::SampleFormat::I32 => make_stream::<i32>(device, config, endpoints),
+        cpal::SampleFormat::F32 => make_stream::<f32>(device, config, endpoints),
         _ => Err(napi::Error::from_reason(format!(
             "Unsupported output sample format: {:?}",
             sample_format
@@ -898,12 +923,13 @@ fn build_input_stream(
     config: &cpal::StreamConfig,
     sample_format: cpal::SampleFormat,
     input_writer: InputBufferWriter,
+    health: Arc<StreamHealth>,
 ) -> Result<cpal::Stream> {
     match sample_format {
-        cpal::SampleFormat::I8 => make_input_stream::<i8>(device, config, input_writer),
-        cpal::SampleFormat::I16 => make_input_stream::<i16>(device, config, input_writer),
-        cpal::SampleFormat::I32 => make_input_stream::<i32>(device, config, input_writer),
-        cpal::SampleFormat::F32 => make_input_stream::<f32>(device, config, input_writer),
+        cpal::SampleFormat::I8 => make_input_stream::<i8>(device, config, input_writer, health),
+        cpal::SampleFormat::I16 => make_input_stream::<i16>(device, config, input_writer, health),
+        cpal::SampleFormat::I32 => make_input_stream::<i32>(device, config, input_writer, health),
+        cpal::SampleFormat::F32 => make_input_stream::<f32>(device, config, input_writer, health),
         _ => Err(napi::Error::from_reason(format!(
             "Unsupported input sample format: {:?}",
             sample_format
@@ -911,11 +937,21 @@ fn build_input_stream(
     }
 }
 
+/// What replacing the streams did to the engine.
+#[napi(object)]
+pub struct StreamsChange {
+    /// A fresh engine, stopped and empty, replaced the one holding the patch.
+    pub engine_reset: bool,
+    /// The file of a recording that ended with the old engine.
+    pub recording_path: Option<String>,
+}
+
 /// Result of setting up audio streams
 struct StreamSetupResult {
     output_stream: cpal::Stream,
     input_stream: Option<cpal::Stream>,
-    state: Arc<AudioState>,
+    health: Arc<StreamHealth>,
+    input_health: Arc<StreamHealth>,
     sample_rate: f32,
     channels: u16,
     input_channels: u16,
@@ -930,8 +966,6 @@ struct StreamSetupParams<'a> {
     buffer_size: Option<u32>,
     /// Input device with its config, or None for no input
     input: Option<(&'a cpal::Device, cpal::SupportedStreamConfig, String)>,
-    /// MIDI input manager (shared with audio thread)
-    midi_manager: Arc<MidiInputManager>,
 }
 
 /// Fewest frames per internal block: below this, each module's per-block work
@@ -941,6 +975,10 @@ const MIN_BLOCK_SIZE: usize = 64;
 const MAX_BLOCK_SIZE: usize = 1024;
 /// Frames per internal block when the host picks the device buffer size.
 const DEFAULT_BLOCK_SIZE: usize = 256;
+
+/// How long a stream change waits for a dropped output stream to return its
+/// engine before leaving the engine to be adopted on the next poll.
+const ENGINE_RETURN_WAIT: Duration = Duration::from_millis(250);
 
 /// The audio callback renders in internal blocks of this many frames: one per
 /// callback when it matches the device buffer (`buffer_size` frames, None for
@@ -953,12 +991,46 @@ fn block_size_for(buffer_size: Option<u32>) -> usize {
         .clamp(MIN_BLOCK_SIZE, MAX_BLOCK_SIZE)
 }
 
-/// Set up output and input streams with the given parameters.
-/// This is the shared core logic between `new` and `recreate_streams`.
-fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
+/// A new engine at `sample_rate`, waiting in its slot for a stream, and the
+/// state the main thread drives it through.
+fn new_engine(
+    sample_rate: u32,
+    buffer_size: Option<u32>,
+    channels: u16,
+    midi_manager: Arc<MidiInputManager>,
+) -> (Arc<AudioState>, EngineSlot) {
+    let (command_tx, command_rx, error_tx, error_rx, garbage_tx, garbage_rx) =
+        create_audio_channels();
+    let block_size = block_size_for(buffer_size);
+    let state = Arc::new(AudioState::new_with_channels(
+        command_tx,
+        error_rx,
+        garbage_rx,
+        sample_rate as f32,
+        channels,
+        midi_manager,
+        block_size,
+    ));
+    let engine = Engine::new(
+        command_rx,
+        error_tx,
+        garbage_tx,
+        state.get_shared_state(),
+        sample_rate as f32,
+        block_size,
+    );
+    (state, Arc::new(Mutex::new(Some(Box::new(engine)))))
+}
+
+/// Open and start output and input streams that play the engine `state`
+/// drives, which the output callback takes from `engine` once it is there.
+fn setup_streams(
+    params: StreamSetupParams,
+    state: &AudioState,
+    engine: EngineSlot,
+) -> Result<StreamSetupResult> {
     let channels = params.output_config.channels();
 
-    // Build stream config
     let stream_buffer_size = params
         .buffer_size
         .map(cpal::BufferSize::Fixed)
@@ -970,25 +1042,6 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
         buffer_size: stream_buffer_size,
     };
 
-    // Create command, error, and garbage queues for audio thread communication
-    let (command_tx, command_rx, error_tx, error_rx, garbage_tx, garbage_rx) =
-        create_audio_channels();
-
-    let block_size = block_size_for(params.buffer_size);
-
-    let state = Arc::new(AudioState::new_with_channels(
-        command_tx,
-        error_rx,
-        garbage_rx,
-        params.sample_rate as f32,
-        channels,
-        params.midi_manager.clone(),
-        block_size,
-    ));
-
-    // Get shared state for audio processor
-    let shared = state.get_shared_state();
-
     // Get input channel count before creating ring buffer
     let input_channels = params
         .input
@@ -998,20 +1051,15 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
 
     // Create ring buffer
     let (input_writer, input_reader) = create_input_ring_buffer(input_channels);
+    let health = Arc::new(StreamHealth::default());
+    let input_health = Arc::new(StreamHealth::default());
 
     // Create and start output stream
     let output_stream = build_output_stream(
         params.output_device,
         &stream_config,
         params.output_config.sample_format(),
-        AudioThreadEndpoints {
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-        },
-        block_size,
+        state.stream_endpoints(engine, input_reader, health.clone()),
     )?;
 
     output_stream
@@ -1032,6 +1080,7 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
                 &input_stream_config,
                 input_config.sample_format(),
                 input_writer,
+                input_health.clone(),
             ) {
                 Ok(stream) => match stream.play() {
                     Ok(()) => {
@@ -1058,7 +1107,8 @@ fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
     Ok(StreamSetupResult {
         output_stream,
         input_stream,
-        state,
+        health,
+        input_health,
         sample_rate: params.sample_rate as f32,
         channels,
         input_channels: final_input_channels,
@@ -1083,8 +1133,19 @@ impl Synthesizer {
         let mut fallback_warning: Option<String> = None;
 
         // Try to use requested config, fall back to defaults if invalid
-        let (_host, host_id, output_device, output_device_id, input_device, input_device_id) =
-            resolve_devices(&config, &mut fallback_warning);
+        let ResolvedDevices {
+            host_id,
+            output_device,
+            output_device_id,
+            input_device,
+            input_device_id,
+        } = resolve_devices(&config, &mut fallback_warning)?;
+        let follows_system_default_output = config.output_device_id.is_none();
+        let missing_output = config
+            .output_device_id
+            .clone()
+            .filter(|requested| *requested != output_device_id)
+            .map(MissingOutput::new);
 
         // Get output config
         let output_config = output_device.default_output_config().map_err(|err| {
@@ -1155,22 +1216,43 @@ impl Synthesizer {
         // Create MIDI manager first so it can be shared with audio thread
         let midi_manager = Arc::new(MidiInputManager::new());
 
-        // Set up streams using shared helper
-        let setup_result = setup_streams(StreamSetupParams {
-            output_device: &output_device,
-            output_config: &output_config,
+        let (state, engine_slot) = new_engine(
             sample_rate,
-            buffer_size: config.buffer_size,
-            input: input_setup,
-            midi_manager: midi_manager.clone(),
-        })?;
+            config.buffer_size,
+            output_config.channels(),
+            midi_manager.clone(),
+        );
+        let setup_result = setup_streams(
+            StreamSetupParams {
+                output_device: &output_device,
+                output_config: &output_config,
+                sample_rate,
+                buffer_size: config.buffer_size,
+                input: input_setup,
+            },
+            &state,
+            engine_slot.clone(),
+        )?;
 
         println!("Audio output stream started.");
 
+        // A rate the connected output cannot run gives way to the one it
+        // runs; the rate chosen for a device that is not connected waits for
+        // that device.
+        let preferred_sample_rate = config
+            .sample_rate
+            .filter(|_| missing_output.is_some())
+            .unwrap_or(setup_result.sample_rate as u32);
+
         Ok(Self {
-            state: setup_result.state,
+            state,
+            engine_slot,
             _output_stream: setup_result.output_stream,
             _input_stream: setup_result.input_stream,
+            stream_health: setup_result.health,
+            input_health: setup_result.input_health,
+            stream_watchdog: StreamWatchdog::new(Instant::now()),
+            returning_engine: None,
             midi_manager,
             sample_rate: setup_result.sample_rate,
             buffer_size: config.buffer_size,
@@ -1178,7 +1260,14 @@ impl Synthesizer {
             input_channels: setup_result.input_channels,
             is_recording: false,
             host_id,
+            seen_default_output: (follows_system_default_output || missing_output.is_some())
+                .then(|| output_device_id.clone()),
+            missing_output,
+            preferred_sample_rate,
+            preferred_buffer_size: config.buffer_size,
+            preferred_input_device_id: chosen_input(config.input_device_id.clone()),
             output_device_id: Some(output_device_id),
+            follows_system_default_output,
             input_device_id: setup_result.input_device_id,
             device_cache,
             fallback_warning,
@@ -1575,34 +1664,41 @@ impl Synthesizer {
 
     #[napi]
     pub fn enable_link(&self, enabled: bool) -> Result<()> {
-        // Idempotency: if Link is already in the requested state, do nothing.
-        // This both avoids constructing a redundant `AblLink` (heap allocation,
-        // socket open, networking thread spawn — all expensive) and prevents
-        // tearing down an existing live session whose peers would then have to
-        // re-discover us.
+        if enabled {
+            // Start at the last known tempo so toggling Link doesn't reset
+            // the session BPM.
+            self.enable_link_at(self.state.transport_meter.read_bpm())
+        } else {
+            self.set_link(None)
+        }
+    }
+
+    /// Join Link at `bpm`, the tempo a session with no other peers starts at.
+    fn enable_link_at(&self, bpm: f64) -> Result<()> {
+        // Constructing an `AblLink` opens a socket and spawns its networking
+        // thread, and a second one would tear down the live session, so an
+        // enabled Link is left alone.
+        if self.state.transport_meter.read_link_enabled() {
+            return Ok(());
+        }
+        // Construct + enable on the main thread. Per Ableton's documentation
+        // (`Link.hpp`: "Realtime-safe: no" on `enable()`), construction and
+        // enable cannot run on the audio thread without risking glitches.
+        let link = rusty_link::AblLink::new(bpm);
+        link.enable(true);
+        link.enable_start_stop_sync(true);
+        self.set_link(Some(Box::new(crate::link::LinkResources {
+            link,
+            host_time_filter: rusty_link::HostTimeFilter::new(),
+            session_state: rusty_link::SessionState::new(),
+        })))
+    }
+
+    fn set_link(&self, resources: Option<Box<crate::link::LinkResources>>) -> Result<()> {
+        let enabled = resources.is_some();
         if self.state.transport_meter.read_link_enabled() == enabled {
             return Ok(());
         }
-
-        let resources = if enabled {
-            // Construct + enable on the main thread. Per Ableton's documentation
-            // (`Link.hpp`: "Realtime-safe: no" on `enable()`), construction and
-            // enable cannot run on the audio thread without risking glitches.
-            // Initialise at the user's last known tempo so toggling Link doesn't
-            // reset the session BPM.
-            let bpm = self.state.transport_meter.read_bpm();
-            let link = rusty_link::AblLink::new(bpm);
-            link.enable(true);
-            link.enable_start_stop_sync(true);
-            Some(Box::new(crate::link::LinkResources {
-                link,
-                host_time_filter: rusty_link::HostTimeFilter::new(),
-                session_state: rusty_link::SessionState::new(),
-            }))
-        } else {
-            None
-        };
-
         self.state.send_command(GraphCommand::SetLink(resources))?;
 
         // Update the meter immediately so the UI flips state without waiting
@@ -1617,15 +1713,20 @@ impl Synthesizer {
     // Audio Device Management
     // =========================================================================
 
-    /// Re-enumerate audio devices. The devices this synthesizer has open stay
-    /// listed even where ALSA cannot report them while open. JACK is
+    /// Re-enumerate audio devices. The devices this synthesizer's running
+    /// streams have open stay listed even where ALSA cannot report them while
+    /// open; a device whose stream ended is listed only if it still is. JACK is
     /// re-read only with `rescan_jack`, and never while a JACK stream runs,
     /// whose clients a rescan would collide with.
     #[napi]
     pub fn refresh_device_cache(&mut self, rescan_jack: Option<bool>) {
         let keep: Vec<&str> = [
-            self.output_device_id.as_deref(),
-            self.input_device_id.as_deref(),
+            self.output_device_id
+                .as_deref()
+                .filter(|_| !self.stream_watchdog.has_died()),
+            self.input_device_id
+                .as_deref()
+                .filter(|_| !self.input_health.has_ended()),
         ]
         .into_iter()
         .flatten()
@@ -1670,6 +1771,10 @@ impl Synthesizer {
         CurrentAudioState {
             host_id: self.host_id.clone(),
             output_device_id: self.output_device_id.clone(),
+            chosen_output_device_id: self.chosen_output_device_id(),
+            chosen_sample_rate: self.preferred_sample_rate,
+            chosen_buffer_size: self.preferred_buffer_size,
+            chosen_input_device_id: self.preferred_input_device_id.clone(),
             output_device_name,
             input_device_id: self.input_device_id.clone(),
             input_device_name,
@@ -1682,15 +1787,121 @@ impl Synthesizer {
     }
 
     /// Recreate both input and output streams with new device/config
-    /// This is the primary way to change audio devices after initialization
+    /// This is the primary way to change audio devices after initialization.
+    /// An `output_device_id` of `None` opens the system default output of
+    /// `host_id` (the current host when `None`) and keeps following it (see
+    /// `follow_output_device`). The engine carries on when the sample rate
+    /// and buffer size stay the same; otherwise a new engine starts stopped
+    /// and empty.
     #[napi]
     pub fn recreate_streams(
+        &mut self,
+        output_device_id: Option<String>,
+        sample_rate: u32,
+        buffer_size: Option<u32>,
+        input_device_id: Option<String>,
+        host_id: Option<String>,
+    ) -> Result<StreamsChange> {
+        let change = self.reopen_streams(
+            output_device_id,
+            sample_rate,
+            buffer_size,
+            input_device_id.clone(),
+            host_id,
+        )?;
+        self.preferred_sample_rate = sample_rate;
+        self.preferred_buffer_size = buffer_size;
+        self.preferred_input_device_id = chosen_input(input_device_id);
+        Ok(change)
+    }
+
+    /// `recreate_streams` without making these settings the preferred ones.
+    /// A chosen output that is not connected stays the choice: the sound
+    /// plays on the system default, at these settings where it allows them,
+    /// until that device is listed.
+    fn reopen_streams(
+        &mut self,
+        output_device_id: Option<String>,
+        sample_rate: u32,
+        buffer_size: Option<u32>,
+        input_device_id: Option<String>,
+        host_id: Option<String>,
+    ) -> Result<StreamsChange> {
+        let follows_output = output_device_id.is_none();
+        let missing = output_device_id
+            .clone()
+            .filter(|id| self.device_cache.find_output_device(id).is_none());
+        let output_device_id = match output_device_id.filter(|_| missing.is_none()) {
+            Some(id) => id,
+            None => {
+                let host_id = host_id.unwrap_or_else(|| self.host_id.clone());
+                self.default_output_id(&host_id).ok_or_else(|| {
+                    napi::Error::from_reason(format!(
+                        "Host '{}' has no default output device",
+                        host_id
+                    ))
+                })?
+            }
+        };
+        let (sample_rate, buffer_size, input_device_id) = if missing.is_some() {
+            device_follow::fit_settings(
+                self,
+                &output_device_id,
+                (sample_rate, buffer_size),
+                chosen_input(input_device_id),
+            )
+        } else {
+            (sample_rate, buffer_size, input_device_id)
+        };
+        let opened =
+            self.open_streams(output_device_id, sample_rate, buffer_size, input_device_id)?;
+        self.follows_system_default_output = follows_output;
+        if let Some(missing) = &missing {
+            self.fallback_warning = Some(format!(
+                "Output device '{missing}' is not connected, so the sound plays on the system default until it is. "
+            ));
+        }
+        self.seen_default_output = (follows_output || missing.is_some())
+            .then(|| self.output_device_id.clone())
+            .flatten();
+        self.missing_output = missing.map(MissingOutput::new);
+        Ok(opened)
+    }
+
+    /// Move the engine a dropped output stream returned to the current
+    /// stream's slot, waiting up to `wait` for it. False when it is still on
+    /// its way.
+    pub(crate) fn adopt_returning_engine(&mut self, wait: Duration) -> bool {
+        let Some(slot) = self.returning_engine.take() else {
+            return true;
+        };
+        let deadline = Instant::now() + wait;
+        loop {
+            if let Some(mut engine) = slot.lock().take() {
+                engine.resume_on_new_stream();
+                *self.engine_slot.lock() = Some(engine);
+                return true;
+            }
+            if Instant::now() >= deadline {
+                self.returning_engine = Some(slot);
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(1));
+        }
+    }
+
+    /// Open streams on exactly these devices, replacing the running ones.
+    /// At the engine's sample rate and buffer size the engine moves to the
+    /// new streams with its patch, playback, recording and Link. Otherwise a
+    /// fresh engine starts stopped and empty, with Link as it was, and a
+    /// recording in progress ends with the old streams.
+    fn open_streams(
         &mut self,
         output_device_id: String,
         sample_rate: u32,
         buffer_size: Option<u32>,
         input_device_id: Option<String>,
-    ) -> Result<()> {
+    ) -> Result<StreamsChange> {
         // Find the host for the output device
         let output_device_info = self
             .device_cache
@@ -1703,8 +1914,7 @@ impl Synthesizer {
             })?;
 
         let host_id = output_device_info.host_id.clone();
-        let host = parse_host_id(&host_id)
-            .and_then(|id| cpal::host_from_id(id).ok())
+        let host = host_for_id(&host_id)
             .ok_or_else(|| napi::Error::from_reason(format!("Failed to get host '{}'", host_id)))?;
 
         // Find output device
@@ -1733,78 +1943,84 @@ impl Synthesizer {
             .map_err(|e| napi::Error::from_reason(format!("Failed to get output config: {}", e)))?;
 
         // Prepare input device info if requested
-        let input_setup = if let Some(ref input_id) = input_device_id {
-            if input_id == "none" || input_id.is_empty() {
-                None
-            } else {
-                // Validate input device exists
-                let input_device_info =
-                    self.device_cache
-                        .find_input_device(input_id)
-                        .ok_or_else(|| {
-                            napi::Error::from_reason(format!(
-                                "Input device '{}' not found in cache",
-                                input_id
-                            ))
-                        })?;
+        let input_setup = if let Some(ref input_id) = chosen_input(input_device_id) {
+            // Validate input device exists
+            let input_device_info =
+                self.device_cache
+                    .find_input_device(input_id)
+                    .ok_or_else(|| {
+                        napi::Error::from_reason(format!(
+                            "Input device '{}' not found in cache",
+                            input_id
+                        ))
+                    })?;
 
-                // Validate same host
-                if input_device_info.host_id != host_id {
-                    return Err(napi::Error::from_reason(format!(
-                        "Input device '{}' is on host '{}' but output device is on host '{}'. Both must be on the same host.",
-                        input_id, input_device_info.host_id, host_id
-                    )));
-                }
-
-                // Validate sample rate
-                if !input_device_info
-                    .supported_sample_rates
-                    .contains(&sample_rate)
-                {
-                    return Err(napi::Error::from_reason(format!(
-                        "Sample rate {}Hz not supported by input device",
-                        sample_rate
-                    )));
-                }
-
-                let input_device = find_input_device_in_host(&host, input_id).ok_or_else(|| {
-                    napi::Error::from_reason(format!(
-                        "Input device '{}' not found in host",
-                        input_id
-                    ))
-                })?;
-
-                let input_config = input_device.default_input_config().map_err(|e| {
-                    napi::Error::from_reason(format!("Failed to get input config: {}", e))
-                })?;
-
-                Some((input_device, input_config, input_id.clone()))
+            // Validate same host
+            if input_device_info.host_id != host_id {
+                return Err(napi::Error::from_reason(format!(
+                    "Input device '{}' is on host '{}' but output device is on host '{}'. Both must be on the same host.",
+                    input_id, input_device_info.host_id, host_id
+                )));
             }
+
+            // Validate sample rate
+            if !input_device_info
+                .supported_sample_rates
+                .contains(&sample_rate)
+            {
+                return Err(napi::Error::from_reason(format!(
+                    "Sample rate {}Hz not supported by input device",
+                    sample_rate
+                )));
+            }
+
+            let input_device = find_input_device_in_host(&host, input_id).ok_or_else(|| {
+                napi::Error::from_reason(format!("Input device '{}' not found in host", input_id))
+            })?;
+
+            let input_config = input_device.default_input_config().map_err(|e| {
+                napi::Error::from_reason(format!("Failed to get input config: {}", e))
+            })?;
+
+            Some((input_device, input_config, input_id.clone()))
         } else {
             None
         };
 
-        // Set up streams using shared helper (reuse existing midi_manager)
-        let setup_result = setup_streams(StreamSetupParams {
-            output_device: &output_device,
-            output_config: &output_config,
-            sample_rate,
-            buffer_size,
-            input: input_setup
-                .as_ref()
-                .map(|(d, c, id)| (d, c.clone(), id.clone())),
-            midi_manager: self.midi_manager.clone(),
-        })?;
+        // An engine keeps playing on the new streams when they run at its
+        // sample rate and buffer size, which its block size is built from.
+        let keep_engine = sample_rate == self.sample_rate as u32
+            && buffer_size == self.buffer_size
+            && !self.state.is_audio_thread_panicked();
+        let (state, engine_slot) = if keep_engine {
+            (self.state.clone(), Arc::new(Mutex::new(None)))
+        } else {
+            new_engine(
+                sample_rate,
+                buffer_size,
+                output_config.channels(),
+                self.midi_manager.clone(),
+            )
+        };
+        let setup_result = setup_streams(
+            StreamSetupParams {
+                output_device: &output_device,
+                output_config: &output_config,
+                sample_rate,
+                buffer_size,
+                input: input_setup.as_ref().map(|(d, c, id)| (d, *c, id.clone())),
+            },
+            &state,
+            engine_slot.clone(),
+        )?;
 
-        // Update self with new streams and state
+        // Dropping the old output stream puts its engine back in its slot.
         self._output_stream = setup_result.output_stream;
         self._input_stream = setup_result.input_stream;
-        self.state = setup_result.state;
-        // The fresh AudioState starts with a zero profiling refcount, so reset
-        // the process-global profiling flag to match. Otherwise switching audio
-        // devices while profiling is enabled leaves the global stuck on with no
-        // refcount able to clear it; the UI panel re-enables on its next open.
-        modular_core::profiling::set_enabled(false);
+        self.stream_health = setup_result.health;
+        self.input_health = setup_result.input_health;
+        self.stream_watchdog = StreamWatchdog::new(Instant::now());
+        let previous_slot = std::mem::replace(&mut self.engine_slot, engine_slot);
         self.sample_rate = setup_result.sample_rate;
         self.buffer_size = buffer_size;
         self.channels = setup_result.channels;
@@ -1819,99 +2035,98 @@ impl Synthesizer {
             output_device_id, self.input_device_id, sample_rate, setup_result.channels, host_id
         );
 
-        Ok(())
-    }
+        if keep_engine {
+            self.state.set_channels(setup_result.channels);
+            // The engine is in the slot of the stream just dropped, or still
+            // on its way back from an earlier one, whose slot it returns to.
+            self.returning_engine.get_or_insert(previous_slot);
+            self.adopt_returning_engine(ENGINE_RETURN_WAIT);
+            return Ok(StreamsChange {
+                engine_reset: false,
+                recording_path: None,
+            });
+        }
 
-    // Legacy API compatibility methods (now use cache)
+        // An engine still on its way back from a dropped stream is dropped
+        // when it arrives.
+        self.returning_engine = None;
+        let bpm = self.state.transport_meter.read_bpm();
+        let previous_state = std::mem::replace(&mut self.state, state);
+        // The fresh AudioState starts with a zero profiling refcount, so reset
+        // the process-global profiling flag to match. Otherwise switching audio
+        // devices while profiling is enabled leaves the global stuck on with no
+        // refcount able to clear it; the UI panel re-enables on its next open.
+        modular_core::profiling::set_enabled(false);
 
-    /// Force refresh the device cache (legacy - same as refresh_device_cache)
-    #[napi]
-    pub fn refresh_device_list(&mut self) {
-        self.refresh_device_cache(Some(true));
-    }
+        if previous_state.transport_meter.read_link_enabled()
+            && let Err(error) = self.enable_link_at(bpm)
+        {
+            eprintln!("Link did not rejoin on the new streams: {}", error);
+        }
 
-    /// List all available audio hosts (from cache)
-    #[napi]
-    pub fn list_audio_hosts(&self) -> Vec<HostInfo> {
-        self.device_cache.hosts.clone()
-    }
-
-    /// List all available audio output devices (from cache)
-    #[napi]
-    pub fn list_audio_output_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.device_cache.all_output_devices()
-    }
-
-    /// List all available audio input devices (from cache)
-    #[napi]
-    pub fn list_audio_input_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.device_cache.all_input_devices()
-    }
-
-    /// Get the current output device ID
-    #[napi]
-    pub fn get_output_device_id(&self) -> Option<String> {
-        self.output_device_id.clone()
-    }
-
-    /// Get the current input device ID
-    #[napi]
-    pub fn get_input_device_id(&self) -> Option<String> {
-        self.input_device_id.clone()
+        let recording_path = if std::mem::take(&mut self.is_recording) {
+            match previous_state.stop_recording() {
+                Ok(finished) => finished.map(|f| f.path.to_string_lossy().to_string()),
+                Err(error) => {
+                    eprintln!("Recording did not finish cleanly: {}", error);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        Ok(StreamsChange {
+            engine_reset: true,
+            recording_path,
+        })
     }
 
     /// Restart the audio streams using the current device/sample-rate/buffer-size
-    /// settings. `recreate_streams` replaces `self.state` with a fresh
-    /// `AudioState`, so the new stream's callback captures a fresh
-    /// `audio_thread_panicked` flag (initially false). The old (poisoned) flag
-    /// stays set on the old `AudioState` so the old callback continues to emit
-    /// silence until cpal drops the old stream. Call this after
-    /// `is_audio_thread_panicked()` returns true to recover.
+    /// settings. A panicked engine never moves to new streams, so this builds
+    /// a fresh `AudioState` whose `audio_thread_panicked` flag starts false.
+    /// Call this after `is_audio_thread_panicked()` returns true to recover.
     #[napi]
     pub fn restart_audio(&mut self) -> Result<()> {
         let output_device_id = self
             .output_device_id
             .clone()
             .ok_or_else(|| napi::Error::from_reason("No output device configured"))?;
-        self.recreate_streams(
+        self.open_streams(
             output_device_id,
             self.sample_rate as u32,
             self.buffer_size,
             self.input_device_id.clone(),
         )
+        .map(|_| ())
     }
 
-    /// Set the audio output device (legacy - use recreate_streams instead)
-    /// This uses device default sample rate and buffer size
-    #[napi]
-    pub fn set_audio_output_device(&mut self, device_id: String) -> Result<()> {
-        // Get device info to find its default sample rate
-        let device_info = self
-            .device_cache
-            .find_output_device(&device_id)
-            .ok_or_else(|| {
-                napi::Error::from_reason(format!("Output device '{}' not found", device_id))
-            })?;
-
-        let sample_rate = device_info.sample_rate;
-
-        self.recreate_streams(device_id, sample_rate, None, self.input_device_id.clone())
+    /// The output this synthesizer was asked for: `None` while it follows
+    /// the system default.
+    fn chosen_output_device_id(&self) -> Option<String> {
+        if self.follows_system_default_output {
+            return None;
+        }
+        self.missing_output
+            .as_ref()
+            .map(|missing| missing.id.clone())
+            .or_else(|| self.output_device_id.clone())
     }
 
-    /// Set the audio input device (legacy - use recreate_streams instead)
-    #[napi]
-    pub fn set_audio_input_device(&mut self, device_id: Option<String>) -> Result<()> {
-        let output_device_id = self
-            .output_device_id
-            .clone()
-            .ok_or_else(|| napi::Error::from_reason("No output device configured"))?;
+    /// The output moves with the system default: it was asked to, or the
+    /// device it was asked for is not connected yet.
+    pub(crate) fn follows_default(&self) -> bool {
+        self.follows_system_default_output || self.missing_output.is_some()
+    }
 
-        self.recreate_streams(
-            output_device_id,
-            self.sample_rate as u32,
-            self.buffer_size,
-            device_id,
-        )
+    /// Keep the output on a device that can play: while following the system
+    /// default, move to the device the system now makes its default; when the
+    /// output's stream has stopped (its device unplugged or reset), reopen it
+    /// once the device is back. The engine keeps playing wherever the device
+    /// runs at its sample rate and buffer size. Returns what changed, or `None` when nothing
+    /// did. Cheap enough to poll every second.
+    #[napi]
+    pub fn follow_output_device(&mut self) -> Option<DeviceFollowReport> {
+        device_follow::follow(self)
     }
 
     // =========================================================================
