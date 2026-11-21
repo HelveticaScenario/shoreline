@@ -90,8 +90,10 @@ fn fits(range: &Option<BufferSizeRange>, size: u32) -> bool {
 /// range that holds it, otherwise the host's.
 fn default_buffer_size(output: &AudioDeviceInfo, input: Option<&AudioDeviceInfo>) -> Option<u32> {
     let holds = |device: &AudioDeviceInfo| {
-        device.buffer_size_range.is_some()
-            && fits(&device.buffer_size_range, PREFERRED_DEFAULT_BUFFER_SIZE)
+        device
+            .buffer_size_range
+            .as_ref()
+            .is_some_and(|range| (range.min..=range.max).contains(&PREFERRED_DEFAULT_BUFFER_SIZE))
     };
     (holds(output) && input.is_none_or(holds)).then_some(PREFERRED_DEFAULT_BUFFER_SIZE)
 }
@@ -228,13 +230,18 @@ pub(crate) fn resolve(cache: &AudioDeviceCache, request: OpenRequest) -> Result<
                     unsupported_sample_rate = *sample_rate;
                     preferred_default_sample_rate(output.sample_rate, supported)
                 });
-            let input_info = input_device_id
-                .as_ref()
-                .and_then(|id| cache.find_input_device(id))
-                .filter(|input| input.supported_sample_rates.contains(&chosen));
-            let buffer_size = request
-                .buffer_size
-                .or_else(|| default_buffer_size(output, input_info));
+            // The input opens at the output's buffer size whatever its rates,
+            // so an input the cache does not list keeps the host's.
+            let buffer_size = request.buffer_size.or_else(|| {
+                match input_device_id
+                    .as_ref()
+                    .map(|id| cache.find_input_device(id))
+                {
+                    None => default_buffer_size(output, None),
+                    Some(Some(input)) => default_buffer_size(output, Some(input)),
+                    Some(None) => None,
+                }
+            });
             (chosen, buffer_size, input_device_id)
         }
         // An unlisted output runs at its own rate.
