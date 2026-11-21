@@ -109,6 +109,7 @@ fn outputs_are_the_lane_through_the_output_gain() {
         resonance: volts(3.0),
         fm: None,
         fm_mode: FmMode::default(),
+        mix: None,
     };
     let mut outputs = MiNoiseOutputs::default();
     outputs.set_all_lanes(1);
@@ -142,6 +143,7 @@ fn outputs_are_the_lane_through_the_output_gain() {
             module.outputs.bands.get(0),
             (OUTPUT_GAIN * aux).clamp(-5.0, 5.0)
         );
+        assert_eq!(module.outputs.blend.get(0), module.outputs.sample.get(0));
     }
 }
 

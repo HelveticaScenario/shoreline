@@ -1,6 +1,7 @@
 //! Primitives shared by the `$mi.*` ports, ported from `stmlib/dsp` and
 //! `plaits/dsp`.
 
+pub mod blend;
 pub mod chords;
 pub mod control;
 pub mod delay_line;

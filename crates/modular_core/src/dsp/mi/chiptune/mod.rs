@@ -12,6 +12,7 @@ use crate::{
         mi::{
             chords::CHORD_TABLE,
             core::{
+                blend::Blend,
                 chords::{ChordBank, Inversion, NUM_NOTES, NUM_VOICES, quantize},
                 phase::{limit_frequency, max_frequency},
                 random::Random,
@@ -108,16 +109,31 @@ struct MiChiptuneParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `_blend` from `chord` into `bass`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiChiptuneOutputs {
     #[output(
+        "blend",
+        "`chord` crossfaded into `bass` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output(
         "chord",
         "the chord, or the arpeggio while `trigger` is patched",
         type = cv,
-        default,
         range = (-5.0, 5.0),
     )]
     chord: PolyOutput,
@@ -242,6 +258,7 @@ type Knobs = [f32; 5];
 
 #[derive(Clone, Copy)]
 struct Lane {
+    blend: Blend,
     bank: ChordBank,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: Knobs,
@@ -275,6 +292,7 @@ impl Default for Lane {
     fn default() -> Self {
         let bank = ChordBank::default();
         Self {
+            blend: Blend::default(),
             bank,
             held: [
                 MiChiptuneParams::CHORD_DEFAULT,
@@ -419,7 +437,7 @@ impl MiChiptune {
         self.state = MiChiptuneState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane_index, lane) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -448,12 +466,17 @@ impl MiChiptune {
             ];
             let (chord, bass) = lane.step(f0, knobs, clock, p.bass_decay, &self.state);
             // Plaits clips at full scale.
+            let main = (OUTPUT_GAIN * chord).clamp(-5.0, 5.0);
+            let aux = (OUTPUT_GAIN * bass).clamp(-5.0, 5.0);
+            self.outputs.chord.set(lane_index, main);
+            self.outputs.bass.set(lane_index, aux);
+            let mix = (
+                p.mix.value_or(lane_index, MiChiptuneParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane_index),
+            );
             self.outputs
-                .chord
-                .set(lane_index, (OUTPUT_GAIN * chord).clamp(-5.0, 5.0));
-            self.outputs
-                .bass
-                .set(lane_index, (OUTPUT_GAIN * bass).clamp(-5.0, 5.0));
+                .blend
+                .set(lane_index, lane.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

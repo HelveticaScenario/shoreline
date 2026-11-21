@@ -9,6 +9,7 @@ use crate::{
     dsp::{
         mi::{
             core::{
+                blend::Blend,
                 chords::{ChordBank, Inversion, NUM_VOICES},
                 phase::{limit_frequency, max_frequency},
             },
@@ -82,12 +83,28 @@ struct MiChordsParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `_blend` from `chord` into `root`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiChordsOutputs {
-    #[output("chord", "the whole chord", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "blend",
+        "`chord` crossfaded into `root` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output("chord", "the whole chord", type = cv, range = (-5.0, 5.0))]
     chord: PolyOutput,
     #[output(
         "root",
@@ -183,6 +200,7 @@ impl MiChordsState {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Lane {
+    blend: Blend,
     bank: ChordBank,
     /// The last finite chord, inversion and waveform, which a NaN or infinite
     /// knob holds.
@@ -205,6 +223,7 @@ struct Lane {
 impl Default for Lane {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             bank: ChordBank::default(),
             held: [
                 MiChordsParams::CHORD_DEFAULT,
@@ -329,7 +348,7 @@ impl MiChords {
         self.state = MiChordsState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -345,8 +364,17 @@ impl MiChords {
                 p.waveform.value_or(lane, MiChordsParams::WAVEFORM_DEFAULT),
             ];
             let (chord, root) = voice.step(f0, knobs, &self.state);
-            self.outputs.chord.set(lane, OUTPUT_GAIN * chord);
-            self.outputs.root.set(lane, OUTPUT_GAIN * root);
+            let main = OUTPUT_GAIN * chord;
+            let aux = OUTPUT_GAIN * root;
+            self.outputs.chord.set(lane, main);
+            self.outputs.root.set(lane, aux);
+            let mix = (
+                p.mix.value_or(lane, MiChordsParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
+            self.outputs
+                .blend
+                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
         }
     }
 }
