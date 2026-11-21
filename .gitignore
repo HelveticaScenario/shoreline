@@ -117,8 +117,7 @@ test-results
 .worktrees/
 
 # Generated strudel-parity fixtures (~20 MB, deterministic). Regenerated on
-# demand by scripts/gen-sp-fixture.mjs / the sp_combine parity test. See
-# docs/superpowers/specs/2026-05-29-sp-combine-fixtures-generate-on-demand-design.md
+# demand by scripts/gen-sp-fixture.mjs / the sp_combine parity test.
 crates/modular_core/src/pattern_system/__fixtures__/sp_combine.json
 crates/modular_core/src/pattern_system/__fixtures__/sp_combine_chain2.json
 
