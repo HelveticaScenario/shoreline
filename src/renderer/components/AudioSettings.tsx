@@ -450,7 +450,7 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
         if (!isActive) {
             return;
         }
-        return electronAPI.audio.onOutputNotice(() => {
+        return electronAPI.audio.onDeviceNotice(() => {
             void syncCurrentState();
         });
     }, [isActive, syncCurrentState]);

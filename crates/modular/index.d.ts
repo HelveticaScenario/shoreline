@@ -123,7 +123,7 @@ export declare class Synthesizer {
    * This is the primary way to change audio devices after initialization.
    * An `output_device_id` of `None` opens the system default output of
    * `host_id` (the current host when `None`) and keeps following it (see
-   * `follow_output_device`). The engine carries on when the sample rate
+   * `poll_devices`). The engine carries on when the sample rate
    * and buffer size stay the same; otherwise a new engine starts stopped
    * and empty.
    */
@@ -136,14 +136,15 @@ export declare class Synthesizer {
    */
   restartAudio(): void
   /**
-   * Keep the output on a device that can play: while following the system
-   * default, move to the device the system now makes its default; when the
-   * output's stream has stopped (its device unplugged or reset), reopen it
-   * once the device is back. The engine keeps playing wherever the device
-   * runs at its sample rate and buffer size. Returns what changed, or `None` when nothing
-   * did. Cheap enough to poll every second.
+   * Keep the streams on devices that can play: while following the system
+   * default, move to the device the system now makes its default; move to
+   * a chosen output once it is connected; and when the output's or input's
+   * stream has stopped (its device unplugged or reset), reopen it once the
+   * device is back. The engine keeps playing wherever the device runs at
+   * its sample rate and buffer size. Returns what changed, or `None` when
+   * nothing did. Cheap enough to poll every second.
    */
-  followOutputDevice(): DeviceFollowReport | null
+  pollDevices(): DeviceReport | null
   /** List all available MIDI input ports */
   listMidiInputs(): Array<MidiInputInfo>
   /** Get the currently connected MIDI input port name (first port for backward compatibility) */
@@ -236,11 +237,8 @@ export declare function cpuSupportsBuild(): boolean
 /** Current audio state information */
 export interface CurrentAudioState {
   hostId: string
-  /**
-   * The device the output stream is open on, also while following the
-   * system default.
-   */
-  outputDeviceId?: string
+  /** The device the output stream is open on. */
+  outputDeviceId: string
   /**
    * The output the user chose: `None` for System Default. It differs
    * from `output_device_id` while the chosen device is not connected.
@@ -288,12 +286,35 @@ export interface DeviceCacheSnapshot {
   hosts: Array<HostDeviceInfo>
 }
 
+/** What happened to the audio devices. */
+export type DeviceEvent = /** The output moved to a new system default device. */
+'Moved'|
 /**
- * What changed when the output followed a new system default device or
- * lost and regained its own.
+ * The chosen output was not connected and now is| and the streams
+ * moved to it.
  */
-export interface DeviceFollowReport {
-  event: OutputEvent
+'Connected'|
+/**
+ * The output's stream stopped and its device is not back yet. The
+ * engine waits frozen until it returns.
+ */
+'Disconnected'|
+/** The output's device is back and its streams reopened. */
+'Reconnected'|
+/**
+ * The output's device changed its sample rate and the streams reopened
+ * at the new rate.
+ */
+'RateChanged'|
+/**
+ * The input's stream stopped and the streams reopened on the same
+ * output.
+ */
+'InputReopened';
+
+/** What a device poll changed. */
+export interface DeviceReport {
+  event: DeviceEvent
   /** The output device, when Shoreline lists it. */
   outputDeviceName?: string
   /** The input the streams opened with. */
@@ -304,21 +325,21 @@ export interface DeviceFollowReport {
    */
   disconnectedInputDeviceName?: string
   /**
-   * The preferred input could not open at the sample rate the new output
-   * runs at, which leaves the input off.
+   * The chosen input could not open at the sample rate the output runs
+   * at, which leaves the input off.
    */
   unopenedInputDeviceName?: string
   previousSampleRate: number
   /**
-   * Differs from `previous_sample_rate` when the new output cannot run at
-   * that rate, or changed its own.
+   * Differs from `previous_sample_rate` when the output cannot run at that
+   * rate, or changed its own.
    */
   sampleRate: number
   /** The buffer size in frames; `None` is the host's default. */
   previousBufferSize?: number
   /**
-   * Differs from `previous_buffer_size` only when the new output cannot
-   * use that buffer size.
+   * Differs from `previous_buffer_size` only when the output cannot use
+   * that buffer size.
    */
   bufferSize?: number
   /**
@@ -326,13 +347,14 @@ export interface DeviceFollowReport {
    * playback.
    */
   engineReset: boolean
-  /** The file of the recording the move ended. */
+  /** The file of the recording the engine reset ended. */
   recordingPath?: string
-  /** Why the streams could not be opened on the new device. */
+  /** Why the streams could not open on the device. */
   error?: string
   /**
-   * The streams could not move and the device they play on is gone, so
-   * nothing can be heard until the output changes again.
+   * The streams could not open on the new default and the device they
+   * play on is gone, so nothing can be heard until the output changes
+   * again.
    */
   outputLost: boolean
 }
@@ -391,32 +413,6 @@ export interface ModuleProfileSample {
    */
   mode: string
 }
-
-/** What happened to the audio devices. */
-export type OutputEvent = /** The output moved to a new system default device. */
-'Moved'|
-/**
- * The chosen output was not connected and now is| and the streams
- * moved to it.
- */
-'Connected'|
-/**
- * The output's stream stopped and its device is not back yet. The
- * engine waits frozen until it returns.
- */
-'Disconnected'|
-/** The output's device is back and its streams reopened. */
-'Reconnected'|
-/**
- * The output's device changed its sample rate and the streams reopened
- * at the new rate.
- */
-'RateChanged'|
-/**
- * The input's stream stopped and the streams reopened on the same
- * output.
- */
-'InputReopened';
 
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {

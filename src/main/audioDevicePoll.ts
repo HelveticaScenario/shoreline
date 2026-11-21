@@ -1,60 +1,50 @@
-import type {
-    DeviceFollowReport,
-    StreamsChange,
-    Synthesizer,
-} from '@modular/core';
-import type { OutputDeviceNotice } from '../shared/ipcTypes';
+import type { DeviceReport, StreamsChange, Synthesizer } from '@modular/core';
+import type { AudioDeviceNotice } from '../shared/ipcTypes';
 import type { AppliedPatchState } from './appliedPatchState';
 
-/** How often the output device is checked. */
-export const OUTPUT_DEVICE_POLL_MS = 1000;
+/** How often the audio devices are checked. */
+export const AUDIO_DEVICE_POLL_MS = 1000;
 
-type FollowingSynth = Pick<
-    Synthesizer,
-    'followOutputDevice' | 'isStopped' | 'stop'
->;
+type PollingSynth = Pick<Synthesizer, 'pollDevices' | 'isStopped' | 'stop'>;
 
 /**
- * Keep the output on a device that can play: follow the system default when
- * it changes (headphones unplugged, say), and reopen an output whose device
- * went away or changed its sample rate. The patch keeps playing, or waits for
- * a device that went away, when the device runs at the engine's sample rate
- * and buffer size.
- * Otherwise the engine is rebuilt empty and stopped, so a patch that was
- * playing stops; so does one left playing on a device that is gone when a
- * move fails. Returns `null` when nothing changed.
+ * Poll the audio devices (see `Synthesizer.pollDevices`). A fresh engine is
+ * empty and stopped, so a patch that was playing stops; so does one left
+ * playing on a device that is gone when a move fails. Returns `null` when
+ * nothing changed.
  */
-export function followOutputDevice(
-    synth: FollowingSynth,
+export function pollAudioDevices(
+    synth: PollingSynth,
     appliedPatch: AppliedPatchState,
 ): {
-    report: DeviceFollowReport;
+    report: DeviceReport;
     stoppedPlayback: boolean;
     /** The engine no longer holds what was sent to it. */
     engineReset: boolean;
 } | null {
     const wasPlaying = !synth.isStopped();
-    const report = synth.followOutputDevice();
+    const report = synth.pollDevices();
     if (!report) {
         return null;
     }
-    if (!report.engineReset && !report.outputLost) {
-        return { report, stoppedPlayback: false, engineReset: false };
-    }
+    const engineReset = report.engineReset || report.outputLost;
     if (report.outputLost) {
         synth.stop();
     }
-    appliedPatch.clear();
-    return { report, stoppedPlayback: wasPlaying, engineReset: true };
+    if (engineReset) {
+        appliedPatch.clear();
+    }
+    return { report, stoppedPlayback: engineReset && wasPlaying, engineReset };
 }
 
-/** The banner explaining what happened to the output device. */
-export function outputDeviceNotice(
-    report: DeviceFollowReport,
+/** The banner explaining what happened to the audio devices. */
+export function audioDeviceNotice(
+    report: DeviceReport,
     stoppedPlayback: boolean,
-): OutputDeviceNotice {
+): AudioDeviceNotice {
     const parts: string[] = [];
     const name = report.outputDeviceName ?? 'The output device';
+    const reason = report.error?.replace(/\.$/, '');
     if (report.event === 'Disconnected') {
         parts.push(
             `${name} was disconnected. Shoreline goes back to it when it's reconnected.`,
@@ -62,7 +52,7 @@ export function outputDeviceNotice(
     } else if (report.event === 'InputReopened') {
         parts.push(
             report.error
-                ? `The input stopped and couldn't reopen: ${report.error.replace(/\.$/, '')}.`
+                ? `The input stopped and couldn't reopen: ${reason}.`
                 : report.disconnectedInputDeviceName
                   ? `${report.disconnectedInputDeviceName} was disconnected, so the input is off.`
                   : report.inputDeviceName
@@ -77,7 +67,6 @@ export function outputDeviceNotice(
         );
     } else if (report.error) {
         const device = report.outputDeviceName ?? 'the new default output';
-        const reason = report.error.replace(/\.$/, '');
         parts.push(
             report.event === 'Reconnected' || report.event === 'RateChanged'
                 ? `Couldn't reopen ${name}: ${reason}. Shoreline keeps trying.`
@@ -128,7 +117,7 @@ export function appliedSettingsNotice(
     stoppedPlayback: boolean,
     outputDeviceName: string | null | undefined,
     replacesDisconnected: boolean,
-): OutputDeviceNotice | null {
+): AudioDeviceNotice | null {
     const parts: string[] = [];
     if (replacesDisconnected && outputDeviceName) {
         parts.push(`Output is on ${outputDeviceName}.`);
@@ -147,7 +136,7 @@ function withEngineReset(
     recordingPath: string | null | undefined,
     stoppedPlayback: boolean,
     persists: boolean,
-): OutputDeviceNotice {
+): AudioDeviceNotice {
     if (recordingPath) {
         parts.push(`Recording stopped and saved to ${recordingPath}.`);
     }

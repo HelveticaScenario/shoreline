@@ -341,8 +341,8 @@ export interface ContextMenuAction {
     commandId?: string;
 }
 
-/** The banner shown when the output device changes, goes or comes back. */
-export interface OutputDeviceNotice {
+/** The banner shown when an audio device changes, goes or comes back. */
+export interface AudioDeviceNotice {
     message: string;
     /** Stays up until dismissed or replaced by the next notice. */
     persists: boolean;
@@ -399,8 +399,8 @@ export const IPC_CHANNELS = {
     AUDIO_GET_INPUT_CHANNELS: 'modular:audio:get-input-channels',
     // Fallback warning notification
     AUDIO_FALLBACK_WARNING: 'modular:audio:fallback-warning',
-    // The output device changed, went away or came back
-    AUDIO_OUTPUT_NOTICE: 'modular:audio:output-notice',
+    // An audio device changed, went away or came back
+    AUDIO_DEVICE_NOTICE: 'modular:audio:device-notice',
 
     // MIDI device operations
     MIDI_LIST_INPUTS: 'modular:midi:list-inputs',
@@ -569,7 +569,7 @@ export interface IPCHandlers {
     [IPC_CHANNELS.AUDIO_RECREATE_STREAMS]: typeof Synthesizer.prototype.recreateStreams;
     [IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]: typeof Synthesizer.prototype.inputChannels;
     [IPC_CHANNELS.AUDIO_FALLBACK_WARNING]: (warning: string) => void;
-    [IPC_CHANNELS.AUDIO_OUTPUT_NOTICE]: (notice: OutputDeviceNotice) => void;
+    [IPC_CHANNELS.AUDIO_DEVICE_NOTICE]: (notice: AudioDeviceNotice) => void;
 
     // MIDI device operations
     [IPC_CHANNELS.MIDI_LIST_INPUTS]: typeof Synthesizer.prototype.listMidiInputs;
