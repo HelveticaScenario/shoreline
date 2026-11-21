@@ -450,7 +450,7 @@ pub type SampleableMap = HashMap<String, Box<dyn Sampleable>>;
 /// audio-thread reads; callers must not hold or use it across another reconnect.
 pub type SampleablePtr = NonNull<dyn Sampleable>;
 
-/// Default time constant of the [`SwapGlide`] offset decay.
+/// Time constant of the [`SwapGlide`] offset decay.
 const SWAP_GLIDE_TAU_SECONDS: f32 = 0.002;
 /// Below this magnitude the offset snaps to zero and the input passes through.
 const SWAP_GLIDE_EPSILON: f32 = 1e-6;
@@ -526,8 +526,6 @@ pub struct SwapGlide {
     coeff: f32,
     /// Generation of the last mark seen; a different one means a swap happened.
     generation: u64,
-    /// Offset decay time constant, in seconds.
-    tau: f32,
 }
 
 impl Default for SwapGlide {
@@ -537,19 +535,11 @@ impl Default for SwapGlide {
             offset: 0.0,
             coeff: 0.0,
             generation: 0,
-            tau: SWAP_GLIDE_TAU_SECONDS,
         }
     }
 }
 
 impl SwapGlide {
-    pub fn with_time_constant(seconds: f32) -> Self {
-        Self {
-            tau: seconds,
-            ..Self::default()
-        }
-    }
-
     /// Whether a patch-update glide is in progress.
     pub fn gliding(&self) -> bool {
         self.offset != 0.0
@@ -596,7 +586,7 @@ impl SwapGlide {
             self.generation = mark.generation;
             if mark.changed() && self.value.is_finite() {
                 self.offset = self.value - input;
-                self.coeff = (-1.0 / (self.tau * sample_rate)).exp();
+                self.coeff = (-1.0 / (SWAP_GLIDE_TAU_SECONDS * sample_rate)).exp();
             }
         }
         self.value = if self.offset == 0.0 {
@@ -3612,10 +3602,9 @@ pub struct VuMeterFrame {
     pub rms: Vec<f64>,
     /// Per-channel max |sample| since the previous poll, in volts.
     pub peak: Vec<f64>,
-    /// Live value of the signal-driven pan, when `pan_source` is set.
-    pub pan: Option<f64>,
-    /// Live value of the signal-driven gain, when `gain_source` is set.
-    pub gain: Option<f64>,
+    /// Live values of the meter's signal-driven controls, one per
+    /// `control_sources` entry, when it is set.
+    pub controls: Option<Vec<f64>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -3662,12 +3651,10 @@ pub struct VuMeterSpec {
     /// `$signal` module driving the mute gate (value 5 = audible, 0 =
     /// silenced). None for the end-of-chain master meter, which has no gate.
     pub mute_module_id: Option<String>,
-    /// When the out's pan is signal-driven, the output to sample so the
-    /// panel's locked knob can track it live.
-    pub pan_source: Option<ScopeLane>,
-    /// When the out's gain is signal-driven, the output to sample (in DSL
-    /// gain units, pre-curve) so the panel's locked fader can track it live.
-    pub gain_source: Option<ScopeLane>,
+    /// The outputs driving the track's signal-driven controls (gain, pan,
+    /// send levels), sampled so the panel's locked controls track them live.
+    #[serde(default)]
+    pub control_sources: Option<Vec<ScopeLane>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]

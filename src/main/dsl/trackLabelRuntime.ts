@@ -21,7 +21,7 @@ import {
 } from '../../shared/dsl/trackLabels';
 import { captureSourceLocation } from './captureSourceLocation';
 import { type GraphBuilder, markTrackBinding } from './GraphBuilder';
-import { createTrackTap, type TrackTap } from './trackTap';
+import { createTrackTap } from './trackTap';
 
 /**
  * The hidden global a label is overwritten with. One UTF-16 unit, so the
@@ -107,18 +107,16 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
                     `track ${name} has the name of a DSL global, so it cannot be bound (line ${lineColumn(file, labelStart).line})`,
                 );
             }
-            let tap: TrackTap | undefined;
             Object.defineProperty(sandbox, name, {
                 configurable: false,
                 enumerable: false,
                 // The name reads as the track's tap, whether or not its
                 // label has run. Marked with the name, it is what `sends`
-                // takes to reach a bus track.
+                // takes to reach a bus track. Each read is a tap of its own,
+                // so an error in reading it names the line that read it.
                 get: () => {
-                    if (!tap) {
-                        tap = createTrackTap(builder, name);
-                        markTrackBinding(tap, name);
-                    }
+                    const tap = createTrackTap(builder, name);
+                    markTrackBinding(tap, name);
                     return tap;
                 },
                 set: () => {

@@ -10,7 +10,6 @@ crates/modular/schemas.json
 crates/modular/moduleCategories.json
 crates/modular/index.d.ts
 **/*.dSYM/**/*
-crates/mi-plaits-dsp-rs
 node_modules
 generated
 dist

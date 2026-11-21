@@ -155,29 +155,29 @@ pub struct AudioDeviceInfo {
 /// Common sample rates to check for support
 pub(crate) const COMMON_SAMPLE_RATES: &[u32] = &[44100, 48000, 88200, 96000, 176400, 192000];
 
-/// Maximum sample rate to use as a default for new users / missing config.
-/// If the OS/device reports a default above this, we pick the highest
-/// supported rate at or below this cap instead.
-const PREFERRED_MAX_DEFAULT_SAMPLE_RATE: u32 = 48_000;
+/// The sample rate a device runs at when none is chosen, where it allows it.
+const PREFERRED_DEFAULT_SAMPLE_RATE: u32 = 48_000;
 
-/// Choose a sensible default sample rate for the given device.
-///
-/// Uses the device's cpal-reported default (`device_default`) when it is
-/// at or below `PREFERRED_MAX_DEFAULT_SAMPLE_RATE`.  When the device default
-/// is higher (common on macOS when Audio MIDI Setup is set to 96 kHz+),
-/// we pick the highest rate from `supported_rates` that is still ≤ the cap.
-/// If no supported rate is ≤ the cap (very unlikely), we fall back to the
-/// device default so audio still works.
+/// The buffer size, in frames, the streams use when none is chosen, where
+/// the devices allow it.
+pub(crate) const PREFERRED_DEFAULT_BUFFER_SIZE: u32 = 256;
+
+/// The sample rate a device runs at when none is chosen:
+/// `PREFERRED_DEFAULT_SAMPLE_RATE` where `supported_rates` holds it,
+/// otherwise the device's own default (`device_default`) if it is lower,
+/// otherwise the highest supported rate below it. A device that supports
+/// none of those runs at its own default.
 pub fn preferred_default_sample_rate(device_default: u32, supported_rates: &[u32]) -> u32 {
-    if device_default <= PREFERRED_MAX_DEFAULT_SAMPLE_RATE {
+    if supported_rates.contains(&PREFERRED_DEFAULT_SAMPLE_RATE) {
+        return PREFERRED_DEFAULT_SAMPLE_RATE;
+    }
+    if device_default <= PREFERRED_DEFAULT_SAMPLE_RATE {
         return device_default;
     }
-
-    // Device default is too high — pick the best rate at or below the cap.
     supported_rates
         .iter()
         .copied()
-        .filter(|&r| r <= PREFERRED_MAX_DEFAULT_SAMPLE_RATE)
+        .filter(|&r| r <= PREFERRED_DEFAULT_SAMPLE_RATE)
         .max()
         .unwrap_or(device_default)
 }
@@ -947,14 +947,13 @@ pub struct VuMeterState {
     pub port_name: String,
     /// 1 (mono) or 2 (stereo).
     pub channels: usize,
-    /// Signal-driven pan/gain control taps, sampled so the panel's locked
-    /// controls can track them live.
-    pub pan_source: Option<modular_core::types::ScopeLane>,
-    pub gain_source: Option<modular_core::types::ScopeLane>,
+    /// Signal-driven control taps, sampled so the panel's locked controls
+    /// can track them live.
+    pub control_sources: Vec<modular_core::types::ScopeLane>,
     levels: VuLevels,
-    /// Most recent samples of the control taps.
-    pan_value: f32,
-    gain_value: f32,
+    /// Most recent sample of each control tap, sized to `control_sources`
+    /// on construction.
+    control_values: Vec<f32>,
 }
 
 /// A VU meter's running levels, kept apart from its tap description so the
@@ -997,26 +996,14 @@ impl VuMeterState {
             module_id: spec.module_id.clone(),
             port_name: spec.port_name.clone(),
             channels: (spec.channels as usize).clamp(1, 2),
-            pan_source: spec.pan_source.clone(),
-            gain_source: spec.gain_source.clone(),
+            control_sources: spec.control_sources.clone().unwrap_or_default(),
             levels: VuLevels {
                 rms_sq: [0.0; 2],
                 window_peak: [0.0; 2],
                 rms_coeff: 1.0 - (-1.0f32 / (0.3 * sample_rate)).exp(),
             },
-            pan_value: 0.0,
-            gain_value: 0.0,
+            control_values: vec![0.0; spec.control_sources.as_ref().map_or(0, Vec::len)],
         }
-    }
-
-    #[inline]
-    pub fn set_pan_value(&mut self, v: f32) {
-        self.pan_value = v;
-    }
-
-    #[inline]
-    pub fn set_gain_value(&mut self, v: f32) {
-        self.gain_value = v;
     }
 
     /// Carry running levels over from this meter's predecessor so a patch
@@ -1036,8 +1023,8 @@ impl VuMeterState {
             peak: (0..self.channels)
                 .map(|c| self.levels.window_peak[c] as f64)
                 .collect(),
-            pan: self.pan_source.as_ref().map(|_| self.pan_value as f64),
-            gain: self.gain_source.as_ref().map(|_| self.gain_value as f64),
+            controls: (!self.control_sources.is_empty())
+                .then(|| self.control_values.iter().map(|&v| v as f64).collect()),
         };
         self.levels.window_peak = [0.0; 2];
         frame
@@ -1181,8 +1168,7 @@ mod vu_meter_state_tests {
             port_name: "output".to_string(),
             channels: 1,
             mute_module_id: Some("m".to_string()),
-            pan_source: None,
-            gain_source: None,
+            control_sources: None,
         };
         let mut state = VuMeterState::new(&spec, sample_rate);
         let amp = 5.0f32;
@@ -2662,26 +2648,23 @@ impl AudioProcessor {
                             .accumulate_block(ch, range.clone(), |i| tap.get(i));
                     }
                 }
-                // Signal-driven pan/gain are display-only and each write
+                // Signal-driven controls are display-only and each write
                 // overwrites the last, so only the block's final slot is read.
                 let last = range.end - 1;
-                let sample = |src: &Option<modular_core::types::ScopeLane>| {
-                    src.as_ref().and_then(|src| {
-                        Tap::resolve(
-                            sampleables,
-                            &src.module_id,
-                            &src.port_name,
-                            src.lane as usize,
-                            src.side.unwrap_or(0) as usize,
-                        )
-                        .map(|tap| tap.get(last))
-                    })
+                let sample = |src: &modular_core::types::ScopeLane| {
+                    Tap::resolve(
+                        sampleables,
+                        &src.module_id,
+                        &src.port_name,
+                        src.lane as usize,
+                        src.side.unwrap_or(0) as usize,
+                    )
+                    .map(|tap| tap.get(last))
                 };
-                if let Some(v) = sample(&meter.pan_source) {
-                    meter.set_pan_value(v);
-                }
-                if let Some(v) = sample(&meter.gain_source) {
-                    meter.set_gain_value(v);
+                for (src, value) in meter.control_sources.iter().zip(&mut meter.control_values) {
+                    if let Some(v) = sample(src) {
+                        *value = v;
+                    }
                 }
             }
         }
@@ -5412,13 +5395,12 @@ mod tests {
             port_name: "output".into(),
             channels: 2,
             mute_module_id: None,
-            pan_source: Some(modular_core::types::ScopeLane {
+            control_sources: Some(vec![modular_core::types::ScopeLane {
                 module_id: "smp".into(),
                 port_name: "output".into(),
                 lane: 0,
                 side: None,
-            }),
-            gain_source: None,
+            }]),
         };
         *processor.vu_collection.lock() = vec![VuMeterState::new(&spec, SR)];
 
@@ -5443,7 +5425,7 @@ mod tests {
                             .accumulate_block(ch, i..i + 1, |i| read("blk", ch, i));
                     }
                 }
-                ref_meter.set_pan_value(read("smp", 0, range.end - 1));
+                ref_meter.control_values[0] = read("smp", 0, range.end - 1);
                 if block == 7 && range.start == 10 {
                     let held = Arc::clone(&processor.scope_collection);
                     let _guard = held.lock();
@@ -5468,7 +5450,7 @@ mod tests {
         let expected = ref_meter.take_frame();
         assert_eq!(got.rms, expected.rms);
         assert_eq!(got.peak, expected.peak);
-        assert_eq!(got.pan, expected.pan);
+        assert_eq!(got.controls, expected.controls);
     }
 
     // ============================================================================

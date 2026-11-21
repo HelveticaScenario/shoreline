@@ -45,11 +45,7 @@ import type {
 import type { SliderDefinition } from '../shared/dsl/sliderTypes';
 import type { ButtonDefinition } from '../shared/dsl/buttonTypes';
 import type { VuMeterDef, VuMeterGhost } from '../shared/dsl/vuMeterTypes';
-import {
-    gateParams,
-    outGainParams,
-    outPanParams,
-} from '../shared/dsl/controlRanges';
+import { gateParams, outGainParams } from '../shared/dsl/controlRanges';
 import {
     DEFAULT_OUTPUT_GAIN,
     UNITY_OUT_GAIN,
@@ -84,6 +80,7 @@ import {
 import { trackGates } from '../shared/dsl/trackGates';
 import type { TrackState } from '../shared/dsl/trackLabels';
 import { VuMeterPanel } from './components/VuMeterPanel';
+import { useVuKnobControls } from './app/hooks/useVuKnobControls';
 import { BottomBar } from './components/BottomBar';
 import { BottomPanel } from './components/BottomPanel';
 import { useBottomPanel } from './hooks/useBottomPanel';
@@ -273,8 +270,6 @@ function App() {
     const vuCanvasMapRef = useRef(new Map<string, HTMLCanvasElement>());
     /** Peak-readout pills, updated imperatively from the RAF loop. */
     const vuReadoutMapRef = useRef(new Map<string, HTMLElement>());
-    /** Locked pan knobs' pointer lines, rotated live from the RAF loop. */
-    const vuPanPointerMapRef = useRef(new Map<string, SVGLineElement>());
     /** Mirror of vuGhosts for the RAF loop and drag handlers; updated
      *  synchronously by setVuGhostProp/clearVuGhosts so a redraw issued in
      *  the same tick sees the new value. */
@@ -934,85 +929,20 @@ function App() {
         }
     }, []);
 
-    /** Write the current pan into the track's `pan` option (removed at
-     *  center, the default). */
-    const writeVuPanEdit = useCallback(
-        (key: string, pan: number) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].panModuleId) {
-                return;
-            }
-            applyVuSourceEdit(key, (source, anchor, name) =>
-                computeTrackOptionEdit(
-                    source,
-                    anchor,
-                    name,
-                    'pan',
-                    pan === 0 ? null : pan,
-                    outputs[idx].fromTrack === true,
-                ),
-            );
-        },
-        [applyVuSourceEdit],
-    );
-
-    /**
-     * Pan knob drag: drive the lifted pan $signal live per move; the source
-     * write is debounced so the editor re-colors a few times a second at
-     * most, not per pointer event. A code-only drag leaves the $signal (and
-     * the knob's audio pointer) alone and moves only the ghost pointer,
-     * writing the source at the same debounced rate.
-     */
-    const handleVuPanChange = useCallback(
-        (key: string, pan: number, codeOnly: boolean) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].panModuleId) {
-                return;
-            }
-
-            if (codeOnly) {
-                if (!outputs[idx].sourceLocation) {
-                    return;
-                }
-                setVuGhostProp(
-                    key,
-                    'pan',
-                    pan === outputs[idx].pan ? undefined : pan,
-                );
-                scheduleVuEdit(`${key}:pan`, () => writeVuPanEdit(key, pan));
-                return;
-            }
-
-            void electronAPI.synthesizer.setModuleParam(
-                outputs[idx].panModuleId,
-                '_smoothControl',
-                outPanParams(pan),
-            );
-
-            const next = outputs.map((o, i) => (i === idx ? { ...o, pan } : o));
-            vuOutputsRef.current = next;
-            setVuOutputs(next);
-            setVuGhostProp(key, 'pan', undefined);
-            scheduleVuEdit(`${key}:pan`, () => writeVuPanEdit(key, pan));
-        },
-        [scheduleVuEdit, setVuGhostProp, writeVuPanEdit],
-    );
-
-    /** Drag released: flush the final pan into the source immediately. */
-    const handleVuPanCommit = useCallback(
-        (key: string, pan: number, codeOnly: boolean) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || (codeOnly && !outputs[idx].sourceLocation)) {
-                return;
-            }
-            cancelVuEdit(`${key}:pan`);
-            writeVuPanEdit(key, pan);
-        },
-        [cancelVuEdit, writeVuPanEdit],
-    );
+    const {
+        handleKnobChange: handleVuKnobChange,
+        handleKnobCommit: handleVuKnobCommit,
+        paintKnobFrame: paintVuKnobFrame,
+        registerKnob: registerVuKnob,
+        unregisterKnob: unregisterVuKnob,
+    } = useVuKnobControls({
+        applyVuSourceEdit,
+        cancelVuEdit,
+        scheduleVuEdit,
+        setVuGhostProp,
+        setVuOutputs,
+        vuOutputsRef,
+    });
 
     const handleVuToggleMute = useCallback(
         (key: string, codeOnly: boolean) =>
@@ -1322,8 +1252,8 @@ function App() {
             const gainDb =
                 gainDbOverride !== undefined
                     ? gainDbOverride
-                    : output && output.gain !== null
-                      ? outGainToDb(output.gain)
+                    : output && output.gain.value !== null
+                      ? outGainToDb(output.gain.value)
                       : null;
             const ghostGain = vuGhostsRef.current.get(key)?.gain;
             drawVuMeter(
@@ -1331,7 +1261,7 @@ function App() {
                 channels,
                 readVuMeterColors(),
                 gainDb,
-                output?.gainLocked === true,
+                output?.gain.locked === true,
                 ghostGain !== undefined ? outGainToDb(ghostGain) : null,
             );
         },
@@ -1364,7 +1294,7 @@ function App() {
         (key: string, gain: number) => {
             const outputs = vuOutputsRef.current;
             const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gainModuleId) {
+            if (idx === -1 || !outputs[idx].gain.moduleId) {
                 return;
             }
             if (outputs[idx].main) {
@@ -1399,7 +1329,7 @@ function App() {
         (key: string, db: number, codeOnly: boolean) => {
             const outputs = vuOutputsRef.current;
             const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gainModuleId) {
+            if (idx === -1 || !outputs[idx].gain.moduleId) {
                 return;
             }
             // Snap to 0.5 dB steps; the scale floor means silence.
@@ -1419,25 +1349,25 @@ function App() {
                 setVuGhostProp(
                     key,
                     'gain',
-                    gain === outputs[idx].gain ? undefined : gain,
+                    gain === outputs[idx].gain.value ? undefined : gain,
                 );
                 redrawVuMeter(key);
                 scheduleVuEdit(`${key}:gain`, () => writeVuGainEdit(key, gain));
                 return;
             }
 
-            if (gain === outputs[idx].gain) {
+            if (gain === outputs[idx].gain.value) {
                 return;
             }
 
             void electronAPI.synthesizer.setModuleParam(
-                outputs[idx].gainModuleId,
+                outputs[idx].gain.moduleId,
                 '_smoothControl',
                 outGainParams(gain),
             );
 
             const next = outputs.map((o, i) =>
-                i === idx ? { ...o, gain } : o,
+                i === idx ? { ...o, gain: { ...o.gain, value: gain } } : o,
             );
             vuOutputsRef.current = next;
             setVuOutputs(next);
@@ -1457,8 +1387,9 @@ function App() {
                 return;
             }
             const gain = codeOnly
-                ? (vuGhostsRef.current.get(key)?.gain ?? outputs[idx].gain)
-                : outputs[idx].gain;
+                ? (vuGhostsRef.current.get(key)?.gain ??
+                  outputs[idx].gain.value)
+                : outputs[idx].gain.value;
             if (gain === null) {
                 return;
             }
@@ -1475,10 +1406,10 @@ function App() {
         (key: string) => {
             const outputs = vuOutputsRef.current;
             const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gainModuleId) {
+            if (idx === -1 || !outputs[idx].gain.moduleId) {
                 return;
             }
-            const audioGain = outputs[idx].gain;
+            const audioGain = outputs[idx].gain.value;
             if (
                 vuGhostsRef.current.get(key)?.gain === undefined ||
                 audioGain === null
@@ -1520,7 +1451,7 @@ function App() {
             cancelVuEdit(`${key}:gain`);
             const outputs = vuOutputsRef.current;
             const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gainModuleId) {
+            if (idx === -1 || !outputs[idx].gain.moduleId) {
                 return;
             }
             const isMain = outputs[idx].main === true;
@@ -1544,14 +1475,14 @@ function App() {
             }
 
             void electronAPI.synthesizer.setModuleParam(
-                outputs[idx].gainModuleId,
+                outputs[idx].gain.moduleId,
                 '_smoothControl',
                 outGainParams(resetGain),
             );
 
             // From the ref, which the source edit may have just updated.
             const next = vuOutputsRef.current.map((o, i) =>
-                i === idx ? { ...o, gain: resetGain } : o,
+                i === idx ? { ...o, gain: { ...o.gain, value: resetGain } } : o,
             );
             vuOutputsRef.current = next;
             setVuOutputs(next);
@@ -1568,17 +1499,6 @@ function App() {
 
     const unregisterVuReadout = useCallback((key: string) => {
         vuReadoutMapRef.current.delete(key);
-    }, []);
-
-    const registerVuPanPointer = useCallback(
-        (key: string, el: SVGLineElement) => {
-            vuPanPointerMapRef.current.set(key, el);
-        },
-        [],
-    );
-
-    const unregisterVuPanPointer = useCallback((key: string) => {
-        vuPanPointerMapRef.current.delete(key);
     }, []);
 
     /** Restart a meter's peak hold; it re-seeds from the next frame's levels. */
@@ -1776,12 +1696,17 @@ function App() {
                             const output = outputByKey.get(key);
                             // Signal-driven gains take the live value the
                             // engine sampled; editable ones use the state.
+                            const gainIndex = output?.gain.sourceIndex;
+                            const liveGain =
+                                gainIndex === undefined
+                                    ? undefined
+                                    : frame.controls?.[gainIndex];
+                            const gainValue =
+                                liveGain ?? output?.gain.value ?? null;
                             const gainDb =
-                                frame.gain != null
-                                    ? outGainToDb(frame.gain)
-                                    : output && output.gain !== null
-                                      ? outGainToDb(output.gain)
-                                      : null;
+                                gainValue === null
+                                    ? null
+                                    : outGainToDb(gainValue);
                             const ghostGain =
                                 vuGhostsRef.current.get(key)?.gain;
                             drawVuMeter(
@@ -1789,18 +1714,13 @@ function App() {
                                 channels,
                                 vuColors,
                                 gainDb,
-                                output?.gainLocked === true,
+                                output?.gain.locked === true,
                                 ghostGain !== undefined
                                     ? outGainToDb(ghostGain)
                                     : null,
                             );
-                            if (frame.pan != null) {
-                                const pointer =
-                                    vuPanPointerMapRef.current.get(key);
-                                pointer?.setAttribute(
-                                    'transform',
-                                    `rotate(${(Math.max(-5, Math.min(5, frame.pan)) / 5) * 135} 13 17)`,
-                                );
+                            if (frame.controls && output) {
+                                paintVuKnobFrame(output, frame.controls);
                             }
                             const prevMax =
                                 vuPeakMaxRef.current.get(key) ?? -Infinity;
@@ -1888,6 +1808,7 @@ function App() {
         commitControlAnchors,
         commitVideoPreviews,
         eqController,
+        paintVuKnobFrame,
     ]);
 
     // Keep Link phase indicator live while Link is enabled but Shoreline is stopped.
@@ -2774,8 +2695,6 @@ function App() {
                                 onToggleMute={handleVuToggleMute}
                                 onToggleSolo={handleVuToggleSolo}
                                 ghosts={vuGhosts}
-                                onPanChange={handleVuPanChange}
-                                onPanCommit={handleVuPanCommit}
                                 onGainChange={handleVuGainChange}
                                 onGainCommit={handleVuGainCommit}
                                 onGainReset={handleVuGainReset}
@@ -2786,8 +2705,10 @@ function App() {
                                 unregisterCanvas={unregisterVuCanvas}
                                 registerReadout={registerVuReadout}
                                 unregisterReadout={unregisterVuReadout}
-                                registerPanPointer={registerVuPanPointer}
-                                unregisterPanPointer={unregisterVuPanPointer}
+                                onKnobChange={handleVuKnobChange}
+                                onKnobCommit={handleVuKnobCommit}
+                                registerKnob={registerVuKnob}
+                                unregisterKnob={unregisterVuKnob}
                             />
                         }
                     />
