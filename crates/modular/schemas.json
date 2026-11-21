@@ -31833,6 +31833,11 @@
                 "`c4`, `a#3`, `eb`"
               ],
               [
+                "note`(chord)`",
+                "every note of a chord on that root at once",
+                "`c3(maj7)`, `eb(m7)`"
+              ],
+              [
                 "number",
                 "a pitch voltage, 1 V per octave with 0 at C4",
                 "`0`, `-1`, `0.25`"
@@ -31887,6 +31892,44 @@
             {
               "title": "Bass that changes every bar",
               "code": "const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`\nmelody: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
+            }
+          ]
+        },
+        {
+          "title": "Chords",
+          "body": "A chord in parentheses right after a note plays all its notes at once, each on a voice of its own. Add `invN` to raise the lowest N notes an octave, start with `just` or `pythag` to retune it (`c(just maj)`), or write your own voicing as semitones above the root: `c3(0 7 16)`. Scale patterns don't take chords.",
+          "table": {
+            "columns": [
+              "Kind",
+              "Names"
+            ],
+            "rows": [
+              [
+                "Triads",
+                "maj / M, min / m, dim, aug, sus2, sus4, 5"
+              ],
+              [
+                "Sixths",
+                "6, m6, 69"
+              ],
+              [
+                "Sevenths",
+                "7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5"
+              ],
+              [
+                "Extended",
+                "9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11"
+              ],
+              [
+                "Added",
+                "add9, madd9, add11"
+              ]
+            ]
+          },
+          "examples": [
+            {
+              "title": "Chord changes",
+              "code": "const seq = $`<c3(maj7) a2(m7) d3(m9) g2(7 inv1)>`\nchords: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
             }
           ]
         },
@@ -32550,7 +32593,7 @@
           ]
         },
         "AtomValue": {
-          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), and `Truthy`\ncovers the `x` structure marker. Every other atom form (`m60` midi\nshorthand, sample-name identifiers, `2v` voltage, module references,\nquoted strings) has been removed from the grammar and is not\nrepresentable here.",
+          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), `Chord` covers\na note with a chord in parentheses (`c3(maj7)`), and `Truthy` covers the\n`x` structure marker. Other atom forms (`m60` midi shorthand,\nsample-name identifiers, `2v` voltage, module references, quoted strings)\nare not part of the grammar and are not representable here.",
           "oneOf": [
             {
               "description": "Numeric value. Module-level semantics decide the interpretation:\n`$cycle($(...))` maps a bare `Number` to volts (1V/oct); `.scale(...)`\nmaps it to an integer scale degree.",
@@ -32616,6 +32659,48 @@
               },
               "required": [
                 "Note"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A chord on a root note (e.g. `c3(maj7)`, `eb(m7 inv1)`). `chord` is the\ntrimmed text between the parentheses, read by `ScaleSpec::note_chord`.",
+              "type": "object",
+              "properties": {
+                "Chord": {
+                  "type": "object",
+                  "properties": {
+                    "letter": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "accidental": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "octave": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "format": "int32"
+                    },
+                    "chord": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "letter",
+                    "chord"
+                  ]
+                }
+              },
+              "required": [
+                "Chord"
               ],
               "additionalProperties": false
             },

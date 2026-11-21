@@ -12,7 +12,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Patch,
-    dsp::utils::midi_to_voct_f64,
+    dsp::{
+        utilities::{FixedRoot, ScaleSpec},
+        utils::midi_to_voct_f64,
+    },
     pattern_system::{
         Pattern,
         mini::{
@@ -219,12 +222,38 @@ impl FromMiniAtom for SeqValue {
                     )))
                 }
             }
+            AtomValue::Chord { .. } => Err(ConvertError::InvalidAtom(
+                "a chord plays several notes, so it cannot stand for a single value".to_string(),
+            )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() \
                  boolean patterns"
                     .to_string(),
             )),
         }
+    }
+
+    fn from_chord(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+        let AtomValue::Chord {
+            letter,
+            accidental,
+            octave,
+            chord,
+        } = atom
+        else {
+            return Ok(vec![Self::from_atom(atom)?]);
+        };
+        let octave = octave
+            .map(i8::try_from)
+            .transpose()
+            .map_err(|_| ConvertError::InvalidAtom("chord root octave out of range".to_string()))?;
+        let root = FixedRoot {
+            letter: *letter,
+            accidental: *accidental,
+            octave,
+        };
+        let spec = ScaleSpec::note_chord(&root, chord).map_err(ConvertError::InvalidAtom)?;
+        Ok(spec.note_voltages().map(SeqValue::voltage).collect())
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {

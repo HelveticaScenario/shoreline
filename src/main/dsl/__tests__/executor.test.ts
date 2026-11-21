@@ -940,10 +940,28 @@ describe('sequencing', () => {
         ).toThrow(/IntervalValue requires integer scale degrees, got 1\.5/);
         expect(() =>
             execPatch('out: $cycle($("c4").scale("C(major)"))'),
-        ).toThrow(/note names are not allowed under \.scale/);
+        ).toThrow(/note names and chords are not allowed under \.scale/);
         expect(() =>
             execPatch('out: $cycle($("440hz").scale("C(major)"))'),
         ).toThrow(/Hz atoms are not allowed under \.scale/);
+    });
+
+    test('a chord atom plays in a note pattern and is rejected under .scale', () => {
+        expect(
+            findModules(
+                execPatch('out: $cycle($("c3(maj7) eb(m7 inv1)"))'),
+                '$cycle',
+            ).length,
+        ).toBe(1);
+        expect(() =>
+            execPatch('out: $cycle($("c(maj)").scale("C(major)"))'),
+        ).toThrow(/chords are not allowed under \.scale/);
+        expect(() => execPatch('out: $cycle($("c(nope)"))')).toThrow(
+            /unknown chord/,
+        );
+        expect(() => execPatch('out: $cycle($("c(3)"))')).toThrow(
+            /holds one note, so it is not a chord/,
+        );
     });
 
     test('$cycle accepts mixed numeric, note, and hz atoms', () => {
