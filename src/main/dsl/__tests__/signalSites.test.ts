@@ -113,9 +113,9 @@ describe('static resolution', () => {
     });
 
     test('a config-object input resolves by its own type', () => {
-        expect(hints(`const seq = $('c e')\n$saw('c', { sync: seq })`)).toEqual(
-            [' { sync: seq‹trig›'],
-        );
+        expect(
+            hints(`const seq = $('c e')\n$saw('c', { restart: seq })`),
+        ).toEqual(['restart: seq‹trig›']);
     });
 
     test('a chain method argument reads cv', () => {
@@ -218,7 +218,7 @@ describe('static resolution', () => {
 
     test('arguments after a spread are not placed', () => {
         expect(
-            hints(`const seq = $('c e')\n$saw(...[seq], { sync: seq })`),
+            hints(`const seq = $('c e')\n$saw(...[seq], { restart: seq })`),
         ).toEqual([]);
     });
 
@@ -245,13 +245,13 @@ describe('agreement with the runtime', () => {
         `out: $('0*8').adsr()`,
         `const seqs = []\nfor (let i = 0; i < 3; i++) {\n    seqs.push($('c e g'))\n}\nout: $sine(seqs).amp($perc(seqs))`,
         `const a = $('c')\nconst b = $('e')\nout: $perc([a, b])`,
-        `const seq = $('c e')\nout: $saw(seq, { sync: seq })`,
+        `const seq = $('c e')\nout: $saw(seq, { restart: seq })`,
         `function voice(s) {\n    return $saw(s).amp($perc(s))\n}\nout: voice($('c e g'))`,
         `out: $perc($clock)\nout2: $tr808.kick($clock)`,
         `const seq = $('c e')\nout: seq\nout2: $sine('c').amp(seq)`,
         'out: $perc($`0`.scope())\nfunction f(s) {\n    return $adsr(s.scope())\n}\nf($`0 1`)',
         `out: $sine('c').lpf($('c5 c6'))`,
-        `const seq = $('c e')\nout: $saw($g1([seq, seq]), { sync: $g2(seq) })`,
+        `const seq = $('c e')\nout: $saw($g1([seq, seq]), { restart: $g2(seq) })`,
         `function f(s, m) {\n    return s.xover().wet(m)\n}\nf($clock, $('1 2'))`,
         `function f(m) {\n    return $sine('c').pipeMix((x) => x.lpf('c'), m)\n}\nout: f($('1 2'))`,
         `function f(s) {\n    return $sine('c').range(s, s)\n}\nout: f($('0 1'))`,

@@ -23,11 +23,11 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, apply_fm, sync_blep, sync_edge_fraction,
+            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
             wavetable_prep::{MipmapRead, PreparedWavetable},
         },
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
-        utils::{SchmittTrigger, sanitize},
+        utils::sanitize,
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::{Wav, WavData},
@@ -39,7 +39,7 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 pub(crate) struct WavetableOscParams {
-    #[input("oscillator pitch", type = pitch)]
+    #[input("oscillator pitch; with `sync` set, the pitch it restarts at", type = pitch)]
     pub(crate) pitch: PolySignal,
     #[input("WAV file holding the wavetable frames")]
     pub(crate) wav: Wav,
@@ -61,10 +61,19 @@ pub(crate) struct WavetableOscParams {
     #[serde(default)]
     #[deserr(default)]
     pub(crate) fm_mode: FmMode,
-    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
+    #[input(
+        "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     #[deserr(default)]
     #[block_input(optional)]
     pub(crate) sync: Option<PolySignal>,
+    #[input("each rising edge restarts the cycle", type = trig)]
+    #[deserr(default)]
+    #[block_input(optional)]
+    pub(crate) restart: Option<PolySignal>,
     #[input("reshapes the cycle before the table is read, built with `$phase.*`")]
     #[deserr(default)]
     pub(crate) phase: Option<PhaseWarp>,
@@ -96,20 +105,20 @@ struct WavetableOscOutputs {
 struct LaneState {
     /// Phase accumulator in `[0, 1)`.
     phase: f64,
-    /// Edge detector for the sync input.
-    sync_schmitt: SchmittTrigger,
-    /// Previous sync-input sample, for subsample edge interpolation.
-    sync_prev: f32,
-    /// PolyBLEP residual carried into the next sample from a sync reset.
+    resets: Resets,
+    /// PolyBLEP residual carried into the next sample from a reset.
     blep_carry: f32,
-    /// The pitch and FM inputs `freq` and `mip` were derived from. Compared
-    /// exactly, so the cached values are always the ones a fresh computation
-    /// would give; `NaN` never matches, forcing the first computation.
+    /// The pitch, FM and sync ratio inputs `freq` and `mip` were derived
+    /// from. Compared exactly, so the cached values are always the ones a
+    /// fresh computation would give; `NaN` never matches, forcing the first
+    /// computation.
     last_pitch: f32,
     last_fm: f32,
-    /// Playback frequency in Hz.
+    last_ratio: f32,
+    /// The note's frequency in Hz.
     freq: f32,
-    /// Mipmap levels read at `freq`.
+    /// Mipmap levels read at the table's playback frequency, `freq` times
+    /// the sync ratio.
     mip: MipmapRead,
     /// State of the `phase` warp's feedback stages.
     warp: PhaseWarpState,
@@ -121,11 +130,11 @@ impl Default for LaneState {
     fn default() -> Self {
         Self {
             phase: 0.0,
-            sync_schmitt: SchmittTrigger::default(),
-            sync_prev: 0.0,
+            resets: Resets::default(),
             blep_carry: 0.0,
             last_pitch: f32::NAN,
             last_fm: f32::NAN,
+            last_ratio: f32::NAN,
             freq: 0.0,
             mip: MipmapRead::default(),
             warp: PhaseWarpState::default(),
@@ -135,22 +144,31 @@ impl Default for LaneState {
 }
 
 impl LaneState {
-    /// Track `pitch` and `fm`, recomputing the frequency and mipmap levels only
-    /// when they change.
+    /// Track `pitch`, `fm` and the sync `ratio`, recomputing the frequency
+    /// and mipmap levels only when they change.
     #[inline(always)]
-    fn tune(&mut self, prepared: &PreparedWavetable, pitch: f32, fm: f32, fm_mode: FmMode) {
-        if pitch != self.last_pitch || fm != self.last_fm {
+    fn tune(
+        &mut self,
+        prepared: &PreparedWavetable,
+        pitch: f32,
+        fm: f32,
+        fm_mode: FmMode,
+        ratio: Option<f32>,
+    ) {
+        let ratio = ratio.unwrap_or(1.0);
+        if pitch != self.last_pitch || fm != self.last_fm || ratio != self.last_ratio {
             self.freq = apply_fm(pitch, fm, fm_mode);
-            self.mip = prepared.mipmap_for_freq(self.freq);
+            self.mip = prepared.mipmap_for_freq(self.freq * ratio);
             self.last_pitch = pitch;
             self.last_fm = fm;
+            self.last_ratio = ratio;
         }
     }
 
     /// One output sample (±5 V) at `position` (0–5 V across the frames), then
     /// advance the phase. `warp` reshapes the read phase with its stage values
-    /// already resolved for this lane; `sync` is this sample's sync input,
-    /// if connected.
+    /// already resolved for this lane; `restart` is this sample's restart
+    /// input and `sync_ratio` its sync, if connected.
     #[inline(always)]
     #[allow(clippy::too_many_arguments)]
     fn step(
@@ -161,7 +179,8 @@ impl LaneState {
         position: f32,
         offset: f32,
         warp: Option<(&PhaseWarp, &ResolvedWarp)>,
-        sync: Option<f32>,
+        restart: Option<f32>,
+        sync_ratio: Option<f32>,
     ) -> f32 {
         let frame_scale = if prepared.frame_count > 1 {
             (prepared.frame_count - 1) as f32
@@ -176,9 +195,26 @@ impl LaneState {
         // it advances, so the first sample reads the starting phase.
         let read_offset = offset.rem_euclid(1.0);
         let raw_phase = (self.phase as f32 + read_offset).rem_euclid(1.0);
-        let freq_norm = self.freq / sample_rate;
-        // The warp's state as it stood before this sample, for the sync
-        // reset's second read below.
+        let note_increment = self.freq as f64 * inv_sr;
+        let (synced, reset) = self.resets.step(
+            self.phase as f32,
+            note_increment as f32,
+            restart,
+            sync_ratio,
+            Landing::Now,
+        );
+        let increment = if sync_ratio.is_some() {
+            synced as f64
+        } else {
+            note_increment
+        };
+        let freq_norm = if sync_ratio.is_some() {
+            synced
+        } else {
+            self.freq / sample_rate
+        };
+        // The warp's state as it stood before this sample, for a reset's
+        // reads below.
         let warp_before = self.warp;
         let warped_phase = match warp {
             Some((warp, resolved)) => warp.evaluate(raw_phase, resolved, freq_norm, &mut self.warp),
@@ -186,13 +222,12 @@ impl LaneState {
         };
         let before = prepared.read(self.mip, frame_f, warped_phase);
 
-        // Naive read plus any residual carried from a sync reset on the
-        // previous sample.
+        // Naive read plus any residual carried from a reset on the previous
+        // sample.
         let mut sample = before + self.blep_carry;
         self.blep_carry = 0.0;
 
         // Advance phase, wrap to [0, 1). rem_euclid in f64.
-        let increment = self.freq as f64 * inv_sr;
         let mut next = self.phase + increment;
         // Fast wrap for the common case; rem_euclid handles the rest.
         if next >= 1.0 {
@@ -207,28 +242,39 @@ impl LaneState {
             next = 0.0;
         }
 
-        // Hard sync: a rising edge resets the phase so the next sample reads
-        // from the table's start. A PolyBLEP at the subsample crossing
-        // band-limits the resulting step.
-        if let Some(v) = sync {
-            if self.sync_schmitt.process(v) {
-                let frac = sync_edge_fraction(self.sync_prev, v);
-                // After a reset the accumulator is 0, so the effective read
-                // phase is the offset itself.
-                let warped_zero = match warp {
+        // A reset restarts the table's cycle, `frac` into the upcoming
+        // interval: a restart so the next sample reads from the cycle's
+        // start, a sync reset so it reads as far past the start as the
+        // cycle ran since. A PolyBLEP at the subsample point band-limits the
+        // resulting step.
+        if let Some(reset) = reset {
+            let read_at = |phase: f32| {
+                let warped = match warp {
                     Some((warp, resolved)) => {
                         let mut scratch = warp_before;
-                        warp.evaluate(read_offset, resolved, freq_norm, &mut scratch)
+                        warp.evaluate(phase, resolved, freq_norm, &mut scratch)
                     }
-                    None => read_offset,
+                    None => phase,
                 };
-                let after = prepared.read(self.mip, frame_f, warped_zero);
-                let (now, carry) = sync_blep(after - before, frac);
-                sample += now;
-                self.blep_carry = carry;
-                next = 0.0;
-            }
-            self.sync_prev = v;
+                prepared.read(self.mip, frame_f, warped)
+            };
+            // At the cycle's start the accumulator is 0, so the effective
+            // read phase is the offset itself. A sync reset jumps from where
+            // the table's cycle stands when it lands.
+            let after = read_at(read_offset);
+            let before = match reset {
+                Reset::Restart(_) => before,
+                Reset::Sync(frac) => {
+                    read_at((raw_phase as f64 + increment * frac as f64).rem_euclid(1.0) as f32)
+                }
+            };
+            let (now, carry) = sync_blep(after - before, reset.frac());
+            sample += now;
+            self.blep_carry = carry;
+            next = match reset {
+                Reset::Restart(_) => 0.0,
+                Reset::Sync(frac) => (increment * (1.0 - frac as f64)).rem_euclid(1.0),
+            };
         }
 
         self.phase = next;
@@ -247,12 +293,14 @@ pub fn wavetable_derive_lane_count(params: &WavetableOscParams) -> usize {
     let fm_ch = params.fm.as_ref().map(|f| f.lanes()).unwrap_or(0);
     let phase_ch = params.phase.as_ref().map(|t| t.lanes()).unwrap_or(0);
     let sync_ch = params.sync.as_ref().map(|s| s.lanes()).unwrap_or(0);
+    let restart_ch = params.restart.as_ref().map(|r| r.lanes()).unwrap_or(0);
     let offset_ch = params.phase_offset.as_ref().map(|o| o.lanes()).unwrap_or(0);
     pitch_ch
         .max(pos_ch)
         .max(fm_ch)
         .max(phase_ch)
         .max(sync_ch)
+        .max(restart_ch)
         .max(offset_ch)
         .clamp(1, PORT_MAX_LANES)
 }
@@ -319,11 +367,13 @@ impl WavetableOsc {
         let inv_sr = 1.0 / sample_rate as f64;
         let p = &self.params;
         for (lane, state) in self.lane_state.iter_mut().enumerate() {
+            let ratio = p.sync.as_ref().map(|sync| sync_ratio(sync.get_value(lane)));
             state.tune(
                 prepared,
                 p.pitch.get_value(lane),
                 p.fm.value_or(lane, 0.0),
                 p.fm_mode,
+                ratio,
             );
             let resolved = p.phase.as_ref().map(|warp| {
                 (
@@ -340,7 +390,8 @@ impl WavetableOsc {
                 p.phase_offset
                     .value_or(lane, WavetableOscParams::PHASE_OFFSET_DEFAULT),
                 resolved.as_ref().map(|(warp, resolved)| (*warp, resolved)),
-                p.sync.as_ref().map(|sync| sync.get_value(lane)),
+                p.restart.as_ref().map(|restart| restart.get_value(lane)),
+                ratio,
             );
             self.outputs.sample.set(lane, sample);
         }
@@ -372,16 +423,19 @@ impl WavetableOsc {
             position,
             fm,
             sync,
+            restart,
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let inv_sr = 1.0 / sample_rate as f64;
+        let mut ratios = SyncRatios::new(sync, range.start);
         for i in range {
             let (pitch, fm, position, offset) =
                 (pitch.row(i), fm.row(i), position.row(i), offset.row(i));
-            let sync = sync.as_ref().map(|sync| sync.row(i));
+            let restart = restart.as_ref().map(|restart| restart.row(i));
+            let ratios = ratios.at(i);
             let slots = out.slot_mut(i).iter_mut().zip(self.lane_state.iter_mut());
             for (lane, (out, state)) in slots.enumerate() {
-                state.tune(prepared, pitch[lane], fm[lane], p.fm_mode);
+                state.tune(prepared, pitch[lane], fm[lane], p.fm_mode, ratios[lane]);
                 let sample = state.step(
                     prepared,
                     sample_rate,
@@ -389,7 +443,8 @@ impl WavetableOsc {
                     position[lane],
                     offset[lane],
                     None,
-                    sync.map(|sync| sync[lane]),
+                    restart.map(|restart| restart[lane]),
+                    ratios[lane],
                 );
                 *out = sanitize(sample);
             }
@@ -472,6 +527,7 @@ mod tests {
             fm: None,
             fm_mode: FmMode::default(),
             sync: None,
+            restart: None,
             phase: None,
             phase_offset: None,
             prepared: None,
@@ -640,5 +696,59 @@ mod tests {
             }
         }
         assert!(any_nonzero, "expected non-zero output once prepared");
+    }
+
+    fn prepared(sync: Option<f32>) -> WavetableOsc {
+        let mut osc = make_osc(WavetableOscParams {
+            pitch: PolySignal::mono(Signal::Volts(2.0)),
+            sync: sync.map(|v| PolySignal::mono(Signal::Volts(v))),
+            ..base_params()
+        });
+        let mut wav_data: HashMap<String, Arc<WavData>> = HashMap::new();
+        wav_data.insert("test.wav".to_string(), make_wav(2048, 1));
+        osc.prepare_resources_impl(&wav_data, 48000.0);
+        osc
+    }
+
+    /// Sync at 0 restarts each cycle exactly where it wraps anyway, so from
+    /// the first sample, across restarts and with sync switched on partway,
+    /// the wave is the free one.
+    #[test]
+    fn sync_at_zero_is_the_free_wave() {
+        let render = |sync_from: Option<usize>| {
+            let mut osc = prepared(None);
+            (0..4000)
+                .map(|i| {
+                    osc.params.restart = Some(PolySignal::mono(Signal::Volts(if i % 1000 < 2 {
+                        5.0
+                    } else {
+                        0.0
+                    })));
+                    if sync_from == Some(i) {
+                        osc.params.sync = Some(PolySignal::mono(Signal::Volts(0.0)));
+                    }
+                    osc.update(48000.0);
+                    osc.outputs.sample.get(0)
+                })
+                .collect::<Vec<f32>>()
+        };
+        let free = render(None);
+        for sync_from in [0, 1537] {
+            for (i, (synced, free)) in render(Some(sync_from)).iter().zip(&free).enumerate() {
+                assert!(
+                    (synced - free).abs() < 1e-3,
+                    "synced from {sync_from}, sample {i}: {synced} vs {free}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sync_reads_the_table_at_the_synced_pitch() {
+        let mut osc = prepared(Some(2.0));
+        osc.update(48000.0);
+        let state = osc.lane_state[0];
+        let prepared = osc.params.prepared.as_ref().unwrap();
+        assert_eq!(state.mip, prepared.mipmap_for_freq(state.freq * 4.0));
     }
 }

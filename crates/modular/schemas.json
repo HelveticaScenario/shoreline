@@ -12366,7 +12366,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -12392,7 +12392,24 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 4.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -12526,7 +12543,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12544,7 +12561,19 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        "paramType": "control",
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12592,6 +12621,10 @@
         {
           "title": "Breathing triangle",
           "code": "keys: $saw('a3', { shape: $sine('0.2hz').range(1, 4) })"
+        },
+        {
+          "title": "Sync sweep",
+          "code": "lead: $saw('a2', { sync: $sine('0.2hz').range(0, 3) })"
         }
       ]
     },
@@ -12601,7 +12634,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -12646,7 +12679,24 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 4.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -12785,7 +12835,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12817,7 +12867,19 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        "paramType": "control",
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12874,7 +12936,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -12938,7 +13000,24 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 4.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -13072,7 +13151,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -13118,7 +13197,19 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        "paramType": "control",
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -13983,6 +14074,20 @@
             "controlMax": 4.0
           }
         },
+        "restart": {
+          "description": "each rising edge restarts every saw at its starting phase",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "trig"
+          }
+        },
         "waitForZeroCross": {
           "description": "each new saw stays silent until it first crosses zero, so its starting phase cannot click",
           "type": "boolean",
@@ -14124,6 +14229,15 @@
         "minValue": 0.0,
         "controlMin": 0.0,
         "controlMax": 4.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts every saw at its starting phase",
+        "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -15175,7 +15289,7 @@
       "type": "object",
       "properties": {
         "pitch": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -15224,7 +15338,24 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 4.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -15558,7 +15689,7 @@
     "signalParams": [
       {
         "name": "pitch",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -15590,7 +15721,19 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
+        "paramType": "control",
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 4.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
