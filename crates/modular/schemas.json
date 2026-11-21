@@ -36528,7 +36528,7 @@
     "name": "$mi.chorus",
     "docs": {
       "summary": "Stereo ensemble chorus",
-      "description": "Mutable Instruments Plaits' ensemble: three delay taps per side, crossed between the sides and swept by a slow and a fast LFO, for the lush shimmer of a string machine. After `$mi.divideDown` and a low-pass it makes Plaits' string machine.",
+      "description": "Mutable Instruments Plaits' ensemble: three delay taps per side, crossed between the sides and swept by a slow and a fast LFO, for the lush shimmer of a string machine. `$mi.stringMachine` plays Plaits' string machine through it.",
       "categories": [
         "effect"
       ],
@@ -36737,7 +36737,7 @@
     "name": "$mi.divideDown",
     "docs": {
       "summary": "Divide-down string-machine oscillator",
-      "description": "Mutable Instruments Plaits' divide-down oscillator: four saws an octave apart from one phase, mixed into saw, square and organ registrations like a string machine's footages. Through a low-pass and `$mi.chorus` it makes Plaits' string machine.",
+      "description": "Mutable Instruments Plaits' divide-down oscillator: four saws an octave apart from one phase, mixed into saw, square and organ registrations like a string machine's footages. `$mi.stringMachine` plays chords on it through a low-pass and `$mi.chorus`.",
       "categories": [
         "oscillator"
       ],
@@ -41779,6 +41779,346 @@
     ],
     "experimental": false,
     "stereo": "lift"
+  },
+  {
+    "name": "$mi.stringMachine",
+    "docs": {
+      "summary": "Stereo string-machine chords",
+      "description": "Mutable Instruments Plaits' string machine: four-note chords on divide-down organ voices, low-pass filtered and spread across a stereo ensemble chorus.",
+      "categories": [
+        "oscillator"
+      ],
+      "sections": [
+        {
+          "title": "Chords",
+          "body": "`chord` picks one of eleven chords by number.",
+          "table": {
+            "columns": [
+              "chord",
+              "Name"
+            ],
+            "rows": [
+              [
+                "0",
+                "octave"
+              ],
+              [
+                "1",
+                "fifth"
+              ],
+              [
+                "2",
+                "sus4"
+              ],
+              [
+                "3",
+                "minor"
+              ],
+              [
+                "4",
+                "minor 7th"
+              ],
+              [
+                "5",
+                "minor 9th"
+              ],
+              [
+                "6",
+                "minor 11th"
+              ],
+              [
+                "7",
+                "6/9"
+              ],
+              [
+                "8",
+                "major 9th"
+              ],
+              [
+                "9",
+                "major 7th"
+              ],
+              [
+                "10",
+                "major"
+              ]
+            ]
+          },
+          "examples": []
+        }
+      ],
+      "examples": [
+        {
+          "title": "Minor 7th strings",
+          "code": "pad: $mi.stringMachine('c3', { chord: 4 })"
+        },
+        {
+          "title": "Swelling ensemble",
+          "code": "const swell = $sine('0.07hz').range(2.5, 5)\npad: $mi.stringMachine('a2', { chord: 6, tone: swell })"
+        },
+        {
+          "title": "Square organ chords",
+          "code": "keys: $mi.stringMachine('e3', {\n  chord: 9,\n  registration: 5,\n  tone: 1,\n})"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "StringMachineParams",
+      "type": "object",
+      "properties": {
+        "freq": {
+          "description": "root pitch",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "chord": {
+          "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 10.0,
+            "minValue": 0.0,
+            "maxValue": 10.0,
+            "controlMin": 0.0,
+            "controlMax": 10.0
+          }
+        },
+        "registration": {
+          "description": "the mix of saw and square footages, from a bright saw (0) through organ-like mixtures to a hollow square (5)",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "tone": {
+          "description": "the filter opens from dark (0) to bright (5), while the ensemble fades out toward 2.5 and back in, shallow below it and deep above",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 3.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "fm": {
+          "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "fmMode": {
+          "description": "how `fm` bends the frequency",
+          "$ref": "#/$defs/FmMode",
+          "default": "throughZero"
+        }
+      },
+      "required": [
+        "freq"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "FmMode": {
+          "description": "FM synthesis mode for oscillators.",
+          "oneOf": [
+            {
+              "description": "through-zero: deep modulation can push the frequency below zero, running the wave backwards",
+              "type": "string",
+              "const": "throughZero"
+            },
+            {
+              "description": "linear: like throughZero, but the frequency stops at zero",
+              "type": "string",
+              "const": "lin"
+            },
+            {
+              "description": "exponential: `fm` adds to the pitch, one octave per volt",
+              "type": "string",
+              "const": "exp"
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "the strings, as one stereo lane: alternate notes of the chord lead on each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "freq",
+        "description": "root pitch",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "chord",
+        "description": "the chord, numbered as in the Chords table; a voltage between two holds the current chord until it passes the halfway mark",
+        "paramType": "control",
+        "defaultValue": 10.0,
+        "minValue": 0.0,
+        "maxValue": 10.0,
+        "controlMin": 0.0,
+        "controlMax": 10.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "registration",
+        "description": "the mix of saw and square footages, from a bright saw (0) through organ-like mixtures to a hollow square (5)",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "tone",
+        "description": "the filter opens from dark (0) to bright (5), while the ensemble fades out toward 2.5 and back in, shallow below it and deep above",
+        "paramType": "control",
+        "defaultValue": 3.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "fm",
+        "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filter follows exp's pitch and the unmodulated note under lin and throughZero, which runs the saws backward",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "freq"
+      }
+    ],
+    "experimental": false,
+    "stereo": "stereo"
   },
   {
     "name": "$mi.swarm",
