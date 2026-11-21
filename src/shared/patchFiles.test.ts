@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPatchPath } from './patchFiles';
+import { isPatchPath, patchExtension } from './patchFiles';
 
 describe('isPatchPath', () => {
     it('accepts patch extensions, case-insensitively', () => {
@@ -16,5 +16,13 @@ describe('isPatchPath', () => {
         expect(isPatchPath('README.md')).toBe(false);
         expect(isPatchPath('mjs')).toBe(false);
         expect(isPatchPath('sl')).toBe(false);
+    });
+});
+
+describe('patchExtension', () => {
+    it('returns the extension as the path spells it', () => {
+        expect(patchExtension('/w/song.sl')).toBe('.sl');
+        expect(patchExtension('/w/Song.MJS')).toBe('.MJS');
+        expect(patchExtension('/w/kick.wav')).toBeUndefined();
     });
 });

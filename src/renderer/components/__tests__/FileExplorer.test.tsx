@@ -26,7 +26,7 @@ import type { FileTreeEntry } from '../../../shared/ipcTypes';
 const WORKSPACE = '/workspace';
 
 const FILE_TREE: FileTreeEntry[] = [
-    { fileType: 'js', name: 'song.mjs', path: 'song.mjs', type: 'file' },
+    { fileType: 'patch', name: 'song.mjs', path: 'song.mjs', type: 'file' },
 ];
 
 let root: Root | null = null;

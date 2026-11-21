@@ -23,7 +23,7 @@ async function listFiles(electronApp: ElectronApplication, names: string[]) {
         ipcMain.removeHandler('modular:fs:list-files');
         ipcMain.handle('modular:fs:list-files', () =>
             files.map((name) => ({
-                fileType: 'js',
+                fileType: 'patch',
                 name,
                 path: name,
                 type: 'file',

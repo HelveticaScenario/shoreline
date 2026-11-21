@@ -9,6 +9,7 @@ import {
     formatBufferLabel,
     getBufferId,
     normalizeFileName,
+    renamedFileName,
     readUnsavedBuffers,
     saveUnsavedBuffers,
     toAbsoluteWorkspacePath,
@@ -478,7 +479,7 @@ export function useEditorBuffers({
                 return;
             }
 
-            const normalized = normalizeFileName(newName);
+            const normalized = renamedFileName(oldPath, newName);
 
             const separator = oldPath.includes('\\') ? '\\' : '/';
             const lastSepIndex = oldPath.lastIndexOf(separator);

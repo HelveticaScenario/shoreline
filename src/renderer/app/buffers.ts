@@ -1,5 +1,9 @@
 import type { EditorBuffer, UnsavedBufferSnapshot } from '../types/editor';
-import { isPatchPath, PATCH_EXTENSION } from '../../shared/patchFiles';
+import {
+    isPatchPath,
+    PATCH_EXTENSION,
+    patchExtension,
+} from '../../shared/patchFiles';
 
 export const DEFAULT_PATCH = `// Simple 440 Hz sine wave
 keys: $sine('a3')
@@ -162,10 +166,25 @@ export const formatBufferLabel = (buffer: EditorBuffer) => {
     return buffer.filePath;
 };
 
-export const normalizeFileName = (name: string) => {
+/** `name` trimmed, with `extension` added unless it already names a patch. */
+export const normalizeFileName = (
+    name: string,
+    extension: string = PATCH_EXTENSION,
+) => {
     const trimmed = name.trim();
     if (!trimmed) {
         return trimmed;
     }
-    return isPatchPath(trimmed) ? trimmed : `${trimmed}${PATCH_EXTENSION}`;
+    return isPatchPath(trimmed) ? trimmed : `${trimmed}${extension}`;
+};
+
+/**
+ * The name a rename gives `oldPath`'s file. A patch keeps its own extension
+ * when the new name has none; any other file takes the new name as typed.
+ */
+export const renamedFileName = (oldPath: string, newName: string) => {
+    const extension = patchExtension(oldPath);
+    return extension === undefined
+        ? newName.trim()
+        : normalizeFileName(newName, extension);
 };

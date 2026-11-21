@@ -13,8 +13,14 @@ export const PATCH_FILE_FILTER = {
     name: 'Shoreline Patches',
 };
 
+/** The patch extension `filePath` ends with, as spelled there, or undefined for any other file. */
+export function patchExtension(filePath: string): string | undefined {
+    const lower = filePath.toLowerCase();
+    const ext = PATCH_EXTENSIONS.find((e) => lower.endsWith(e));
+    return ext === undefined ? undefined : filePath.slice(-ext.length);
+}
+
 /** Whether `filePath` names a patch file. */
 export function isPatchPath(filePath: string): boolean {
-    const lower = filePath.toLowerCase();
-    return PATCH_EXTENSIONS.some((ext) => lower.endsWith(ext));
+    return patchExtension(filePath) !== undefined;
 }

@@ -774,7 +774,7 @@ function validatePathInWorkspace(filePath: string): string | null {
 /** The explorer's file type for a patch or an asset a patch can load, or undefined for any other file. */
 function explorerFileType(filename: string): FileTreeEntry['fileType'] {
     if (isPatchPath(filename)) {
-        return 'js';
+        return 'patch';
     }
     return assetKind(filename);
 }
