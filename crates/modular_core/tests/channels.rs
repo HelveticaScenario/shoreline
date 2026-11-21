@@ -533,7 +533,7 @@ fn unison_copies_each_side_of_a_stereo_lane() {
         (
             "u",
             "$unison",
-            json!({ "input": cable("st", 0), "count": 2 }),
+            json!({ "input": cable("st", 0), "count": 2, "spread": 0.0 }),
         ),
     ])
     .unwrap();

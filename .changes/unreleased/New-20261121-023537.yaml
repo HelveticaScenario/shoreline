@@ -1,0 +1,3 @@
+kind: New
+body: 'New `$super` turns any voice into a detuned, stereo-spread unison stack like `$supersaw`''s: `$super(''c3'', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))`. Its `unison`, `detune` and `width` options set the copies per note, the semitones between the lowest and highest copy, and how far they fan out.'
+time: 2026-11-21T02:35:37.387669-05:00
