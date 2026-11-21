@@ -95,6 +95,17 @@ export class PendingTrackTap {
     /** Point the tap at its track's signals. */
     resolve(sources: TrackTapSources): void {
         this.audio.set(sources.audio);
+        this.resolveControls(sources, null);
+    }
+
+    /**
+     * Point the tap at its track's controls only; reading its audio fails
+     * with `audioError`.
+     */
+    resolveControls(sources: TrackTapSources, audioError: string | null): void {
+        for (const lane of this.audio.items) {
+            lane.unsetReason = audioError;
+        }
         this.active.set(sources.active);
         this.level.set(sources.level);
         this.panning.set(sources.panning);

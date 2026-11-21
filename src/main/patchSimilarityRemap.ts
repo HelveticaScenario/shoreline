@@ -49,7 +49,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function isCableRef(
+export function isCableRef(
     value: unknown,
 ): value is { type: 'cable'; module: string; port: string } {
     if (!isPlainObject(value)) {
