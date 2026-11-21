@@ -1205,9 +1205,13 @@ describe('utilities', () => {
         expect(findModules(patch, '$slew').length).toBe(1);
     });
 
-    test('$quantizer', () => {
+    test('$quantizer reads a "root(scale)" string as a scale, not a chord', () => {
         const patch = execPatch('out: $quantizer($sine("C4"), "C(major)")');
-        expect(findModules(patch, '$quantizer').length).toBe(1);
+        const [quantizer] = findModules(patch, '$quantizer');
+        expect(quantizer.params.scale).toHaveLength(7);
+        expect(() =>
+            execPatch('out: $quantizer($sine("C4"), "D3(dorian)")'),
+        ).not.toThrow();
     });
 
     test('$quantizer string scale becomes a $chord feeding the scale input', () => {
