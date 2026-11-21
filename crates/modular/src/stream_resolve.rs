@@ -6,8 +6,9 @@ use napi::Result;
 
 use crate::AudioConfigOptions;
 use crate::audio::{
-    AudioDeviceCache, AudioDeviceInfo, BufferSizeRange, find_input_device_in_host,
-    find_output_device_in_host, get_host_by_preference, preferred_default_sample_rate,
+    AudioDeviceCache, AudioDeviceInfo, BufferSizeRange, PREFERRED_DEFAULT_BUFFER_SIZE,
+    find_input_device_in_host, find_output_device_in_host, get_host_by_preference,
+    preferred_default_sample_rate,
 };
 
 /// The output device a stream open asks for.
@@ -27,15 +28,15 @@ pub(crate) enum Fit {
     /// Exactly `sample_rate` and the buffer size asked for, or an error.
     Exact { sample_rate: u32 },
     /// `sample_rate` and the buffer size asked for where the output allows
-    /// them, then `fallback`'s, then the output's own. The input opens only
+    /// them, then `fallback`'s, then the defaults. The input opens only
     /// where it runs at the chosen rate.
     Closest {
         sample_rate: u32,
         fallback: (u32, Option<u32>),
     },
     /// `sample_rate` where the output runs at it, otherwise the output's
-    /// preferred default (also for `None`); the buffer size as asked; an
-    /// input that will not open is left off. A new synthesizer opens this
+    /// preferred default (also for `None`); the buffer size as asked, or the
+    /// default for `None`; an input that will not open is left off. A new synthesizer opens this
     /// way.
     Launch { sample_rate: Option<u32> },
 }
@@ -77,9 +78,27 @@ struct Settings {
     buffer_size: Option<u32>,
 }
 
+/// Whether `size` frames lies in `range`, which is unbounded when unknown.
+fn fits(range: &Option<BufferSizeRange>, size: u32) -> bool {
+    range
+        .as_ref()
+        .is_none_or(|range| (range.min..=range.max).contains(&size))
+}
+
+/// The buffer size the streams use when none is chosen:
+/// `PREFERRED_DEFAULT_BUFFER_SIZE` where the output and input both report a
+/// range that holds it, otherwise the host's.
+fn default_buffer_size(output: &AudioDeviceInfo, input: Option<&AudioDeviceInfo>) -> Option<u32> {
+    let holds = |device: &AudioDeviceInfo| {
+        device.buffer_size_range.is_some()
+            && fits(&device.buffer_size_range, PREFERRED_DEFAULT_BUFFER_SIZE)
+    };
+    (holds(output) && input.is_none_or(holds)).then_some(PREFERRED_DEFAULT_BUFFER_SIZE)
+}
+
 /// The sample rate and buffer size asked for where the output allows them;
-/// otherwise the fallback ones, then the output's own. The input where it
-/// runs at the chosen rate.
+/// otherwise the fallback ones, then the defaults, where `None` asks for
+/// the default buffer size. The input where it runs at the chosen rate.
 fn choose_settings(
     output: &AudioDeviceInfo,
     input: Option<&AudioDeviceInfo>,
@@ -94,21 +113,17 @@ fn choose_settings(
         .find(|rate| supported.contains(rate))
         .unwrap_or_else(|| preferred_default_sample_rate(output.sample_rate, supported));
     let input = input.filter(|input| input.supported_sample_rates.contains(&sample_rate));
-    let fits = |range: &Option<BufferSizeRange>, size: &u32| {
-        range
-            .as_ref()
-            .is_none_or(|range| (range.min..=range.max).contains(size))
-    };
     let allowed = |size: &Option<u32>| {
         size.is_none_or(|size| {
-            fits(&output.buffer_size_range, &size)
-                && input.is_none_or(|input| fits(&input.buffer_size_range, &size))
+            fits(&output.buffer_size_range, size)
+                && input.is_none_or(|input| fits(&input.buffer_size_range, size))
         })
     };
     let buffer_size = [asked_buffer_size, fallback_buffer_size]
         .into_iter()
         .find(allowed)
-        .flatten();
+        .flatten()
+        .or_else(|| default_buffer_size(output, input));
     Settings {
         sample_rate,
         input_opens: input.is_some(),
@@ -213,7 +228,14 @@ pub(crate) fn resolve(cache: &AudioDeviceCache, request: OpenRequest) -> Result<
                     unsupported_sample_rate = *sample_rate;
                     preferred_default_sample_rate(output.sample_rate, supported)
                 });
-            (chosen, request.buffer_size, input_device_id)
+            let input_info = input_device_id
+                .as_ref()
+                .and_then(|id| cache.find_input_device(id))
+                .filter(|input| input.supported_sample_rates.contains(&chosen));
+            let buffer_size = request
+                .buffer_size
+                .or_else(|| default_buffer_size(output, input_info));
+            (chosen, buffer_size, input_device_id)
         }
         // An unlisted output runs at its own rate.
         (_, None) => (
@@ -459,15 +481,15 @@ mod tests {
     }
 
     #[test]
-    fn a_buffer_size_the_output_rejects_falls_back_to_the_fallback_then_the_hosts() {
+    fn a_buffer_size_the_output_rejects_falls_back_to_the_fallback_then_the_default() {
         let output = device(&[48000], (128, 4096));
         assert_eq!(
-            choose_settings(&output, None, (48000, Some(64)), (48000, Some(256))).buffer_size,
-            Some(256)
+            choose_settings(&output, None, (48000, Some(64)), (48000, Some(512))).buffer_size,
+            Some(512)
         );
         assert_eq!(
             choose_settings(&output, None, (48000, Some(32)), (48000, Some(64))).buffer_size,
-            None
+            Some(256)
         );
         let input = device(&[48000], (15, 32));
         let wide = device(&[48000], (15, 4096));
@@ -475,5 +497,38 @@ mod tests {
             choose_settings(&wide, Some(&input), (48000, Some(64)), (48000, Some(64))).buffer_size,
             None
         );
+    }
+
+    #[test]
+    fn an_unchosen_buffer_size_is_256_frames_where_the_devices_allow_it() {
+        let output = device(&[48000], (15, 4096));
+        assert_eq!(
+            choose_settings(&output, None, (48000, None), (48000, None)).buffer_size,
+            Some(256)
+        );
+        let small = device(&[48000], (15, 128));
+        assert_eq!(
+            choose_settings(&small, None, (48000, None), (48000, None)).buffer_size,
+            None
+        );
+        let input = device(&[48000], (512, 4096));
+        assert_eq!(
+            choose_settings(&output, Some(&input), (48000, None), (48000, None)).buffer_size,
+            None
+        );
+        let unknown = AudioDeviceInfo {
+            buffer_size_range: None,
+            ..output.clone()
+        };
+        assert_eq!(default_buffer_size(&unknown, None), None);
+    }
+
+    #[test]
+    fn the_default_sample_rate_is_48k_where_the_output_runs_at_it() {
+        assert_eq!(preferred_default_sample_rate(44100, &[44100, 48000]), 48000);
+        assert_eq!(preferred_default_sample_rate(96000, &[48000, 96000]), 48000);
+        assert_eq!(preferred_default_sample_rate(44100, &[44100, 96000]), 44100);
+        assert_eq!(preferred_default_sample_rate(96000, &[44100, 96000]), 44100);
+        assert_eq!(preferred_default_sample_rate(96000, &[96000]), 96000);
     }
 }
