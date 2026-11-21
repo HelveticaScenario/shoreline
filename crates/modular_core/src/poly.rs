@@ -878,6 +878,12 @@ impl PairSignal {
         sums
     }
 
+    /// Both sides of lane `lane`, `[L, R]`, cycling lanes.
+    #[inline]
+    pub fn get_pair(&self, lane: usize) -> [f32; 2] {
+        [self.get_value(lane, 0), self.get_value(lane, 1)]
+    }
+
     /// Lane `lane` folded to mono, `(L + R) / 2`: a mono producer's value as
     /// it is.
     #[inline]
@@ -1001,6 +1007,12 @@ pub trait PolySignalExt {
 
     /// The [`GlideMark`] for the given lane, or [`GlideMark::ABSENT`] if disconnected.
     fn glide_mark(&self, lane: usize) -> GlideMark;
+
+    /// Lane `lane` of a stereo module's `fold` input, its two sides averaged,
+    /// or `default` if disconnected.
+    fn folded_or(&self, lane: usize, default: f32) -> f32 {
+        0.5 * (self.value_or(lane * 2, default) + self.value_or(lane * 2 + 1, default))
+    }
 }
 
 impl PolySignalExt for Option<PolySignal> {
