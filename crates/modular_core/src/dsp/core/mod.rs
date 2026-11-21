@@ -10,6 +10,7 @@ pub mod pan;
 pub mod set_lanes;
 pub mod signal;
 pub mod stereo;
+pub mod stereo_fold;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     signal::Signal::install_constructor(map);
@@ -23,6 +24,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     stereo::SideOf::install_constructor(map);
     stereo::FromMidSide::install_constructor(map);
     pan::Pan::install_constructor(map);
+    stereo_fold::StereoFold::install_constructor(map);
     clock::Clock::install_constructor(map);
 }
 
@@ -38,6 +40,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     stereo::SideOf::install_params_deserializer(map);
     stereo::FromMidSide::install_params_deserializer(map);
     pan::Pan::install_params_deserializer(map);
+    stereo_fold::StereoFold::install_params_deserializer(map);
     clock::Clock::install_params_deserializer(map);
 }
 
@@ -54,6 +57,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         stereo::SideOf::get_schema(),
         stereo::FromMidSide::get_schema(),
         pan::Pan::get_schema(),
+        stereo_fold::StereoFold::get_schema(),
         clock::Clock::get_schema(),
     ]
 }

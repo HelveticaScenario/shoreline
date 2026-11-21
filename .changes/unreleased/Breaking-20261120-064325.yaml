@@ -1,0 +1,3 @@
+kind: Breaking
+body: '`$supersaw` places its voices so the left and right sides are centred on the same pitch: with 4 or more voices the left side no longer sounds flatter than the right, and with an odd number of voices the undetuned saw sits in the centre. Patches with `$supersaw` sound slightly different in stereo; nothing in the patch needs to change.'
+time: 2026-11-20T06:43:25.455601-05:00

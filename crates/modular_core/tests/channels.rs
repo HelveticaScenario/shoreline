@@ -581,6 +581,7 @@ fn quantizer_snaps_each_side() {
 /// editor can show where a stereo signal folds.
 const PER_SIDE: &[(&str, &[&str])] = &[
     ("$pan", &["input"]),
+    ("$stereoFold", &["input"]),
     (
         "$granular",
         &[
@@ -1107,4 +1108,194 @@ fn grains_reads_its_inputs_folded_from_a_stereo_file() {
         assert!(out[0] > 0.0, "gate ({left}, {right}): {out:?}");
         assert!((out[1] + 0.5 * out[0]).abs() < 1e-5, "{out:?}");
     }
+}
+
+/// Lanes `0..lanes` of `module`, one cable each.
+fn cables(module: &str, lanes: usize) -> Vec<Value> {
+    (0..lanes).map(|lane| cable(module, lane)).collect()
+}
+
+fn assert_close(out: &[f32], expected: &[f32]) {
+    assert_eq!(out.len(), expected.len(), "{out:?}");
+    for (o, e) in out.iter().zip(expected) {
+        assert!((o - e).abs() < 1e-5, "{out:?} vs {expected:?}");
+    }
+}
+
+#[test]
+fn stereo_fold_passes_a_lone_copy_through_on_both_sides() {
+    let patch = build(&[
+        ("in", "$signal", signal(json!(0.7))),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cable("in", 0), "voices": 1 }),
+        ),
+    ])
+    .unwrap();
+    assert_close(&step(&patch, "f"), &[0.7, 0.7]);
+}
+
+#[test]
+fn stereo_fold_reads_copies_as_unison_lays_them_out() {
+    // Two notes, three copies each: copy `v` of note `n` is lane `v * 2 + n`.
+    let patch = build(&[
+        (
+            "in",
+            "$signal",
+            signal(json!([1.0, 10.0, 2.0, 20.0, 3.0, 30.0])),
+        ),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cables("in", 6), "voices": 3, "width": 0.0 }),
+        ),
+    ])
+    .unwrap();
+    let a = 6.0 / 3f32.sqrt();
+    let b = 60.0 / 3f32.sqrt();
+    assert_close(&step(&patch, "f"), &[a, a, b, b]);
+}
+
+#[test]
+fn stereo_fold_at_full_width_puts_the_outer_copies_hard_left_and_right() {
+    let patch = build(&[
+        ("in", "$signal", signal(json!([1.0, 2.0]))),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": [cable("in", 0), cable("in", 1)], "voices": 2 }),
+        ),
+    ])
+    .unwrap();
+    // The lower copy hard left, the upper hard right, each at √2 before the
+    // stack's 1/√2.
+    assert_close(&step(&patch, "f"), &[1.0, 2.0]);
+}
+
+#[test]
+fn stereo_fold_spreads_a_note_cut_short_as_a_smaller_stack() {
+    // Five lanes of two copies: notes 0 and 1 have both copies, note 2 one.
+    let patch = build(&[
+        ("in", "$signal", signal(json!([1.0, 2.0, 3.0, 4.0, 5.0]))),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cables("in", 5), "voices": 2, "width": 0.0 }),
+        ),
+    ])
+    .unwrap();
+    let a = 5.0 / 2f32.sqrt();
+    let b = 7.0 / 2f32.sqrt();
+    assert_close(&step(&patch, "f"), &[a, a, b, b, 3.0, 3.0]);
+}
+
+#[test]
+fn stereo_fold_reads_mono_and_stereo_copies_side_by_side() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(1.0))),
+        ("r", "$signal", signal(json!(0.0))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        ("m", "$signal", signal(json!(1.0))),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": [cable("st", 0), cable("m", 0)], "voices": 2, "width": 0.0 }),
+        ),
+    ])
+    .unwrap();
+    let g = 1.0 / 2f32.sqrt();
+    assert_close(&step(&patch, "f"), &[2.0 * g, g]);
+}
+
+#[test]
+fn stereo_fold_keeps_a_centred_stereo_copy_as_it_is() {
+    let patch = build(&[
+        ("l", "$signal", signal(json!(0.3))),
+        ("r", "$signal", signal(json!(-0.7))),
+        (
+            "st",
+            "$stereo",
+            json!({ "left": cable("l", 0), "right": cable("r", 0) }),
+        ),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cable("st", 0), "voices": 1 }),
+        ),
+    ])
+    .unwrap();
+    assert_close(&step(&patch, "f"), &[0.3, -0.7]);
+}
+
+#[test]
+fn stereo_fold_gives_unison_one_stereo_lane_per_note() {
+    let patch = build(&[
+        ("p", "$signal", signal(json!([0.0, 1.0]))),
+        (
+            "u",
+            "$unison",
+            json!({ "input": [cable("p", 0), cable("p", 1)], "count": 3 }),
+        ),
+        (
+            "f",
+            "$stereoFold",
+            json!({
+                "input": cables("u", 6),
+                "voices": 3,
+                "width": 0.0,
+            }),
+        ),
+    ])
+    .unwrap();
+    let b = 3f32.sqrt();
+    assert_close(&step(&patch, "f"), &[0.0, 0.0, b, b]);
+}
+
+#[test]
+fn stereo_fold_sets_each_notes_width_on_its_own() {
+    // Note 0 centred, note 1 at full width.
+    let patch = build(&[
+        ("in", "$signal", signal(json!([1.0, 10.0, 2.0, 20.0]))),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cables("in", 4), "voices": 2, "width": [0.0, 5.0] }),
+        ),
+    ])
+    .unwrap();
+    let a = 3.0 / 2f32.sqrt();
+    assert_close(&step(&patch, "f"), &[a, a, 10.0, 20.0]);
+}
+
+#[test]
+fn stereo_fold_reads_a_stereo_width_at_its_sides_average() {
+    // Width 2 on the left and 3 on the right reads as 2.5: the copies sit
+    // halfway out, at pan -0.5 and 0.5.
+    let patch = build(&[
+        ("in", "$signal", signal(json!([1.0, 2.0]))),
+        ("wl", "$signal", signal(json!(2.0))),
+        ("wr", "$signal", signal(json!(3.0))),
+        (
+            "w",
+            "$stereo",
+            json!({ "left": cable("wl", 0), "right": cable("wr", 0) }),
+        ),
+        (
+            "f",
+            "$stereoFold",
+            json!({ "input": cables("in", 2), "voices": 2, "width": cable("w", 0) }),
+        ),
+    ])
+    .unwrap();
+    let (near, far) = (1.5f32.sqrt(), 0.5f32.sqrt());
+    let g = 1.0 / 2f32.sqrt();
+    assert_close(
+        &step(&patch, "f"),
+        &[(near + 2.0 * far) * g, (far + 2.0 * near) * g],
+    );
 }

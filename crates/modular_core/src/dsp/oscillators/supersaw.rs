@@ -8,11 +8,14 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
+        core::pan::pan_pair,
         oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
         utils::{
             SchmittTrigger,
             rng::{LcgRng, seed_base},
-            sanitize, wrap_phase,
+            sanitize,
+            unison_voices::{SlotOrder, centred_position, detune_position, unison_gain},
+            wrap_phase,
         },
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -244,31 +247,15 @@ impl Supersaw {
     fn configure(&mut self) {
         let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
         self.state.voices = voices;
-        self.state.gain = 5.0 / (voices as f32).sqrt();
+        self.state.gain = 5.0 * unison_gain(voices);
 
-        // Voice interpolation factor (precompute per voice)
-        // Interleaved ordering: first half of voices gets even detune positions,
-        // second half gets odd positions. This ensures each half contains a
-        // balanced spread across the full detune range, so splitting voices
-        // into two groups (e.g. for stereo panning) gives symmetric detuning
-        // on each side — matching Strudel's alternating L/R distribution.
-        let half = voices.div_ceil(2);
+        // Voice `v` sits at stereo slot `v`, left to right.
+        let order = SlotOrder::new(voices);
         for v in 0..voices {
-            let linear_pos = if v < half { v * 2 } else { (v - half) * 2 + 1 };
-            self.state.voice_t[v] = if voices > 1 {
-                linear_pos as f32 / (voices - 1) as f32
-            } else {
-                0.5 // centered, offset will be 0
-            };
-            // Voices spread from left to right in this order, so each side
-            // holds one of the two halves of the detune spread.
-            let p = if voices > 1 {
-                v as f32 / (voices - 1) as f32
-            } else {
-                0.5
-            };
-            self.state.pan[0][v] = (2.0 * (1.0 - p)).sqrt();
-            self.state.pan[1][v] = (2.0 * p).sqrt();
+            self.state.voice_t[v] = detune_position(order.detune(v), voices);
+            let [left, right] = pan_pair([1.0, 1.0], centred_position(v, voices));
+            self.state.pan[0][v] = left;
+            self.state.pan[1][v] = right;
         }
         for (peak, pan) in self.state.peak.iter_mut().zip(&self.state.pan) {
             *peak = self.state.gain * pan[..voices].iter().sum::<f32>();
