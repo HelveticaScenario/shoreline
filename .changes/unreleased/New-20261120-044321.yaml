@@ -1,3 +1,3 @@
 kind: New
-body: 'New `$mi.chords`: Plaits'' chord engine, eleven four-note chords on organ voices that turn into wavetable voices as `waveform` rises. `inversion` revoices the chord upward, and the `root` output plays its root alone. Its default `blend` output crossfades the chord into `root` as `mix` rises.'
+body: 'New `$mi.chords`: Plaits'' chord engine, eleven four-note chords on organ voices that turn into wavetable voices as `waveform` rises. `inversion` revoices the chord upward, and the `root` output plays its root alone. Its default `_blend` output crossfades the chord into `_root` as `mix` rises.'
 time: 2026-11-20T04:43:21.398334-05:00

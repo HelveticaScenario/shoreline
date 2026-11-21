@@ -153,7 +153,7 @@ export function resolveRef(
  * Information about a single variant in an enum-style JSON Schema.
  */
 export interface EnumVariantInfo {
-    /** The JSON-serialized const value (e.g., `"vaVcf"`) */
+    /** The JSON-serialized const value (e.g., `"throughZero"`) */
     value: string;
     /** The raw const value */
     rawValue: unknown;
