@@ -1,13 +1,13 @@
 use std::ops::Range;
 
+use std::f32::consts::TAU;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
-        oscillators::{
-            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
-        },
+        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_corner, sync_ratio},
         utils::{interpolate, sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -33,8 +33,9 @@ struct SineOscillatorParams {
     #[input(
         "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -130,21 +131,24 @@ impl LaneState {
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
 
-        // A reset restarts the cycle, with a PolyBLEP placed at its subsample
-        // point to band-limit the discontinuity.
+        // A reset restarts the cycle from where the old one reaches it, with
+        // a PolyBLEP for the jump and a PolyBLAMP for the change of slope
+        // placed at its subsample point.
         let mut now = 0.0;
         if let Some(reset) = reset {
+            let frac = reset.frac();
             self.phase = reset.phase(increment);
-            let before = match reset {
-                Reset::Restart(_) => body,
-                Reset::Sync(frac) => interpolate(
-                    LUT_SINE,
-                    (read_phase + frac * increment).rem_euclid(1.0),
-                    LUT_SINE_SIZE,
-                ),
-            };
-            let after = interpolate(LUT_SINE, offset.rem_euclid(1.0), LUT_SINE_SIZE);
-            let (n, carry) = sync_blep(after - before, reset.frac());
+            let sine = |phase: f32| interpolate(LUT_SINE, phase.rem_euclid(1.0), LUT_SINE_SIZE);
+            // The slope in output units per sample: the cosine, a quarter
+            // cycle ahead of the sine.
+            let slope = |phase: f32| TAU * sine(phase + 0.25) * increment;
+            let (reached, start) = (read_phase + frac * increment, offset);
+            let (n, carry) = sync_corner(
+                sine(start) - sine(reached),
+                slope(start) - slope(reached),
+                frac,
+                increment,
+            );
             now = n;
             self.blep_carry = carry;
         }
@@ -344,5 +348,62 @@ mod tests {
         }
         let differs = (400..2000).any(|i| (out[i] - free[i - 1]).abs() > 1.0);
         assert!(differs, "sync reshapes the wave");
+    }
+
+    #[test]
+    fn restart_starts_the_cycle_where_the_trigger_crosses() {
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the sample, so the sample after the restart lands stands
+        // four fifths of a step into the new cycle.
+        let mut osc = synced(-2.0, None);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(0.0)));
+        render(&mut osc, 700);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(5.0)));
+        render(&mut osc, 2);
+        let step = crate::dsp::utils::voct_to_hz(-2.0) / 48_000.0;
+        let phase = osc.lane_state[0].phase;
+        assert!((phase - 0.8 * step).abs() < 1e-6, "{phase}");
+    }
+
+    #[test]
+    fn a_restart_rounds_the_corner_it_makes() {
+        // Restarted halfway through a step as it falls through zero, the
+        // sine turns sharply upward from the cycle's start: the samples
+        // either side of the corner rise by the same PolyBLAMP share.
+        let step = 0.01;
+        let mut lane = LaneState {
+            phase: 0.5 - 1.5 * step,
+            ..Default::default()
+        };
+        // From 0 to 2 V, the trigger crosses its threshold halfway.
+        let first = lane.step(step, 0.0, Some(2.0), None);
+        let second = lane.step(step, 0.0, Some(2.0), None);
+        let sine = |phase: f32| 5.0 * interpolate(LUT_SINE, phase, LUT_SINE_SIZE);
+        // A sixth of the slope change times half cubed, faded by the step's
+        // distance from Nyquist.
+        let fade = (1.0 - 2.0 * step).powi(2);
+        let share = 5.0 * 2.0 * TAU * step / 6.0 * 0.125 * fade;
+        let (lift_first, lift_second) = (first - sine(0.5 - 0.5 * step), second - sine(0.5 * step));
+        assert!((lift_first - share).abs() < 2e-4, "{lift_first} vs {share}");
+        assert!(
+            (lift_second - share).abs() < 2e-4,
+            "{lift_second} vs {share}"
+        );
+    }
+
+    #[test]
+    fn a_synced_sine_stays_near_its_range_up_to_nyquist() {
+        // Swept from the note to its speed limit, the corrections round each
+        // corner without the overshoot a straight-line correction makes on a
+        // wave that curves within a sample.
+        for freq in [1.0, 3.0, 4.5] {
+            let mut osc = synced(freq, Some(0.0));
+            for i in 0..8000 {
+                osc.params.sync = Some(PolySignal::mono(Signal::Volts(i as f32 / 1000.0)));
+                osc.update(48_000.0);
+                let v = osc.outputs.sample.get(0);
+                assert!(v.abs() <= 5.75, "{freq} V, sample {i}: {v}");
+            }
+        }
     }
 }

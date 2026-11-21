@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    The trigger that restarts the cycle of `$sine`, `$saw`, `$pulse`, `$wavetable` and `$supersaw` is now `restart`, and their `sync` is internal hard sync, set in octaves: the wave runs that many octaves above its note and restarts with it, so sweeping `sync` gives sync tearing at the note's pitch. Rename a trigger to `restart`, or move a sync oscillator's pitch into the note:
+    The trigger that restarts the cycle of `$sine`, `$saw`, `$pulse`, `$wavetable` and `$supersaw` is now `restart`, and their `sync` is internal hard sync, set in octaves: the wave runs that many octaves above its note and restarts with it, so sweeping `sync` gives sync tearing at the note's pitch. `restart` starts the cycle at the exact moment its trigger rises, so restarting from another oscillator stays in tune. Rename a trigger to `restart`, or move a sync oscillator's pitch into the note:
 
     ```js
     // before: restarted by each trigger, and a c3 stack synced to c2
