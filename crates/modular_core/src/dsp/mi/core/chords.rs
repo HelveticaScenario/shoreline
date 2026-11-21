@@ -86,6 +86,12 @@ impl ChordBank {
         self.index
     }
 
+    /// The frequency ratio of the chord's `note` (0–3) to its root.
+    #[inline(always)]
+    pub fn ratio(&self, note: usize) -> f32 {
+        self.ratios[note]
+    }
+
     /// How many distinct notes the chord has, leaving out the notes that
     /// only double another a detune or an octave away.
     pub fn num_notes(&self) -> usize {

@@ -421,6 +421,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.snare"
         | "$mi.speak"
         | "$mi.string"
+        | "$mi.stringMachine"
         | "$mi.swarm"
         | "$mi.synthKick"
         | "$mi.synthSnare"

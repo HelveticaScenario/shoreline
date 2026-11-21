@@ -1,5 +1,5 @@
-use super::ensemble::{Ensemble, EnsembleRates};
 use super::hold_knobs;
+use crate::dsp::mi::core::ensemble::{Ensemble, EnsembleRates};
 use crate::dsp::mi::core::fixture::records;
 
 /// Replays `chorus.f32` (Plaits' ensemble, a sample at a time) on a stereo
