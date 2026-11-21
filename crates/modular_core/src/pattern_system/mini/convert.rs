@@ -4,7 +4,6 @@
 //! the `FromMiniAtom` trait.
 
 use super::ast::{AtomValue, Located, MiniAST, MiniASTF64, MiniASTI32, MiniASTU32};
-use crate::dsp::utilities::{FixedRoot, ScaleSpec};
 use crate::pattern_system::{
     Fraction, Pattern,
     combinators::{fastcat, slowcat, stack, timecat},
@@ -38,9 +37,9 @@ pub trait FromMiniAtom: Clone + Send + Sync + 'static {
         }
     }
 
-    /// The values a chord atom plays, given its notes as V/Oct voltages,
-    /// lowest first: by default the atom's single value from `from_atom`.
-    fn from_chord(atom: &AtomValue, _voltages: &[f64]) -> Result<Vec<Self>, ConvertError> {
+    /// The values a chord atom plays: by default its single value from
+    /// `from_atom`.
+    fn from_chord(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
         Ok(vec![Self::from_atom(atom)?])
     }
 
@@ -889,45 +888,13 @@ fn eval_u32(ast: &MiniASTU32) -> u32 {
     }
 }
 
-/// V/Oct voltage of each note of a chord atom, lowest first.
-fn chord_voltages(
-    letter: char,
-    accidental: Option<char>,
-    octave: Option<i32>,
-    chord: &str,
-) -> Result<Vec<f64>, ConvertError> {
-    let octave = octave
-        .map(i8::try_from)
-        .transpose()
-        .map_err(|_| ConvertError::InvalidAtom("chord root octave out of range".to_string()))?;
-    let root = FixedRoot {
-        letter,
-        accidental,
-        octave,
-    };
-    ScaleSpec::chord(&root, chord)
-        .map(|spec| {
-            (0..spec.voltages().len() as i32)
-                .map(|degree| spec.degree_voltage(degree))
-                .collect()
-        })
-        .map_err(ConvertError::InvalidAtom)
-}
-
 fn convert_inner<T: FromMiniAtom>(ast: &MiniAST) -> Result<Pattern<T>, ConvertError> {
     match ast {
         MiniAST::Pure(Located {
-            node:
-                atom @ AtomValue::Chord {
-                    letter,
-                    accidental,
-                    octave,
-                    chord,
-                },
+            node: atom @ AtomValue::Chord { .. },
             span,
         }) => {
-            let voltages = chord_voltages(*letter, *accidental, *octave, chord)?;
-            let notes = T::from_chord(atom, &voltages)?
+            let notes = T::from_chord(atom)?
                 .into_iter()
                 .map(|value| pure_with_span(value, span.clone()))
                 .collect();
@@ -2274,7 +2241,6 @@ mod tests {
     #[test]
     fn chord_atom_plays_its_notes_together() {
         use crate::dsp::seq::SeqValue;
-        use crate::dsp::seq::interval_value::IntervalValue;
 
         let pat: Pattern<SeqValue> = convert(&parse("c3(maj7 inv1) d").unwrap()).unwrap();
         let haps = pat.query_arc(Fraction::from_integer(0), Fraction::new(1, 2));
@@ -2286,11 +2252,6 @@ mod tests {
         let structure: Pattern<bool> = convert(&parse("c(maj7)").unwrap()).unwrap();
         let onsets = structure.query_arc(Fraction::from_integer(0), Fraction::from_integer(1));
         assert_eq!(onsets.len(), 1, "a chord is one onset in a struct pattern");
-
-        let degrees: Result<Pattern<IntervalValue>, _> = convert(&parse("c(maj)").unwrap());
-        assert!(degrees.is_err(), "scale patterns reject chords");
-        let unknown: Result<Pattern<SeqValue>, _> = convert(&parse("c(nope)").unwrap());
-        assert!(unknown.is_err());
     }
 
     #[test]

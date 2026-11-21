@@ -12,7 +12,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Patch,
-    dsp::utils::midi_to_voct_f64,
+    dsp::{
+        utilities::{FixedRoot, ScaleSpec},
+        utils::midi_to_voct_f64,
+    },
     pattern_system::{
         Pattern,
         mini::{
@@ -230,8 +233,27 @@ impl FromMiniAtom for SeqValue {
         }
     }
 
-    fn from_chord(_atom: &AtomValue, voltages: &[f64]) -> Result<Vec<Self>, ConvertError> {
-        Ok(voltages.iter().map(|&v| SeqValue::voltage(v)).collect())
+    fn from_chord(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+        let AtomValue::Chord {
+            letter,
+            accidental,
+            octave,
+            chord,
+        } = atom
+        else {
+            return Ok(vec![Self::from_atom(atom)?]);
+        };
+        let octave = octave
+            .map(i8::try_from)
+            .transpose()
+            .map_err(|_| ConvertError::InvalidAtom("chord root octave out of range".to_string()))?;
+        let root = FixedRoot {
+            letter: *letter,
+            accidental: *accidental,
+            octave,
+        };
+        let spec = ScaleSpec::note_chord(&root, chord).map_err(ConvertError::InvalidAtom)?;
+        Ok(spec.note_voltages().map(SeqValue::voltage).collect())
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {

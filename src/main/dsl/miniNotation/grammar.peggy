@@ -270,9 +270,8 @@ NoteValue
     }
 
 // A chord is a note with its chord in parentheses directly after it:
-// c3(maj7), eb(m7 inv1), c(just maj). Rust reads the body as
-// `[tuning] (chord-name | intervals…) [invN]`. A body holding `,` is a
-// euclidean modifier instead, so `c(3,8)` stays a rhythm.
+// c3(maj7), eb(m7 inv1), c(just maj). A body holding `,` is a euclidean
+// modifier instead, so `c(3,8)` stays a rhythm.
 ChordValue
   = note:NoteName "(" chord:ChordBody ")" {
       return { Pure: located({ Chord: { ...note, chord } }, location()) };

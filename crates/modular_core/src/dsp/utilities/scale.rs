@@ -224,7 +224,7 @@ impl ScaleSpec {
         let body = &source[open + 1..source.len() - close.len_utf8()];
 
         if is_chord {
-            Self::chord(&root, body)
+            Self::parse_chord(&root, body)
         } else {
             Self::parse_scale(&root, body)
         }
@@ -272,9 +272,20 @@ impl ScaleSpec {
         Self::new(base_midi, tuning, &pitch_classes)
     }
 
-    /// The chord in `root[body]`, with `body` read as
-    /// `[tuning] (chord-name | intervals…) [invN]`.
-    pub fn chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
+    /// A chord written after a note, as in a pattern's `c3(maj7)`: the chord
+    /// `root[body]` names, which must hold more than one note.
+    pub fn note_chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
+        let spec = Self::parse_chord(root, body)?;
+        if spec.voicing.len() < 2 {
+            return Err(format!(
+                "\"({body})\" holds one note, so it is not a chord; a euclidean rhythm takes two numbers, as in (3,8)"
+            ));
+        }
+        Ok(spec)
+    }
+
+    /// `root[…]`: `[tuning] (chord-name | intervals…) [invN]`.
+    fn parse_chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
         let mut tokens: ArrayVec<&str, { PORT_MAX_LANES + 2 }> = ArrayVec::new();
         for token in body.split_whitespace() {
             tokens
@@ -348,10 +359,7 @@ impl ScaleSpec {
             period_semitones: (span + 11) / 12 * 12,
             voltages: ArrayVec::new(),
         };
-        spec.voltages = voicing
-            .iter()
-            .map(|&n| spec.interval_voltage(n as i32) as f32)
-            .collect();
+        spec.voltages = spec.note_voltages().map(|v| v as f32).collect();
         Ok(spec)
     }
 
@@ -364,6 +372,13 @@ impl ScaleSpec {
     /// V/Oct voltage of each voicing note, ascending.
     pub fn voltages(&self) -> &[f32] {
         &self.voltages
+    }
+
+    /// V/Oct voltage of each voicing note, ascending, at full precision.
+    pub fn note_voltages(&self) -> impl Iterator<Item = f64> + '_ {
+        self.voicing
+            .iter()
+            .map(|&n| self.interval_voltage(n as i32))
     }
 
     /// V/Oct voltage of a signed degree. Degrees index the voicing and wrap by

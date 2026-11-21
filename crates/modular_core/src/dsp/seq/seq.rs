@@ -363,7 +363,8 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
             title: "Chords",
             body: "A chord in parentheses right after a note plays all its notes at once, each \
                    on a voice of its own. Add `invN` to raise the lowest N notes an octave, \
-                   or write your own voicing as semitones above the root: `c3(0 7 16)`. \
+                   start with `just` or `pythag` to retune it (`c(just maj)`), or write \
+                   your own voicing as semitones above the root: `c3(0 7 16)`. \
                    Scale patterns don't take chords.",
             table: Some(DocTable {
                 columns: &["Kind", "Names"],

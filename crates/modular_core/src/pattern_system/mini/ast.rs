@@ -293,8 +293,7 @@ pub enum AtomValue {
     },
 
     /// A chord on a root note (e.g. `c3(maj7)`, `eb(m7 inv1)`). `chord` is the
-    /// trimmed text between the parentheses:
-    /// `[tuning] (chord-name | intervals…) [invN]`.
+    /// trimmed text between the parentheses, read by `ScaleSpec::note_chord`.
     Chord {
         letter: char,
         accidental: Option<char>,
