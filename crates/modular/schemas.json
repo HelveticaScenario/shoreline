@@ -36717,6 +36717,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `chord` into `bass`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -36804,11 +36823,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`chord` crossfaded into `bass` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "chord",
         "description": "the chord, or the arpeggio while `trigger` is patched",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -36922,6 +36953,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero reflects frequencies below zero back up",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `chord` into `bass`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -37106,6 +37151,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `chord` into `root`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -37193,11 +37257,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`chord` crossfaded into `root` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "chord",
         "description": "the whole chord",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -37274,6 +37350,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `chord` into `root`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -39599,6 +39689,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `body` into `exciter`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -39686,11 +39795,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`body` crossfaded into `exciter` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -10.0,
+        "maxValue": 10.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "body",
         "description": "the ringing body; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
         "mono": false,
@@ -39799,6 +39920,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `body` into `exciter`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -39940,6 +40075,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `filtered` into `bands`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -40027,11 +40181,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`filtered` crossfaded into `bands` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "filtered",
         "description": "the noise through one filter that `mode` sweeps",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -40117,6 +40283,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `filtered` into `bands`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -40254,6 +40434,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `filtered` into `raw`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -40341,11 +40540,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`filtered` crossfaded into `raw` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "filtered",
         "description": "the particles ringing through their filters",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -40431,6 +40642,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); the filters take the frequency's size, so throughZero acts as lin",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `filtered` into `raw`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -41942,6 +42167,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -42029,11 +42273,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -10.0,
+        "maxValue": 10.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
         "mono": false,
@@ -42161,6 +42417,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -42330,6 +42600,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `strings` into `exciter`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -42417,11 +42706,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`strings` crossfaded into `exciter` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -10.0,
+        "maxValue": 10.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "strings",
         "description": "the ringing strings; unaccented, within ±5 V",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -10.0,
         "maxValue": 10.0,
         "mono": false,
@@ -42530,6 +42831,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); a negative frequency rings at its magnitude",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `strings` into `exciter`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -43006,6 +43321,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `saw` into `sine`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -43093,11 +43427,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`saw` crossfaded into `sine` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "saw",
         "description": "the swarm of saws",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -43183,6 +43529,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the voices backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `saw` into `sine`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -43305,6 +43665,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `fm` into `subOctave`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -43392,11 +43771,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`fm` crossfaded into `subOctave` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "fm",
         "description": "the FM tone",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -43473,6 +43864,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs both operators backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `fm` into `subOctave`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -43595,6 +44000,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `dual` into `sync`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -43682,11 +44106,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`dual` crossfaded into `sync` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "dual",
         "description": "a square and a saw, the saw tuned by `detune`",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -43763,6 +44199,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `dual` into `sync`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -43908,6 +44358,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `lowpass` into `highpass`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -43995,11 +44464,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`lowpass` crossfaded into `highpass` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "lowpass",
         "description": "the filtered voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -44090,6 +44571,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `lowpass` into `highpass`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -44203,6 +44698,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -44290,11 +44804,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -44366,6 +44892,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -44479,6 +45019,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -44566,11 +45125,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -44642,6 +45213,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -44755,6 +45340,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `output` into `excitation`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -44842,11 +45446,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`output` crossfaded into `excitation` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "output",
         "description": "the voice",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -44918,6 +45534,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the glottis backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `output` into `excitation`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -45040,6 +45670,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `height` into `pm`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -45127,11 +45776,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`height` crossfaded into `pm` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "height",
         "description": "the height of the surface under the circle",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -45208,6 +45869,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero traces the circle backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `height` into `pm`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -45330,6 +46005,25 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "mix": {
+          "description": "crossfades `_blend` from `shaped` into `overtones`",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
         }
       },
       "required": [
@@ -45417,11 +46111,23 @@
     },
     "outputs": [
       {
+        "name": "blend",
+        "description": "`shaped` crossfaded into `overtones` by `mix`",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      },
+      {
         "name": "shaped",
         "description": "the shaped and folded wave",
         "outputType": "cv",
         "polyphonic": true,
-        "default": true,
+        "default": false,
         "minValue": -5.0,
         "maxValue": 5.0,
         "mono": false,
@@ -45498,6 +46204,20 @@
         "name": "fm",
         "description": "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waves backward",
         "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "mix",
+        "description": "crossfades `_blend` from `shaped` into `overtones`",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
