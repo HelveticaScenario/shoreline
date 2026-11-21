@@ -2570,6 +2570,32 @@ export function generateDSL(schemas: Schemas): string {
         `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection;`,
     );
 
+    lines.push(
+        '/**',
+        ' * A detuned, stereo-spread unison stack of any voice. `cb` builds one',
+        ' * voice from the detuned `$unison` copies of `freq`, and the copies are',
+        ' * folded into one stereo lane per note the way `$supersaw` spreads its',
+        ' * saws. Pass `phaseOffset` on to the oscillator so the copies never all',
+        ' * line up.',
+        " * @param freq The note's pitch",
+        " * @param cb Builds one voice from the copies' pitches",
+        ' * @param options `unison`: copies per note (default 5); `detune`: semitones between the lowest and highest copy (default 0.18); `width`: how far the copies fan out, 0 centred to 5 hard left and right (default 5)',
+        ' * @example',
+        " * lead: $super('c3', (freq, { phaseOffset }) =>",
+        ' *   $saw(freq, { phaseOffset }),',
+        ' * )',
+        ' * @example',
+        ' * pad: $super(',
+        " *   $chord('C3[m9]'),",
+        ' *   (freq, { phaseOffset }) =>',
+        " *     $pulse(freq, { phaseOffset }).lpf('c6'),",
+        ' *   { unison: 3, detune: 0.3 },',
+        ' * )',
+        ' */',
+        'export function $super(freq: Poly<Signal>, cb: (freq: UnisonOutputs, options: { phaseOffset: CollectionWithRange }) => Collection | CollectionWithRange, options?: { unison?: number; detune?: Poly<Signal>; width?: Poly<Signal> }): Collection;',
+        '',
+    );
+
     // Chain methods. The qualifying set matches the runtime's exactly: both
     // apply `qualifiesForChain` to the same schemas.
     const chainSchemas = userFacingSchemas.filter((s) =>

@@ -1148,6 +1148,39 @@ describe('sequencing', () => {
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 describe('utilities', () => {
+    test('$super folds a detuned stack of its voice into stereo', () => {
+        const patch = execPatch(
+            "lead: $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }), { unison: 7, detune: 0.4, width: 3 })",
+        );
+        const [unison] = findModules(patch, '$unison');
+        expect(unison.params).toMatchObject({ count: 7, spread: 0.4 });
+        const [saw] = findModules(patch, '$saw');
+        expect(JSON.stringify(saw.params.freq)).toContain(
+            `"module":"${unison.id}","port":"output"`,
+        );
+        expect(JSON.stringify(saw.params.phaseOffset)).toContain(
+            `"module":"${unison.id}","port":"phase"`,
+        );
+        const [fold] = findModules(patch, '$stereoFold');
+        expect(fold.params).toMatchObject({ voices: 7, width: 3 });
+    });
+
+    test('$super leaves unset options to the modules it builds', () => {
+        const patch = execPatch("lead: $super('c3', (freq) => $sine(freq))");
+        const [unison] = findModules(patch, '$unison');
+        expect(unison.params.count).toBe(5);
+        expect(unison.params.spread).toBeUndefined();
+        const [fold] = findModules(patch, '$stereoFold');
+        expect(fold.params.voices).toBe(5);
+        expect(fold.params.width).toBeUndefined();
+    });
+
+    test('$super needs a voice callback', () => {
+        expect(() => exec("lead: $super('c3', $saw('c3'))")).toThrow(
+            /builds one voice/,
+        );
+    });
+
     test('$remap', () => {
         const patch = execPatch('out: $remap($sine("C4"), 0, 1, -5, 5)');
         expect(findModules(patch, '$remap').length).toBe(1);

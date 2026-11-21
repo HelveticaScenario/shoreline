@@ -23,6 +23,17 @@ export const DELAY_SITE: ModuleSiteInfo = {
     stereo: 'lift',
 };
 
+/** `$super(freq, cb, { detune, width })`: a stereo unison stack of `cb`'s voice. */
+export const SUPER_SITE: ModuleSiteInfo = {
+    buffers: [],
+    chainable: false,
+    folds: [],
+    inputs: { detune: 'cv', freq: 'cv', width: 'cv' },
+    monoOutputs: [],
+    positional: ['freq', 'cb'],
+    stereo: 'stereo',
+};
+
 /** `$cross(count, playhead, range)`: keyframes of constants, played by `playhead`. */
 const CROSS_SITE: ModuleSiteInfo = {
     buffers: [],
@@ -79,7 +90,11 @@ export function buildSignalSiteTables(
     const tables: SignalSiteTables = {
         chainMethods: CHAIN_METHODS,
         globals: GLOBAL_CHANNELS,
-        modules: { $cross: CROSS_SITE, $delay: DELAY_SITE },
+        modules: {
+            $cross: CROSS_SITE,
+            $delay: DELAY_SITE,
+            $super: SUPER_SITE,
+        },
         monoMembers: MONO_MEMBERS,
         // A pattern is the `$cycle` that plays it, which is mono.
         monoTypes: [...PATTERN_TYPES],

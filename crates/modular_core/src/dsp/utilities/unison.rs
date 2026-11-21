@@ -2,7 +2,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::unison_phase::{UnisonPhases, phase_glide_step};
-use crate::dsp::utils::unison_voices::{centred_position, unison_lane};
+use crate::dsp::utils::unison_voices::{detune_octaves, spread_position, unison_lane};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
@@ -23,9 +23,11 @@ struct UnisonParams {
     #[deserr(default = default_count())]
     count: usize,
     #[input(
-        "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
+        "spread between the lowest and highest copy, in semitones",
         type = control,
-        range = (0.0, 10.0),
+        default = 0.18,
+        range = (0.0, ..),
+        control_range = (0.0, 12.0),
     )]
     #[deserr(default)]
     spread: Option<PolySignal>,
@@ -83,12 +85,12 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Thick seven-voice saw",
-            code: r#"melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"#,
+            code: r#"melody: $saw($unison('c3', 7, 0.3)).lpf('c6', 1)"#,
         },
         DocExample {
             title: "Copies that start apart",
             code: r#"
-                const voices = $unison('c3', 7, 1)
+                const voices = $unison('c3', 7)
                 melody: $saw(voices, { phaseOffset: voices._phase })
             "#,
         },
@@ -96,7 +98,11 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
             title: "Chord with breathing detune",
             code: r#"
                 melody: $saw(
-                  $unison($chord('C3[m9]'), 3, $sine('0.1hz').range(0, 4)),
+                  $unison(
+                    $chord('C3[m9]'),
+                    3,
+                    $sine('0.1hz').range(0, 0.5),
+                  ),
                 )
             "#,
         },
@@ -128,12 +134,8 @@ impl Unison {
                 // Both reads cycle, so whichever of the two is narrower
                 // repeats across the wider one's lanes.
                 let input_val = input.get_value(poly_ch * channels + side);
-                let spread_v = spread
-                    .value_or(poly_ch * channels + side, 0.0)
-                    .clamp(0.0, 10.0);
-                // Exponential mapping: (spread_v / 10)^2 gives 0–1 V/Oct (0–1 octave)
-                let normalized = spread_v / 10.0;
-                let max_detune_voct = normalized * normalized;
+                let spread =
+                    spread.value_or(poly_ch * channels + side, UnisonParams::SPREAD_DEFAULT);
 
                 for (voice, &phase) in phases.iter().enumerate().take(count) {
                     let out_ch = unison_lane(voice, poly_ch, poly_lanes) * channels + side;
@@ -141,9 +143,7 @@ impl Unison {
                         break;
                     }
 
-                    // Symmetric fan-out: -max_detune to +max_detune
-                    let offset = max_detune_voct * centred_position(voice, count);
-
+                    let offset = detune_octaves(spread_position(voice, count), spread);
                     self.outputs.sample.set(out_ch, input_val + offset);
                     self.outputs.phase.set(out_ch, phase);
                 }
@@ -202,7 +202,7 @@ mod tests {
         let mut u = make_unison(UnisonParams {
             input: PolySignal::mono(Signal::Volts(2.0)),
             count: 3,
-            spread: None,
+            spread: Some(PolySignal::mono(Signal::Volts(0.0))),
         });
         u.update(48000.0);
         assert_eq!(u.outputs.sample.lanes(), 3);
@@ -213,12 +213,12 @@ mod tests {
 
     #[test]
     fn test_symmetric_spread() {
-        // count=3, spread=10V -> max_detune = 1.0 V/Oct
+        // count=3, 24 semitones from lowest to highest copy
         // voice 0: -1.0, voice 1: 0.0, voice 2: +1.0
         let mut u = make_unison(UnisonParams {
             input: PolySignal::mono(Signal::Volts(0.0)),
             count: 3,
-            spread: Some(PolySignal::mono(Signal::Volts(10.0))),
+            spread: Some(PolySignal::mono(Signal::Volts(24.0))),
         });
         u.update(48000.0);
         assert_eq!(u.outputs.sample.lanes(), 3);
@@ -228,17 +228,60 @@ mod tests {
     }
 
     #[test]
-    fn test_exponential_curve() {
-        // spread=5V -> (5/10)^2 = 0.25 V/Oct
+    fn test_spread_is_in_semitones() {
+        // 6 semitones from lowest to highest: 3 below and 3 above the note.
         let mut u = make_unison(UnisonParams {
             input: PolySignal::mono(Signal::Volts(0.0)),
             count: 3,
-            spread: Some(PolySignal::mono(Signal::Volts(5.0))),
+            spread: Some(PolySignal::mono(Signal::Volts(6.0))),
         });
         u.update(48000.0);
         assert!((u.outputs.sample.get(0) - (-0.25)).abs() < 1e-6);
         assert!((u.outputs.sample.get(1) - 0.0).abs() < 1e-6);
         assert!((u.outputs.sample.get(2) - 0.25).abs() < 1e-6);
+    }
+
+    /// `$supersaw`'s `detune` input, as the schema declares it.
+    fn supersaw_detune() -> crate::types::SignalParamSchema {
+        crate::dsp::schema()
+            .into_iter()
+            .find(|m| m.name == "$supersaw")
+            .and_then(|m| m.signal_params.into_iter().find(|p| p.name == "detune"))
+            .expect("$supersaw has a detune input")
+    }
+
+    #[test]
+    fn test_spread_is_declared_like_supersaw_detune() {
+        let detune = supersaw_detune();
+        let spread = crate::dsp::schema()
+            .into_iter()
+            .find(|m| m.name == "$unison")
+            .and_then(|m| m.signal_params.into_iter().find(|p| p.name == "spread"))
+            .expect("$unison has a spread input");
+        assert_eq!(
+            (spread.default_value, spread.min_value, spread.max_value),
+            (detune.default_value, detune.min_value, detune.max_value)
+        );
+        assert_eq!(
+            (spread.control_min, spread.control_max),
+            (detune.control_min, detune.control_max)
+        );
+    }
+
+    #[test]
+    fn test_unset_spread_detunes_like_supersaw() {
+        let mut u = make_unison(UnisonParams {
+            input: PolySignal::mono(Signal::Volts(0.0)),
+            count: 2,
+            spread: None,
+        });
+        u.update(48000.0);
+        let half = supersaw_detune()
+            .default_value
+            .expect("detune has a default") as f32
+            / 24.0;
+        assert!((u.outputs.sample.get(0) + half).abs() < 1e-6);
+        assert!((u.outputs.sample.get(1) - half).abs() < 1e-6);
     }
 
     #[test]
@@ -247,7 +290,7 @@ mod tests {
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0)]),
             count: 3,
-            spread: Some(PolySignal::mono(Signal::Volts(10.0))),
+            spread: Some(PolySignal::mono(Signal::Volts(24.0))),
         });
         u.update(48000.0);
         assert_eq!(u.outputs.sample.lanes(), 6);
@@ -312,9 +355,9 @@ mod tests {
             input: PolySignal::mono(Signal::Volts(0.0)),
             count: 2,
             spread: Some(PolySignal::poly(&[
-                Signal::Volts(10.0), // poly lane 0: 1.0 V/Oct detune
+                Signal::Volts(24.0), // poly lane 0: an octave either side
                 Signal::Volts(0.0),  // poly lane 1: no detune
-                Signal::Volts(10.0), // poly lane 2: 1.0 V/Oct detune
+                Signal::Volts(24.0), // poly lane 2: an octave either side
                 Signal::Volts(0.0),  // poly lane 3: no detune
             ])),
         };
@@ -340,14 +383,14 @@ mod tests {
         let params = UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(1.0), Signal::Volts(2.0)]),
             count: 2,
-            spread: Some(PolySignal::mono(Signal::Volts(10.0))),
+            spread: Some(PolySignal::mono(Signal::Volts(24.0))),
         };
         assert_eq!(unison_derive_lane_count(&params), 6);
 
         let mut u = make_unison(params);
         u.update(48000.0);
         assert_eq!(u.outputs.sample.lanes(), 6);
-        // Every input lane gets the same ±1.0 V/Oct detune.
+        // Every input lane gets the same octave either side.
         let expected = [-1.0, 0.0, 1.0, 1.0, 2.0, 3.0];
         for (lane, want) in expected.iter().enumerate() {
             assert!(
@@ -365,8 +408,8 @@ mod tests {
             input: PolySignal::poly(&[Signal::Volts(0.0), Signal::Volts(0.0)]),
             count: 2,
             spread: Some(PolySignal::poly(&[
-                Signal::Volts(10.0), // lane 0: 1.0 V/Oct detune
-                Signal::Volts(0.0),  // lane 1: 0.0 V/Oct detune
+                Signal::Volts(24.0), // lane 0: an octave either side
+                Signal::Volts(0.0),  // lane 1: no detune
             ])),
         });
         u.update(48000.0);
@@ -385,7 +428,7 @@ mod tests {
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&[Signal::Volts(1.0), Signal::Volts(2.0), Signal::Volts(3.0)]),
             count: 3,
-            spread: None,
+            spread: Some(PolySignal::mono(Signal::Volts(0.0))),
         });
         u.update(48000.0);
         assert_eq!(u.outputs.sample.lanes(), 9);
@@ -489,7 +532,7 @@ mod tests {
         let mut u = make_unison(UnisonParams {
             input: PolySignal::poly(&input),
             count: 5,
-            spread: None,
+            spread: Some(PolySignal::mono(Signal::Volts(0.0))),
         });
         u.update(48000.0);
         for lane in 0..PORT_MAX_LANES {
