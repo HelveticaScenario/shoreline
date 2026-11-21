@@ -1,10 +1,9 @@
 //! Detects an audio stream that has stopped delivering callbacks.
 //!
-//! When a device disappears (headphones unplugged, an interface switched off),
-//! cpal pauses the stream for good. It reports `DeviceNotAvailable` for a
-//! device opened by id, but for the device that was the system default when
-//! the stream opened it pauses without a word, so a stalled callback count is
-//! the only sign every host gives.
+//! When a device disappears (headphones unplugged, an interface switched off)
+//! or changes its sample rate, cpal pauses the stream for good and reports
+//! why. A driver can also stop calling back without an error, so a callback
+//! count that holds still ends the stream too.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -14,6 +13,7 @@ use std::time::{Duration, Instant};
 pub struct StreamHealth {
     callbacks: AtomicU64,
     lost: AtomicBool,
+    invalidated: AtomicBool,
 }
 
 impl StreamHealth {
@@ -23,13 +23,18 @@ impl StreamHealth {
         self.callbacks.fetch_add(1, Ordering::Relaxed);
     }
 
-    /// Record a stream error. Device loss and invalidation end the stream;
-    /// an xrun or backend hiccup does not.
+    /// Record a stream error. Device loss and invalidation (the device's
+    /// sample rate changed under it) end the stream; an xrun or backend
+    /// hiccup does not.
     pub fn report(&self, err: &cpal::Error) {
         match err.kind() {
-            cpal::ErrorKind::DeviceNotAvailable | cpal::ErrorKind::StreamInvalidated => {
+            cpal::ErrorKind::DeviceNotAvailable => {
                 eprintln!("Audio stream error: {err}");
                 self.lost.store(true, Ordering::Relaxed);
+            }
+            cpal::ErrorKind::StreamInvalidated => {
+                eprintln!("Audio stream error: {err}");
+                self.invalidated.store(true, Ordering::Relaxed);
             }
             cpal::ErrorKind::Xrun => {}
             _ => eprintln!("Audio stream error: {err}"),
@@ -43,11 +48,23 @@ impl StreamHealth {
     fn is_lost(&self) -> bool {
         self.lost.load(Ordering::Relaxed)
     }
+
+    /// The stream ended because its device changed format, not because the
+    /// device left.
+    pub fn was_invalidated(&self) -> bool {
+        self.invalidated.load(Ordering::Relaxed) && !self.is_lost()
+    }
 }
 
 /// How long the callback count may hold still before the stream counts as
-/// dead. Longer than any device buffer the engine opens.
-const STALL: Duration = Duration::from_secs(1);
+/// dead. Several main-process poll intervals, and longer than any device takes
+/// to deliver its first callback.
+const STALL: Duration = Duration::from_secs(3);
+
+/// A gap between checks this long (the machine slept, or the main thread was
+/// busy) restarts the stall window, since the stream's callbacks may not have
+/// resumed yet either.
+const LONG_GAP: Duration = Duration::from_secs(10);
 
 /// Least time between two attempts to reopen a dead stream.
 pub const RETRY_INTERVAL: Duration = Duration::from_secs(1);
@@ -61,6 +78,7 @@ pub struct StreamWatchdog {
     last_check: Instant,
     next_retry: Instant,
     dead: bool,
+    loss_reported: bool,
 }
 
 impl StreamWatchdog {
@@ -71,17 +89,17 @@ impl StreamWatchdog {
             last_check: now,
             next_retry: now,
             dead: false,
+            loss_reported: false,
         }
     }
 
     /// Whether the stream is dead as of `now`. A dead stream never resumes,
     /// so once dead it stays dead.
-    ///
-    /// A gap between checks longer than the stall window (the machine slept,
-    /// or the main thread was busy) restarts the window, since the stream's
-    /// callbacks may not have resumed yet either.
     pub fn is_dead(&mut self, health: &StreamHealth, now: Instant) -> bool {
-        self.dead = self.dead || health.is_lost() || self.stalled(health, now);
+        self.dead = self.dead
+            || health.is_lost()
+            || health.invalidated.load(Ordering::Relaxed)
+            || self.stalled(health, now);
         self.dead
     }
 
@@ -89,12 +107,18 @@ impl StreamWatchdog {
         let callbacks = health.callbacks();
         let gap = now.saturating_duration_since(self.last_check);
         self.last_check = now;
-        if callbacks != self.last_callbacks || gap > STALL {
+        if callbacks != self.last_callbacks || gap > LONG_GAP {
             self.last_callbacks = callbacks;
             self.last_progress = now;
             return false;
         }
         now.saturating_duration_since(self.last_progress) >= STALL
+    }
+
+    /// True the first time it is called for this stream, so a loss that
+    /// cannot be recovered from yet is reported once.
+    pub fn take_first_loss(&mut self) -> bool {
+        !std::mem::replace(&mut self.loss_reported, true)
     }
 
     /// Whether a reopen may be tried at `now`; claims the attempt if so.
@@ -111,7 +135,7 @@ impl StreamWatchdog {
 mod tests {
     use super::*;
 
-    const TICK: Duration = Duration::from_millis(500);
+    const TICK: Duration = Duration::from_secs(1);
 
     #[test]
     fn a_stream_with_advancing_callbacks_is_alive() {
@@ -132,7 +156,21 @@ mod tests {
         health.beat();
         assert!(!watchdog.is_dead(&health, start + TICK));
         assert!(!watchdog.is_dead(&health, start + TICK * 2));
-        assert!(watchdog.is_dead(&health, start + TICK * 3));
+        assert!(!watchdog.is_dead(&health, start + TICK * 3));
+        assert!(watchdog.is_dead(&health, start + TICK * 4));
+    }
+
+    #[test]
+    fn a_stall_is_noticed_when_the_checks_run_late() {
+        let start = Instant::now();
+        let health = StreamHealth::default();
+        let mut watchdog = StreamWatchdog::new(start);
+        health.beat();
+        let late = Duration::from_millis(1_010);
+        assert!(!watchdog.is_dead(&health, start + late));
+        assert!(!watchdog.is_dead(&health, start + late * 2));
+        assert!(!watchdog.is_dead(&health, start + late * 3));
+        assert!(watchdog.is_dead(&health, start + late * 4));
     }
 
     #[test]
@@ -152,7 +190,7 @@ mod tests {
         let health = StreamHealth::default();
         let mut watchdog = StreamWatchdog::new(start);
         assert!(!watchdog.is_dead(&health, start + TICK));
-        assert!(watchdog.is_dead(&health, start + TICK * 3));
+        assert!(watchdog.is_dead(&health, start + STALL));
         assert!(watchdog.is_dead(&health, start + Duration::from_secs(60)));
     }
 
@@ -164,6 +202,25 @@ mod tests {
         health.beat();
         health.report(&cpal::ErrorKind::DeviceNotAvailable.into());
         assert!(watchdog.is_dead(&health, start + TICK));
+        assert!(!health.was_invalidated());
+    }
+
+    #[test]
+    fn a_format_change_ends_the_stream_as_invalidated() {
+        let start = Instant::now();
+        let health = StreamHealth::default();
+        let mut watchdog = StreamWatchdog::new(start);
+        health.beat();
+        health.report(&cpal::ErrorKind::StreamInvalidated.into());
+        assert!(watchdog.is_dead(&health, start + TICK));
+        assert!(health.was_invalidated());
+    }
+
+    #[test]
+    fn a_loss_is_reported_once_per_stream() {
+        let mut watchdog = StreamWatchdog::new(Instant::now());
+        assert!(watchdog.take_first_loss());
+        assert!(!watchdog.take_first_loss());
     }
 
     #[test]
@@ -181,7 +238,7 @@ mod tests {
         let start = Instant::now();
         let mut watchdog = StreamWatchdog::new(start);
         assert!(watchdog.take_retry(start));
-        assert!(!watchdog.take_retry(start + TICK));
+        assert!(!watchdog.take_retry(start + RETRY_INTERVAL / 2));
         assert!(watchdog.take_retry(start + RETRY_INTERVAL));
     }
 }

@@ -1,5 +1,6 @@
 //! A stream whose device disappears reopens once the device returns, with the
-//! engine it was playing.
+//! engine it was playing, and a device missing at launch is opened once it
+//! arrives.
 //!
 //! The device is a process-private aggregate wrapping BlackHole 64ch, so it
 //! can be unplugged and replugged under the same UID without touching any
@@ -93,7 +94,7 @@ fn an_unplugged_device_reopens_with_its_engine_when_it_returns() {
         ..Default::default()
     }))
     .unwrap();
-    assert_eq!(synth.get_output_device_id(), Some(device_id.clone()));
+    assert_eq!(synth.output_device_id.clone(), Some(device_id.clone()));
     assert!(
         synth.follow_output_device().is_none(),
         "a running stream reads as changed"
@@ -124,12 +125,44 @@ fn an_unplugged_device_reopens_with_its_engine_when_it_returns() {
     let device = plug();
     let back = poll_until(&mut synth, OutputEvent::Reconnected, Duration::from_secs(5))
         .expect("a replugged device is not reopened");
-    assert!(back.engine_kept, "the engine does not survive the reopen");
-    assert_eq!(synth.get_output_device_id(), Some(device_id));
+    assert!(!back.engine_reset, "the engine does not survive the reopen");
+    assert_eq!(synth.output_device_id.clone(), Some(device_id));
     std::thread::sleep(Duration::from_secs(2));
     assert!(
         synth.follow_output_device().is_none(),
         "the reopened stream does not run"
+    );
+
+    drop(synth);
+    unplug(device);
+}
+
+#[test]
+#[ignore = "needs BlackHole 64ch installed"]
+fn a_device_missing_at_launch_is_kept_as_the_choice_and_opened_when_it_arrives() {
+    let device_id = cpal::DeviceId::new(cpal::HostId::CoreAudio, AGGREGATE_UID).to_string();
+    let mut synth = Synthesizer::new(Some(AudioConfigOptions {
+        output_device_id: Some(device_id.clone()),
+        input_device_id: Some("none".into()),
+        ..Default::default()
+    }))
+    .unwrap();
+    assert_ne!(synth.output_device_id.clone(), Some(device_id.clone()));
+    let state = synth.get_current_audio_state();
+    assert_eq!(state.chosen_output_device_id, Some(device_id.clone()));
+    assert!(!state.follows_system_default_output);
+
+    let device = plug();
+    let arrived = poll_until(&mut synth, OutputEvent::Reconnected, Duration::from_secs(5))
+        .expect("the chosen device is not opened when it arrives");
+    assert_eq!(
+        arrived.output_device_name.as_deref(),
+        Some("Shoreline device-loss test")
+    );
+    assert_eq!(synth.output_device_id.clone(), Some(device_id.clone()));
+    assert_eq!(
+        synth.get_current_audio_state().chosen_output_device_id,
+        Some(device_id)
     );
 
     drop(synth);

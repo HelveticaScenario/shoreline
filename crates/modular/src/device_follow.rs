@@ -1,7 +1,7 @@
 //! Following the system default output device, and reopening an output
 //! whose stream stopped once its device is back.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use napi_derive::napi;
 
@@ -15,10 +15,13 @@ pub enum OutputEvent {
     /// The output moved to a new system default device.
     Moved,
     /// The output's stream stopped and its device is not back yet. The
-    /// engine waits, frozen, for it.
+    /// engine waits frozen until it returns.
     Disconnected,
     /// The output's device is back and its streams reopened.
     Reconnected,
+    /// The output's device changed its sample rate and the streams reopened
+    /// at the new rate.
+    RateChanged,
 }
 
 /// What changed when the output followed a new system default device or
@@ -33,11 +36,17 @@ pub struct DeviceFollowReport {
     /// runs at, which leaves the input off.
     pub unopened_input_device_name: Option<String>,
     pub previous_sample_rate: u32,
-    /// Differs from `previous_sample_rate` only when the new output cannot
-    /// run at that rate.
+    /// Differs from `previous_sample_rate` when the new output cannot run at
+    /// that rate, or changed its own.
     pub sample_rate: u32,
-    /// The patch kept playing through the move, with its state.
-    pub engine_kept: bool,
+    /// The buffer size in frames; `None` is the host's default.
+    pub previous_buffer_size: Option<u32>,
+    /// Differs from `previous_buffer_size` only when the new output cannot
+    /// use that buffer size.
+    pub buffer_size: Option<u32>,
+    /// A fresh engine replaced the one holding the patch, which stops
+    /// playback.
+    pub engine_reset: bool,
     /// The file of the recording the move ended.
     pub recording_path: Option<String>,
     /// Why the streams could not be opened on the new device.
@@ -68,16 +77,17 @@ struct Settings {
     buffer_size: Option<u32>,
 }
 
-/// The current sample rate where the new output allows it, so the engine
-/// keeps playing; otherwise the preferred rate, then the output's own. The
-/// preferred buffer size and input where the devices allow them.
+/// The current sample rate and buffer size where the new output allows them,
+/// so the engine keeps playing; otherwise the preferred ones, then the
+/// output's own. The preferred input where it runs at the chosen rate.
 fn choose_settings(
     output: &AudioDeviceInfo,
     input: Option<&AudioDeviceInfo>,
-    preferred_sample_rate: u32,
-    current_sample_rate: u32,
-    preferred_buffer_size: Option<u32>,
+    preferred: (u32, Option<u32>),
+    current: (u32, Option<u32>),
 ) -> Settings {
+    let (preferred_sample_rate, preferred_buffer_size) = preferred;
+    let (current_sample_rate, current_buffer_size) = current;
     let supported = &output.supported_sample_rates;
     let sample_rate = if supported.contains(&current_sample_rate) {
         current_sample_rate
@@ -92,10 +102,16 @@ fn choose_settings(
             .as_ref()
             .is_none_or(|range| (range.min..=range.max).contains(size))
     };
-    let buffer_size = preferred_buffer_size.filter(|size| {
-        fits(&output.buffer_size_range, size)
-            && input.is_none_or(|input| fits(&input.buffer_size_range, size))
-    });
+    let allowed = |size: &Option<u32>| {
+        size.is_none_or(|size| {
+            fits(&output.buffer_size_range, &size)
+                && input.is_none_or(|input| fits(&input.buffer_size_range, &size))
+        })
+    };
+    let buffer_size = [current_buffer_size, preferred_buffer_size]
+        .into_iter()
+        .find(allowed)
+        .flatten();
     Settings {
         sample_rate,
         input_opens: input.is_some(),
@@ -103,16 +119,32 @@ fn choose_settings(
     }
 }
 
-/// Check the output once: move to a new system default output, or reopen a
-/// stream that stopped once its device is back. `None` when nothing changed.
+/// Check the output once: move to the output asked for at launch once it is
+/// connected, move to a new system default output, or reopen a stream that
+/// stopped. `None` when nothing changed.
 pub(crate) fn follow(synth: &mut Synthesizer) -> Option<DeviceFollowReport> {
-    follow_system_default(synth).or_else(|| reopen_stopped_stream(synth))
+    synth.adopt_returning_engine(Duration::ZERO);
+    move_to_missing_output(synth)
+        .or_else(|| follow_system_default(synth))
+        .or_else(|| reopen_stopped_stream(synth))
+}
+
+/// Move the streams to the output asked for at launch once it is connected.
+fn move_to_missing_output(synth: &mut Synthesizer) -> Option<DeviceFollowReport> {
+    let missing = synth.missing_output.clone()?;
+    synth.refresh_device_cache(None);
+    synth.device_cache.find_output_device(&missing)?;
+    let report = open_on(synth, OutputEvent::Reconnected, missing, true);
+    if report.error.is_some() {
+        return None;
+    }
+    synth.missing_output = None;
+    synth.seen_default_output = None;
+    Some(report)
 }
 
 fn follow_system_default(synth: &mut Synthesizer) -> Option<DeviceFollowReport> {
-    if !synth.follows_system_default_output
-        || !audio::host_default_output_can_change(&synth.host_id)
-    {
+    if !synth.follows_default() || !audio::host_default_output_can_change(&synth.host_id) {
         return None;
     }
     let default_output = system_default_output_id(&host_for_id(&synth.host_id)?)?;
@@ -121,17 +153,17 @@ fn follow_system_default(synth: &mut Synthesizer) -> Option<DeviceFollowReport> 
     }
     synth.seen_default_output = Some(default_output.clone());
     synth.refresh_device_cache(None);
-    let mut report = open_on(synth, OutputEvent::Moved, default_output);
+    let mut report = open_on(synth, OutputEvent::Moved, default_output, true);
     if report.error.is_some() {
         report.output_lost = output_lost(synth);
     }
     Some(report)
 }
 
-/// Reopen the output once its stream has stopped (the device unplugged or
-/// reset) and the device is listed again. The first time a pinned device is
-/// found gone reports `Disconnected`; a device followed as the system default
-/// is replaced by the next default instead.
+/// Reopen the output once its stream has stopped. A device that changed its
+/// sample rate reopens at the new rate. A device that left reopens once it is
+/// listed again; until then a pinned device reports `Disconnected` once, and
+/// System Default moves to the current default.
 fn reopen_stopped_stream(synth: &mut Synthesizer) -> Option<DeviceFollowReport> {
     let now = Instant::now();
     if !synth.stream_watchdog.is_dead(&synth.stream_health, now)
@@ -150,14 +182,23 @@ fn reopen_stopped_stream(synth: &mut Synthesizer) -> Option<DeviceFollowReport> 
         .find_output_device(&output_device_id)
         .is_some();
     if listed {
-        let report = open_on(synth, OutputEvent::Reconnected, output_device_id);
+        let report = if synth.stream_health.was_invalidated() {
+            open_on(synth, OutputEvent::RateChanged, output_device_id, false)
+        } else {
+            open_on(synth, OutputEvent::Reconnected, output_device_id, true)
+        };
         // A device that is listed but will not open yet is retried quietly.
         return report.error.is_none().then_some(report);
     }
-    if synth.output_disconnected || synth.follows_system_default_output {
+    if synth.follows_default() {
+        synth.seen_default_output = None;
+        let report = follow_system_default(synth)?;
+        return (report.error.is_none() || synth.stream_watchdog.take_first_loss())
+            .then_some(report);
+    }
+    if !synth.stream_watchdog.take_first_loss() {
         return None;
     }
-    synth.output_disconnected = true;
     let mut report = empty_report(synth, OutputEvent::Disconnected);
     report.output_device_name = name;
     Some(report)
@@ -171,7 +212,9 @@ fn empty_report(synth: &Synthesizer, event: OutputEvent) -> DeviceFollowReport {
         unopened_input_device_name: None,
         previous_sample_rate: sample_rate,
         sample_rate,
-        engine_kept: false,
+        previous_buffer_size: synth.buffer_size,
+        buffer_size: synth.buffer_size,
+        engine_reset: false,
         recording_path: None,
         error: None,
         output_lost: false,
@@ -179,11 +222,15 @@ fn empty_report(synth: &Synthesizer, event: OutputEvent) -> DeviceFollowReport {
 }
 
 /// Open the streams on `output_device_id`, which the device cache was just
-/// refreshed to list, with the settings it allows.
+/// refreshed to list, with the settings it allows. `keep_rate` holds the
+/// engine's sample rate where the device runs at it; otherwise the device's
+/// own rate comes first. The engine's buffer size is held where the device
+/// allows it.
 fn open_on(
     synth: &mut Synthesizer,
     event: OutputEvent,
     output_device_id: String,
+    keep_rate: bool,
 ) -> DeviceFollowReport {
     let mut report = empty_report(synth, event);
     let Some(output) = synth
@@ -200,12 +247,16 @@ fn open_on(
         .preferred_input_device_id
         .as_ref()
         .and_then(|id| synth.device_cache.find_input_device(id).cloned());
+    let current_sample_rate = if keep_rate {
+        report.previous_sample_rate
+    } else {
+        output.sample_rate
+    };
     let settings = choose_settings(
         &output,
         input.as_ref(),
-        synth.preferred_sample_rate,
-        report.previous_sample_rate,
-        synth.preferred_buffer_size,
+        (synth.preferred_sample_rate, synth.preferred_buffer_size),
+        (current_sample_rate, report.previous_buffer_size),
     );
     let (input, unopened_input) = match input {
         Some(input) if settings.input_opens => (Some(input), None),
@@ -218,11 +269,12 @@ fn open_on(
         settings.buffer_size,
         input.map(|input| input.id),
     ) {
-        Ok(opened) => {
+        Ok(change) => {
             report.sample_rate = settings.sample_rate;
+            report.buffer_size = settings.buffer_size;
             report.unopened_input_device_name = unopened_input.map(|input| input.name);
-            report.engine_kept = opened.engine_kept;
-            report.recording_path = opened.recording_path;
+            report.engine_reset = change.engine_reset;
+            report.recording_path = change.recording_path;
         }
         Err(error) => report.error = Some(error.reason.clone()),
     }
@@ -259,15 +311,15 @@ mod tests {
     }
 
     #[test]
-    fn keeps_the_current_rate_and_preferred_settings_where_the_output_allows_them() {
+    fn keeps_the_current_rate_and_buffer_size_where_the_output_allows_them() {
         let output = device(&[44100, 48000, 96000], (15, 4096));
         let input = device(&[48000, 96000], (15, 4096));
         assert_eq!(
-            choose_settings(&output, Some(&input), 48000, 96000, Some(64)),
+            choose_settings(&output, Some(&input), (48000, Some(64)), (96000, Some(256))),
             Settings {
                 sample_rate: 96000,
                 input_opens: true,
-                buffer_size: Some(64),
+                buffer_size: Some(256),
             }
         );
     }
@@ -276,12 +328,12 @@ mod tests {
     fn falls_back_to_the_preferred_rate_then_the_outputs_own() {
         let output = device(&[44100, 48000], (15, 4096));
         assert_eq!(
-            choose_settings(&output, None, 48000, 96000, None).sample_rate,
+            choose_settings(&output, None, (48000, None), (96000, None)).sample_rate,
             48000
         );
         let only_44k = device(&[44100], (15, 4096));
         assert_eq!(
-            choose_settings(&only_44k, None, 96000, 48000, None).sample_rate,
+            choose_settings(&only_44k, None, (96000, None), (48000, None)).sample_rate,
             44100
         );
     }
@@ -290,20 +342,24 @@ mod tests {
     fn an_input_that_cannot_run_at_the_rate_stays_off() {
         let output = device(&[48000], (15, 4096));
         let input = device(&[96000], (15, 4096));
-        assert!(!choose_settings(&output, Some(&input), 96000, 96000, None).input_opens);
+        assert!(!choose_settings(&output, Some(&input), (96000, None), (96000, None)).input_opens);
     }
 
     #[test]
-    fn a_buffer_size_either_device_rejects_falls_back_to_the_hosts() {
+    fn a_buffer_size_the_output_rejects_falls_back_to_the_preferred_then_the_hosts() {
         let output = device(&[48000], (128, 4096));
         assert_eq!(
-            choose_settings(&output, None, 48000, 48000, Some(64)).buffer_size,
+            choose_settings(&output, None, (48000, Some(256)), (48000, Some(64))).buffer_size,
+            Some(256)
+        );
+        assert_eq!(
+            choose_settings(&output, None, (48000, Some(64)), (48000, Some(32))).buffer_size,
             None
         );
         let input = device(&[48000], (15, 32));
         let wide = device(&[48000], (15, 4096));
         assert_eq!(
-            choose_settings(&wide, Some(&input), 48000, 48000, Some(64)).buffer_size,
+            choose_settings(&wide, Some(&input), (48000, Some(64)), (48000, Some(64))).buffer_size,
             None
         );
     }

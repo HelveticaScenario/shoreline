@@ -277,16 +277,6 @@ impl AudioDeviceCache {
         }
     }
 
-    /// Get all output devices across all hosts
-    pub fn all_output_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.output_devices.values().flatten().cloned().collect()
-    }
-
-    /// Get all input devices across all hosts
-    pub fn all_input_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.input_devices.values().flatten().cloned().collect()
-    }
-
     /// Find an output device by ID
     pub fn find_output_device(&self, device_id: &str) -> Option<&AudioDeviceInfo> {
         self.output_devices
@@ -381,6 +371,10 @@ pub struct CurrentAudioState {
     pub output_device_id: Option<String>,
     /// The output moves to whichever device the system makes its default.
     pub follows_system_default_output: bool,
+    /// The output the user chose, which is saved: `None` for System Default.
+    /// It differs from `output_device_id` while the chosen device is not
+    /// connected.
+    pub chosen_output_device_id: Option<String>,
     pub output_device_name: Option<String>,
     pub input_device_id: Option<String>,
     pub input_device_name: Option<String>,
@@ -1486,7 +1480,7 @@ impl AudioState {
         self.transport_meter.snapshot()
     }
 
-    /// Get shared references for audio processor creation
+    /// The output channel count of the stream the engine plays on.
     pub fn set_channels(&self, channels: u16) {
         self.channels.store(channels, Ordering::Relaxed);
     }
@@ -1509,6 +1503,8 @@ impl AudioState {
         }
     }
 
+    /// The engine's shared state that the main thread reads, beside the
+    /// per-stream endpoints of `stream_endpoints`.
     pub fn get_shared_state(&self) -> AudioSharedState {
         AudioSharedState {
             stopped: self.stopped.clone(),

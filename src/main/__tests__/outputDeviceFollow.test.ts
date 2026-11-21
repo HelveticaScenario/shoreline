@@ -1,14 +1,18 @@
 import type { DeviceFollowReport, PatchGraph } from '@modular/core';
 import { describe, expect, test, vi } from 'vitest';
 import { AppliedPatchState } from '../appliedPatchState';
-import { outputDeviceNotice, followOutputDevice } from '../outputDeviceFollow';
+import {
+    appliedSettingsNotice,
+    followOutputDevice,
+    outputDeviceNotice,
+} from '../outputDeviceFollow';
 
 const graph = { modules: [] } as unknown as PatchGraph;
 
 const report = (
     over: Partial<DeviceFollowReport> = {},
 ): DeviceFollowReport => ({
-    engineKept: false,
+    engineReset: true,
     event: 'Moved',
     outputDeviceName: 'Speakers',
     outputLost: false,
@@ -48,7 +52,7 @@ describe('followOutputDevice', () => {
     test('a move at the same sample rate keeps the patch playing', () => {
         const applied = new AppliedPatchState();
         applied.record(graph, 'song', 1);
-        const synth = fakeSynth(report({ engineKept: true }), false);
+        const synth = fakeSynth(report({ engineReset: false }), false);
 
         expect(followOutputDevice(synth, applied)?.stoppedPlayback).toBe(false);
         expect(synth.stop).not.toHaveBeenCalled();
@@ -58,7 +62,10 @@ describe('followOutputDevice', () => {
     test('a disconnected device leaves the engine waiting for it', () => {
         const applied = new AppliedPatchState();
         applied.record(graph, 'song', 1);
-        const synth = fakeSynth(report({ event: 'Disconnected' }), false);
+        const synth = fakeSynth(
+            report({ event: 'Disconnected', engineReset: false }),
+            false,
+        );
 
         expect(followOutputDevice(synth, applied)).toMatchObject({
             engineReset: false,
@@ -80,7 +87,10 @@ describe('followOutputDevice', () => {
     test('a failed move keeps playing on a device that is still there', () => {
         const applied = new AppliedPatchState();
         applied.record(graph, 'song', 1);
-        const synth = fakeSynth(report({ error: 'busy' }), false);
+        const synth = fakeSynth(
+            report({ error: 'busy', engineReset: false }),
+            false,
+        );
 
         expect(followOutputDevice(synth, applied)?.stoppedPlayback).toBe(false);
         expect(synth.stop).not.toHaveBeenCalled();
@@ -91,7 +101,7 @@ describe('followOutputDevice', () => {
         const applied = new AppliedPatchState();
         applied.record(graph, 'song', 1);
         const synth = fakeSynth(
-            report({ error: 'busy', outputLost: true }),
+            report({ error: 'busy', engineReset: false, outputLost: true }),
             false,
         );
 
@@ -117,6 +127,17 @@ describe('outputDeviceNotice', () => {
                 .message,
         ).toBe(
             "Output moved to Speakers. It can't run at 192000 Hz, so the sample rate is now 48000 Hz.",
+        );
+    });
+
+    test('explains a buffer size the new output cannot use', () => {
+        expect(
+            outputDeviceNotice(
+                report({ previousBufferSize: 32, bufferSize: 64 }),
+                true,
+            ).message,
+        ).toBe(
+            "Output moved to Speakers. It can't use a 32-frame buffer, so the buffer size is now 64. Playback stopped. Run the patch to start it again.",
         );
     });
 
@@ -157,19 +178,38 @@ describe('outputDeviceNotice', () => {
             ),
         ).toMatchObject({
             message:
-                "Interface was disconnected. Playback picks up where it left off when it's back.",
+                "Interface was disconnected. Shoreline goes back to it when it's reconnected.",
             persists: true,
             stopped: false,
         });
         expect(
             outputDeviceNotice(
-                report({ event: 'Reconnected', engineKept: true }),
+                report({ event: 'Reconnected', engineReset: false }),
                 false,
             ),
         ).toMatchObject({
             message: 'Output is back on Speakers.',
             persists: false,
         });
+    });
+
+    test('says a device changed its sample rate', () => {
+        expect(
+            outputDeviceNotice(
+                report({ event: 'RateChanged', sampleRate: 96000 }),
+                true,
+            ),
+        ).toMatchObject({
+            message:
+                'Speakers switched to 96000 Hz, so Shoreline now runs at 96000 Hz. Playback stopped. Run the patch to start it again.',
+            stopped: true,
+        });
+        expect(
+            outputDeviceNotice(
+                report({ event: 'RateChanged', engineReset: false }),
+                false,
+            ).message,
+        ).toBe('Output reopened on Speakers.');
     });
 
     test('explains a failed move', () => {
@@ -189,5 +229,51 @@ describe('outputDeviceNotice', () => {
         ).toBe(
             "Couldn't move to Speakers: busy. Playback stopped. Run the patch to start it again.",
         );
+    });
+});
+
+describe('appliedSettingsNotice', () => {
+    test('says nothing when the patch plays on', () => {
+        expect(
+            appliedSettingsNotice(
+                { engineReset: false },
+                false,
+                'Speakers',
+                false,
+            ),
+        ).toBeNull();
+    });
+
+    test('reports what a new sample rate stopped', () => {
+        expect(
+            appliedSettingsNotice(
+                { engineReset: true, recordingPath: '/rec/take.wav' },
+                true,
+                'Speakers',
+                false,
+            ),
+        ).toEqual({
+            message:
+                'The audio engine restarted for the new settings. Recording stopped and saved to /rec/take.wav. Playback stopped. Run the patch to start it again.',
+            persists: true,
+            recordingStopped: true,
+            stopped: true,
+        });
+    });
+
+    test('replaces a disconnected device banner', () => {
+        expect(
+            appliedSettingsNotice(
+                { engineReset: false },
+                false,
+                'Speakers',
+                true,
+            ),
+        ).toEqual({
+            message: 'Output is on Speakers.',
+            persists: false,
+            recordingStopped: false,
+            stopped: false,
+        });
     });
 });

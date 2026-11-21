@@ -117,23 +117,11 @@ export declare class Synthesizer {
    * This is the primary way to change audio devices after initialization.
    * An `output_device_id` of `None` opens the system default output of
    * `host_id` (the current host when `None`) and keeps following it (see
-   * `follow_system_default_output`). Returns whether the engine carried
-   * on, which it does when the sample rate stays the same; otherwise the
-   * new engine starts stopped and empty.
+   * `follow_output_device`). The engine carries on when the sample rate
+   * and buffer size stay the same; otherwise a new engine starts stopped
+   * and empty.
    */
-  recreateStreams(outputDeviceId: string | undefined | null, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null, hostId?: string | undefined | null): boolean
-  /** Force refresh the device cache (legacy - same as refresh_device_cache) */
-  refreshDeviceList(): void
-  /** List all available audio hosts (from cache) */
-  listAudioHosts(): Array<HostInfo>
-  /** List all available audio output devices (from cache) */
-  listAudioOutputDevices(): Array<AudioDeviceInfo>
-  /** List all available audio input devices (from cache) */
-  listAudioInputDevices(): Array<AudioDeviceInfo>
-  /** Get the current output device ID */
-  getOutputDeviceId(): string | null
-  /** Get the current input device ID */
-  getInputDeviceId(): string | null
+  recreateStreams(outputDeviceId: string | undefined | null, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null, hostId?: string | undefined | null): StreamsChange
   /**
    * Restart the audio streams using the current device/sample-rate/buffer-size
    * settings. A panicked engine never moves to new streams, so this builds
@@ -150,13 +138,6 @@ export declare class Synthesizer {
    * did. Cheap enough to poll every second.
    */
   followOutputDevice(): DeviceFollowReport | null
-  /**
-   * Set the audio output device (legacy - use recreate_streams instead)
-   * This uses device default sample rate and buffer size
-   */
-  setAudioOutputDevice(deviceId: string): void
-  /** Set the audio input device (legacy - use recreate_streams instead) */
-  setAudioInputDevice(deviceId?: string | undefined | null): void
   /** List all available MIDI input ports */
   listMidiInputs(): Array<MidiInputInfo>
   /** Get the currently connected MIDI input port name (first port for backward compatibility) */
@@ -256,6 +237,12 @@ export interface CurrentAudioState {
   outputDeviceId?: string
   /** The output moves to whichever device the system makes its default. */
   followsSystemDefaultOutput: boolean
+  /**
+   * The output the user chose, which is saved: `None` for System Default.
+   * It differs from `output_device_id` while the chosen device is not
+   * connected.
+   */
+  chosenOutputDeviceId?: string
   outputDeviceName?: string
   inputDeviceId?: string
   inputDeviceName?: string
@@ -306,12 +293,22 @@ export interface DeviceFollowReport {
   unopenedInputDeviceName?: string
   previousSampleRate: number
   /**
-   * Differs from `previous_sample_rate` only when the new output cannot
-   * run at that rate.
+   * Differs from `previous_sample_rate` when the new output cannot run at
+   * that rate, or changed its own.
    */
   sampleRate: number
-  /** The patch kept playing through the move, with its state. */
-  engineKept: boolean
+  /** The buffer size in frames; `None` is the host's default. */
+  previousBufferSize?: number
+  /**
+   * Differs from `previous_buffer_size` only when the new output cannot
+   * use that buffer size.
+   */
+  bufferSize?: number
+  /**
+   * A fresh engine replaced the one holding the patch, which stops
+   * playback.
+   */
+  engineReset: boolean
   /** The file of the recording the move ended. */
   recordingPath?: string
   /** Why the streams could not be opened on the new device. */
@@ -383,11 +380,16 @@ export type OutputEvent = /** The output moved to a new system default device. *
 'Moved'|
 /**
  * The output's stream stopped and its device is not back yet. The
- * engine waits| frozen| for it.
+ * engine waits frozen until it returns.
  */
 'Disconnected'|
 /** The output's device is back and its streams reopened. */
-'Reconnected';
+'Reconnected'|
+/**
+ * The output's device changed its sample rate and the streams reopened
+ * at the new rate.
+ */
+'RateChanged';
 
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {
@@ -412,6 +414,14 @@ export interface RecordingResult {
   path: string
   /** Samples lost to a full ring buffer (as f64: exact up to 2^53). */
   droppedSamples: number
+}
+
+/** What replacing the streams did to the engine. */
+export interface StreamsChange {
+  /** A fresh engine, stopped and empty, replaced the one holding the patch. */
+  engineReset: boolean
+  /** The file of a recording that ended with the old engine. */
+  recordingPath?: string
 }
 
 export interface TransportSnapshot {

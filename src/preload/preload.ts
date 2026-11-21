@@ -143,29 +143,6 @@ export interface ElectronAPI {
         onOutputNotice: (
             callback: (notice: OutputDeviceNotice) => void,
         ) => () => void;
-        // Legacy (kept for backward compatibility)
-        refreshDeviceList: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_REFRESH_DEVICE_LIST]
-        >;
-        listHosts: Promisify<IPCHandlers[typeof IPC_CHANNELS.AUDIO_LIST_HOSTS]>;
-        listOutputDevices: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_LIST_OUTPUT_DEVICES]
-        >;
-        listInputDevices: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_LIST_INPUT_DEVICES]
-        >;
-        getOutputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_OUTPUT_DEVICE]
-        >;
-        getInputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_INPUT_DEVICE]
-        >;
-        setOutputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_SET_OUTPUT_DEVICE]
-        >;
-        setInputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_SET_INPUT_DEVICE]
-        >;
         getInputChannels: Promisify<
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]
         >;
@@ -409,30 +386,6 @@ const electronAPI: ElectronAPI = {
         ),
 
         onOutputNotice: menuEventHandler(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE),
-
-        // Legacy (kept for backward compatibility)
-        refreshDeviceList: (...args) =>
-            invokeIPC('AUDIO_REFRESH_DEVICE_LIST', ...args),
-
-        listHosts: (...args) => invokeIPC('AUDIO_LIST_HOSTS', ...args),
-
-        listOutputDevices: (...args) =>
-            invokeIPC('AUDIO_LIST_OUTPUT_DEVICES', ...args),
-
-        listInputDevices: (...args) =>
-            invokeIPC('AUDIO_LIST_INPUT_DEVICES', ...args),
-
-        getOutputDevice: (...args) =>
-            invokeIPC('AUDIO_GET_OUTPUT_DEVICE', ...args),
-
-        getInputDevice: (...args) =>
-            invokeIPC('AUDIO_GET_INPUT_DEVICE', ...args),
-
-        setOutputDevice: (...args) =>
-            invokeIPC('AUDIO_SET_OUTPUT_DEVICE', ...args),
-
-        setInputDevice: (...args) =>
-            invokeIPC('AUDIO_SET_INPUT_DEVICE', ...args),
 
         getInputChannels: (...args) =>
             invokeIPC('AUDIO_GET_INPUT_CHANNELS', ...args),

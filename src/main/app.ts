@@ -12,7 +12,6 @@ import {
 } from 'electron';
 import type {
     AudioConfigOptions,
-    CurrentAudioState,
     PatchGraph,
     QueuedTrigger,
 } from '@modular/core';
@@ -47,6 +46,7 @@ import { createConfigStore, type AppConfig } from './appConfig';
 import { createFallbackWarningChannel } from './fallbackWarning';
 import {
     outputDeviceNotice,
+    appliedSettingsNotice,
     followOutputDevice,
     OUTPUT_DEVICE_POLL_MS,
 } from './outputDeviceFollow';
@@ -618,19 +618,12 @@ if (actualAudioState.fallbackWarning) {
     fallbackWarnings.report(actualAudioState.fallbackWarning);
 }
 
-/** The saved output: absent while the output follows the system default. */
-function savedOutputDeviceId(state: CurrentAudioState): string | undefined {
-    return state.followsSystemDefaultOutput
-        ? undefined
-        : (state.outputDeviceId ?? undefined);
-}
-
 // Update saved config with actual devices used (in case of fallback)
 const actualConfig = configStore.load();
 const configNeedsUpdate =
     actualConfig.audioConfig?.hostId !== actualAudioState.hostId ||
     actualConfig.audioConfig?.outputDeviceId !==
-        savedOutputDeviceId(actualAudioState) ||
+        (actualAudioState.chosenOutputDeviceId ?? undefined) ||
     actualConfig.audioConfig?.inputDeviceId !==
         actualAudioState.inputDeviceId ||
     actualConfig.audioConfig?.sampleRate !== actualAudioState.sampleRate ||
@@ -642,7 +635,7 @@ if (configNeedsUpdate) {
             bufferSize: actualAudioState.bufferSize ?? undefined,
             hostId: actualAudioState.hostId,
             inputDeviceId: actualAudioState.inputDeviceId ?? null,
-            outputDeviceId: savedOutputDeviceId(actualAudioState),
+            outputDeviceId: actualAudioState.chosenOutputDeviceId ?? undefined,
             sampleRate: actualAudioState.sampleRate,
         };
     });
@@ -658,7 +651,7 @@ function saveAudioConfig() {
                 bufferSize: state.bufferSize ?? undefined,
                 hostId: state.hostId,
                 inputDeviceId: state.inputDeviceId ?? null,
-                outputDeviceId: savedOutputDeviceId(state),
+                outputDeviceId: state.chosenOutputDeviceId ?? undefined,
                 sampleRate: state.sampleRate,
             };
         });
@@ -681,8 +674,11 @@ setInterval(() => {
 
 // A notice raised before the main window loads, delivered once it does.
 let pendingOutputNotice: OutputDeviceNotice | null = null;
+// The banner shows a disconnected output, which new settings replace.
+let disconnectedNoticeShown = false;
 
-function sendOutputNotice(notice: OutputDeviceNotice) {
+function sendOutputNotice(notice: OutputDeviceNotice, disconnected = false) {
+    disconnectedNoticeShown = disconnected;
     if (
         mainWindow &&
         !mainWindow.isDestroyed() &&
@@ -709,7 +705,7 @@ setInterval(() => {
         followed.stoppedPlayback,
     );
     console.log('Output device:', notice.message);
-    sendOutputNotice(notice);
+    sendOutputNotice(notice, followed.report.event === 'Disconnected');
 }, OUTPUT_DEVICE_POLL_MS);
 
 // Workspace root state
@@ -1311,7 +1307,7 @@ registerIPCHandler('SHELL_OPEN_PATH', async (targetPath: string) => {
     return shell.openPath(targetPath);
 });
 
-// Audio device operations - new API
+// Audio device operations
 registerIPCHandler('AUDIO_REFRESH_DEVICE_CACHE', (rescanJack?: boolean) => {
     synth.refreshDeviceCache(rescanJack);
 });
@@ -1331,53 +1327,35 @@ registerIPCHandler(
         inputDeviceId: string | null,
         hostId: string | null,
     ) => {
-        const engineKept = synth.recreateStreams(
+        const wasPlaying = !synth.isStopped();
+        const change = synth.recreateStreams(
             outputDeviceId ?? undefined,
             sampleRate,
             bufferSize ?? undefined,
             inputDeviceId ?? undefined,
             hostId ?? undefined,
         );
-        // A new sample rate starts an empty engine; at the same rate the
-        // patch plays on with everything already sent to it.
-        if (!engineKept) {
+        // A new sample rate or buffer size starts an empty engine; otherwise
+        // the patch plays on with everything already sent to it.
+        if (change.engineReset) {
             appliedPatch.clear();
             cvSent.values.clear();
         }
-        fallbackWarnings.report(synth.getCurrentAudioState().fallbackWarning);
+        const state = synth.getCurrentAudioState();
+        const notice = appliedSettingsNotice(
+            change,
+            change.engineReset && wasPlaying,
+            state.outputDeviceName,
+            disconnectedNoticeShown,
+        );
+        if (notice) {
+            sendOutputNotice(notice);
+        }
+        fallbackWarnings.report(state.fallbackWarning);
         saveAudioConfig();
-        return engineKept;
+        return change;
     },
 );
-
-// Legacy audio device operations (for backward compatibility)
-registerIPCHandler('AUDIO_REFRESH_DEVICE_LIST', () => {
-    synth.refreshDeviceList();
-});
-
-registerIPCHandler('AUDIO_LIST_HOSTS', () => synth.listAudioHosts());
-
-registerIPCHandler('AUDIO_LIST_OUTPUT_DEVICES', () =>
-    synth.listAudioOutputDevices(),
-);
-
-registerIPCHandler('AUDIO_LIST_INPUT_DEVICES', () =>
-    synth.listAudioInputDevices(),
-);
-
-registerIPCHandler('AUDIO_GET_OUTPUT_DEVICE', () => synth.getOutputDeviceId());
-
-registerIPCHandler('AUDIO_GET_INPUT_DEVICE', () => synth.getInputDeviceId());
-
-registerIPCHandler('AUDIO_SET_OUTPUT_DEVICE', (deviceId: string) => {
-    synth.setAudioOutputDevice(deviceId);
-    saveAudioConfig();
-});
-
-registerIPCHandler('AUDIO_SET_INPUT_DEVICE', (deviceId: string | null) => {
-    synth.setAudioInputDevice(deviceId ?? undefined);
-    saveAudioConfig();
-});
 
 registerIPCHandler('AUDIO_GET_INPUT_CHANNELS', () => synth.inputChannels());
 

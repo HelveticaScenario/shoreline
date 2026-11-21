@@ -1,4 +1,8 @@
-import type { DeviceFollowReport, Synthesizer } from '@modular/core';
+import type {
+    DeviceFollowReport,
+    StreamsChange,
+    Synthesizer,
+} from '@modular/core';
 import type { OutputDeviceNotice } from '../shared/ipcTypes';
 import type { AppliedPatchState } from './appliedPatchState';
 
@@ -13,8 +17,9 @@ type FollowingSynth = Pick<
 /**
  * Keep the output on a device that can play: follow the system default when
  * it changes (headphones unplugged, say), and reopen an output whose device
- * went away once it is back. The patch keeps playing, or waits for a device
- * that went away, when the device runs at the engine's sample rate.
+ * went away or changed its sample rate. The patch keeps playing, or waits for
+ * a device that went away, when the device runs at the engine's sample rate
+ * and buffer size.
  * Otherwise the engine is rebuilt empty and stopped, so a patch that was
  * playing stops; so does one left playing on a device that is gone when a
  * move fails. Returns `null` when nothing changed.
@@ -33,14 +38,10 @@ export function followOutputDevice(
     if (!report) {
         return null;
     }
-    if (
-        report.engineKept ||
-        report.event === 'Disconnected' ||
-        (report.error && !report.outputLost)
-    ) {
+    if (!report.engineReset && !report.outputLost) {
         return { report, stoppedPlayback: false, engineReset: false };
     }
-    if (report.error) {
+    if (report.outputLost) {
         synth.stop();
     }
     appliedPatch.clear();
@@ -53,9 +54,16 @@ export function outputDeviceNotice(
     stoppedPlayback: boolean,
 ): OutputDeviceNotice {
     const parts: string[] = [];
+    const name = report.outputDeviceName ?? 'The output device';
     if (report.event === 'Disconnected') {
         parts.push(
-            `${report.outputDeviceName ?? 'The output device'} was disconnected. Playback picks up where it left off when it's back.`,
+            `${name} was disconnected. Shoreline goes back to it when it's reconnected.`,
+        );
+    } else if (report.event === 'RateChanged' && !report.error) {
+        parts.push(
+            report.sampleRate === report.previousSampleRate
+                ? `Output reopened on ${name}.`
+                : `${name} switched to ${report.sampleRate} Hz, so Shoreline now runs at ${report.sampleRate} Hz.`,
         );
     } else if (report.error) {
         const device = report.outputDeviceName ?? 'the new default output';
@@ -76,22 +84,66 @@ export function outputDeviceNotice(
                 `It can't run at ${report.previousSampleRate} Hz, so the sample rate is now ${report.sampleRate} Hz.`,
             );
         }
-        if (report.unopenedInputDeviceName) {
-            parts.push(
-                `Input is off: ${report.unopenedInputDeviceName} can't run at ${report.sampleRate} Hz.`,
-            );
-        }
     }
-    if (report.recordingPath) {
-        parts.push(`Recording stopped and saved to ${report.recordingPath}.`);
+    const opened = !report.error && report.event !== 'Disconnected';
+    if (opened && report.bufferSize !== report.previousBufferSize) {
+        parts.push(
+            `It can't use a ${report.previousBufferSize ?? 'default'}-frame buffer, so the buffer size is now ${report.bufferSize ?? "the system's default"}.`,
+        );
+    }
+    if (opened && report.unopenedInputDeviceName) {
+        parts.push(
+            `Input is off: ${report.unopenedInputDeviceName} can't run at ${report.sampleRate} Hz.`,
+        );
+    }
+    return withEngineReset(
+        parts,
+        report.recordingPath,
+        stoppedPlayback,
+        report.event === 'Disconnected',
+    );
+}
+
+/**
+ * The banner after the user applies new audio settings: what a new sample
+ * rate or buffer size stopped, or where the output is now in place of a
+ * disconnected device's banner. `null` when there is nothing to say.
+ */
+export function appliedSettingsNotice(
+    change: StreamsChange,
+    stoppedPlayback: boolean,
+    outputDeviceName: string | null | undefined,
+    replacesDisconnected: boolean,
+): OutputDeviceNotice | null {
+    const parts: string[] = [];
+    if (replacesDisconnected && outputDeviceName) {
+        parts.push(`Output is on ${outputDeviceName}.`);
+    }
+    if (change.engineReset && (stoppedPlayback || change.recordingPath)) {
+        parts.push('The audio engine restarted for the new settings.');
+    }
+    if (!parts.length) {
+        return null;
+    }
+    return withEngineReset(parts, change.recordingPath, stoppedPlayback, false);
+}
+
+function withEngineReset(
+    parts: string[],
+    recordingPath: string | null | undefined,
+    stoppedPlayback: boolean,
+    persists: boolean,
+): OutputDeviceNotice {
+    if (recordingPath) {
+        parts.push(`Recording stopped and saved to ${recordingPath}.`);
     }
     if (stoppedPlayback) {
         parts.push('Playback stopped. Run the patch to start it again.');
     }
     return {
         message: parts.join(' '),
-        persists: stoppedPlayback || report.event === 'Disconnected',
-        recordingStopped: Boolean(report.recordingPath),
+        persists: stoppedPlayback || persists,
+        recordingStopped: Boolean(recordingPath),
         stopped: stoppedPlayback,
     };
 }
