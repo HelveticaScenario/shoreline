@@ -1,9 +1,4 @@
 kind: Breaking
 body: |-
-    `$wavetable` no longer turns the top harmonics of bright wavetables into harsh, out-of-tune tones (aliasing), and pitch sweeps now fade smoothly between brightness steps instead of jumping. Bright tables sound cleaner but a little less airy, most on high notes. There is no setting for the old sound, and patches need no changes:
-
-    ```js
-    // before and after: the same patch, now without aliasing
-    lead: $wavetable('c5', '/wavs/tables/pad.wav')
-    ```
+    `$wavetable` no longer turns the top harmonics of bright wavetables into harsh, out-of-tune tones (aliasing), and pitch sweeps now fade smoothly between brightness steps instead of jumping. Bright tables sound cleaner but a little less airy, most on high notes. There is no setting for the old sound, and patches need no changes.
 time: 2026-11-20T03:00:04.982366-05:00

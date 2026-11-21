@@ -134,8 +134,6 @@ impl Default for LaneState {
     }
 }
 
-/// Derive the lane count from the maximum of `pitch` and (optional)
-/// `position`. Clamped to `[1, PORT_MAX_LANES]`.
 impl LaneState {
     /// Track `pitch` and `fm`, recomputing the frequency and mipmap levels only
     /// when they change.
@@ -240,6 +238,8 @@ impl LaneState {
     }
 }
 
+/// Derive the lane count from the maximum of `pitch` and (optional)
+/// `position`. Clamped to `[1, PORT_MAX_LANES]`.
 #[allow(private_interfaces)]
 pub fn wavetable_derive_lane_count(params: &WavetableOscParams) -> usize {
     let pitch_ch = params.pitch.lanes();

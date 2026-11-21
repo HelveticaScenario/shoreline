@@ -2,17 +2,15 @@
 //! renders holds energy only at harmonics of the note, and a note just below
 //! Nyquist still sounds its fundamental.
 
+mod block_common;
+
 use std::sync::Arc;
 
-use modular_core::Patch;
-use modular_core::dsp::get_params_deserializers;
-use modular_core::params::DeserializedParams;
+use block_common::{BLOCK_SIZE, SAMPLE_RATE, assemble};
 use modular_core::types::{ProcessingMode, SampleBuffer, WavData};
 use rustfft::{FftPlanner, num_complex::Complex};
 use serde_json::json;
 
-const SAMPLE_RATE: f32 = 48000.0;
-const BLOCK_SIZE: usize = 64;
 const FRAME: usize = 2048;
 const FFT_SIZE: usize = 1 << 15;
 /// Samples skipped before analysis, past the oscillator's start.
@@ -42,30 +40,10 @@ fn render(hz: f32, len: usize) -> Vec<f32> {
         "wav": { "type": "wav_ref", "path": "saw", "channels": 1 },
         "pitch": pitch,
     });
-    let cached = get_params_deserializers()["$wavetable"](params).unwrap();
-    let mut patch = Patch::new();
-    patch
-        .insert_modules(
-            [(
-                "osc".to_string(),
-                "$wavetable".to_string(),
-                DeserializedParams {
-                    params: cached.params,
-                    lane_count: cached.lane_count,
-                    f64_inputs: false,
-                    channels: 1,
-                },
-                ProcessingMode::Block,
-            )],
-            SAMPLE_RATE,
-            BLOCK_SIZE,
-        )
-        .unwrap();
-    patch.wav_data.insert("saw".into(), saw_table());
-    for module in patch.sampleables.values() {
-        module.prepare_resources(&patch.wav_data);
-    }
-    patch.connect_all();
+    let patch = assemble(
+        [("osc", "$wavetable", params, ProcessingMode::Block)],
+        [("saw", saw_table())],
+    );
     let osc = &patch.sampleables["osc"];
     let mut out = Vec::with_capacity(SETTLE + len);
     while out.len() < SETTLE + len {

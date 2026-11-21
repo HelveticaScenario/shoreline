@@ -2,10 +2,11 @@
 //!
 //! [`PreparedWavetable`] takes a [`WavData`], splits it into equal-size frames,
 //! and generates a band-limited mipmap pyramid — each level halves the spectral
-//! bandwidth of the one before it. At read time, the oscillator plays the
-//! brightest level whose harmonics all stay below Nyquist at its playback
-//! frequency, and fades into the next level over the last whole tone before
-//! that limit, so a pitch sweep never aliases and its brightness never jumps.
+//! bandwidth of the one before it, down to the fundamental alone. At read
+//! time, the oscillator plays the brightest level whose harmonics all stay
+//! below Nyquist at its playback frequency, and fades into the next level (or,
+//! past the last, into silence) over the last whole tone before that limit, so
+//! a pitch sweep never aliases and its brightness never jumps.
 //!
 //! Construction is main-thread only and allocates freely. [`read`] and
 //! [`mipmap_for_freq`] are allocation-free and suitable for the audio thread.
@@ -18,8 +19,8 @@ use rustfft::num_complex::Complex;
 
 use crate::types::WavData;
 
-/// Fallback frame size used when the WAV has no detected frame size or a
-/// degenerate value (0 or 1).
+/// Fallback frame size used when the WAV has no detected frame size or one
+/// too short to hold a harmonic (under 4 samples).
 const DEFAULT_FRAME_SIZE: usize = 2048;
 
 /// Oversampling factor for mipmap tables. The IFFT output is computed at
@@ -27,42 +28,41 @@ const DEFAULT_FRAME_SIZE: usize = 2048;
 /// in `read_sample` much more accuracy without needing higher-order filters.
 const OVERSAMPLE: usize = 8;
 
-/// Width of the fade into the next, darker level below each level's alias-free
-/// limit: a whole tone.
+/// Width of each level's fade below its limit: a whole tone.
 const FADE_OCTAVES: f32 = 1.0 / 6.0;
 
 /// The mipmap levels to read at a playback frequency: `level`, blended toward
-/// `level + 1` by `next_weight` in `[0, 1]`.
+/// `level + 1` (silence past the last level) by `next_weight` in `[0, 1]`.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct MipmapRead {
     pub level: usize,
     pub next_weight: f32,
 }
 
+/// One band-limited copy of every frame.
+#[derive(Debug, Clone, Connect)]
+struct MipmapLevel {
+    /// `frame_count * table_size` samples, frames stored back-to-back.
+    samples: Vec<f32>,
+    /// `log2` of the playback frequency in Hz below which all of this level's
+    /// harmonics stay below Nyquist.
+    limit: f32,
+}
+
 /// A WAV loaded and prepared for band-limited wavetable playback.
 ///
 /// Stores a mipmap pyramid of time-domain samples, one level per spectral
-/// halving. All levels share the same frame count and table size; within a
-/// level, frames are concatenated so indexing is
-/// `levels[level][frame_idx * table_size + sample_idx]`.
+/// halving, from full bandwidth at level 0 to the fundamental alone. All
+/// levels share the same frame count and table size.
 #[derive(Debug, Clone, Connect)]
 pub struct PreparedWavetable {
-    /// Mipmap levels. Each level is `frame_count * table_size` samples,
-    /// frames stored back-to-back.
-    pub levels: Vec<Vec<f32>>,
+    levels: Vec<MipmapLevel>,
     /// Original samples per frame from the WAV metadata.
     pub frame_size: usize,
     /// Samples per frame in the stored tables (`frame_size * OVERSAMPLE`).
     pub table_size: usize,
     /// Number of frames in the table.
     pub frame_count: usize,
-    /// Number of mipmap levels. Level 0 is full bandwidth, level
-    /// `mipmap_count - 1` has the narrowest bandwidth.
-    pub mipmap_count: usize,
-    /// Per level, `log2` of the playback frequency in Hz below which all of
-    /// the level's harmonics stay below Nyquist; infinite for a level that
-    /// keeps only DC.
-    level_limits: Vec<f32>,
 }
 
 impl PreparedWavetable {
@@ -76,7 +76,7 @@ impl PreparedWavetable {
     /// Main thread only — allocates and runs FFTs.
     pub fn from_wav_data(wav: &WavData, sample_rate: f32) -> Self {
         let mut frame_size = wav.detected_frame_size.unwrap_or(DEFAULT_FRAME_SIZE);
-        if frame_size < 2 {
+        if frame_size < 4 {
             frame_size = DEFAULT_FRAME_SIZE;
         }
 
@@ -84,20 +84,17 @@ impl PreparedWavetable {
         let frame_count = total_samples / frame_size;
         let table_size = frame_size * OVERSAMPLE;
 
-        // Integer log2(frame_size), at least 1 level.
-        let mipmap_count = integer_log2(frame_size).max(1);
+        // Levels down to the last one that keeps the fundamental: level `l`
+        // keeps `frame_size / 2^(l+1)` bins, at least 2 while `l <= log2 - 2`.
+        let mipmap_count = integer_log2(frame_size) - 1;
 
         let channel = 0;
 
-        // Pre-allocate one Vec<f32> per level, all zero-initialized.
-        let level_len = frame_count * table_size;
-        let mut levels: Vec<Vec<f32>> =
-            (0..mipmap_count).map(|_| vec![0.0f32; level_len]).collect();
         let nyquist = sample_rate / 2.0;
-        let level_limits = (0..mipmap_count)
-            .map(|level| match level_cutoff(frame_size, level) {
-                0 | 1 => f32::INFINITY,
-                cutoff => (nyquist / (cutoff - 1) as f32).log2(),
+        let mut levels: Vec<MipmapLevel> = (0..mipmap_count)
+            .map(|level| MipmapLevel {
+                samples: vec![0.0f32; frame_count * table_size],
+                limit: (nyquist / (level_cutoff(frame_size, level) - 1) as f32).log2(),
             })
             .collect();
 
@@ -107,8 +104,6 @@ impl PreparedWavetable {
                 frame_size,
                 table_size,
                 frame_count,
-                mipmap_count,
-                level_limits,
             };
         }
 
@@ -142,7 +137,7 @@ impl PreparedWavetable {
             // positive-frequency half at the start and the negative-frequency
             // half at the end, with zeros in the middle. This is the standard
             // zero-padded IFFT oversampling approach.
-            for (level, level_table) in levels.iter_mut().enumerate().take(mipmap_count) {
+            for (level, level_table) in levels.iter_mut().enumerate() {
                 // Clear the padded buffer.
                 for c in padded.iter_mut() {
                     *c = Complex::new(0.0, 0.0);
@@ -167,7 +162,7 @@ impl PreparedWavetable {
                 fft_inverse.process(&mut padded);
 
                 let dest_base = frame_idx * table_size;
-                let dest = &mut level_table[dest_base..dest_base + table_size];
+                let dest = &mut level_table.samples[dest_base..dest_base + table_size];
                 for (i, c) in padded.iter().enumerate() {
                     dest[i] = c.re * inv_n;
                 }
@@ -179,8 +174,6 @@ impl PreparedWavetable {
             frame_size,
             table_size,
             frame_count,
-            mipmap_count,
-            level_limits,
         }
     }
 
@@ -189,23 +182,20 @@ impl PreparedWavetable {
         self.frame_count > 0 && self.frame_size > 0
     }
 
-    /// Read an interpolated sample from the prepared wavetable.
+    /// Read an interpolated sample from mipmap level `level`.
     ///
-    /// - `level` is clamped to `[0, mipmap_count - 1]`.
     /// - `phase` is wrapped modulo 1.0 and linearly interpolated within a
     ///   frame.
     /// - `frame` is clamped to `[0, frame_count - 1]` and linearly
     ///   crossfaded between adjacent frames.
     ///
-    /// Allocation-free; safe to call from the audio thread.
     #[inline]
-    pub fn read_sample(&self, level: usize, frame: f32, phase: f32) -> f32 {
-        if self.frame_count == 0 || self.table_size == 0 {
+    fn read_sample(&self, level: usize, frame: f32, phase: f32) -> f32 {
+        if self.frame_count == 0 {
             return 0.0;
         }
 
-        let level = level.min(self.mipmap_count.saturating_sub(1));
-        let buf = &self.levels[level];
+        let buf = &self.levels[level].samples;
 
         // Frame selection — clamp to [0, frame_count - 1].
         let max_frame_f = (self.frame_count - 1) as f32;
@@ -237,52 +227,46 @@ impl PreparedWavetable {
         s0 + (s1 - s0) * frame_frac
     }
 
-    /// Read at `mip`: [`read_sample`](Self::read_sample) at `mip.level`,
-    /// blended toward the next level by `mip.next_weight`.
+    /// Read at `mip`: level `mip.level`, blended toward the next level, or
+    /// toward silence past the last, by `mip.next_weight`.
     ///
     /// Allocation-free; safe to call from the audio thread.
     #[inline]
     pub fn read(&self, mip: MipmapRead, frame: f32, phase: f32) -> f32 {
         let sample = self.read_sample(mip.level, frame, phase);
-        if mip.next_weight > 0.0 {
-            let next = self.read_sample(mip.level + 1, frame, phase);
-            sample + (next - sample) * mip.next_weight
-        } else {
-            sample
+        if mip.next_weight == 0.0 {
+            return sample;
         }
+        let next = if mip.level + 1 < self.levels.len() {
+            self.read_sample(mip.level + 1, frame, phase)
+        } else {
+            0.0
+        };
+        sample + (next - sample) * mip.next_weight
     }
 
     /// The levels to read at playback frequency `freq` in Hz: the brightest
-    /// level whose harmonics all stay below Nyquist, faded into the next level
-    /// over the last [`FADE_OCTAVES`] below its limit. The fade reaches the
-    /// next level exactly at the limit, where that level takes over, so the
-    /// blend is continuous in `freq` and both levels read are alias-free.
-    /// Only the magnitude matters: backwards (negative-frequency) playback
-    /// from through-zero FM has the same magnitude spectrum. The last fade
-    /// below Nyquist is into a level that keeps only DC, so a note sweeping
-    /// up to Nyquist fades out rather than cutting off.
+    /// level whose harmonics all stay below Nyquist, fading over the last
+    /// [`FADE_OCTAVES`] below its limit into the next. Only the magnitude
+    /// matters, since through-zero FM plays backwards with the same spectrum.
     ///
     /// Allocation-free; safe to call from the audio thread.
     #[inline]
     pub fn mipmap_for_freq(&self, freq: f32) -> MipmapRead {
-        let freq = freq.abs();
-        if self.mipmap_count == 0 || freq == 0.0 || freq.is_nan() {
+        if freq.is_nan() {
             return MipmapRead::default();
         }
-        let log_freq = freq.log2();
-        let Some(level) = self.level_limits.iter().position(|&limit| log_freq < limit) else {
-            return MipmapRead {
-                level: self.mipmap_count - 1,
-                next_weight: 0.0,
-            };
-        };
-        let next_weight = if level + 1 < self.mipmap_count {
-            let fade_start = self.level_limits[level] - FADE_OCTAVES;
-            ((log_freq - fade_start) / FADE_OCTAVES).clamp(0.0, 1.0)
-        } else {
-            0.0
-        };
-        MipmapRead { level, next_weight }
+        let log_freq = freq.abs().log2();
+        let level = self
+            .levels
+            .iter()
+            .position(|level| log_freq < level.limit)
+            .unwrap_or(self.levels.len() - 1);
+        let fade_start = self.levels[level].limit - FADE_OCTAVES;
+        MipmapRead {
+            level,
+            next_weight: ((log_freq - fade_start) / FADE_OCTAVES).clamp(0.0, 1.0),
+        }
     }
 }
 
@@ -329,13 +313,8 @@ mod tests {
 
         assert_eq!(prep.frame_count, 1);
         assert_eq!(prep.frame_size, size);
-        assert!(
-            prep.mipmap_count >= 10,
-            "expected >=10 mipmap levels, got {}",
-            prep.mipmap_count
-        );
-        // log2(2048) = 11.
-        assert_eq!(prep.mipmap_count, 11);
+        // Bandwidths of 1023, 511, ... down to 1 harmonic: log2(2048) - 1 levels.
+        assert_eq!(prep.levels.len(), 10);
 
         // Sine starts at 0.
         let s0 = prep.read_sample(0, 0.0, 0.0);
@@ -403,7 +382,7 @@ mod tests {
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
 
         let rms = |level: usize| -> f32 {
-            let buf = &prep.levels[level];
+            let buf = &prep.levels[level].samples;
             let sum_sq: f32 = buf.iter().map(|x| x * x).sum();
             (sum_sq / buf.len() as f32).sqrt()
         };
@@ -436,34 +415,46 @@ mod tests {
         assert_eq!(level(100.0), 3);
         assert_eq!(level(200.0), 4);
         assert_eq!(level(10000.0), 9);
-        // Level 9 keeps the fundamental alone, so it plays up to Nyquist.
+        // Level 9, the last, keeps the fundamental alone, so it plays up to
+        // Nyquist and is silent past it.
         assert_eq!(level(15000.0), 9);
         assert_eq!(level(23999.0), 9);
-        assert_eq!(level(30000.0), prep.mipmap_count - 1);
-        assert_eq!(level(f32::INFINITY), prep.mipmap_count - 1);
+        for freq in [30000.0, f32::INFINITY] {
+            let mip = prep.mipmap_for_freq(freq);
+            assert_eq!(
+                mip,
+                MipmapRead {
+                    level: 9,
+                    next_weight: 1.0
+                }
+            );
+            assert_eq!(prep.read(mip, 0.0, 0.25), 0.0);
+        }
         assert_eq!(prep.mipmap_for_freq(f32::NAN), MipmapRead::default());
         assert_eq!(prep.mipmap_for_freq(0.0), MipmapRead::default());
     }
 
-    /// Below Nyquist, the main level read keeps the fundamental, and every
-    /// level read has all its harmonics below Nyquist, whatever the frame size.
+    /// Every level keeps the fundamental, and every level read has all its
+    /// harmonics below Nyquist, whatever the frame size.
     #[test]
     fn levels_read_are_alias_free_and_keep_the_fundamental() {
         let sample_rate = 48000.0;
         let nyquist = sample_rate / 2.0;
-        for size in [2048, 600, 256] {
+        for size in [2048, 600, 256, 4] {
             let prep = prepared(size, sample_rate);
+            for level in 0..prep.levels.len() {
+                assert!(
+                    level_cutoff(size, level) >= 2,
+                    "{size}-sample frame: level {level} drops the fundamental"
+                );
+            }
             let mut freq = 1.0f32;
             while freq < nyquist {
                 let mip = prep.mipmap_for_freq(freq);
-                assert!(
-                    level_cutoff(size, mip.level) >= 2,
-                    "{size}-sample frame at {freq} Hz reads level {}, which drops the fundamental",
-                    mip.level
-                );
-                let next = (mip.next_weight > 0.0).then_some(mip.level + 1);
+                let next = (mip.next_weight > 0.0 && mip.level + 1 < prep.levels.len())
+                    .then_some(mip.level + 1);
                 for level in std::iter::once(mip.level).chain(next) {
-                    let top = level_cutoff(size, level).saturating_sub(1) as f32 * freq;
+                    let top = (level_cutoff(size, level) - 1) as f32 * freq;
                     assert!(
                         top < nyquist,
                         "{size}-sample frame at {freq} Hz reads level {level}, whose top harmonic lands at {top} Hz"
@@ -479,11 +470,8 @@ mod tests {
     #[test]
     fn blend_is_continuous_across_levels() {
         let prep = prepared(2048, 48000.0);
-        for level in 0..prep.mipmap_count - 1 {
-            let limit = prep.level_limits[level];
-            if !limit.is_finite() {
-                continue;
-            }
+        for level in 0..prep.levels.len() - 1 {
+            let limit = prep.levels[level].limit;
             let below = prep.mipmap_for_freq(f32::exp2(limit - 1e-4));
             assert_eq!(below.level, level);
             assert!(
@@ -535,12 +523,17 @@ mod tests {
     }
 
     #[test]
-    fn fallback_frame_size_when_metadata_missing() {
+    fn fallback_frame_size_when_metadata_missing_or_too_short() {
         let size = 2048;
         let channel = make_sine_frame(size, 0.0);
-        let wav = WavData::new(SampleBuffer::from_samples(vec![channel], 48000.0), None);
-        let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
-        assert_eq!(prep.frame_size, DEFAULT_FRAME_SIZE);
+        for frame_size in [None, Some(3)] {
+            let wav = WavData::new(
+                SampleBuffer::from_samples(vec![channel.clone()], 48000.0),
+                frame_size,
+            );
+            let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
+            assert_eq!(prep.frame_size, DEFAULT_FRAME_SIZE);
+        }
     }
 
     #[test]
