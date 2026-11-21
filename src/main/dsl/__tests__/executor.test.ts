@@ -946,6 +946,21 @@ describe('sequencing', () => {
         ).toThrow(/Hz atoms are not allowed under \.scale/);
     });
 
+    test('a chord atom plays in a note pattern and is rejected under .scale', () => {
+        expect(
+            findModules(
+                execPatch('out: $cycle($("c3(maj7) eb(m7 inv1)"))'),
+                '$cycle',
+            ).length,
+        ).toBe(1);
+        expect(() =>
+            execPatch('out: $cycle($("c(maj)").scale("C(major)"))'),
+        ).toThrow(/chords are not allowed under \.scale/);
+        expect(() => execPatch('out: $cycle($("c(nope)"))')).toThrow(
+            /unknown chord/,
+        );
+    });
+
     test('$cycle accepts mixed numeric, note, and hz atoms', () => {
         const patch = execPatch('out: $cycle($("0.5 c4 440hz -1"))');
         expect(findModules(patch, '$cycle').length).toBe(1);

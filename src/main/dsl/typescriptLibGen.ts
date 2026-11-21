@@ -562,6 +562,7 @@ interface Pattern extends PatternModule {
  * | Bare number | Direct V/Oct voltage (1 V/oct CV) | \`0\`, \`1.5\`, \`-0.25\` |
  * | \`<n>hz\` | Frequency in Hz (converted to V/Oct) | \`440hz\`, \`220hz\` |
  * | Note letter (+ accidental, + octave) | Pitched note | \`c4\`, \`d#3\`, \`eb5\` |
+ * | Note + \`(chord)\` | Every note of the chord at once (\`invN\` inverts); not allowed under \`.scale\` | \`c3(maj7)\`, \`eb(m7 inv1)\` |
  * | \`~\` or \`-\` | Rest (gate low) | \`'c4 ~ e4'\`, \`'c4 - e4'\` |
  *
  * ### Mini-notation

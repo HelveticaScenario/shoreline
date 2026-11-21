@@ -219,12 +219,19 @@ impl FromMiniAtom for SeqValue {
                     )))
                 }
             }
+            AtomValue::Chord { .. } => Err(ConvertError::InvalidAtom(
+                "a chord plays several notes, so it cannot stand for a single value".to_string(),
+            )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() \
                  boolean patterns"
                     .to_string(),
             )),
         }
+    }
+
+    fn from_chord(_atom: &AtomValue, voltages: &[f64]) -> Result<Vec<Self>, ConvertError> {
+        Ok(voltages.iter().map(|&v| SeqValue::voltage(v)).collect())
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {

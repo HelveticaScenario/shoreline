@@ -44,6 +44,18 @@ export type AtomValue =
           };
       }
     /**
+     * A chord on a root note (`c3(maj7)`). `chord` is the trimmed text inside
+     * the parentheses: `[tuning] (chord-name | intervals…) [invN]`.
+     */
+    | {
+          Chord: {
+              letter: string;
+              accidental: string | null;
+              octave: number | null;
+              chord: string;
+          };
+      }
+    /**
      * The `x` structure marker (serde unit variant, so a bare string). Only
      * meaningful in `.struct(...)` boolean patterns.
      */

@@ -84,6 +84,13 @@ const PARITY_CASES: Array<{ label: string; input: string }> = [
     { label: 'negative leading-dot decimal', input: '-.5' },
     { label: 'euclidean (k,n) no rotation', input: '0(3,8)' },
     { label: 'euclidean with rotation', input: '0(3,8,1)' },
+    { label: 'chord on a note', input: 'c3(maj7)' },
+    {
+        label: 'chord with accidental, no octave, inversion',
+        input: 'eb(m7 inv1)',
+    },
+    { label: 'chord then euclidean', input: 'c(maj)(3,8)' },
+    { label: 'note euclidean beside a chord', input: 'c(3,8) g2(5)' },
     { label: 'fast factor as subsequence', input: 'c*[1 2]' },
     { label: 'slow factor as fast subsequence', input: '0/[2 3]' },
     { label: 'fast factor as slow subsequence', input: '0*<2 3>' },

@@ -205,6 +205,60 @@ describe('atom kinds', () => {
     });
 });
 
+describe('chords', () => {
+    test('a note with a chord in parentheses is a Chord atom', () => {
+        const r = patternPayload($('eb3(m7 inv1)'));
+        expect(r.ast).toEqual({
+            Pure: {
+                node: {
+                    Chord: {
+                        letter: 'e',
+                        accidental: 'b',
+                        octave: 3,
+                        chord: 'm7 inv1',
+                    },
+                },
+                span: { start: 0, end: 12 },
+            },
+        });
+    });
+
+    test('the root octave may be left out', () => {
+        const atom = firstPureAtom(patternPayload($('c(maj7) g')).ast);
+        expect(atom).toEqual({
+            Pure: {
+                node: {
+                    Chord: {
+                        letter: 'c',
+                        accidental: null,
+                        octave: null,
+                        chord: 'maj7',
+                    },
+                },
+                span: { start: 0, end: 7 },
+            },
+        });
+    });
+
+    test('a comma in the parentheses keeps them a euclidean rhythm', () => {
+        const r = patternPayload($('c(3,8)'));
+        expect('Euclidean' in r.ast).toBe(true);
+    });
+
+    test('a chord takes modifiers, euclidean included', () => {
+        const r = patternPayload($('c3(maj)(3,8)'));
+        if (!('Euclidean' in r.ast)) throw new Error('expected Euclidean');
+        const inner = r.ast.Euclidean.pattern;
+        if (!('Pure' in inner)) throw new Error('expected Pure');
+        expect(inner.Pure.node).toMatchObject({ Chord: { chord: 'maj' } });
+        expect('Fast' in patternPayload($('c3(maj7)*2')).ast).toBe(true);
+    });
+
+    test('empty parentheses are a parse error', () => {
+        expect(() => $('c( )')).toThrow(MiniParseError);
+    });
+});
+
 describe('sequences and groupings', () => {
     test('space-separated sequence', () => {
         const r = patternPayload($('0 1 2'));

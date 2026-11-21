@@ -24,7 +24,8 @@
 //!
 //! Scope:
 //! - Sequences, stacks (`,`), fast subsequences `[...]`, slow subsequences `<...>`
-//! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), rest (`~`)
+//! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), chords
+//!   (`c3(maj7)`), rest (`~`)
 //! - Note letters 'a'..'g' also parse as a note without octave.
 //! - Modifiers: `*`, `/`, `!`, `?`, `@`, `(k,n,rot?)`
 //! - Random choice: `a|b|c`
@@ -382,6 +383,18 @@ impl<'a> Parser<'a> {
                 };
                 // Optional octave
                 let octave = self.maybe_integer_i32()?;
+                if let Some(chord) = self.chord_body() {
+                    return Ok(MiniAST::Pure(Located::new(
+                        AtomValue::Chord {
+                            letter: letter as char,
+                            accidental,
+                            octave,
+                            chord,
+                        },
+                        start,
+                        self.pos,
+                    )));
+                }
                 let end = self.pos;
                 return Ok(MiniAST::Pure(Located::new(
                     AtomValue::Note {
@@ -411,6 +424,29 @@ impl<'a> Parser<'a> {
             start,
             end,
         )))
+    }
+
+    /// A chord's `(…)` directly after its root note, consumed with its
+    /// parentheses. A body holding `,` is a euclidean modifier instead, as in
+    /// the peggy grammar's `ChordBody`.
+    fn chord_body(&mut self) -> Option<String> {
+        if self.peek() != Some(b'(') {
+            return None;
+        }
+        let body_start = self.pos + 1;
+        let len = self.input[body_start..]
+            .iter()
+            .position(|&b| matches!(b, b')' | b'(' | b',' | b'[' | b']' | b'<' | b'>'))?;
+        let body_end = body_start + len;
+        if self.input[body_end] != b')' {
+            return None;
+        }
+        let body = std::str::from_utf8(&self.input[body_start..body_end]).ok()?;
+        if body.trim().is_empty() {
+            return None;
+        }
+        self.pos = body_end + 1;
+        Some(body.trim().to_string())
     }
 
     fn matches_keyword_ci(&mut self, kw: &str) -> bool {

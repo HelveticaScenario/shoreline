@@ -926,6 +926,157 @@
     }
   },
   {
+    "label": "chord on a note",
+    "input": "c3(maj7)",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Chord": {
+            "letter": "c",
+            "accidental": null,
+            "octave": 3,
+            "chord": "maj7"
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 8
+        }
+      }
+    }
+  },
+  {
+    "label": "chord with accidental, no octave, inversion",
+    "input": "eb(m7 inv1)",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Chord": {
+            "letter": "e",
+            "accidental": "b",
+            "octave": null,
+            "chord": "m7 inv1"
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 11
+        }
+      }
+    }
+  },
+  {
+    "label": "chord then euclidean",
+    "input": "c(maj)(3,8)",
+    "peggy_ast": {
+      "Euclidean": {
+        "pattern": {
+          "Pure": {
+            "node": {
+              "Chord": {
+                "letter": "c",
+                "accidental": null,
+                "octave": null,
+                "chord": "maj"
+              }
+            },
+            "span": {
+              "start": 0,
+              "end": 6
+            }
+          }
+        },
+        "pulses": {
+          "Pure": {
+            "node": 3,
+            "span": {
+              "start": 7,
+              "end": 8
+            }
+          }
+        },
+        "steps": {
+          "Pure": {
+            "node": 8,
+            "span": {
+              "start": 9,
+              "end": 10
+            }
+          }
+        },
+        "rotation": null
+      }
+    }
+  },
+  {
+    "label": "note euclidean beside a chord",
+    "input": "c(3,8) g2(5)",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Euclidean": {
+              "pattern": {
+                "Pure": {
+                  "node": {
+                    "Note": {
+                      "letter": "c",
+                      "accidental": null,
+                      "octave": null
+                    }
+                  },
+                  "span": {
+                    "start": 0,
+                    "end": 1
+                  }
+                }
+              },
+              "pulses": {
+                "Pure": {
+                  "node": 3,
+                  "span": {
+                    "start": 2,
+                    "end": 3
+                  }
+                }
+              },
+              "steps": {
+                "Pure": {
+                  "node": 8,
+                  "span": {
+                    "start": 4,
+                    "end": 5
+                  }
+                }
+              },
+              "rotation": null
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Pure": {
+              "node": {
+                "Chord": {
+                  "letter": "g",
+                  "accidental": null,
+                  "octave": 2,
+                  "chord": "5"
+                }
+              },
+              "span": {
+                "start": 7,
+                "end": 12
+              }
+            }
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
     "label": "fast factor as subsequence",
     "input": "c*[1 2]",
     "peggy_ast": {

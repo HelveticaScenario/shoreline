@@ -224,7 +224,7 @@ impl ScaleSpec {
         let body = &source[open + 1..source.len() - close.len_utf8()];
 
         if is_chord {
-            Self::parse_chord(&root, body)
+            Self::chord(&root, body)
         } else {
             Self::parse_scale(&root, body)
         }
@@ -272,8 +272,9 @@ impl ScaleSpec {
         Self::new(base_midi, tuning, &pitch_classes)
     }
 
-    /// `root[…]`: `[tuning] (chord-name | intervals…) [invN]`.
-    fn parse_chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
+    /// The chord in `root[body]`, with `body` read as
+    /// `[tuning] (chord-name | intervals…) [invN]`.
+    pub fn chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
         let mut tokens: ArrayVec<&str, { PORT_MAX_LANES + 2 }> = ArrayVec::new();
         for token in body.split_whitespace() {
             tokens

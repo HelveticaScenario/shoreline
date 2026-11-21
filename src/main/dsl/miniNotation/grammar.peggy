@@ -12,7 +12,7 @@
  * Differences from krill.pegjs:
  *   - Emits the shared `MiniAST` shape directly (no {type_, source_, options_}
  *     intermediate wrappers).
- *   - Atom kinds reduced to Number, Hz, Note, Rest. No sample-name identifiers,
+ *   - Atom kinds reduced to Number, Hz, Note, Chord, Rest. No sample-name identifiers,
  *     MIDI shorthand, module-reference atoms, string atoms, or voltage atoms.
  *   - Modifier operands reuse the same AST typing as the Rust parser
  *     (MiniASTF64 for fast/slow factors and degrade probabilities,
@@ -238,6 +238,7 @@ Rest
 Value
   = HzValue
   / TruthyValue
+  / ChordValue
   / NoteValue
   / NumberValue
 
@@ -264,19 +265,27 @@ NumberValue
 // only '#' or 'b'. The trailing !IdentCont stops a note from matching the
 // start of a longer alphanumeric run, so `cb` is c-flat but `cba` is not a note.
 NoteValue
-  = letter:$[a-gA-G] acc:Accidental? oct:Octave? !IdentCont {
-      return {
-        Pure: located(
-          {
-            Note: {
-              letter: letter.toLowerCase(),
-              accidental: acc,
-              octave: oct,
-            },
-          },
-          location()
-        ),
-      };
+  = note:NoteName !IdentCont {
+      return { Pure: located({ Note: note }, location()) };
+    }
+
+// A chord is a note with its chord in parentheses directly after it:
+// c3(maj7), eb(m7 inv1), c(just maj). Rust reads the body as
+// `[tuning] (chord-name | intervals…) [invN]`. A body holding `,` is a
+// euclidean modifier instead, so `c(3,8)` stays a rhythm.
+ChordValue
+  = note:NoteName "(" chord:ChordBody ")" {
+      return { Pure: located({ Chord: { ...note, chord } }, location()) };
+    }
+
+NoteName
+  = letter:$[a-gA-G] acc:Accidental? oct:Octave? {
+      return { letter: letter.toLowerCase(), accidental: acc, octave: oct };
+    }
+
+ChordBody
+  = body:$[^(),\[\]<>]+ &{ return body.trim().length > 0; } {
+      return body.trim();
     }
 
 Accidental

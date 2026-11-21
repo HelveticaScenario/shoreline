@@ -300,6 +300,11 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                         "`c4`, `a#3`, `eb`",
                     ],
                     &[
+                        "note`(chord)`",
+                        "every note of a chord on that root at once",
+                        "`c3(maj7)`, `eb(m7)`",
+                    ],
+                    &[
                         "number",
                         "a pitch voltage, 1 V per octave with 0 at C4",
                         "`0`, `-1`, `0.25`",
@@ -351,6 +356,36 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 code: r#"
                     const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`
                     melody: $saw(seq).lpf('c5', 1).amp($adsr(seq))
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Chords",
+            body: "A chord in parentheses right after a note plays all its notes at once, each \
+                   on a voice of its own. Add `invN` to raise the lowest N notes an octave, \
+                   or write your own voicing as semitones above the root: `c3(0 7 16)`. \
+                   Scale patterns don't take chords.",
+            table: Some(DocTable {
+                columns: &["Kind", "Names"],
+                rows: &[
+                    &["Triads", "maj / M, min / m, dim, aug, sus2, sus4, 5"],
+                    &["Sixths", "6, m6, 69"],
+                    &[
+                        "Sevenths",
+                        "7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5",
+                    ],
+                    &[
+                        "Extended",
+                        "9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11",
+                    ],
+                    &["Added", "add9, madd9, add11"],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Chord changes",
+                code: r#"
+                    const seq = $`<c3(maj7) a2(m7) d3(m9) g2(7 inv1)>`
+                    chords: $saw(seq).lpf('c5', 1).amp($adsr(seq))
                 "#,
             }],
         },
