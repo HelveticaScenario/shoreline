@@ -42,9 +42,6 @@ pub struct UnisonPhases {
     phase: [f32; PORT_MAX_LANES],
     target: [f32; PORT_MAX_LANES],
     count: usize,
-    /// Copies an earlier sample wrote, here or in the module this state came
-    /// from. Copies at or past it start on their target.
-    held: usize,
     /// Whether any copy is still short of its target.
     gliding: bool,
 }
@@ -55,7 +52,6 @@ impl Default for UnisonPhases {
             phase: [0.0; PORT_MAX_LANES],
             target: [0.0; PORT_MAX_LANES],
             count: 0,
-            held: 0,
             gliding: false,
         }
     }
@@ -63,13 +59,17 @@ impl Default for UnisonPhases {
 
 impl UnisonPhases {
     /// Sets the copy count, at most `PORT_MAX_LANES`. Call from
-    /// `on_patch_update`, after the state transfer.
+    /// `on_patch_update`, after the state transfer: copies the earlier count
+    /// held glide to their new targets, and added copies start on theirs.
     pub fn set_count(&mut self, count: usize) {
         if count != self.count {
-            self.count = count;
             for (voice, target) in self.target.iter_mut().enumerate().take(count) {
                 *target = voice_phase(voice, count);
             }
+            for voice in self.count.min(count)..count {
+                self.phase[voice] = self.target[voice];
+            }
+            self.count = count;
             self.gliding = true;
         }
     }
@@ -80,17 +80,10 @@ impl UnisonPhases {
     pub fn advance(&mut self, max_step: f32) -> &[f32; PORT_MAX_LANES] {
         if self.gliding {
             let mut gliding = false;
-            for voice in 0..self.count {
-                let target = self.target[voice];
-                let phase = if voice < self.held {
-                    glide_phase(self.phase[voice], target, max_step)
-                } else {
-                    target
-                };
-                self.phase[voice] = phase;
-                gliding |= phase != target;
+            for (phase, &target) in self.phase.iter_mut().zip(&self.target).take(self.count) {
+                *phase = glide_phase(*phase, target, max_step);
+                gliding |= *phase != target;
             }
-            self.held = self.count;
             self.gliding = gliding;
         }
         &self.phase

@@ -28,15 +28,15 @@ fn supersaw_paths_agree() {
     );
     check_paths_agree(
         "$supersaw",
-        json!({ "freq": 1.0, "unison": 1, "sync": 1.3, "waitForZeroCross": false }),
+        json!({ "freq": 1.0, "unison": 1, "syncOctaves": 1.3, "waitForZeroCross": false }),
     );
     check_paths_agree(
         "$supersaw",
-        json!({ "freq": [1.0, -1.0], "unison": 5, "sync": cable("lfo", 0) }),
+        json!({ "freq": [1.0, -1.0], "unison": 5, "syncOctaves": cable("lfo", 0) }),
     );
     check_paths_agree(
         "$supersaw",
-        json!({ "freq": [0.0, -2.0], "unison": 7, "detune": 0.5, "sync": [0.7, 2.4] }),
+        json!({ "freq": [0.0, -2.0], "unison": 7, "detune": 0.5, "syncOctaves": [0.7, 2.4] }),
     );
 }
 
@@ -45,7 +45,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$supersaw",
-            json!({ "freq": poly_cable("src", LANES), "unison": 6, "fm": cable("src", 0), "sync": cable("lfo", 1) })
+            json!({ "freq": poly_cable("src", LANES), "unison": 6, "fm": cable("src", 0), "syncOctaves": cable("lfo", 1) })
         ),
         0
     );
@@ -73,12 +73,12 @@ fn supersaw_bounds_hold_every_sample() {
 fn supersaw_bounds_hold_under_hard_sync() {
     // Each sync reset adds a band-limiting correction to its saw; a high
     // sync restarts every saw several times a cycle.
-    for freq in [-3.0, -1.0, 0.5] {
+    for freq in [-3.0, -1.0, 0.5, 3.5] {
         let params = json!({
             "freq": [freq, freq + 0.3],
             "unison": 7,
             "detune": 0.0,
-            "sync": [2.6, 3.9],
+            "syncOctaves": [2.6, 3.9],
             "waitForZeroCross": false,
         });
         let patch = build(

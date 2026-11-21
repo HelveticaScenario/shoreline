@@ -1,11 +1,9 @@
 kind: Breaking
 body: |-
-    `$supersaw` starts its saws at phases spread so they never all line up, so the stack holds a steady level instead of swelling as the detune drifts them, and changing `unison` slides the saws to their new phases without a click. Its `sync` is now internal: instead of a trigger, it sets how many octaves each saw sits above its own sync source at the note's pitch, so every saw syncs the same way at its own detune and the stack keeps its level. Sweep it for sync tearing. Patches without `sync` sound slightly different and need no changes; a patch syncing to a trigger moves the trigger's pitch into `freq`:
+    `$supersaw` starts its saws at phases spread so they never all line up, so the stack holds a steady level instead of swelling as the detune drifts them, and changing `unison` crossfades to the new stack without a click. Patches sound slightly different; there is no setting for the old sound, and patches need no changes:
 
     ```js
-    // before: saws at c3, restarted by a c2 pulse
-    keys: $supersaw('c3', { sync: $pulse('c2') })
-    // after: the note is the sync source's pitch, the saws an octave above
-    keys: $supersaw('c2', { sync: 1 })
+    // before and after: the same patch, now at a steady level
+    keys: $supersaw('a3', { unison: 7 })
     ```
 time: 2026-11-20T16:34:23.588681-05:00
