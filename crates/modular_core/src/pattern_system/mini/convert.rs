@@ -92,10 +92,25 @@ impl std::error::Error for ConvertError {}
 
 // Implement FromMiniAtom for common types
 
+/// Error for a `+`/`-` altered atom anywhere but a scale pattern's degrees.
+pub const ALTERED_OUTSIDE_SCALE_ERR: &str = "'+' or '-' straight after a number raises or \
+     lowers a scale degree, so it only works in the notes of a .scale(...) pattern; for a rest \
+     after a number, put a space before the '-'";
+
+/// The atom as an `f64`, or the error naming why it has none.
+fn atom_to_f64(atom: &AtomValue, ty: &str) -> Result<f64, ConvertError> {
+    if let AtomValue::Altered { .. } = atom {
+        return Err(ConvertError::InvalidAtom(
+            ALTERED_OUTSIDE_SCALE_ERR.to_string(),
+        ));
+    }
+    atom.to_f64()
+        .ok_or_else(|| ConvertError::InvalidAtom(format!("Cannot convert to {ty}")))
+}
+
 impl FromMiniAtom for f64 {
     fn from_atom(atom: &AtomValue) -> Result<Self, ConvertError> {
-        atom.to_f64()
-            .ok_or_else(|| ConvertError::InvalidAtom("Cannot convert to f64".to_string()))
+        atom_to_f64(atom, "f64")
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {
@@ -125,9 +140,7 @@ impl FromMiniAtom for f64 {
 
 impl FromMiniAtom for f32 {
     fn from_atom(atom: &AtomValue) -> Result<Self, ConvertError> {
-        atom.to_f64()
-            .map(|f| f as f32)
-            .ok_or_else(|| ConvertError::InvalidAtom("Cannot convert to f32".to_string()))
+        atom_to_f64(atom, "f32").map(|f| f as f32)
     }
 
     fn combine_with_head(head_atoms: &[AtomValue], tail: &Self) -> Result<Self, ConvertError> {
@@ -143,9 +156,7 @@ impl FromMiniAtom for f32 {
 
 impl FromMiniAtom for i64 {
     fn from_atom(atom: &AtomValue) -> Result<Self, ConvertError> {
-        atom.to_f64()
-            .map(|f| f as i64)
-            .ok_or_else(|| ConvertError::InvalidAtom("Cannot convert to i64".to_string()))
+        atom_to_f64(atom, "i64").map(|f| f as i64)
     }
 
     fn combine_with_head(_head_atoms: &[AtomValue], _tail: &Self) -> Result<Self, ConvertError> {
@@ -156,9 +167,7 @@ impl FromMiniAtom for i64 {
 
 impl FromMiniAtom for i32 {
     fn from_atom(atom: &AtomValue) -> Result<Self, ConvertError> {
-        atom.to_f64()
-            .map(|f| f as i32)
-            .ok_or_else(|| ConvertError::InvalidAtom("Cannot convert to i32".to_string()))
+        atom_to_f64(atom, "i32").map(|f| f as i32)
     }
 
     fn combine_with_head(_head_atoms: &[AtomValue], _tail: &Self) -> Result<Self, ConvertError> {
@@ -174,6 +183,9 @@ impl FromMiniAtom for bool {
         match atom {
             AtomValue::Number(n) => Ok(*n != 0.0),
             AtomValue::Truthy | AtomValue::Hz(_) | AtomValue::Note { .. } => Ok(true),
+            AtomValue::Altered { .. } => Err(ConvertError::InvalidAtom(
+                ALTERED_OUTSIDE_SCALE_ERR.to_string(),
+            )),
         }
     }
 

@@ -469,6 +469,7 @@ interface Pattern extends PatternModule {
    * melody2: $\`-1 0 2 4\`.scale("a3(min)").saw()       // negative degrees wrap below the root
    * melody3: $\`0 1 2 3 4\`.scale("c(0 2 4 7 9)").saw() // custom intervals (pentatonic)
    * melody4: $\`0 4 7\`.scale("c(just)").saw()          // just intonation
+   * melody5: $\`0 2 4 4+ 5\`.scale("c(major)").saw()   // 4+ is G#, a passing note outside the scale
    * \`\`\`
    *
    * ### Atoms
@@ -476,6 +477,7 @@ interface Pattern extends PatternModule {
    * | Form | Meaning | Example |
    * |------|---------|---------|
    * | Bare integer | Scale degree (0-indexed) | \`0\`, \`2\`, \`-1\` |
+   * | Integer then \`+\`s or \`-\`s | That degree, raised or lowered a semitone per mark, so it can leave the scale | \`2+\`, \`4--\`, \`-1+\` |
    * | \`~\` or \`-\` | Rest (gate low, no pitch change) | \`'0 ~ 2 ~'\`, \`'0 - 2 -'\` |
    *
    * ### Scale strings
@@ -489,6 +491,9 @@ interface Pattern extends PatternModule {
    * | \`tonic[chord]\` | \`"c[maj7]"\`, \`"a3[m9]"\` | Chord tones; degrees step through the chord |
    * | \`tonic[chord invN]\` | \`"c[maj inv1]"\` | Inverted chord; degree 0 is the lowest note |
    * | \`chromatic\` | \`"chromatic"\` | All 12 semitones, 12-TET |
+   *
+   * A semitone mark steps to the neighbouring note of the scale's 12-tone
+   * tuning, so in \`"c(just)"\` it lands on a just-tuned note.
    *
    * Degrees wrap by an octave for scales. A chord wraps by its span rounded up
    * to whole octaves, so \`"c[9]"\` repeats every two octaves. See
@@ -670,7 +675,9 @@ interface ScalePattern extends Pattern {
   /**
    * \`.trans(...)\` transposes a scale pattern by another scale-degree
    * mini-notation string: the two patterns' degrees are added, so negative
-   * degrees transpose down, and each note keeps its own scale.
+   * degrees transpose down, and each note keeps its own scale. A note's
+   * \`+\`/\`-\` semitone marks stay with it, and marks on a \`.trans\` degree
+   * (\`.trans("0+")\`) raise or lower every note that degree moves.
    * \`.add(...)\` and \`.sub(...)\` are the collection's: they add to and
    * subtract from the sequencer's output signal, in volts.
    * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit

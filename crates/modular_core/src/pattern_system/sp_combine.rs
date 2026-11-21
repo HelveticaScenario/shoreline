@@ -424,8 +424,14 @@ mod tests {
         use crate::pattern_system::mini;
 
         fn add_interval_values(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
-            match (a.degree(), b.degree()) {
-                (Some(da), Some(db)) => IntervalValue::Degree(da + db),
+            match (a, b) {
+                (
+                    IntervalValue::Degree { degree: da, .. },
+                    IntervalValue::Degree { degree: db, .. },
+                ) => IntervalValue::Degree {
+                    degree: da + db,
+                    semitones: 0,
+                },
                 _ => IntervalValue::Rest,
             }
         }

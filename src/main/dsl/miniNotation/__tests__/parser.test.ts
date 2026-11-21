@@ -205,6 +205,98 @@ describe('atom kinds', () => {
     });
 });
 
+describe('altered atoms `+` / `-`', () => {
+    const altered = (src: string) => firstPureAtom(patternPayload($(src)).ast);
+
+    test('each mark is one semitone, + up and - down', () => {
+        expect(altered('2+')).toEqual({
+            Pure: {
+                node: { Altered: { value: 2, semitones: 1 } },
+                span: { start: 0, end: 2 },
+            },
+        });
+        expect(altered('4---')).toEqual({
+            Pure: {
+                node: { Altered: { value: 4, semitones: -3 } },
+                span: { start: 0, end: 4 },
+            },
+        });
+        expect(altered('-1++')).toEqual({
+            Pure: {
+                node: { Altered: { value: -1, semitones: 2 } },
+                span: { start: 0, end: 4 },
+            },
+        });
+    });
+
+    test('take modifiers and weights after the marks', () => {
+        const r = patternPayload($('2+*2 3-@2'));
+        expect(r.ast).toEqual({
+            Sequence: [
+                [
+                    {
+                        Fast: [
+                            {
+                                Pure: {
+                                    node: {
+                                        Altered: { value: 2, semitones: 1 },
+                                    },
+                                    span: { start: 0, end: 2 },
+                                },
+                            },
+                            { Pure: { node: 2, span: { start: 3, end: 4 } } },
+                        ],
+                    },
+                    null,
+                ],
+                [
+                    {
+                        Pure: {
+                            node: { Altered: { value: 3, semitones: -1 } },
+                            span: { start: 5, end: 7 },
+                        },
+                    },
+                    2,
+                ],
+            ],
+        });
+    });
+
+    test('a spaced `-` is still a rest', () => {
+        const r = patternPayload($('2 -'));
+        expect(r.ast).toEqual({
+            Sequence: [
+                [
+                    {
+                        Pure: {
+                            node: { Number: 2 },
+                            span: { start: 0, end: 1 },
+                        },
+                    },
+                    null,
+                ],
+                [{ Rest: { start: 2, end: 3 } }, null],
+            ],
+        });
+    });
+
+    test('marks followed by a number are not marks', () => {
+        const r = patternPayload($('2-3'));
+        expect('Sequence' in r.ast).toBe(true);
+        if ('Sequence' in r.ast) {
+            expect(r.ast.Sequence.map(([e]) => e)).toEqual([
+                { Pure: { node: { Number: 2 }, span: { start: 0, end: 1 } } },
+                { Pure: { node: { Number: -3 }, span: { start: 1, end: 3 } } },
+            ]);
+        }
+    });
+
+    test('mixed marks and marks on notes do not parse', () => {
+        expect(() => $('2+-')).toThrow(MiniParseError);
+        expect(() => $('c4+')).toThrow(MiniParseError);
+    });
+});
+
 describe('sequences and groupings', () => {
     test('space-separated sequence', () => {
         const r = patternPayload($('0 1 2'));

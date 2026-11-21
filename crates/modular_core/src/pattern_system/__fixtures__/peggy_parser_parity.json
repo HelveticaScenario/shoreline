@@ -30,6 +30,305 @@
     }
   },
   {
+    "label": "altered number sharp",
+    "input": "2+",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Altered": {
+            "value": 2,
+            "semitones": 1
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 2
+        }
+      }
+    }
+  },
+  {
+    "label": "altered number double flat",
+    "input": "4--",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Altered": {
+            "value": 4,
+            "semitones": -2
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 3
+        }
+      }
+    }
+  },
+  {
+    "label": "altered negative number",
+    "input": "-1+++",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Altered": {
+            "value": -1,
+            "semitones": 3
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 5
+        }
+      }
+    }
+  },
+  {
+    "label": "altered numbers in a sequence",
+    "input": "0 2- [4+ 6]*2",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Pure": {
+              "node": {
+                "Number": 0
+              },
+              "span": {
+                "start": 0,
+                "end": 1
+              }
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Pure": {
+              "node": {
+                "Altered": {
+                  "value": 2,
+                  "semitones": -1
+                }
+              },
+              "span": {
+                "start": 2,
+                "end": 4
+              }
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Fast": [
+              {
+                "FastCat": [
+                  [
+                    {
+                      "Pure": {
+                        "node": {
+                          "Altered": {
+                            "value": 4,
+                            "semitones": 1
+                          }
+                        },
+                        "span": {
+                          "start": 6,
+                          "end": 8
+                        }
+                      }
+                    },
+                    null
+                  ],
+                  [
+                    {
+                      "Pure": {
+                        "node": {
+                          "Number": 6
+                        },
+                        "span": {
+                          "start": 9,
+                          "end": 10
+                        }
+                      }
+                    },
+                    null
+                  ]
+                ]
+              },
+              {
+                "Pure": {
+                  "node": 2,
+                  "span": {
+                    "start": 12,
+                    "end": 13
+                  }
+                }
+              }
+            ]
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "label": "altered decimal",
+    "input": "0.5+",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Altered": {
+            "value": 0.5,
+            "semitones": 1
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 4
+        }
+      }
+    }
+  },
+  {
+    "label": "marks then modifier",
+    "input": "2+*2",
+    "peggy_ast": {
+      "Fast": [
+        {
+          "Pure": {
+            "node": {
+              "Altered": {
+                "value": 2,
+                "semitones": 1
+              }
+            },
+            "span": {
+              "start": 0,
+              "end": 2
+            }
+          }
+        },
+        {
+          "Pure": {
+            "node": 2,
+            "span": {
+              "start": 3,
+              "end": 4
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    "label": "marks then rest",
+    "input": "2-~",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Pure": {
+              "node": {
+                "Altered": {
+                  "value": 2,
+                  "semitones": -1
+                }
+              },
+              "span": {
+                "start": 0,
+                "end": 2
+              }
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Rest": {
+              "start": 2,
+              "end": 3
+            }
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "label": "mark before a number is a negative number",
+    "input": "2-3",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Pure": {
+              "node": {
+                "Number": 2
+              },
+              "span": {
+                "start": 0,
+                "end": 1
+              }
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Pure": {
+              "node": {
+                "Number": -3
+              },
+              "span": {
+                "start": 1,
+                "end": 3
+              }
+            }
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "label": "mark before a decimal is a negative number",
+    "input": "2-.5",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Pure": {
+              "node": {
+                "Number": 2
+              },
+              "span": {
+                "start": 0,
+                "end": 1
+              }
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Pure": {
+              "node": {
+                "Number": -0.5
+              },
+              "span": {
+                "start": 1,
+                "end": 4
+              }
+            }
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
     "label": "pure Hz",
     "input": "440hz",
     "peggy_ast": {

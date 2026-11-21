@@ -47,7 +47,13 @@ export type AtomValue =
      * The `x` structure marker (serde unit variant, so a bare string). Only
      * meaningful in `.struct(...)` boolean patterns.
      */
-    | 'Truthy';
+    | 'Truthy'
+    /**
+     * A number with trailing `+`/`-` marks (`2+`, `4--`): `semitones` is the
+     * signed count. Only scale patterns accept it, applying the semitones
+     * after the degree resolves through the scale.
+     */
+    | { Altered: { value: number; semitones: number } };
 
 /** Top-level AST node. */
 export type MiniAST =
