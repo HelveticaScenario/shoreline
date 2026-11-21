@@ -86,6 +86,13 @@ pub fn wrap_phase(phase: f32) -> f32 {
     sanitize(phase.rem_euclid(1.0))
 }
 
+/// How far phase `to` is from phase `from` going the short way around the
+/// cycle, in `[-0.5, 0.5)`.
+#[inline]
+pub fn phase_delta(from: f32, to: f32) -> f32 {
+    (to - from + 0.5).rem_euclid(1.0) - 0.5
+}
+
 /// [`wrap_phase`] for the f64 accumulators used by DPW-based oscillators.
 #[inline]
 pub fn wrap_phase_f64(phase: f64) -> f64 {

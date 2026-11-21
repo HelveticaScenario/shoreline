@@ -1,6 +1,7 @@
 //! Starting phases for a unison stack whose copies are detuned evenly, as
 //! `$unison` and `$supersaw` detune them.
 
+use crate::dsp::utils::phase_delta;
 use crate::poly::PORT_MAX_LANES;
 
 /// Phase of copy `voice` of `count`, in cycles, copies numbered from lowest
@@ -28,7 +29,7 @@ pub fn phase_glide_step(sample_rate: f32) -> f32 {
 /// Steps `current` toward `target` by at most `max_step`, the short way
 /// around the cycle. Both are phases in `[0, 1)`.
 fn glide_phase(current: f32, target: f32, max_step: f32) -> f32 {
-    let delta = (target - current + 0.5).rem_euclid(1.0) - 0.5;
+    let delta = phase_delta(current, target);
     if delta.abs() <= max_step {
         target
     } else {
@@ -58,11 +59,18 @@ impl Default for UnisonPhases {
 }
 
 impl UnisonPhases {
-    /// Sets the copy count, at most `PORT_MAX_LANES`. Call from
-    /// `on_patch_update`, after the state transfer: copies the earlier count
-    /// held glide to their new targets, and added copies start on theirs.
-    pub fn set_count(&mut self, count: usize) {
-        if count != self.count {
+    /// The copy count; 0 until the first `set_count`.
+    pub fn count(&self) -> usize {
+        self.count
+    }
+
+    /// Sets the copy count, at most `PORT_MAX_LANES`, and returns whether it
+    /// changed. Call from `on_patch_update`, after the state transfer: copies
+    /// the earlier count held glide to their new targets, and added copies
+    /// start on theirs.
+    pub fn set_count(&mut self, count: usize) -> bool {
+        let changed = count != self.count;
+        if changed {
             for (voice, target) in self.target.iter_mut().enumerate().take(count) {
                 *target = voice_phase(voice, count);
             }
@@ -72,6 +80,7 @@ impl UnisonPhases {
             self.count = count;
             self.gliding = true;
         }
+        changed
     }
 
     /// Every copy's phase this sample, each moved toward its target by at

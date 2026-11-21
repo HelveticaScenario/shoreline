@@ -12,7 +12,7 @@ use crate::{
         oscillators::{FmMode, apply_fm, sync_blep},
         utils::{
             fade::{DEFAULT_FADE_IN_SECS, FadeIn},
-            sanitize,
+            phase_delta, sanitize,
             unison_phase::{UnisonPhases, phase_glide_step, voice_phase},
             unison_voices::{SlotOrder, centred_position, detune_position, unison_gain},
             wrap_phase,
@@ -31,7 +31,10 @@ fn default_unison() -> usize {
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SupersawParams {
-    #[input("the note's pitch; with `sync` set, the pitch the saws restart at", type = pitch)]
+    #[input(
+        "the note's pitch; with `sync` set, each saw restarts at its own detuned copy of it",
+        type = pitch
+    )]
     freq: PolySignal,
     #[input(
         "number of detuned saws stacked per note, spread across the stereo field",
@@ -60,7 +63,7 @@ struct SupersawParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "hard sync: how many octaves above the note each saw runs before the note restarts it; sweep it for sync tearing",
+        "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
         type = control,
         range = (0.0, ..),
         control_range = (0.0, 4.0),
@@ -155,6 +158,10 @@ struct VoiceState {
     sync_offset: f32,
     /// PolyBLEP residual carried into the next sample from a sync reset.
     blep_carry: f32,
+    /// Whether the saw restarted on the last sample. The restart's carried
+    /// residual band-limits the next sample, so the saw's own wrap
+    /// correction must not fire there as well.
+    restarted: bool,
     /// Whether this voice's zero-cross mute has released. Stays false while the
     /// voice is held silent after a fresh start, then latches true at the first
     /// output zero crossing. Carried-over voices arrive with this true.
@@ -166,10 +173,8 @@ struct VoiceState {
 
 /// Module-level state for the Supersaw module.
 struct SupersawState {
-    /// Each voice's phase offset.
+    /// Each voice's phase offset; its count is the voice count.
     phases: UnisonPhases,
-    /// Voice count clamped to [1, PORT_MAX_LANES]. Derived from params.
-    voices: usize,
     /// Reciprocal of the sample rate.
     inv_sample_rate: f32,
     /// Each voice's place in the detune spread, from -0.5 for the lowest
@@ -191,8 +196,6 @@ struct SupersawState {
     mix_fade: FadeIn,
     /// Per-sample step of `mix_fade`.
     mix_fade_step: f32,
-    /// Whether `configure` has set `mix` yet.
-    configured: bool,
 }
 
 // Hand-written `Default`: the standard library only derives `Default` for
@@ -201,7 +204,6 @@ impl Default for SupersawState {
     fn default() -> Self {
         Self {
             phases: UnisonPhases::default(),
-            voices: 1,
             inv_sample_rate: 0.0,
             positions: [0.0; PORT_MAX_LANES],
             mix: [[0.0; PORT_MAX_LANES]; 2],
@@ -210,7 +212,6 @@ impl Default for SupersawState {
             peak_from: [0.0; 2],
             mix_fade: FadeIn { gain: 1.0 },
             mix_fade_step: 0.0,
-            configured: false,
         }
     }
 }
@@ -251,12 +252,15 @@ impl Supersaw {
         // genuinely crosses zero (it would release immediately if left at 0).
         // For carried-over voices these values are overwritten by
         // `transfer_state_from`, keeping an already-sounding voice un-muted.
+        // The sync source starts read at the same offset as the saw, so its
+        // first sample sees no glide.
         let gate_open = !self.params.wait_for_zero_cross;
         for (voice, row) in self.lane_state.chunks_mut(PORT_MAX_LANES).enumerate() {
-            let prev_out = 2.0 * voice_phase(voice, voices) - 1.0;
+            let offset = voice_phase(voice, voices);
             for cell in row {
                 cell.gate_open = gate_open;
-                cell.prev_out = prev_out;
+                cell.prev_out = 2.0 * offset - 1.0;
+                cell.sync_offset = offset;
             }
         }
     }
@@ -267,8 +271,8 @@ impl Supersaw {
     fn configure(&mut self) {
         let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
         let state = &mut self.state;
-        state.voices = voices;
-        state.phases.set_count(voices);
+        let fresh = state.phases.count() == 0;
+        let changed = state.phases.set_count(voices);
         for (voice, position) in state.positions.iter_mut().enumerate().take(voices) {
             *position = detune_position(voice, voices) - 0.5;
         }
@@ -284,16 +288,17 @@ impl Supersaw {
         }
         let peak = mix.map(|side| side[..voices].iter().sum::<f32>());
 
-        // A new voice count changes every voice's gain and place; crossfade
-        // from where the mix stands so the level and image never step.
-        if state.configured && mix != state.mix {
+        // A new voice count changes every voice's gain and place; the voices
+        // both counts hold crossfade from where the mix stands to their new
+        // gains, so the level and image glide. Voices the new count drops
+        // stop at once.
+        if changed && !fresh {
             state.mix_from = state.current_mix();
             state.peak_from = state.current_peak();
             state.mix_fade = FadeIn::default();
         }
         state.mix = mix;
         state.peak = peak;
-        state.configured = true;
     }
 
     /// Lane `lane`'s bounds: its side's peak either way.
@@ -303,15 +308,11 @@ impl Supersaw {
     }
 
     fn update(&mut self, sample_rate: f32) {
-        let voices = self.state.voices;
+        let voices = self.state.phases.count();
         let lanes = self.lane_count();
         let p = &self.params;
-        let fade = self.state.mix_fade.advance(self.state.mix_fade_step);
-        let mix = if fade < 1.0 {
-            self.state.current_mix()
-        } else {
-            self.state.mix
-        };
+        self.state.mix_fade.advance(self.state.mix_fade_step);
+        let mix = self.state.current_mix();
         let offsets = self.state.phases.advance(phase_glide_step(sample_rate));
         for lane in 0..lanes {
             let pitch = p.freq.get_value(lane);
@@ -350,7 +351,7 @@ impl Supersaw {
         if self.state.mix_fade.gain < 1.0 {
             return None;
         }
-        let voices = self.state.voices;
+        let voices = self.state.phases.count();
         let lanes = self.lane_count();
         let p = &self.params;
         let mut scratch = Default::default();
@@ -362,22 +363,22 @@ impl Supersaw {
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
 
         // Each voice's phase increment, `[voice * lanes + lane]`, and each
-        // lane's sync ratio. Held pitch, FM, detune and sync fill them once
-        // for the whole range.
+        // lane's sync ratio. A held pitch, FM and detune fill the increments
+        // once for the whole range, and a held sync the ratios.
         let mut increments = [0.0f32; PORT_MAX_LANES * PORT_MAX_LANES];
         let mut ratios = [None; PORT_MAX_LANES];
-        let held = freq.is_constant()
-            && fm.is_constant()
-            && detune.is_constant()
-            && sync.as_ref().is_none_or(|sync| sync.is_constant());
+        let pitch_held = freq.is_constant() && fm.is_constant() && detune.is_constant();
+        let sync_held = sync.as_ref().is_none_or(|sync| sync.is_constant());
         let (positions, inv_sample_rate) = (&self.state.positions, self.state.inv_sample_rate);
-        let fill = |increments: &mut [f32], ratios: &mut [Option<f32>], i: usize| {
-            let (freq, fm, detune) = (freq.row(i), fm.row(i), detune.row(i));
+        let fill_ratios = |ratios: &mut [Option<f32>], i: usize| {
             if let Some(sync) = &sync {
                 for (ratio, &octaves) in ratios.iter_mut().zip(sync.row(i)).take(lanes) {
                     *ratio = Some(sync_ratio(octaves));
                 }
             }
+        };
+        let fill_increments = |increments: &mut [f32], i: usize| {
+            let (freq, fm, detune) = (freq.row(i), fm.row(i), detune.row(i));
             for lane in 0..lanes {
                 let base_freq = apply_fm(freq[lane], fm[lane], p.fm_mode);
                 for voice in 0..voices {
@@ -386,8 +387,11 @@ impl Supersaw {
                 }
             }
         };
-        if held {
-            fill(&mut increments, &mut ratios, range.start);
+        if pitch_held {
+            fill_increments(&mut increments, range.start);
+        }
+        if sync_held {
+            fill_ratios(&mut ratios, range.start);
         }
         let peak = self.state.peak;
         outputs.sample.fill_bounds_with(range.clone(), |lane| {
@@ -395,8 +399,11 @@ impl Supersaw {
         });
 
         for i in range {
-            if !held {
-                fill(&mut increments, &mut ratios, i);
+            if !pitch_held {
+                fill_increments(&mut increments, i);
+            }
+            if !sync_held {
+                fill_ratios(&mut ratios, i);
             }
             let offsets = self.state.phases.advance(phase_glide_step(sample_rate));
             let out = outputs.sample.slot_mut(i);
@@ -483,17 +490,22 @@ impl VoiceState {
         // (below) lands in the upcoming interval, so this operates on the
         // real, pre-reset phase.
         let mut saw = 2.0 * read - 1.0;
-        saw -= poly_blep_saw(read, saw_dt.abs());
+        if !self.restarted {
+            saw -= poly_blep_saw(read, saw_dt.abs());
+        }
         saw += self.blep_carry;
         self.blep_carry = 0.0;
+        self.restarted = reset.is_some();
 
         // A sync reset restarts the saw, band-limited with a PolyBLEP at the
-        // subsample point where its source wrapped: a rising saw at the
-        // bottom of its ramp, a falling one at the top.
+        // subsample point `frac` into the next interval where its source
+        // wrapped: a rising saw at the bottom of its ramp, a falling one at
+        // the top. The phase sits `frac` of a step before the restart, so the
+        // next sample lands on the ramp the restart began.
         if let Some(frac) = reset {
             let before = 2.0 * read - 1.0;
             let after = if saw_dt < 0.0 { 1.0 } else { -1.0 };
-            phase = wrap_phase(-offset);
+            phase = wrap_phase(-offset - frac * saw_dt);
             let (now, carry) = sync_blep(after - before, frac);
             saw += now;
             self.blep_carry = carry;
@@ -530,7 +542,7 @@ impl VoiceState {
     #[inline(always)]
     fn advance_sync_source(&mut self, dt: f32, offset: f32) -> Option<f32> {
         let before = wrap_phase(self.sync_phase + self.sync_offset);
-        let glided = (offset - self.sync_offset + 0.5).rem_euclid(1.0) - 0.5;
+        let glided = phase_delta(self.sync_offset, offset);
         let moved = dt + glided;
         let after = before + moved;
         self.sync_phase = wrap_phase(self.sync_phase + dt);
@@ -612,10 +624,19 @@ mod tests {
     #[test]
     fn voices_clamp_to_the_port() {
         assert_eq!(
-            make_supersaw(params(mono(0.0), 100, 0.18)).state.voices,
+            make_supersaw(params(mono(0.0), 100, 0.18))
+                .state
+                .phases
+                .count(),
             PORT_MAX_LANES
         );
-        assert_eq!(make_supersaw(params(mono(0.0), 0, 0.18)).state.voices, 1);
+        assert_eq!(
+            make_supersaw(params(mono(0.0), 0, 0.18))
+                .state
+                .phases
+                .count(),
+            1
+        );
     }
 
     /// Carries `old` into `new` as a patch update does: the whole `state`
@@ -794,9 +815,12 @@ mod tests {
                 let cell = &s.lane_state[voice * PORT_MAX_LANES];
                 if source(&s, voice) < before[voice] {
                     *restarts += 1;
+                    // At most one step of the saw short of its restart, the
+                    // fraction of a sample still to go before it began.
                     let read = wrap_phase(cell.phase + voice_phase(voice, 3));
+                    let short = phase_delta(read, 0.0);
                     assert!(
-                        read.min(1.0 - read) < 1e-4,
+                        (0.0..=2.0 * 300.0 / 48000.0).contains(&short),
                         "voice {voice} restarts at {read}"
                     );
                 }
@@ -805,6 +829,18 @@ mod tests {
         // About 247 and 277 Hz, a semitone either side of middle C.
         assert!((245..=249).contains(&restarts[0]), "{restarts:?}");
         assert!((275..=279).contains(&restarts[2]), "{restarts:?}");
+    }
+
+    #[test]
+    fn a_fresh_synced_stack_starts_on_its_phases() {
+        // Every voice's source starts read where its saw is, so no saw
+        // restarts until its source completes a cycle.
+        let mut s = make_supersaw(synced(1.0, params(mono(0.0), 7, 0.18)));
+        s.update(48000.0);
+        for voice in 0..7 {
+            let cell = &s.lane_state[voice * PORT_MAX_LANES];
+            assert!(!cell.restarted, "voice {voice} restarted at once");
+        }
     }
 
     #[test]

@@ -1,9 +1,0 @@
-kind: Breaking
-body: |-
-    `$supersaw` starts its saws at phases spread so they never all line up, so the stack holds a steady level instead of swelling as the detune drifts them, and changing `unison` crossfades to the new stack without a click. Patches sound slightly different; there is no setting for the old sound, and patches need no changes:
-
-    ```js
-    // before and after: the same patch, now at a steady level
-    keys: $supersaw('a3', { unison: 7 })
-    ```
-time: 2026-11-20T16:34:23.588681-05:00

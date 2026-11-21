@@ -40,12 +40,18 @@ fn unison_poly_lanes(input: &PolySignal, spread: &Option<PolySignal>) -> usize {
     input.lanes().max(spread.lane_count()).max(1)
 }
 
+impl UnisonParams {
+    /// The copy count, clamped to the lanes a port can hold.
+    fn copies(&self) -> usize {
+        self.count.clamp(1, PORT_MAX_LANES)
+    }
+}
+
 /// Custom lane count: max(input, spread) lanes * count, clamped to 64.
 #[allow(private_interfaces)]
 pub fn unison_derive_lane_count(params: &UnisonParams) -> usize {
     let poly_lanes = unison_poly_lanes(&params.input, &params.spread);
-    let count = params.count.clamp(1, PORT_MAX_LANES);
-    (poly_lanes * count).min(PORT_MAX_LANES)
+    (poly_lanes * params.copies()).min(PORT_MAX_LANES)
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -106,7 +112,7 @@ pub struct Unison {
 
 impl Unison {
     fn update(&mut self, sample_rate: f32) {
-        let count = self.params.count.clamp(1, PORT_MAX_LANES);
+        let count = self.state.count();
         let input = &self.params.input;
         let spread = &self.params.spread;
 
@@ -148,8 +154,7 @@ impl Unison {
 
 impl crate::types::PatchUpdateHandler for Unison {
     fn on_patch_update(&mut self) {
-        self.state
-            .set_count(self.params.count.clamp(1, PORT_MAX_LANES));
+        self.state.set_count(self.params.copies());
     }
 }
 
@@ -158,7 +163,7 @@ message_handlers!(impl Unison {});
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dsp::utils::unison_phase::voice_phase;
+    use crate::dsp::utils::{phase_delta, unison_phase::voice_phase};
     use crate::types::{OutputStruct, Signal};
 
     /// Create a Unison with params and properly initialize _lane_count and output lanes.
@@ -433,7 +438,7 @@ mod tests {
         for _ in 0..sample_rate as usize {
             for (voice, last) in prev.iter_mut().enumerate() {
                 let now = new.outputs.phase.get(voice);
-                let moved = (now - *last + 0.5).rem_euclid(1.0) - 0.5;
+                let moved = phase_delta(*last, now);
                 assert!(
                     moved.abs() <= max_step + 1e-6,
                     "voice {voice} jumped {moved}"

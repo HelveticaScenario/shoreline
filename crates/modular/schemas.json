@@ -14680,7 +14680,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "the note's pitch; with `sync` set, the pitch the saws restart at",
+          "description": "the note's pitch; with `sync` set, each saw restarts at its own detuned copy of it",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -14732,7 +14732,7 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: how many octaves above the note each saw runs before the note restarts it; sweep it for sync tearing",
+          "description": "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -14853,7 +14853,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "the note's pitch; with `sync` set, the pitch the saws restart at",
+        "description": "the note's pitch; with `sync` set, each saw restarts at its own detuned copy of it",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -14884,7 +14884,7 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: how many octaves above the note each saw runs before the note restarts it; sweep it for sync tearing",
+        "description": "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
         "paramType": "control",
         "minValue": 0.0,
         "controlMin": 0.0,
