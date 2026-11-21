@@ -17,7 +17,7 @@ import { bindFileExplorerFocus } from '../keybindings/contextKeyBootstrap';
 import { WORKSPACE_PATH_MIME } from './monaco/workspacePathCompletion';
 
 const FILE_ICONS: Record<NonNullable<FileTreeEntry['fileType']>, LucideIcon> = {
-    js: Parentheses,
+    patch: Parentheses,
     wav: AudioLines,
     image: Image,
     video: Film,
@@ -97,7 +97,7 @@ function TreeNode({
         }
     };
 
-    const isAsset = entry.fileType !== undefined && entry.fileType !== 'js';
+    const isAsset = entry.fileType !== undefined && entry.fileType !== 'patch';
 
     const handleSingleClick = () => {
         if (!isRenaming && !isAsset) {
@@ -112,7 +112,7 @@ function TreeNode({
     };
 
     if (entry.type === 'file') {
-        const FileIcon = FILE_ICONS[entry.fileType ?? 'js'];
+        const FileIcon = FILE_ICONS[entry.fileType ?? 'patch'];
         return (
             <li
                 className={`tree-file${isAsset ? ' tree-file-asset' : ''}`}

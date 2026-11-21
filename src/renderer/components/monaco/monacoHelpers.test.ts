@@ -1,7 +1,7 @@
 /**
  * Tests for formatPath, which turns a buffer identifier into the file:// model
- * URI Monaco uses. Extensionless/untitled buffers become .mjs so they are
- * treated as ES modules; real extensions (.js/.mjs/.json) are preserved.
+ * URI Monaco uses. Untitled buffers and .sl patches become .mjs so they are
+ * treated as ES modules; .js, .mjs and .json are preserved.
  */
 import { describe, expect, test } from 'vitest';
 import { formatPath } from './monacoHelpers';
@@ -17,6 +17,10 @@ describe('formatPath', () => {
 
     test('appends .mjs to extensionless / untitled buffers', () => {
         expect(formatPath('untitled-1')).toBe('file:///untitled-1.mjs');
+    });
+
+    test('appends .mjs to .sl patches', () => {
+        expect(formatPath('/abs/patch.sl')).toBe('file:///abs/patch.sl.mjs');
     });
 
     test('preserves .js and .mjs extensions', () => {

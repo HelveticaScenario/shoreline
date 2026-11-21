@@ -1,26 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
-    isStampablePath,
     stampPatchVersionSource,
     stripPatchVersionStamp,
 } from './patchVersionStamp';
 
 const PATCH = `// Simple 440 Hz sine wave\nout: $sine('a3');\n`;
-
-describe('isStampablePath', () => {
-    it('accepts JavaScript patch extensions, case-insensitively', () => {
-        expect(isStampablePath('foo.js')).toBe(true);
-        expect(isStampablePath('foo.mjs')).toBe(true);
-        expect(isStampablePath('/abs/Path/Bar.MJS')).toBe(true);
-    });
-
-    it('rejects non-patch files', () => {
-        expect(isStampablePath('keybindings.json')).toBe(false);
-        expect(isStampablePath('sample.wav')).toBe(false);
-        expect(isStampablePath('README.md')).toBe(false);
-        expect(isStampablePath('mjs')).toBe(false);
-    });
-});
 
 describe('stampPatchVersionSource', () => {
     it('prepends a metadata block above the patch body', () => {

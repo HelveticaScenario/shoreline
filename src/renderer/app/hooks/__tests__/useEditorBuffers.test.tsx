@@ -115,6 +115,9 @@ describe('buffer identity is the absolute file path', () => {
             await hookRef.current.saveFile();
         });
 
+        expect(api.filesystem.showSaveDialog).toHaveBeenCalledWith(
+            'untitled.sl',
+        );
         const buffer = hookRef.current.buffers[0];
         expect(buffer.kind).toBe('file');
         expect(buffer.kind === 'file' ? buffer.filePath : undefined).toBe(
