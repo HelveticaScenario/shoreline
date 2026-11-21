@@ -23,17 +23,10 @@ A real-time modular synthesizer desktop app with a JavaScript DSL for live-codin
 
 ### Acquiring submodules
 
-Ensure that you've fetched the git submodules:
+On macOS, the Syphon bridge builds the Syphon framework from a git submodule. Fetch it after cloning:
 
 ```bash
 git submodule update --init --recursive
-```
-
-> **Note:** Failure to do so will produce an error along the lines of:
-
-```
-error: failed to load manifest for workspace member `/projects/shoreline/crates/modular_core`
-referenced by workspace at `/projects/shoreline/Cargo.toml`
 ```
 
 ### Running the App

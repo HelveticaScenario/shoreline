@@ -10,13 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Setup
 
-Repo uses git submodules for vendored Rust DSP crates. Required after clone:
+The macOS Syphon bridge builds the Syphon framework from a git submodule. Required after clone:
 
 ```bash
 git submodule update --init --recursive
 ```
-
-Skipping this produces `failed to load manifest for workspace member` on the first cargo/yarn build.
 
 ```bash
 yarn install               # Install dependencies
@@ -59,7 +57,6 @@ Always set `MODULAR_BACKGROUND_LAUNCH=1` when launching the app (`yarn start`, P
 - **`crates/modular_core/`** — Pure Rust DSP library: module trait (`Sampleable`), types (`types.rs`), patch graph (`patch.rs`), all DSP modules (`dsp/`), pattern system.
 - **`crates/modular/`** — N-API bindings (`lib.rs`), audio callback (`audio.rs`), validation (`validation.rs`), MIDI input (`midi.rs`), command queue (`commands.rs`).
 - **`crates/modular_derive/`** — Proc macros for the module output system.
-- **`crates/mi-plaits-dsp-rs/`** — Mutable Instruments Plaits DSP port (git submodule, third-party).
 
 ### Frontend Structure
 

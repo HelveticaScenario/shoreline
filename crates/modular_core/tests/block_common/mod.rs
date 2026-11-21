@@ -1,7 +1,8 @@
-//! Shared harness for `#[module(block)]` tests. A block module must produce the
-//! same samples whichever way its inputs resolve — whole-block rows, inputs
-//! copied out slot by slot, or the per-sample `update` in a feedback cycle —
-//! and must not touch the heap on any of those paths.
+//! Shared harness for module render tests, chiefly `#[module(block)]` ones. A
+//! block module must produce the same samples whichever way its inputs
+//! resolve — whole-block rows, inputs copied out slot by slot, or the
+//! per-sample `update` in a feedback cycle — and must not touch the heap on
+//! any of those paths.
 //!
 //! Each block module's test file uses the parts it needs, so items unused by a
 //! given test binary are expected.
@@ -52,25 +53,36 @@ pub fn build(
     module_type: &str,
     params: Value,
 ) -> Patch {
-    let deserializers = get_params_deserializers();
     let freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.3).collect();
     let lfo_freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.2 - 3.0).collect();
     let dut_port = default_port(module_type);
-    let modules = [
-        ("src", "$saw", json!({ "freq": freqs }), src_mode),
-        ("lfo", "$sine", json!({ "freq": lfo_freqs }), src_mode),
-        ("dut", module_type, params, dut_mode),
-        (
-            "reader",
-            "$remap",
-            json!({
-                "input": { "type": "cable", "module": "dut", "port": dut_port, "lane": 0 },
-                "outMin": 0.0,
-                "outMax": 1.0,
-            }),
-            ProcessingMode::Block,
-        ),
-    ];
+    assemble(
+        [
+            ("src", "$saw", json!({ "freq": freqs }), src_mode),
+            ("lfo", "$sine", json!({ "freq": lfo_freqs }), src_mode),
+            ("dut", module_type, params, dut_mode),
+            (
+                "reader",
+                "$remap",
+                json!({
+                    "input": { "type": "cable", "module": "dut", "port": dut_port, "lane": 0 },
+                    "outMin": 0.0,
+                    "outMax": 1.0,
+                }),
+                ProcessingMode::Block,
+            ),
+        ],
+        [("table", wavetable())],
+    )
+}
+
+/// A connected patch of `(id, module_type, params, mode)` modules, with each
+/// `(path, wav)` loaded and prepared before connecting.
+pub fn assemble<'a>(
+    modules: impl IntoIterator<Item = (&'a str, &'a str, Value, ProcessingMode)>,
+    wavs: impl IntoIterator<Item = (&'a str, Arc<WavData>)>,
+) -> Patch {
+    let deserializers = get_params_deserializers();
     let mut patch = Patch::new();
     patch
         .insert_modules(
@@ -92,7 +104,9 @@ pub fn build(
             BLOCK_SIZE,
         )
         .unwrap();
-    patch.wav_data.insert("table".into(), wavetable());
+    for (path, wav) in wavs {
+        patch.wav_data.insert(path.into(), wav);
+    }
     for module in patch.sampleables.values() {
         module.prepare_resources(&patch.wav_data);
     }
