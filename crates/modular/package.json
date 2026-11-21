@@ -42,7 +42,6 @@
     },
     "scripts": {
         "artifacts": "napi artifacts",
-        "bench": "node --import @oxc-node/core/register benchmark/bench.ts",
         "build": "node ../../scripts/napi-build.mjs --platform --release --esm && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json moduleCategories.json",
         "build:debug": "node ../../scripts/napi-build.mjs --platform --esm && cargo run -p modular_core --bin generate-schemas -- schemas.json moduleCategories.json",
         "build:alloc": "node ../../scripts/napi-build.mjs --platform --release --esm --features=alloc-detector && node ../../scripts/copy-debuginfo.mjs --dsymutil && cargo run -p modular_core --bin generate-schemas --release -- schemas.json moduleCategories.json",
@@ -60,7 +59,6 @@
         "@emnapi/core": "^1.5.0",
         "@emnapi/runtime": "^1.5.0",
         "@napi-rs/cli": "^3.2.0",
-        "@oxc-node/core": "^0.0.35",
         "@taplo/cli": "^0.7.0",
         "@tybys/wasm-util": "^0.10.0",
         "chalk": "^5.6.2",
@@ -68,7 +66,6 @@
         "lint-staged": "^16.1.6",
         "npm-run-all2": "^8.0.4",
         "oxlint": "^1.14.0",
-        "tinybench": "^6.0.0",
         "typescript": "^5.9.2"
     },
     "lint-staged": {
