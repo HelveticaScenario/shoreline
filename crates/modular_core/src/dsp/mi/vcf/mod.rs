@@ -73,7 +73,7 @@ struct VcfParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `lowpass` into `highpass`",
+        "crossfades `_blend` from `lowpass` into `highpass`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

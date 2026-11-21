@@ -84,7 +84,7 @@ struct MiChordsParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `chord` into `root`",
+        "crossfades `_blend` from `chord` into `root`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

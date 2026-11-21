@@ -63,7 +63,7 @@ struct WaveTerrainParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `height` into `pm`",
+        "crossfades `_blend` from `height` into `pm`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

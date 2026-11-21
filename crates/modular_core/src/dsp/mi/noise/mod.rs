@@ -82,7 +82,7 @@ struct MiNoiseParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `filtered` into `bands`",
+        "crossfades `_blend` from `filtered` into `bands`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

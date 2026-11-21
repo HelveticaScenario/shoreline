@@ -63,7 +63,7 @@ struct TwoOpParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `fm` into `subOctave`",
+        "crossfades `_blend` from `fm` into `subOctave`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

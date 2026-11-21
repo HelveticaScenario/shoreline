@@ -78,7 +78,7 @@ struct WaveshaperParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `shaped` into `overtones`",
+        "crossfades `_blend` from `shaped` into `overtones`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

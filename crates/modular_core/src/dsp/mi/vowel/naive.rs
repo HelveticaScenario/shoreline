@@ -227,7 +227,7 @@ struct FormantVowelParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `output` into `excitation`",
+        "crossfades `_blend` from `output` into `excitation`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

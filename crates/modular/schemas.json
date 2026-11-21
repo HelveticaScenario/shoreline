@@ -36719,7 +36719,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `chord` into `bass`",
+          "description": "crossfades `_blend` from `chord` into `bass`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -36960,7 +36960,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `chord` into `bass`",
+        "description": "crossfades `_blend` from `chord` into `bass`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -37153,7 +37153,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `chord` into `root`",
+          "description": "crossfades `_blend` from `chord` into `root`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -37357,7 +37357,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `chord` into `root`",
+        "description": "crossfades `_blend` from `chord` into `root`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -39691,7 +39691,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `body` into `exciter`",
+          "description": "crossfades `_blend` from `body` into `exciter`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -39927,7 +39927,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `body` into `exciter`",
+        "description": "crossfades `_blend` from `body` into `exciter`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -40077,7 +40077,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `filtered` into `bands`",
+          "description": "crossfades `_blend` from `filtered` into `bands`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -40290,7 +40290,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `filtered` into `bands`",
+        "description": "crossfades `_blend` from `filtered` into `bands`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -40436,7 +40436,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `filtered` into `raw`",
+          "description": "crossfades `_blend` from `filtered` into `raw`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -40649,7 +40649,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `filtered` into `raw`",
+        "description": "crossfades `_blend` from `filtered` into `raw`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -42169,7 +42169,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `output` into `excitation`",
+          "description": "crossfades `_blend` from `output` into `excitation`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42424,7 +42424,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `output` into `excitation`",
+        "description": "crossfades `_blend` from `output` into `excitation`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -42602,7 +42602,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `strings` into `exciter`",
+          "description": "crossfades `_blend` from `strings` into `exciter`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -42838,7 +42838,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `strings` into `exciter`",
+        "description": "crossfades `_blend` from `strings` into `exciter`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -43323,7 +43323,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `saw` into `sine`",
+          "description": "crossfades `_blend` from `saw` into `sine`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -43536,7 +43536,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `saw` into `sine`",
+        "description": "crossfades `_blend` from `saw` into `sine`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -43667,7 +43667,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `fm` into `subOctave`",
+          "description": "crossfades `_blend` from `fm` into `subOctave`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -43871,7 +43871,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `fm` into `subOctave`",
+        "description": "crossfades `_blend` from `fm` into `subOctave`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -44002,7 +44002,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `dual` into `sync`",
+          "description": "crossfades `_blend` from `dual` into `sync`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -44206,7 +44206,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `dual` into `sync`",
+        "description": "crossfades `_blend` from `dual` into `sync`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -44360,7 +44360,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `lowpass` into `highpass`",
+          "description": "crossfades `_blend` from `lowpass` into `highpass`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -44578,7 +44578,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `lowpass` into `highpass`",
+        "description": "crossfades `_blend` from `lowpass` into `highpass`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -44700,7 +44700,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `output` into `excitation`",
+          "description": "crossfades `_blend` from `output` into `excitation`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -44899,7 +44899,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `output` into `excitation`",
+        "description": "crossfades `_blend` from `output` into `excitation`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -45021,7 +45021,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `output` into `excitation`",
+          "description": "crossfades `_blend` from `output` into `excitation`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -45220,7 +45220,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `output` into `excitation`",
+        "description": "crossfades `_blend` from `output` into `excitation`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -45342,7 +45342,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `output` into `excitation`",
+          "description": "crossfades `_blend` from `output` into `excitation`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -45541,7 +45541,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `output` into `excitation`",
+        "description": "crossfades `_blend` from `output` into `excitation`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -45672,7 +45672,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `height` into `pm`",
+          "description": "crossfades `_blend` from `height` into `pm`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -45876,7 +45876,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `height` into `pm`",
+        "description": "crossfades `_blend` from `height` into `pm`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,
@@ -46007,7 +46007,7 @@
           "default": "throughZero"
         },
         "mix": {
-          "description": "crossfades `blend` from `shaped` into `overtones`",
+          "description": "crossfades `_blend` from `shaped` into `overtones`",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -46211,7 +46211,7 @@
       },
       {
         "name": "mix",
-        "description": "crossfades `blend` from `shaped` into `overtones`",
+        "description": "crossfades `_blend` from `shaped` into `overtones`",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,

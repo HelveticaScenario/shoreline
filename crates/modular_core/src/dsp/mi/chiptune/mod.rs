@@ -110,7 +110,7 @@ struct MiChiptuneParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `chord` into `bass`",
+        "crossfades `_blend` from `chord` into `bass`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),

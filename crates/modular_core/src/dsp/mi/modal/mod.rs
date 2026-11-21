@@ -99,7 +99,7 @@ struct ModalParams {
     #[deserr(default)]
     fm_mode: FmMode,
     #[input(
-        "crossfades `blend` from `body` into `exciter`",
+        "crossfades `_blend` from `body` into `exciter`",
         type = control,
         default = 0.0,
         range = (0.0, 5.0),
