@@ -1,0 +1,3 @@
+kind: Breaking
+body: '`$supersaw` holds a steadier sound: its saws start at phases spread so they never all line up, so the stack keeps a steady level instead of swelling as the detune drifts them; the left and right sides are centred on the same pitch, with an odd stack''s undetuned saw in the centre; and raising `unison` crossfades to the bigger stack without a click. Patches with `$supersaw` sound slightly different; nothing in the patch needs to change.'
+time: 2026-11-20T06:43:25.455601-05:00

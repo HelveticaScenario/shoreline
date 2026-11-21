@@ -1,4 +1,4 @@
-//! Ports of `stmlib::OnePole` and `stmlib::Svf`.
+//! Ports of `stmlib::OnePole`, `stmlib::Svf` and `stmlib::NaiveSvf`.
 
 use std::f64::consts::PI;
 
@@ -109,6 +109,24 @@ impl Svf {
         (bp, lp)
     }
 
+    /// `Svf::ProcessMultimodeLPtoHP`: one sample swept from low-pass (`mode`
+    /// 0) through band-pass (0.5) to high-pass (1).
+    #[inline(always)]
+    pub fn low_to_high_pass(&mut self, x: f32, mode: f32) -> f32 {
+        let hp_gain = (-mode * 2.0 + 1.0).min(0.0);
+        let bp_gain = 1.0 - 2.0 * (mode - 0.5).abs();
+        let lp_gain = (1.0 - mode * 2.0).max(0.0);
+        let (hp, bp, lp) = self.process_all(x);
+        hp_gain * hp + bp_gain * bp + lp_gain * lp
+    }
+
+    /// One sample: the low-pass and high-pass outputs.
+    #[inline(always)]
+    pub fn low_and_high_pass(&mut self, x: f32) -> (f32, f32) {
+        let (hp, _, lp) = self.process_all(x);
+        (lp, hp)
+    }
+
     /// One sample: the high-pass, band-pass and low-pass outputs.
     #[inline(always)]
     fn process_all(&mut self, x: f32) -> (f32, f32, f32) {
@@ -118,5 +136,62 @@ impl Svf {
         let lp = self.g * bp + self.state_2;
         self.state_2 = self.g * bp + lp;
         (hp, bp, lp)
+    }
+}
+
+/// `stmlib::NaiveSvf`: the explicit Chamberlin state-variable filter.
+#[derive(Clone, Copy, Default)]
+pub struct NaiveSvf {
+    f: f32,
+    damp: f32,
+    lp: f32,
+    bp: f32,
+}
+
+/// The frequency coefficient and damping of the filter that
+/// `set_f_q<FREQUENCY_DIRTY>(f, resonance)` makes at 48 kHz, for a rate
+/// `to_48k` times 48 kHz: `f` in cycles per 48 kHz sample, held at 0.158.
+///
+/// The dirty coefficient `2π f` warps the filter far above `f` near that
+/// limit, so at another rate the filter's poles are carried over in hertz
+/// (each 48 kHz pole raised to the power `1 / to_48k`) rather than its
+/// nominal cutoff. At 48 kHz this is the stmlib filter itself.
+pub fn naive_svf_coefficients(f: f32, resonance: f32, to_48k: f32) -> (f32, f32) {
+    let f = 2.0 * std::f32::consts::PI * f.min(0.158);
+    let damp = 1.0 / resonance;
+    if to_48k == 1.0 {
+        return (f, damp);
+    }
+    // The 48 kHz filter's poles, the roots of z² + a1 z + a2.
+    let (f, damp) = (f64::from(f), f64::from(damp));
+    let a1 = f * f + f * damp - 2.0;
+    let a2 = 1.0 - f * damp;
+    let radius = a2.max(0.0).sqrt();
+    let angle = (-a1 / (2.0 * radius)).clamp(-1.0, 1.0).acos();
+    let exponent = 1.0 / f64::from(to_48k);
+    let radius = radius.powf(exponent);
+    // A pole the rate cannot hold stays just below its Nyquist.
+    let angle = (angle * exponent).min(0.95 * std::f64::consts::PI);
+    let a1 = -2.0 * radius * angle.cos();
+    let a2 = radius * radius;
+    let f = (1.0 + a1 + a2).max(f64::MIN_POSITIVE).sqrt();
+    (f as f32, ((1.0 - a2) / f) as f32)
+}
+
+impl NaiveSvf {
+    /// Sets the coefficients [`naive_svf_coefficients`] gives.
+    #[inline(always)]
+    pub fn set_coefficients(&mut self, (f, damp): (f32, f32)) {
+        self.f = f;
+        self.damp = damp;
+    }
+
+    #[inline(always)]
+    pub fn low_pass(&mut self, x: f32) -> f32 {
+        let notch = x - self.bp * self.damp;
+        self.lp += self.f * self.bp;
+        let hp = notch - self.lp;
+        self.bp += self.f * hp;
+        self.lp
     }
 }

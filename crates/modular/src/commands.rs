@@ -11,7 +11,7 @@ use napi_derive::napi;
 use rtrb::PushError;
 use std::collections::HashMap;
 
-use crate::audio::{ScopeBuffer, ScopeStash, VuMeterState};
+use crate::audio::{CommandProducer, ScopeBuffer, ScopeStash, VuMeterState};
 use crate::link::LinkResources;
 
 /// When a queued patch update should be applied.
@@ -220,6 +220,87 @@ impl std::error::Error for AudioError {}
 
 /// Capacity for the command queue (main → audio)
 pub const COMMAND_QUEUE_CAPACITY: usize = 1024;
+
+/// Queue slots single-module updates leave free, so patch, transport and
+/// Link commands still fit while the engine is not draining the queue, as
+/// while its output device is disconnected.
+pub(crate) const COMMAND_QUEUE_RESERVE: usize = 64;
+
+/// A single-module update waiting for room in the command queue.
+struct ParkedModule {
+    module_id: String,
+    module: Box<dyn Sampleable>,
+    update_id: u64,
+}
+
+/// The main thread's end of the command queue. Single-module updates (a
+/// slider drag, a video region's level) can outpace an engine that is not
+/// running, so while the queue is short of room they wait here, the latest
+/// per module and patch update, and go out ahead of the next command once
+/// there is room.
+pub(crate) struct CommandSender {
+    tx: CommandProducer,
+    parked: Vec<ParkedModule>,
+}
+
+impl CommandSender {
+    pub(crate) fn new(tx: CommandProducer) -> Self {
+        Self {
+            tx,
+            parked: Vec::new(),
+        }
+    }
+
+    /// Send the parked module updates, as far as there is room.
+    pub(crate) fn flush(&mut self) {
+        let room = self
+            .tx
+            .slots()
+            .saturating_sub(COMMAND_QUEUE_RESERVE)
+            .min(self.parked.len());
+        for parked in self.parked.drain(..room) {
+            let pushed = self.tx.push(GraphCommand::SingleModuleUpdate {
+                module_id: parked.module_id,
+                module: parked.module,
+                update_id: parked.update_id,
+            });
+            debug_assert!(pushed.is_ok());
+        }
+    }
+
+    /// Send `command` after the parked module updates.
+    pub(crate) fn send(&mut self, command: GraphCommand) -> napi::Result<()> {
+        self.flush();
+        self.tx.push(command).map_err(|_| {
+            napi::Error::from_reason(
+                "Command queue full - audio thread may be overloaded".to_string(),
+            )
+        })
+    }
+
+    /// Park a rebuilt module, replacing any parked rebuild of it for the
+    /// same patch update, then send what there is room for.
+    pub(crate) fn send_module_update(
+        &mut self,
+        module_id: String,
+        module: Box<dyn Sampleable>,
+        update_id: u64,
+    ) {
+        match self
+            .parked
+            .iter_mut()
+            .find(|parked| parked.module_id == module_id && parked.update_id == update_id)
+        {
+            Some(parked) => parked.module = module,
+            None => self.parked.push(ParkedModule {
+                module_id,
+                module,
+                update_id,
+            }),
+        }
+        self.flush();
+    }
+}
 
 /// Capacity for the error queue (audio → main)
 pub const ERROR_QUEUE_CAPACITY: usize = 256;

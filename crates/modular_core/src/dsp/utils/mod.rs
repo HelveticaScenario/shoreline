@@ -6,6 +6,8 @@ pub mod fade;
 pub mod halfband;
 pub mod one_pole;
 pub mod rng;
+pub mod unison_phase;
+pub mod unison_voices;
 
 use crate::dsp::consts::{LUT_PITCH_RATIO_HIGH, LUT_PITCH_RATIO_LOW};
 
@@ -82,6 +84,13 @@ pub fn sanitize(x: f32) -> f32 {
 #[inline]
 pub fn wrap_phase(phase: f32) -> f32 {
     sanitize(phase.rem_euclid(1.0))
+}
+
+/// How far phase `to` is from phase `from` going the short way around the
+/// cycle, in `[-0.5, 0.5)`.
+#[inline]
+pub fn phase_delta(from: f32, to: f32) -> f32 {
+    (to - from + 0.5).rem_euclid(1.0) - 0.5
 }
 
 /// [`wrap_phase`] for the f64 accumulators used by DPW-based oscillators.
@@ -499,11 +508,6 @@ pub fn midi_to_voct(midi: f32) -> f32 {
     (midi - 60.0) / 12.0
 }
 
-/// Convert V/Oct to MIDI note number
-pub fn voct_to_midi(voct: f32) -> f32 {
-    voct * 12.0 + 60.0
-}
-
 /// Convert V/Oct to frequency in Hz
 pub fn voct_to_hz(voct: f32) -> f32 {
     C4_HZ_F32 * 2.0_f32.powf(voct)
@@ -678,21 +682,6 @@ mod tests {
     }
 
     #[test]
-    fn test_pitch_roundtrip_midi_voct_f32() {
-        for midi in 0..=127 {
-            let midi_f = midi as f32;
-            let voct = midi_to_voct(midi_f);
-            let roundtrip = voct_to_midi(voct);
-            assert!(
-                (roundtrip - midi_f).abs() < 1e-5,
-                "midi->voct->midi should roundtrip, got {} for {}",
-                roundtrip,
-                midi_f
-            );
-        }
-    }
-
-    #[test]
     fn test_pitch_roundtrip_voct_hz_f64() {
         for steps in -120..=120 {
             let voct = steps as f64 / 12.0;
@@ -840,9 +829,6 @@ mod tests {
         for (midi, expected_voct) in cases {
             let voct = midi_to_voct(midi);
             assert!((voct - expected_voct).abs() < 1e-6);
-
-            let midi_roundtrip = voct_to_midi(expected_voct);
-            assert!((midi_roundtrip - midi).abs() < 1e-5);
         }
     }
 

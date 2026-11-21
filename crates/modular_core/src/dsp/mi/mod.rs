@@ -8,6 +8,8 @@ use crate::types::{Module, ModuleSchema, SampleableConstructor};
 
 mod accent;
 pub mod additive;
+pub mod chiptune;
+pub mod chords;
 pub mod chorus;
 pub mod core;
 pub mod divide_down;
@@ -16,14 +18,18 @@ pub mod formant;
 pub mod hat;
 pub mod kick;
 pub mod modal;
+pub mod noise;
 pub mod particles;
 pub mod phase_distortion;
 pub mod six_op;
 pub mod snare;
 pub mod speak;
 pub mod string;
+pub mod string_machine;
 pub mod swarm;
 pub mod two_op;
+pub mod va;
+pub mod vcf;
 pub mod vowel;
 pub mod wave_terrain;
 pub mod waveshaper;
@@ -31,6 +37,8 @@ pub mod z_osc;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     additive::Additive::install_constructor(map);
+    chiptune::MiChiptune::install_constructor(map);
+    chords::MiChords::install_constructor(map);
     chorus::Chorus::install_constructor(map);
     divide_down::DivideDown::install_constructor(map);
     formant::Formant::install_constructor(map);
@@ -39,6 +47,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     kick::MiKick::install_constructor(map);
     kick::MiSynthKick::install_constructor(map);
     modal::Modal::install_constructor(map);
+    noise::MiNoise::install_constructor(map);
     particles::MiParticles::install_constructor(map);
     phase_distortion::PhaseDistortion::install_constructor(map);
     six_op::SixOp::install_constructor(map);
@@ -46,8 +55,11 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     snare::MiSynthSnare::install_constructor(map);
     speak::Speak::install_constructor(map);
     string::MiString::install_constructor(map);
+    string_machine::StringMachine::install_constructor(map);
     swarm::Swarm::install_constructor(map);
     two_op::TwoOp::install_constructor(map);
+    va::VirtualAnalog::install_constructor(map);
+    vcf::Vcf::install_constructor(map);
     vowel::naive::FormantVowel::install_constructor(map);
     vowel::sam::SamVowel::install_constructor(map);
     vowel::lpc::LpcVowel::install_constructor(map);
@@ -58,6 +70,8 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     additive::Additive::install_params_deserializer(map);
+    chiptune::MiChiptune::install_params_deserializer(map);
+    chords::MiChords::install_params_deserializer(map);
     chorus::Chorus::install_params_deserializer(map);
     divide_down::DivideDown::install_params_deserializer(map);
     formant::Formant::install_params_deserializer(map);
@@ -66,6 +80,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     kick::MiKick::install_params_deserializer(map);
     kick::MiSynthKick::install_params_deserializer(map);
     modal::Modal::install_params_deserializer(map);
+    noise::MiNoise::install_params_deserializer(map);
     particles::MiParticles::install_params_deserializer(map);
     phase_distortion::PhaseDistortion::install_params_deserializer(map);
     six_op::SixOp::install_params_deserializer(map);
@@ -73,8 +88,11 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     snare::MiSynthSnare::install_params_deserializer(map);
     speak::Speak::install_params_deserializer(map);
     string::MiString::install_params_deserializer(map);
+    string_machine::StringMachine::install_params_deserializer(map);
     swarm::Swarm::install_params_deserializer(map);
     two_op::TwoOp::install_params_deserializer(map);
+    va::VirtualAnalog::install_params_deserializer(map);
+    vcf::Vcf::install_params_deserializer(map);
     vowel::naive::FormantVowel::install_params_deserializer(map);
     vowel::sam::SamVowel::install_params_deserializer(map);
     vowel::lpc::LpcVowel::install_params_deserializer(map);
@@ -86,6 +104,8 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         additive::Additive::get_schema(),
+        chiptune::MiChiptune::get_schema(),
+        chords::MiChords::get_schema(),
         chorus::Chorus::get_schema(),
         divide_down::DivideDown::get_schema(),
         formant::Formant::get_schema(),
@@ -94,6 +114,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         kick::MiKick::get_schema(),
         kick::MiSynthKick::get_schema(),
         modal::Modal::get_schema(),
+        noise::MiNoise::get_schema(),
         particles::MiParticles::get_schema(),
         phase_distortion::PhaseDistortion::get_schema(),
         six_op::SixOp::get_schema(),
@@ -101,8 +122,11 @@ pub fn schemas() -> Vec<ModuleSchema> {
         snare::MiSynthSnare::get_schema(),
         speak::Speak::get_schema(),
         string::MiString::get_schema(),
+        string_machine::StringMachine::get_schema(),
         swarm::Swarm::get_schema(),
         two_op::TwoOp::get_schema(),
+        va::VirtualAnalog::get_schema(),
+        vcf::Vcf::get_schema(),
         vowel::naive::FormantVowel::get_schema(),
         vowel::sam::SamVowel::get_schema(),
         vowel::lpc::LpcVowel::get_schema(),

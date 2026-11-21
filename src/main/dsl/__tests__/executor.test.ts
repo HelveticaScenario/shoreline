@@ -2491,6 +2491,30 @@ describe('WAV paths and $wavMeta', () => {
         );
     });
 
+    test('a built-in table loads by its builtin/ path', () => {
+        const result = execWithWavs(
+            "out: $wavetable('c3', 'builtin/tables/mi/organ.wav')",
+        );
+        expect(
+            findModules(result.patch, '$wavetable')[0].params.wav,
+        ).toMatchObject({
+            type: 'wav_ref',
+            path: 'builtin/tables/mi/organ.wav',
+        });
+    });
+
+    test('a builtin/ path naming no bundled file is refused', () => {
+        expect(() =>
+            execWithWavs("out: $wavetable('c3', 'builtin/tables/nope.wav')"),
+        ).toThrow(/\$wavetable: no built-in file "builtin\/tables\/nope.wav"/);
+    });
+
+    test('a bad path names a built-in file as another choice', () => {
+        expect(() => execWithWavs("out: $sampler('kick.wav', 5)")).toThrow(
+            /or a built-in file like 'builtin\/tables\/mi\/harmonics.wav'/,
+        );
+    });
+
     test('a load failure reaches the patch error', () => {
         expect(() =>
             executePatchScript("out: $sampler('/wavs/snare.wav', 5)", schemas, {

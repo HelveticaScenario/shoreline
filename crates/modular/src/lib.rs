@@ -6,13 +6,23 @@ mod commands;
 #[cfg(target_os = "macos")]
 mod coreaudio_devices;
 mod denormals;
+#[cfg(all(test, target_os = "macos"))]
+mod device_loss_tests;
+mod device_poll;
+#[cfg(all(test, target_os = "macos"))]
+mod pinned_output_tests;
+use device_poll::DeviceReport;
 mod graph_analysis;
 mod link;
 mod media_audio;
 mod midi;
+mod output_choice;
 mod panic_log;
 mod params_cache;
 mod recording;
+mod stream_health;
+mod stream_resolve;
+mod streams;
 mod tap;
 mod validation;
 #[cfg(target_os = "windows")]
@@ -28,7 +38,6 @@ mod wav_metadata;
 #[global_allocator]
 static GLOBAL_ALLOC: alloc_detector::AudioAllocDetector = alloc_detector::AudioAllocDetector;
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use napi::bindgen_prelude::Float32Array;
 use std::{collections::HashMap, sync::Arc};
 
@@ -41,14 +50,17 @@ use napi::Result;
 use napi_derive::napi;
 
 use crate::audio::{
-    ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioDeviceInfo, AudioState,
-    AudioThreadEndpoints, CurrentAudioState, DeviceCacheSnapshot, HostDeviceInfo, HostInfo,
-    InputBufferWriter, PatchSubmission, TransportSnapshot, create_audio_channels,
-    create_input_ring_buffer, find_input_device_in_host, find_output_device_in_host,
-    get_host_by_preference, make_input_stream, make_stream, preferred_default_sample_rate,
+    ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioState, CurrentAudioState,
+    DeviceCacheSnapshot, HostDeviceInfo, PatchSubmission, TransportSnapshot,
 };
 use crate::commands::{GraphCommand, QueuedTrigger, TransportMeta};
 use crate::midi::MidiInputManager;
+use crate::output_choice::OutputChoice;
+use crate::stream_resolve::{
+    Fit, OpenRequest, OutputTarget, append_warning, chosen_input, host_for_id,
+    missing_output_warning, system_default_output_id,
+};
+use crate::streams::{Streams, StreamsChange};
 
 use modular_core::dsp::utilities::video_tap;
 use std::path::{Path, PathBuf};
@@ -257,6 +269,38 @@ struct WavCacheEntry {
 struct WavCache {
     entries: HashMap<String, WavCacheEntry>,
     workspace_path: PathBuf,
+    /// The folder `builtin/...` paths name: the assets bundled with the app.
+    builtin_path: PathBuf,
+}
+
+/// The prefix of a path naming an asset bundled with the app. A workspace path
+/// starts with `/`, so the two never collide.
+const BUILTIN_PREFIX: &str = "builtin/";
+
+/// Why `file_inside` found no file.
+enum FileInsideError {
+    /// The path is not plain names, or it leads out of the folder.
+    Outside,
+    /// The file or the folder cannot be read.
+    Unreadable(std::io::Error),
+}
+
+/// The file `relative` names inside `root`, with links followed.
+fn file_inside(root: &Path, relative: &str) -> std::result::Result<PathBuf, FileInsideError> {
+    let relative = Path::new(relative);
+    let mut components = relative.components().peekable();
+    if components.peek().is_none()
+        || !components.all(|c| matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err(FileInsideError::Outside);
+    }
+    let file = std::fs::canonicalize(root.join(relative)).map_err(FileInsideError::Unreadable)?;
+    let root = std::fs::canonicalize(root).map_err(FileInsideError::Unreadable)?;
+    if file.starts_with(&root) {
+        Ok(file)
+    } else {
+        Err(FileInsideError::Outside)
+    }
 }
 
 fn build_wav_load_info(
@@ -326,12 +370,18 @@ impl WavCache {
         Self {
             entries: HashMap::new(),
             workspace_path,
+            builtin_path: PathBuf::new(),
         }
+    }
+
+    fn set_builtin_path(&mut self, path: PathBuf) {
+        self.builtin_path = path;
     }
 
     fn set_workspace_path(&mut self, path: PathBuf) {
         if self.workspace_path != path {
-            self.entries.clear();
+            self.entries
+                .retain(|key, _| key.starts_with(BUILTIN_PREFIX));
             self.workspace_path = path;
         }
     }
@@ -344,10 +394,20 @@ impl WavCache {
             .collect()
     }
 
-    /// The file a workspace-rooted `/...` path names. Every segment after the
-    /// leading `/` must be a plain name, and the file, with links followed,
-    /// must lie inside the workspace folder.
-    fn workspace_file(&self, path: &str) -> Result<PathBuf> {
+    /// The file `path` names: a workspace-rooted `/...` path or a bundled
+    /// `builtin/...` one. Every segment after the prefix must be a plain name,
+    /// and the file, with links followed, must lie inside the prefix's folder.
+    fn asset_file(&self, path: &str) -> Result<PathBuf> {
+        if let Some(relative) = path.strip_prefix(BUILTIN_PREFIX) {
+            return file_inside(&self.builtin_path, relative).map_err(|e| {
+                napi::Error::from_reason(match e {
+                    FileInsideError::Outside => {
+                        format!("WAV path must name a built-in file: {path}")
+                    }
+                    FileInsideError::Unreadable(e) => format!("no built-in file {path} ({e})"),
+                })
+            });
+        }
         if self.workspace_path.as_os_str().is_empty() {
             return Err(napi::Error::from_reason(format!(
                 "open a workspace folder to load {path}"
@@ -358,24 +418,13 @@ impl WavCache {
                 "WAV path must name a file inside the workspace folder: {path}"
             ))
         };
-        let relative = std::path::Path::new(path.strip_prefix('/').ok_or_else(outside)?);
-        let mut components = relative.components().peekable();
-        if components.peek().is_none()
-            || !components.all(|c| matches!(c, std::path::Component::Normal(_)))
-        {
-            return Err(outside());
-        }
-        let file = std::fs::canonicalize(self.workspace_path.join(relative)).map_err(|e| {
-            napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
-        })?;
-        let root = std::fs::canonicalize(&self.workspace_path).map_err(|e| {
-            napi::Error::from_reason(format!("cannot read the workspace folder ({e})"))
-        })?;
-        if file.starts_with(&root) {
-            Ok(file)
-        } else {
-            Err(outside())
-        }
+        let relative = path.strip_prefix('/').ok_or_else(outside)?;
+        file_inside(&self.workspace_path, relative).map_err(|e| match e {
+            FileInsideError::Outside => outside(),
+            FileInsideError::Unreadable(e) => {
+                napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
+            }
+        })
     }
 
     /// Decode the audio track of a workspace media file, returning cached data
@@ -462,14 +511,13 @@ impl WavCache {
     }
 
     /// Load a WAV file, returning cached data if mtime hasn't changed.
-    /// `path` starts with `/`, which is the workspace root, and is also the
-    /// cache key a `Wav` parameter uses to find the decoded audio.
+    /// `path` is a workspace or built-in path (see `asset_file`), and is also
+    /// the cache key a `Wav` parameter uses to find the decoded audio.
     fn load(&mut self, path: &str) -> Result<WavLoadInfo> {
-        let full_path = self.workspace_file(path)?;
+        let full_path = self.asset_file(path)?;
 
-        let metadata = std::fs::metadata(&full_path).map_err(|e| {
-            napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
-        })?;
+        let metadata = std::fs::metadata(&full_path)
+            .map_err(|e| napi::Error::from_reason(format!("cannot read {path} ({e})")))?;
         let mtime = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
 
         // Cache hit — mtime matches
@@ -658,6 +706,7 @@ pub struct ModuleProfileSample {
 #[derive(Debug, Clone, Default)]
 pub struct AudioConfigOptions {
     pub host_id: Option<String>,
+    /// `None` follows the host's system default output.
     pub output_device_id: Option<String>,
     pub input_device_id: Option<String>,
     pub sample_rate: Option<u32>,
@@ -667,367 +716,19 @@ pub struct AudioConfigOptions {
 #[napi(js_name = "Synthesizer")]
 pub struct Synthesizer {
     state: Arc<AudioState>,
-    _output_stream: cpal::Stream,
-    _input_stream: Option<cpal::Stream>,
+    streams: Streams,
     midi_manager: Arc<MidiInputManager>,
-    sample_rate: f32,
-    buffer_size: Option<u32>,
-    channels: u16,
-    input_channels: u16,
     is_recording: bool,
-    host_id: String,
-    output_device_id: Option<String>,
-    input_device_id: Option<String>,
+    output_choice: OutputChoice,
+    /// The settings the user chose, which the saved config holds. Every open
+    /// on a device the poll finds comes back to them where the device allows.
+    chosen_sample_rate: u32,
+    chosen_buffer_size: Option<u32>,
+    chosen_input_device_id: Option<String>,
     device_cache: AudioDeviceCache,
     fallback_warning: Option<String>,
     next_update_id: u64,
     wav_cache: WavCache,
-}
-
-/// Resolve devices from config, falling back to defaults if not found
-fn resolve_devices(
-    config: &AudioConfigOptions,
-    fallback_warning: &mut Option<String>,
-) -> (
-    cpal::Host,
-    String,
-    cpal::Device,
-    String,
-    Option<cpal::Device>,
-    Option<String>,
-) {
-    // Try to get requested host, fall back to preference
-    let (host, host_id) = if let Some(ref requested_host_id) = config.host_id {
-        // Try to parse host ID
-        match parse_host_id(requested_host_id) {
-            Some(host_id_enum) => match cpal::host_from_id(host_id_enum) {
-                Ok(host) => (host, requested_host_id.clone()),
-                Err(_) => {
-                    *fallback_warning = Some(format!(
-                        "Requested host '{}' not available, using default. ",
-                        requested_host_id
-                    ));
-                    let host = get_host_by_preference();
-                    let id = format!("{:?}", host.id());
-                    (host, id)
-                }
-            },
-            None => {
-                *fallback_warning = Some(format!(
-                    "Unknown host '{}', using default. ",
-                    requested_host_id
-                ));
-                let host = get_host_by_preference();
-                let id = format!("{:?}", host.id());
-                (host, id)
-            }
-        }
-    } else {
-        let host = get_host_by_preference();
-        let id = format!("{:?}", host.id());
-        (host, id)
-    };
-
-    // Try to get requested output device, fall back to default
-    let (output_device, output_device_id) =
-        if let Some(ref requested_device_id) = config.output_device_id {
-            match find_output_device_in_host(&host, requested_device_id) {
-                Some(device) => {
-                    let id = device
-                        .id()
-                        .ok()
-                        .map(|id| id.to_string())
-                        .unwrap_or_else(|| requested_device_id.clone());
-                    (device, id)
-                }
-                None => {
-                    *fallback_warning = Some(format!(
-                        "{}Output device '{}' not found, using default. ",
-                        fallback_warning.clone().unwrap_or_default(),
-                        requested_device_id
-                    ));
-                    let device = host
-                        .default_output_device()
-                        .expect("No default output device available");
-                    let id = device
-                        .id()
-                        .ok()
-                        .map(|id| id.to_string())
-                        .unwrap_or_default();
-                    (device, id)
-                }
-            }
-        } else {
-            let device = host
-                .default_output_device()
-                .expect("No default output device available");
-            let id = device
-                .id()
-                .ok()
-                .map(|id| id.to_string())
-                .unwrap_or_default();
-            (device, id)
-        };
-
-    // Try to get requested input device (None is valid = no input)
-    let (input_device, input_device_id) = match &config.input_device_id {
-        None => {
-            // No input requested, try default
-            match host.default_input_device() {
-                Some(device) => {
-                    let id = device.id().ok().map(|id| id.to_string());
-                    (Some(device), id)
-                }
-                None => (None, None),
-            }
-        }
-        Some(requested_device_id)
-            if requested_device_id == "none" || requested_device_id.is_empty() =>
-        {
-            // Explicitly no input
-            (None, None)
-        }
-        Some(requested_device_id) => match find_input_device_in_host(&host, requested_device_id) {
-            Some(device) => {
-                let id = device.id().ok().map(|id| id.to_string());
-                (Some(device), id)
-            }
-            None => {
-                *fallback_warning = Some(format!(
-                    "{}Input device '{}' not found, using default. ",
-                    fallback_warning.clone().unwrap_or_default(),
-                    requested_device_id
-                ));
-                match host.default_input_device() {
-                    Some(device) => {
-                        let id = device.id().ok().map(|id| id.to_string());
-                        (Some(device), id)
-                    }
-                    None => (None, None),
-                }
-            }
-        },
-    };
-
-    (
-        host,
-        host_id,
-        output_device,
-        output_device_id,
-        input_device,
-        input_device_id,
-    )
-}
-
-/// Parse a host ID string to cpal::HostId
-fn parse_host_id(id: &str) -> Option<cpal::HostId> {
-    match id {
-        #[cfg(target_os = "macos")]
-        "CoreAudio" => Some(cpal::HostId::CoreAudio),
-        #[cfg(target_os = "windows")]
-        "Wasapi" | "WASAPI" => Some(cpal::HostId::Wasapi),
-        // #[cfg(target_os = "windows")]
-        // "Asio" | "ASIO" => Some(cpal::HostId::Asio),
-        #[cfg(target_os = "linux")]
-        "Alsa" | "ALSA" => Some(cpal::HostId::Alsa),
-        #[cfg(target_os = "linux")]
-        "Jack" | "JACK" => Some(cpal::HostId::Jack),
-        _ => None,
-    }
-}
-
-/// Build output stream with the appropriate sample format
-fn build_output_stream(
-    device: &cpal::Device,
-    config: &cpal::StreamConfig,
-    sample_format: cpal::SampleFormat,
-    endpoints: AudioThreadEndpoints,
-    block_size: usize,
-) -> Result<cpal::Stream> {
-    match sample_format {
-        cpal::SampleFormat::I8 => make_stream::<i8>(device, config, endpoints, block_size),
-        cpal::SampleFormat::I16 => make_stream::<i16>(device, config, endpoints, block_size),
-        cpal::SampleFormat::I32 => make_stream::<i32>(device, config, endpoints, block_size),
-        cpal::SampleFormat::F32 => make_stream::<f32>(device, config, endpoints, block_size),
-        _ => Err(napi::Error::from_reason(format!(
-            "Unsupported output sample format: {:?}",
-            sample_format
-        ))),
-    }
-}
-
-/// Build input stream with the appropriate sample format
-fn build_input_stream(
-    device: &cpal::Device,
-    config: &cpal::StreamConfig,
-    sample_format: cpal::SampleFormat,
-    input_writer: InputBufferWriter,
-) -> Result<cpal::Stream> {
-    match sample_format {
-        cpal::SampleFormat::I8 => make_input_stream::<i8>(device, config, input_writer),
-        cpal::SampleFormat::I16 => make_input_stream::<i16>(device, config, input_writer),
-        cpal::SampleFormat::I32 => make_input_stream::<i32>(device, config, input_writer),
-        cpal::SampleFormat::F32 => make_input_stream::<f32>(device, config, input_writer),
-        _ => Err(napi::Error::from_reason(format!(
-            "Unsupported input sample format: {:?}",
-            sample_format
-        ))),
-    }
-}
-
-/// Result of setting up audio streams
-struct StreamSetupResult {
-    output_stream: cpal::Stream,
-    input_stream: Option<cpal::Stream>,
-    state: Arc<AudioState>,
-    sample_rate: f32,
-    channels: u16,
-    input_channels: u16,
-    input_device_id: Option<String>,
-}
-
-/// Common parameters for stream setup
-struct StreamSetupParams<'a> {
-    output_device: &'a cpal::Device,
-    output_config: &'a cpal::SupportedStreamConfig,
-    sample_rate: u32,
-    buffer_size: Option<u32>,
-    /// Input device with its config, or None for no input
-    input: Option<(&'a cpal::Device, cpal::SupportedStreamConfig, String)>,
-    /// MIDI input manager (shared with audio thread)
-    midi_manager: Arc<MidiInputManager>,
-}
-
-/// Fewest frames per internal block: below this, each module's per-block work
-/// (resolving inputs, dispatch) costs more than a shorter callback saves.
-const MIN_BLOCK_SIZE: usize = 64;
-/// Most frames per internal block, bounding each block buffer's memory.
-const MAX_BLOCK_SIZE: usize = 1024;
-/// Frames per internal block when the host picks the device buffer size.
-const DEFAULT_BLOCK_SIZE: usize = 256;
-
-/// The audio callback renders in internal blocks of this many frames: one per
-/// callback when it matches the device buffer (`buffer_size` frames, None for
-/// the host's default). A callback shorter than a block renders only the
-/// frames it emits and the next continues the block, so a block longer than
-/// the device buffer adds no latency.
-fn block_size_for(buffer_size: Option<u32>) -> usize {
-    buffer_size
-        .map_or(DEFAULT_BLOCK_SIZE, |frames| frames as usize)
-        .clamp(MIN_BLOCK_SIZE, MAX_BLOCK_SIZE)
-}
-
-/// Set up output and input streams with the given parameters.
-/// This is the shared core logic between `new` and `recreate_streams`.
-fn setup_streams(params: StreamSetupParams) -> Result<StreamSetupResult> {
-    let channels = params.output_config.channels();
-
-    // Build stream config
-    let stream_buffer_size = params
-        .buffer_size
-        .map(cpal::BufferSize::Fixed)
-        .unwrap_or(cpal::BufferSize::Default);
-
-    let stream_config = cpal::StreamConfig {
-        channels,
-        sample_rate: params.sample_rate,
-        buffer_size: stream_buffer_size,
-    };
-
-    // Create command, error, and garbage queues for audio thread communication
-    let (command_tx, command_rx, error_tx, error_rx, garbage_tx, garbage_rx) =
-        create_audio_channels();
-
-    let block_size = block_size_for(params.buffer_size);
-
-    let state = Arc::new(AudioState::new_with_channels(
-        command_tx,
-        error_rx,
-        garbage_rx,
-        params.sample_rate as f32,
-        channels,
-        params.midi_manager.clone(),
-        block_size,
-    ));
-
-    // Get shared state for audio processor
-    let shared = state.get_shared_state();
-
-    // Get input channel count before creating ring buffer
-    let input_channels = params
-        .input
-        .as_ref()
-        .map(|(_, config, _)| config.channels() as usize)
-        .unwrap_or(0);
-
-    // Create ring buffer
-    let (input_writer, input_reader) = create_input_ring_buffer(input_channels);
-
-    // Create and start output stream
-    let output_stream = build_output_stream(
-        params.output_device,
-        &stream_config,
-        params.output_config.sample_format(),
-        AudioThreadEndpoints {
-            command_rx,
-            error_tx,
-            garbage_tx,
-            shared,
-            input_reader,
-        },
-        block_size,
-    )?;
-
-    output_stream
-        .play()
-        .map_err(|e| napi::Error::from_reason(format!("Failed to start output stream: {}", e)))?;
-
-    // Create and start input stream if configured
-    let (input_stream, actual_input_device_id, final_input_channels) =
-        if let Some((input_device, input_config, input_id)) = params.input {
-            let input_stream_config = cpal::StreamConfig {
-                channels: input_config.channels(),
-                sample_rate: params.sample_rate,
-                buffer_size: stream_buffer_size,
-            };
-
-            match build_input_stream(
-                input_device,
-                &input_stream_config,
-                input_config.sample_format(),
-                input_writer,
-            ) {
-                Ok(stream) => match stream.play() {
-                    Ok(()) => {
-                        println!(
-                            "Audio input: {} ({} channels, {} Hz)",
-                            input_id, input_channels, params.sample_rate
-                        );
-                        (Some(stream), Some(input_id), input_channels as u16)
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to start input stream: {}", e);
-                        (None, None, 0)
-                    }
-                },
-                Err(e) => {
-                    eprintln!("Failed to create input stream: {}", e);
-                    (None, None, 0)
-                }
-            }
-        } else {
-            (None, None, 0)
-        };
-
-    Ok(StreamSetupResult {
-        output_stream,
-        input_stream,
-        state,
-        sample_rate: params.sample_rate as f32,
-        channels,
-        input_channels: final_input_channels,
-        input_device_id: actual_input_device_id,
-    })
 }
 
 #[napi]
@@ -1039,111 +740,50 @@ impl Synthesizer {
     pub fn new(config: Option<AudioConfigOptions>) -> Result<Self> {
         panic_log::install_panic_hook();
         let config = config.unwrap_or_default();
-
-        // Build device cache first
         let device_cache = AudioDeviceCache::new();
-
-        // Track any fallback warnings
         let mut fallback_warning: Option<String> = None;
 
-        // Try to use requested config, fall back to defaults if invalid
-        let (_host, host_id, output_device, output_device_id, input_device, input_device_id) =
-            resolve_devices(&config, &mut fallback_warning);
+        let plan = stream_resolve::resolve(
+            &device_cache,
+            stream_resolve::launch_request(&device_cache, &config, &mut fallback_warning),
+        )?;
+        if let Some(requested) = plan.unsupported_sample_rate {
+            append_warning(
+                &mut fallback_warning,
+                &format!(
+                    "Requested sample rate {}Hz not supported, using {}Hz. ",
+                    requested, plan.sample_rate
+                ),
+            );
+        }
+        let output_choice =
+            OutputChoice::opened(config.output_device_id.clone(), &plan.output_device_id);
 
-        // Get output config
-        let output_config = output_device.default_output_config().map_err(|err| {
-            napi::Error::from_reason(format!("Failed to get default output config: {}", err))
-        })?;
-
-        // Determine sample rate (use requested if valid, else a sensible default)
-        let sample_rate = if let Some(requested_rate) = config.sample_rate {
-            // Check if the requested rate is supported
-            if let Some(device_info) = device_cache.find_output_device(&output_device_id) {
-                if device_info.supported_sample_rates.contains(&requested_rate) {
-                    requested_rate
-                } else {
-                    let preferred = preferred_default_sample_rate(
-                        output_config.sample_rate(),
-                        &device_info.supported_sample_rates,
-                    );
-                    fallback_warning = Some(format!(
-                        "{}Requested sample rate {}Hz not supported, using {}Hz. ",
-                        fallback_warning.unwrap_or_default(),
-                        requested_rate,
-                        preferred,
-                    ));
-                    preferred
-                }
-            } else {
-                output_config.sample_rate()
-            }
-        } else {
-            // No sample rate in config (new user / empty config) — pick a
-            // sensible default: use the device's native rate but cap it so
-            // new users don't accidentally start at 96 kHz+.
-            if let Some(device_info) = device_cache.find_output_device(&output_device_id) {
-                preferred_default_sample_rate(
-                    output_config.sample_rate(),
-                    &device_info.supported_sample_rates,
-                )
-            } else {
-                output_config.sample_rate()
-            }
-        };
-
-        // Prepare input device info if available
-        let input_setup = if let Some(ref input_dev) = input_device {
-            match input_dev.default_input_config() {
-                Ok(input_config) => {
-                    let id = input_device_id
-                        .clone()
-                        .unwrap_or_else(|| "unknown".to_string());
-                    Some((input_dev, input_config, id))
-                }
-                Err(e) => {
-                    eprintln!("Failed to get input config: {}", e);
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
+        let midi_manager = Arc::new(MidiInputManager::new());
+        let (state, streams) = streams::launch(plan, midi_manager.clone())?;
         println!(
             "Audio output: {} Hz, {} channels, host: {}",
-            sample_rate,
-            output_config.channels(),
-            host_id
+            streams.sample_rate, streams.channels, streams.host_id
         );
-
-        // Create MIDI manager first so it can be shared with audio thread
-        let midi_manager = Arc::new(MidiInputManager::new());
-
-        // Set up streams using shared helper
-        let setup_result = setup_streams(StreamSetupParams {
-            output_device: &output_device,
-            output_config: &output_config,
-            sample_rate,
-            buffer_size: config.buffer_size,
-            input: input_setup,
-            midi_manager: midi_manager.clone(),
-        })?;
-
         println!("Audio output stream started.");
 
+        // A rate the connected output cannot run gives way to the one it
+        // runs; the rate chosen for a device that is not connected waits for
+        // that device.
+        let chosen_sample_rate = config
+            .sample_rate
+            .filter(|_| matches!(output_choice, OutputChoice::Missing(_)))
+            .unwrap_or(streams.sample_rate);
+
         Ok(Self {
-            state: setup_result.state,
-            _output_stream: setup_result.output_stream,
-            _input_stream: setup_result.input_stream,
+            state,
+            streams,
             midi_manager,
-            sample_rate: setup_result.sample_rate,
-            buffer_size: config.buffer_size,
-            channels: setup_result.channels,
-            input_channels: setup_result.input_channels,
             is_recording: false,
-            host_id,
-            output_device_id: Some(output_device_id),
-            input_device_id: setup_result.input_device_id,
+            output_choice,
+            chosen_sample_rate,
+            chosen_buffer_size: config.buffer_size,
+            chosen_input_device_id: chosen_input(config.input_device_id),
             device_cache,
             fallback_warning,
             next_update_id: 0,
@@ -1173,17 +813,17 @@ impl Synthesizer {
 
     #[napi]
     pub fn sample_rate(&self) -> f32 {
-        self.sample_rate
+        self.streams.sample_rate as f32
     }
 
     #[napi]
     pub fn channels(&self) -> u16 {
-        self.channels
+        self.streams.channels
     }
 
     #[napi]
     pub fn input_channels(&self) -> u16 {
-        self.input_channels
+        self.streams.input_channels
     }
 
     /// True if the audio callback caught a panic and is now emitting silence.
@@ -1353,7 +993,7 @@ impl Synthesizer {
         let wav_data_snapshot = self.wav_cache.snapshot();
         let errors = self.state.handle_set_patch(PatchSubmission {
             graph: patch,
-            sample_rate: self.sample_rate,
+            sample_rate: self.streams.sample_rate as f32,
             trigger,
             update_id,
             wav_data: wav_data_snapshot,
@@ -1389,6 +1029,13 @@ impl Synthesizer {
             .set_workspace_path(PathBuf::from(workspace_path));
     }
 
+    /// Set the folder holding the assets bundled with the app, which
+    /// `builtin/...` paths name.
+    #[napi]
+    pub fn set_builtin_assets(&mut self, builtin_path: String) {
+        self.wav_cache.set_builtin_path(PathBuf::from(builtin_path));
+    }
+
     /// Get the list of currently cached WAV file paths.
     #[napi]
     pub fn get_wav_cache_snapshot(&self) -> Vec<String> {
@@ -1411,15 +1058,17 @@ impl Synthesizer {
         // Uncached: slider values would pollute the params cache.
         let rebuilt = self
             .state
-            .rebuild_module(&module_id, &module_type, params, self.sample_rate)
+            .rebuild_module(
+                &module_id,
+                &module_type,
+                params,
+                self.streams.sample_rate as f32,
+            )
             .map_err(napi::Error::from_reason)?;
 
         for (module, update_id) in rebuilt {
-            self.state.send_command(GraphCommand::SingleModuleUpdate {
-                module_id: module_id.clone(),
-                module,
-                update_id,
-            })?;
+            self.state
+                .send_module_update(module_id.clone(), module, update_id);
         }
 
         // Reconcile editor state to the new params (no-op for stateless types).
@@ -1532,34 +1181,41 @@ impl Synthesizer {
 
     #[napi]
     pub fn enable_link(&self, enabled: bool) -> Result<()> {
-        // Idempotency: if Link is already in the requested state, do nothing.
-        // This both avoids constructing a redundant `AblLink` (heap allocation,
-        // socket open, networking thread spawn — all expensive) and prevents
-        // tearing down an existing live session whose peers would then have to
-        // re-discover us.
+        if enabled {
+            // Start at the last known tempo so toggling Link doesn't reset
+            // the session BPM.
+            self.enable_link_at(self.state.transport_meter.read_bpm())
+        } else {
+            self.set_link(None)
+        }
+    }
+
+    /// Join Link at `bpm`, the tempo a session with no other peers starts at.
+    fn enable_link_at(&self, bpm: f64) -> Result<()> {
+        // Constructing an `AblLink` opens a socket and spawns its networking
+        // thread, and a second one would tear down the live session, so an
+        // enabled Link is left alone.
+        if self.state.transport_meter.read_link_enabled() {
+            return Ok(());
+        }
+        // Construct + enable on the main thread. Per Ableton's documentation
+        // (`Link.hpp`: "Realtime-safe: no" on `enable()`), construction and
+        // enable cannot run on the audio thread without risking glitches.
+        let link = rusty_link::AblLink::new(bpm);
+        link.enable(true);
+        link.enable_start_stop_sync(true);
+        self.set_link(Some(Box::new(crate::link::LinkResources {
+            link,
+            host_time_filter: rusty_link::HostTimeFilter::new(),
+            session_state: rusty_link::SessionState::new(),
+        })))
+    }
+
+    fn set_link(&self, resources: Option<Box<crate::link::LinkResources>>) -> Result<()> {
+        let enabled = resources.is_some();
         if self.state.transport_meter.read_link_enabled() == enabled {
             return Ok(());
         }
-
-        let resources = if enabled {
-            // Construct + enable on the main thread. Per Ableton's documentation
-            // (`Link.hpp`: "Realtime-safe: no" on `enable()`), construction and
-            // enable cannot run on the audio thread without risking glitches.
-            // Initialise at the user's last known tempo so toggling Link doesn't
-            // reset the session BPM.
-            let bpm = self.state.transport_meter.read_bpm();
-            let link = rusty_link::AblLink::new(bpm);
-            link.enable(true);
-            link.enable_start_stop_sync(true);
-            Some(Box::new(crate::link::LinkResources {
-                link,
-                host_time_filter: rusty_link::HostTimeFilter::new(),
-                session_state: rusty_link::SessionState::new(),
-            }))
-        } else {
-            None
-        };
-
         self.state.send_command(GraphCommand::SetLink(resources))?;
 
         // Update the meter immediately so the UI flips state without waiting
@@ -1574,20 +1230,16 @@ impl Synthesizer {
     // Audio Device Management
     // =========================================================================
 
-    /// Re-enumerate audio devices. The devices this synthesizer has open stay
-    /// listed even where ALSA cannot report them while open. JACK is
+    /// Re-enumerate audio devices. The devices this synthesizer's running
+    /// streams have open stay listed even where ALSA cannot report them while
+    /// open; a device whose stream ended is listed only if it still is. JACK is
     /// re-read only with `rescan_jack`, and never while a JACK stream runs,
     /// whose clients a rescan would collide with.
     #[napi]
     pub fn refresh_device_cache(&mut self, rescan_jack: Option<bool>) {
-        let keep: Vec<&str> = [
-            self.output_device_id.as_deref(),
-            self.input_device_id.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect();
-        let rescan_jack = rescan_jack.unwrap_or(false) && self.host_id != audio::JACK_HOST_ID;
+        let keep: Vec<&str> = self.streams.open_device_ids().collect();
+        let rescan_jack =
+            rescan_jack.unwrap_or(false) && self.streams.host_id != audio::JACK_HOST_ID;
         self.device_cache.refresh(&keep, rescan_jack);
     }
 
@@ -1612,263 +1264,127 @@ impl Synthesizer {
     /// Get the current audio state (host, devices, sample rate, etc.)
     #[napi]
     pub fn get_current_audio_state(&self) -> CurrentAudioState {
-        let output_device_name = self
-            .output_device_id
-            .as_ref()
-            .and_then(|id| self.device_cache.find_output_device(id))
-            .map(|d| d.name.clone());
-
-        let input_device_name = self
+        let streams = &self.streams;
+        let output_device_name = self.device_cache.output_name(&streams.output_device_id);
+        let input_device_name = streams
             .input_device_id
-            .as_ref()
-            .and_then(|id| self.device_cache.find_input_device(id))
-            .map(|d| d.name.clone());
+            .as_deref()
+            .and_then(|id| self.device_cache.input_name(id));
 
         CurrentAudioState {
-            host_id: self.host_id.clone(),
-            output_device_id: self.output_device_id.clone(),
+            host_id: streams.host_id.clone(),
+            output_device_id: streams.output_device_id.clone(),
+            chosen_output_device_id: self.output_choice.device_id(&streams.output_device_id),
+            chosen_sample_rate: self.chosen_sample_rate,
+            chosen_buffer_size: self.chosen_buffer_size,
+            chosen_input_device_id: self.chosen_input_device_id.clone(),
             output_device_name,
-            input_device_id: self.input_device_id.clone(),
+            input_device_id: streams.input_device_id.clone(),
             input_device_name,
-            sample_rate: self.sample_rate as u32,
-            buffer_size: self.buffer_size,
-            output_channels: self.channels,
-            input_channels: self.input_channels,
+            sample_rate: streams.sample_rate,
+            buffer_size: streams.buffer_size,
+            output_channels: streams.channels,
+            input_channels: streams.input_channels,
             fallback_warning: self.fallback_warning.clone(),
         }
     }
 
     /// Recreate both input and output streams with new device/config
-    /// This is the primary way to change audio devices after initialization
+    /// This is the primary way to change audio devices after initialization.
+    /// An `output_device_id` of `None` opens the system default output of
+    /// `host_id` (the current host when `None`) and keeps following it (see
+    /// `poll_devices`). The engine carries on when the sample rate
+    /// and buffer size stay the same; otherwise a new engine starts stopped
+    /// and empty.
     #[napi]
     pub fn recreate_streams(
         &mut self,
-        output_device_id: String,
+        output_device_id: Option<String>,
         sample_rate: u32,
         buffer_size: Option<u32>,
         input_device_id: Option<String>,
-    ) -> Result<()> {
-        // Find the host for the output device
-        let output_device_info = self
-            .device_cache
-            .find_output_device(&output_device_id)
-            .ok_or_else(|| {
-                napi::Error::from_reason(format!(
-                    "Output device '{}' not found in cache. Try refreshing the device cache.",
-                    output_device_id
-                ))
-            })?;
-
-        let host_id = output_device_info.host_id.clone();
-        let host = parse_host_id(&host_id)
-            .and_then(|id| cpal::host_from_id(id).ok())
-            .ok_or_else(|| napi::Error::from_reason(format!("Failed to get host '{}'", host_id)))?;
-
-        // Find output device
-        let output_device =
-            find_output_device_in_host(&host, &output_device_id).ok_or_else(|| {
-                napi::Error::from_reason(format!(
-                    "Output device '{}' not found in host '{}'",
-                    output_device_id, host_id
-                ))
-            })?;
-
-        // Validate sample rate is supported
-        if !output_device_info
-            .supported_sample_rates
-            .contains(&sample_rate)
-        {
-            return Err(napi::Error::from_reason(format!(
-                "Sample rate {}Hz not supported by output device",
-                sample_rate
-            )));
-        }
-
-        // Get output config
-        let output_config = output_device
-            .default_output_config()
-            .map_err(|e| napi::Error::from_reason(format!("Failed to get output config: {}", e)))?;
-
-        // Prepare input device info if requested
-        let input_setup = if let Some(ref input_id) = input_device_id {
-            if input_id == "none" || input_id.is_empty() {
-                None
-            } else {
-                // Validate input device exists
-                let input_device_info =
-                    self.device_cache
-                        .find_input_device(input_id)
-                        .ok_or_else(|| {
-                            napi::Error::from_reason(format!(
-                                "Input device '{}' not found in cache",
-                                input_id
-                            ))
-                        })?;
-
-                // Validate same host
-                if input_device_info.host_id != host_id {
-                    return Err(napi::Error::from_reason(format!(
-                        "Input device '{}' is on host '{}' but output device is on host '{}'. Both must be on the same host.",
-                        input_id, input_device_info.host_id, host_id
-                    )));
-                }
-
-                // Validate sample rate
-                if !input_device_info
-                    .supported_sample_rates
-                    .contains(&sample_rate)
-                {
-                    return Err(napi::Error::from_reason(format!(
-                        "Sample rate {}Hz not supported by input device",
-                        sample_rate
-                    )));
-                }
-
-                let input_device = find_input_device_in_host(&host, input_id).ok_or_else(|| {
+        host_id: Option<String>,
+    ) -> Result<StreamsChange> {
+        let input_device_id = chosen_input(input_device_id);
+        let listed = output_device_id
+            .clone()
+            .filter(|id| self.device_cache.find_output_device(id).is_some());
+        let target = match listed {
+            Some(id) => id,
+            None => {
+                let host_id = host_id.unwrap_or_else(|| self.streams.host_id.clone());
+                self.default_output_id(&host_id).ok_or_else(|| {
                     napi::Error::from_reason(format!(
-                        "Input device '{}' not found in host",
-                        input_id
+                        "Host '{}' has no default output device",
+                        host_id
                     ))
-                })?;
-
-                let input_config = input_device.default_input_config().map_err(|e| {
-                    napi::Error::from_reason(format!("Failed to get input config: {}", e))
-                })?;
-
-                Some((input_device, input_config, input_id.clone()))
+                })?
+            }
+        };
+        // A chosen output that is not connected keeps these settings for when
+        // it is; until then the system default plays at them where it allows.
+        let fit = if output_device_id.is_some() && output_device_id.as_ref() != Some(&target) {
+            Fit::Closest {
+                sample_rate,
+                fallback: (sample_rate, buffer_size),
             }
         } else {
-            None
+            Fit::Exact { sample_rate }
         };
-
-        // Set up streams using shared helper (reuse existing midi_manager)
-        let setup_result = setup_streams(StreamSetupParams {
-            output_device: &output_device,
-            output_config: &output_config,
-            sample_rate,
+        let change = self.open(OpenRequest {
+            output: OutputTarget::Listed(target),
             buffer_size,
-            input: input_setup
-                .as_ref()
-                .map(|(d, c, id)| (d, c.clone(), id.clone())),
-            midi_manager: self.midi_manager.clone(),
+            input_device_id: input_device_id.clone(),
+            fit,
         })?;
-
-        // Update self with new streams and state
-        self._output_stream = setup_result.output_stream;
-        self._input_stream = setup_result.input_stream;
-        self.state = setup_result.state;
-        // The fresh AudioState starts with a zero profiling refcount, so reset
-        // the process-global profiling flag to match. Otherwise switching audio
-        // devices while profiling is enabled leaves the global stuck on with no
-        // refcount able to clear it; the UI panel re-enables on its next open.
-        modular_core::profiling::set_enabled(false);
-        self.sample_rate = setup_result.sample_rate;
-        self.buffer_size = buffer_size;
-        self.channels = setup_result.channels;
-        self.input_channels = setup_result.input_channels;
-        self.host_id = host_id.clone();
-        self.output_device_id = Some(output_device_id.clone());
-        self.input_device_id = setup_result.input_device_id;
-        self.fallback_warning = None; // Clear any previous fallback warning
-
-        println!(
-            "Audio streams recreated: output={} input={:?} {}Hz {}ch host={}",
-            output_device_id, self.input_device_id, sample_rate, setup_result.channels, host_id
-        );
-
-        Ok(())
+        self.output_choice = OutputChoice::opened(output_device_id, &self.streams.output_device_id);
+        if let OutputChoice::Missing(missing) = &self.output_choice {
+            self.fallback_warning = Some(missing_output_warning(&missing.id));
+        }
+        self.chosen_sample_rate = sample_rate;
+        self.chosen_buffer_size = buffer_size;
+        self.chosen_input_device_id = input_device_id;
+        Ok(change)
     }
 
-    // Legacy API compatibility methods (now use cache)
-
-    /// Force refresh the device cache (legacy - same as refresh_device_cache)
-    #[napi]
-    pub fn refresh_device_list(&mut self) {
-        self.refresh_device_cache(Some(true));
-    }
-
-    /// List all available audio hosts (from cache)
-    #[napi]
-    pub fn list_audio_hosts(&self) -> Vec<HostInfo> {
-        self.device_cache.hosts.clone()
-    }
-
-    /// List all available audio output devices (from cache)
-    #[napi]
-    pub fn list_audio_output_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.device_cache.all_output_devices()
-    }
-
-    /// List all available audio input devices (from cache)
-    #[napi]
-    pub fn list_audio_input_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.device_cache.all_input_devices()
-    }
-
-    /// Get the current output device ID
-    #[napi]
-    pub fn get_output_device_id(&self) -> Option<String> {
-        self.output_device_id.clone()
-    }
-
-    /// Get the current input device ID
-    #[napi]
-    pub fn get_input_device_id(&self) -> Option<String> {
-        self.input_device_id.clone()
+    /// The id of `host_id`'s system default output, with the device cache
+    /// refreshed first when it does not list that device yet.
+    fn default_output_id(&mut self, host_id: &str) -> Option<String> {
+        let id = system_default_output_id(&host_for_id(host_id)?)?;
+        if self.device_cache.find_output_device(&id).is_none() {
+            self.refresh_device_cache(None);
+        }
+        Some(id)
     }
 
     /// Restart the audio streams using the current device/sample-rate/buffer-size
-    /// settings. `recreate_streams` replaces `self.state` with a fresh
-    /// `AudioState`, so the new stream's callback captures a fresh
-    /// `audio_thread_panicked` flag (initially false). The old (poisoned) flag
-    /// stays set on the old `AudioState` so the old callback continues to emit
-    /// silence until cpal drops the old stream. Call this after
-    /// `is_audio_thread_panicked()` returns true to recover.
+    /// settings. A panicked engine never moves to new streams, so this builds
+    /// a fresh `AudioState` whose `audio_thread_panicked` flag starts false.
+    /// Call this after `is_audio_thread_panicked()` returns true to recover.
     #[napi]
     pub fn restart_audio(&mut self) -> Result<()> {
-        let output_device_id = self
-            .output_device_id
-            .clone()
-            .ok_or_else(|| napi::Error::from_reason("No output device configured"))?;
-        self.recreate_streams(
-            output_device_id,
-            self.sample_rate as u32,
-            self.buffer_size,
-            self.input_device_id.clone(),
-        )
+        let streams = &self.streams;
+        let request = OpenRequest {
+            output: OutputTarget::Listed(streams.output_device_id.clone()),
+            buffer_size: streams.buffer_size,
+            input_device_id: streams.input_device_id.clone(),
+            fit: Fit::Exact {
+                sample_rate: streams.sample_rate,
+            },
+        };
+        self.open(request).map(|_| ())
     }
 
-    /// Set the audio output device (legacy - use recreate_streams instead)
-    /// This uses device default sample rate and buffer size
+    /// Keep the streams on devices that can play: while following the system
+    /// default, move to the device the system now makes its default; move to
+    /// a chosen output once it is connected; and when the output's or input's
+    /// stream has stopped (its device unplugged or reset), reopen it once the
+    /// device is back. The engine keeps playing wherever the device runs at
+    /// its sample rate and buffer size. Returns what changed, or `None` when
+    /// nothing did. Cheap enough to poll every second.
     #[napi]
-    pub fn set_audio_output_device(&mut self, device_id: String) -> Result<()> {
-        // Get device info to find its default sample rate
-        let device_info = self
-            .device_cache
-            .find_output_device(&device_id)
-            .ok_or_else(|| {
-                napi::Error::from_reason(format!("Output device '{}' not found", device_id))
-            })?;
-
-        let sample_rate = device_info.sample_rate;
-
-        self.recreate_streams(device_id, sample_rate, None, self.input_device_id.clone())
-    }
-
-    /// Set the audio input device (legacy - use recreate_streams instead)
-    #[napi]
-    pub fn set_audio_input_device(&mut self, device_id: Option<String>) -> Result<()> {
-        let output_device_id = self
-            .output_device_id
-            .clone()
-            .ok_or_else(|| napi::Error::from_reason("No output device configured"))?;
-
-        self.recreate_streams(
-            output_device_id,
-            self.sample_rate as u32,
-            self.buffer_size,
-            device_id,
-        )
+    pub fn poll_devices(&mut self) -> Option<DeviceReport> {
+        device_poll::poll(self)
     }
 
     // =========================================================================
@@ -2003,20 +1519,6 @@ pub fn derive_lane_count(module_type: String, params: serde_json::Value) -> Deri
 // ============================================================================
 // Tests
 // ============================================================================
-
-#[cfg(test)]
-mod block_size_tests {
-    use super::block_size_for;
-
-    #[test]
-    fn block_size_follows_the_device_buffer_within_bounds() {
-        assert_eq!(block_size_for(Some(128)), 128);
-        assert_eq!(block_size_for(Some(512)), 512);
-        assert_eq!(block_size_for(Some(32)), 64);
-        assert_eq!(block_size_for(Some(4096)), 1024);
-        assert_eq!(block_size_for(None), 256);
-    }
-}
 
 #[cfg(test)]
 mod detect_wavetable_tests {
@@ -2486,7 +1988,7 @@ mod wav_cache_tests {
         std::os::unix::fs::symlink(outside.join("wavs"), workspace.join("linked")).expect("link");
         let cache = WavCache::new(workspace.clone());
 
-        let resolved = cache.workspace_file("/wavs/kick.wav");
+        let resolved = cache.asset_file("/wavs/kick.wav");
         let escapes: Vec<_> = [
             "wavs/kick.wav",
             "/",
@@ -2497,7 +1999,7 @@ mod wav_cache_tests {
             "/linked/secret.wav",
         ]
         .into_iter()
-        .filter(|bad| cache.workspace_file(bad).is_ok())
+        .filter(|bad| cache.asset_file(bad).is_ok())
         .collect();
         let _ = std::fs::remove_dir_all(&workspace);
         let _ = std::fs::remove_dir_all(&outside);
@@ -2510,9 +2012,75 @@ mod wav_cache_tests {
     }
 
     #[test]
+    fn builtin_paths_resolve_from_the_builtin_folder_and_stay_inside_it() {
+        let builtin = temp_workspace("builtin");
+        let outside = temp_workspace("builtin_outside");
+        std::fs::File::create(builtin.join("wavs").join("table.wav")).expect("write wav");
+        std::fs::File::create(outside.join("wavs").join("secret.wav")).expect("write wav");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(outside.join("wavs"), builtin.join("linked")).expect("link");
+        let mut cache = WavCache::new(std::path::PathBuf::new());
+        cache.set_builtin_path(builtin.clone());
+
+        let resolved = cache.asset_file("builtin/wavs/table.wav");
+        let escapes: Vec<_> = [
+            "builtin/",
+            "builtin//wavs/table.wav",
+            "builtin/../wavs/table.wav",
+            "builtin/./wavs/table.wav",
+            "builtin/linked/secret.wav",
+        ]
+        .into_iter()
+        .filter(|bad| cache.asset_file(bad).is_ok())
+        .collect();
+        let _ = std::fs::remove_dir_all(&builtin);
+        let _ = std::fs::remove_dir_all(&outside);
+
+        assert!(
+            resolved
+                .expect("builtin path without a workspace")
+                .ends_with("wavs/table.wav"),
+            "a builtin path resolves inside the builtin folder"
+        );
+        assert!(escapes.is_empty(), "accepted {escapes:?}");
+    }
+
+    #[test]
+    fn bundled_wavetables_load_as_whole_frames_of_2048() {
+        let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/builtin");
+        let tables = assets.join("tables/mi");
+        let mut cache = WavCache::new(std::path::PathBuf::new());
+        cache.set_builtin_path(assets);
+        let mut names: Vec<_> = std::fs::read_dir(&tables)
+            .expect("bundled tables")
+            .filter_map(|e| e.ok()?.file_name().into_string().ok())
+            .filter(|name| name.ends_with(".wav"))
+            .collect();
+        names.sort();
+        assert_eq!(names.len(), 25, "{names:?}");
+        for name in names {
+            let path = format!("builtin/tables/mi/{name}");
+            let info = cache
+                .load(&path)
+                .unwrap_or_else(|e| panic!("{path}: {}", e.reason));
+            assert_eq!(info.channels, 1, "{path}");
+            assert!(
+                [8 * 2048, 16 * 2048].contains(&info.frame_count),
+                "{path}: {} samples",
+                info.frame_count
+            );
+            assert_eq!(
+                cache.entries[&path].data.detected_frame_size,
+                Some(2048),
+                "{path}"
+            );
+        }
+    }
+
+    #[test]
     fn without_a_workspace_no_path_resolves() {
         let cache = WavCache::new(std::path::PathBuf::new());
-        let error = cache.workspace_file("/kick.wav").expect_err("no workspace");
+        let error = cache.asset_file("/kick.wav").expect_err("no workspace");
         assert!(
             error.reason.contains("open a workspace folder"),
             "{}",

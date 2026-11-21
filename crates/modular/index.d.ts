@@ -77,6 +77,11 @@ export declare class Synthesizer {
   loadMediaAudio(path: string): WavLoadInfo | null
   /** Set the workspace root directory for WAV file loading. */
   setWavWorkspace(workspacePath: string): void
+  /**
+   * Set the folder holding the assets bundled with the app, which
+   * `builtin/...` paths name.
+   */
+  setBuiltinAssets(builtinPath: string): void
   /** Get the list of currently cached WAV file paths. */
   getWavCacheSnapshot(): Array<string>
   /**
@@ -102,8 +107,9 @@ export declare class Synthesizer {
   getTransportState(): TransportSnapshot
   enableLink(enabled: boolean): void
   /**
-   * Re-enumerate audio devices. The devices this synthesizer has open stay
-   * listed even where ALSA cannot report them while open. JACK is
+   * Re-enumerate audio devices. The devices this synthesizer's running
+   * streams have open stay listed even where ALSA cannot report them while
+   * open; a device whose stream ended is listed only if it still is. JACK is
    * re-read only with `rescan_jack`, and never while a JACK stream runs,
    * whose clients a rescan would collide with.
    */
@@ -114,38 +120,31 @@ export declare class Synthesizer {
   getCurrentAudioState(): CurrentAudioState
   /**
    * Recreate both input and output streams with new device/config
-   * This is the primary way to change audio devices after initialization
+   * This is the primary way to change audio devices after initialization.
+   * An `output_device_id` of `None` opens the system default output of
+   * `host_id` (the current host when `None`) and keeps following it (see
+   * `poll_devices`). The engine carries on when the sample rate
+   * and buffer size stay the same; otherwise a new engine starts stopped
+   * and empty.
    */
-  recreateStreams(outputDeviceId: string, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null): void
-  /** Force refresh the device cache (legacy - same as refresh_device_cache) */
-  refreshDeviceList(): void
-  /** List all available audio hosts (from cache) */
-  listAudioHosts(): Array<HostInfo>
-  /** List all available audio output devices (from cache) */
-  listAudioOutputDevices(): Array<AudioDeviceInfo>
-  /** List all available audio input devices (from cache) */
-  listAudioInputDevices(): Array<AudioDeviceInfo>
-  /** Get the current output device ID */
-  getOutputDeviceId(): string | null
-  /** Get the current input device ID */
-  getInputDeviceId(): string | null
+  recreateStreams(outputDeviceId: string | undefined | null, sampleRate: number, bufferSize?: number | undefined | null, inputDeviceId?: string | undefined | null, hostId?: string | undefined | null): StreamsChange
   /**
    * Restart the audio streams using the current device/sample-rate/buffer-size
-   * settings. `recreate_streams` replaces `self.state` with a fresh
-   * `AudioState`, so the new stream's callback captures a fresh
-   * `audio_thread_panicked` flag (initially false). The old (poisoned) flag
-   * stays set on the old `AudioState` so the old callback continues to emit
-   * silence until cpal drops the old stream. Call this after
-   * `is_audio_thread_panicked()` returns true to recover.
+   * settings. A panicked engine never moves to new streams, so this builds
+   * a fresh `AudioState` whose `audio_thread_panicked` flag starts false.
+   * Call this after `is_audio_thread_panicked()` returns true to recover.
    */
   restartAudio(): void
   /**
-   * Set the audio output device (legacy - use recreate_streams instead)
-   * This uses device default sample rate and buffer size
+   * Keep the streams on devices that can play: while following the system
+   * default, move to the device the system now makes its default; move to
+   * a chosen output once it is connected; and when the output's or input's
+   * stream has stopped (its device unplugged or reset), reopen it once the
+   * device is back. The engine keeps playing wherever the device runs at
+   * its sample rate and buffer size. Returns what changed, or `None` when
+   * nothing did. Cheap enough to poll every second.
    */
-  setAudioOutputDevice(deviceId: string): void
-  /** Set the audio input device (legacy - use recreate_streams instead) */
-  setAudioInputDevice(deviceId?: string | undefined | null): void
+  pollDevices(): DeviceReport | null
   /** List all available MIDI input ports */
   listMidiInputs(): Array<MidiInputInfo>
   /** Get the currently connected MIDI input port name (first port for backward compatibility) */
@@ -190,6 +189,7 @@ export interface AudioBudgetSnapshot {
 /** Audio configuration for synthesizer initialization */
 export interface AudioConfigOptions {
   hostId?: string
+  /** `None` follows the host's system default output. */
   outputDeviceId?: string
   inputDeviceId?: string
   sampleRate?: number
@@ -237,7 +237,20 @@ export declare function cpuSupportsBuild(): boolean
 /** Current audio state information */
 export interface CurrentAudioState {
   hostId: string
-  outputDeviceId?: string
+  /** The device the output stream is open on. */
+  outputDeviceId: string
+  /**
+   * The output the user chose: `None` for System Default. It differs
+   * from `output_device_id` while the chosen device is not connected.
+   */
+  chosenOutputDeviceId?: string
+  /**
+   * The settings the user chose, which the saved config holds. The
+   * streams run at them wherever the output device allows.
+   */
+  chosenSampleRate: number
+  chosenBufferSize?: number
+  chosenInputDeviceId?: string
   outputDeviceName?: string
   inputDeviceId?: string
   inputDeviceName?: string
@@ -271,6 +284,79 @@ export interface DeriveLaneCountResult {
 export interface DeviceCacheSnapshot {
   /** All hosts with their devices grouped together */
   hosts: Array<HostDeviceInfo>
+}
+
+/** What happened to the audio devices. */
+export type DeviceEvent = /** The output moved to a new system default device. */
+'Moved'|
+/**
+ * The chosen output was not connected and now is| and the streams
+ * moved to it.
+ */
+'Connected'|
+/**
+ * The output's stream stopped and its device is not back yet. The
+ * engine waits frozen until it returns.
+ */
+'Disconnected'|
+/** The output's device is back and its streams reopened. */
+'Reconnected'|
+/**
+ * The output's device changed its sample rate and the streams reopened
+ * at the new rate.
+ */
+'RateChanged'|
+/**
+ * The input's stream stopped and the streams reopened on the same
+ * output.
+ */
+'InputReopened';
+
+/** What a device poll changed. */
+export interface DeviceReport {
+  event: DeviceEvent
+  /** The output device, when Shoreline lists it. */
+  outputDeviceName?: string
+  /** The input the streams opened with. */
+  inputDeviceName?: string
+  /**
+   * The input whose stream stopped and whose device is gone, which leaves
+   * the input off.
+   */
+  disconnectedInputDeviceName?: string
+  /**
+   * The chosen input could not open at the sample rate the output runs
+   * at, which leaves the input off.
+   */
+  unopenedInputDeviceName?: string
+  previousSampleRate: number
+  /**
+   * Differs from `previous_sample_rate` when the output cannot run at that
+   * rate, or changed its own.
+   */
+  sampleRate: number
+  /** The buffer size in frames; `None` is the host's default. */
+  previousBufferSize?: number
+  /**
+   * Differs from `previous_buffer_size` only when the output cannot use
+   * that buffer size.
+   */
+  bufferSize?: number
+  /**
+   * A fresh engine replaced the one holding the patch, which stops
+   * playback.
+   */
+  engineReset: boolean
+  /** The file of the recording the engine reset ended. */
+  recordingPath?: string
+  /** Why the streams could not open on the device. */
+  error?: string
+  /**
+   * The streams could not open on the new default and the device they
+   * play on is gone, so nothing can be heard until the output changes
+   * again.
+   */
+  outputLost: boolean
 }
 
 /**
@@ -351,6 +437,14 @@ export interface RecordingResult {
   path: string
   /** Samples lost to a full ring buffer (as f64: exact up to 2^53). */
   droppedSamples: number
+}
+
+/** What replacing the streams did to the engine. */
+export interface StreamsChange {
+  /** A fresh engine, stopped and empty, replaced the one holding the patch. */
+  engineReset: boolean
+  /** The file of a recording that ended with the old engine. */
+  recordingPath?: string
 }
 
 export interface TransportSnapshot {
