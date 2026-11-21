@@ -19,7 +19,7 @@ const OUTPUT_GAIN: f32 = -0.8 * 5.0;
 /// Plaits' string machine registrations (`string_machine_engine.cc`), from
 /// saw to square: the amplitudes of three saw partials and three square
 /// partials, interleaved.
-const REGISTRATIONS: [[f32; 6]; 11] = [
+pub const REGISTRATIONS: [[f32; 6]; 11] = [
     [1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
     [0.5, 0.0, 0.5, 0.0, 0.0, 0.0],
     [0.4, 0.0, 0.2, 0.0, 0.4, 0.0],
@@ -72,8 +72,8 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' divide-down oscillator: four \
                   saws an octave apart from one phase, mixed into saw, \
                   square and organ registrations like a string machine's \
-                  footages. Through a low-pass and `$mi.chorus` it makes \
-                  Plaits' string machine.",
+                  footages. `$mi.stringMachine` plays chords on it through \
+                  a low-pass and `$mi.chorus`.",
     categories: &[ModuleCategory::Oscillator],
     sections: &[],
     examples: &[

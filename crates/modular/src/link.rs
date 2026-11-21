@@ -69,6 +69,15 @@ impl LinkState {
         }
     }
 
+    /// Restart host-time tracking, which a gap in the sample count (a new
+    /// output stream) would otherwise skew. Allocates, so main thread only.
+    pub fn reset_timing(&mut self) {
+        if let Some(res) = self.resources.as_deref_mut() {
+            res.host_time_filter.reset();
+        }
+        self.sample_count = 0;
+    }
+
     /// Whether Link is currently active (resources installed).
     #[inline]
     pub fn is_active(&self) -> bool {

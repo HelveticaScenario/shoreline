@@ -6,6 +6,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             control::Ramp,
             dsp::soft_clip,
             filter::{Svf, tan_fast},
@@ -71,12 +72,28 @@ struct VcfParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `_blend` from `lowpass` into `highpass`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct VcfOutputs {
-    #[output("lowpass", "the filtered voice", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "blend",
+        "`lowpass` crossfaded into `highpass` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output("lowpass", "the filtered voice", type = cv, range = (-5.0, 5.0))]
     lowpass: PolyOutput,
     #[output(
         "highpass",
@@ -156,6 +173,7 @@ struct Controls {
 
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
+    blend: Blend,
     oscillator: VariableShapeOscillator,
     sub: VariableShapeOscillator,
     svf: [Svf; 2],
@@ -176,6 +194,7 @@ struct Voice {
 impl Default for Voice {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             oscillator: VariableShapeOscillator::default(),
             sub: VariableShapeOscillator::default(),
             svf: [Svf::default(); 2],
@@ -300,7 +319,7 @@ impl Vcf {
         self.state = VcfState::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         for (lane, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -328,8 +347,17 @@ impl Vcf {
             };
             let controls = voice.control(f0, note, knobs, &self.state);
             let (lp, hp) = voice.step(controls, &self.state);
-            self.outputs.lowpass.set(lane, OUTPUT_GAIN * lp);
-            self.outputs.highpass.set(lane, OUTPUT_GAIN * hp);
+            let main = OUTPUT_GAIN * lp;
+            let aux = OUTPUT_GAIN * hp;
+            self.outputs.lowpass.set(lane, main);
+            self.outputs.highpass.set(lane, aux);
+            let mix = (
+                p.mix.value_or(lane, VcfParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane),
+            );
+            self.outputs
+                .blend
+                .set(lane, voice.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

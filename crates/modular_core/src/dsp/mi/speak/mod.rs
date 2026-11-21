@@ -12,6 +12,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             limiter::{Limiter, LimiterRates},
             lpc::{CORRECTED_SAMPLE_RATE, SYNTHESIS_RATE},
             phase::limit_frequency,
@@ -129,12 +130,28 @@ struct SpeakParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `_blend` from `output` into `excitation`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SpeakOutputs {
-    #[output("output", "the voice; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
+    #[output(
+        "blend",
+        "`output` crossfaded into `excitation` by `mix`",
+        type = cv,
+        default,
+        range = (-10.0, 10.0),
+    )]
+    blend: PolyOutput,
+    #[output("output", "the voice; unaccented, within ±5 V", type = cv, range = (-10.0, 10.0))]
     sample: PolyOutput,
     #[output(
         "excitation",
@@ -190,6 +207,7 @@ fn select(volts: f32, count: usize) -> Option<usize> {
 /// One lane: Plaits' word-bank speech, then its limiter.
 #[derive(Clone, Copy)]
 pub struct Lane {
+    blend: Blend,
     speaker: Speaker,
     limiter: Limiter,
     trigger: SchmittTrigger,
@@ -214,6 +232,7 @@ impl crate::types::SeedSide for Lane {
 impl Default for Lane {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             speaker: Speaker::default(),
             limiter: Limiter::default(),
             trigger: SchmittTrigger::default(),
@@ -308,7 +327,7 @@ impl Speak {
         self.state = Rates::new(sample_rate);
     }
 
-    fn update(&mut self, _sample_rate: f32) {
+    fn update(&mut self, sample_rate: f32) {
         let lanes = self.lane_count();
         let p = &self.params;
         let rates = &self.state;
@@ -342,6 +361,14 @@ impl Speak {
             let out = lane.accent_state.apply(out, ACCENT_TRIM, rates.sample_rate);
             self.outputs.sample.set(lane_index, out);
             self.outputs.excitation.set(lane_index, excitation);
+            let mix = (
+                p.mix.value_or(lane_index, SpeakParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane_index),
+            );
+            self.outputs.blend.set(
+                lane_index,
+                lane.blend.step(out, excitation, mix, sample_rate),
+            );
         }
     }
 }

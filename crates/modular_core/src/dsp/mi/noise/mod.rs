@@ -8,6 +8,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         mi::core::{
+            blend::Blend,
             filter::{Svf, tan_accurate},
             limiter::{Limiter, LimiterRates},
             phase::limit_frequency,
@@ -80,16 +81,31 @@ struct MiNoiseParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "crossfades `_blend` from `filtered` into `bands`",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    mix: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct MiNoiseOutputs {
     #[output(
+        "blend",
+        "`filtered` crossfaded into `bands` by `mix`",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
+    blend: PolyOutput,
+    #[output(
         "filtered",
         "the noise through one filter that `mode` sweeps",
         type = cv,
-        default,
         range = (-5.0, 5.0)
     )]
     sample: PolyOutput,
@@ -170,6 +186,7 @@ struct Controls {
 
 #[derive(Clone, Copy)]
 struct Lane {
+    blend: Blend,
     noise: [ClockedNoise; 2],
     random: Random,
     /// Whether `random` has its per-instance seed. Transfers with the lane,
@@ -192,6 +209,7 @@ struct Lane {
 impl Default for Lane {
     fn default() -> Self {
         Self {
+            blend: Blend::default(),
             noise: [ClockedNoise::default(); 2],
             random: Random::new(0),
             seeded: false,
@@ -346,12 +364,17 @@ impl MiNoise {
             lane.control(f0, knobs, patched, &self.state);
             let (out, aux) = lane.step(sync, &self.state);
             // Plaits clips after its slow limiter.
+            let main = (OUTPUT_GAIN * out).clamp(-5.0, 5.0);
+            let aux = (OUTPUT_GAIN * aux).clamp(-5.0, 5.0);
+            self.outputs.sample.set(lane_index, main);
+            self.outputs.bands.set(lane_index, aux);
+            let mix = (
+                p.mix.value_or(lane_index, MiNoiseParams::MIX_DEFAULT),
+                p.mix.glide_mark(lane_index),
+            );
             self.outputs
-                .sample
-                .set(lane_index, (OUTPUT_GAIN * out).clamp(-5.0, 5.0));
-            self.outputs
-                .bands
-                .set(lane_index, (OUTPUT_GAIN * aux).clamp(-5.0, 5.0));
+                .blend
+                .set(lane_index, lane.blend.step(main, aux, mix, sample_rate));
         }
     }
 }

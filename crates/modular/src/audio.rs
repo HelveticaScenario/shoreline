@@ -28,12 +28,15 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU16;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use modular_core::module_state::{ModuleLiveState, ModuleStateMeta};
 use modular_core::patch::Patch;
+
+use crate::stream_health::StreamHealth;
 use modular_core::types::{ROOT_OUTPUT_PORT, ScopeBufferKey};
 use std::time::Instant;
 
@@ -274,16 +277,6 @@ impl AudioDeviceCache {
         }
     }
 
-    /// Get all output devices across all hosts
-    pub fn all_output_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.output_devices.values().flatten().cloned().collect()
-    }
-
-    /// Get all input devices across all hosts
-    pub fn all_input_devices(&self) -> Vec<AudioDeviceInfo> {
-        self.input_devices.values().flatten().cloned().collect()
-    }
-
     /// Find an output device by ID
     pub fn find_output_device(&self, device_id: &str) -> Option<&AudioDeviceInfo> {
         self.output_devices
@@ -317,6 +310,13 @@ impl AudioDeviceCache {
 /// `HostId` debug names of cpal's hosts, as used for host ids in the cache.
 pub(crate) const JACK_HOST_ID: &str = "Jack";
 const ALSA_HOST_ID: &str = "Alsa";
+
+/// Whether a host's default output can become another device while a stream
+/// is open on it. ALSA's default is a PCM the sound server routes, and JACK
+/// opens a client to answer, so neither is polled.
+pub(crate) fn host_default_output_can_change(host_id: &str) -> bool {
+    host_id != JACK_HOST_ID && host_id != ALSA_HOST_ID
+}
 
 /// Put `id`'s previous ALSA entry back into `devices` if the new listing lacks
 /// it. The restored entry is never the default; the new listing decides that.
@@ -366,7 +366,17 @@ pub struct DeviceCacheSnapshot {
 #[napi(object)]
 pub struct CurrentAudioState {
     pub host_id: String,
+    /// The device the output stream is open on, also while following the
+    /// system default.
     pub output_device_id: Option<String>,
+    /// The output the user chose: `None` for System Default. It differs
+    /// from `output_device_id` while the chosen device is not connected.
+    pub chosen_output_device_id: Option<String>,
+    /// The settings the user chose, which the saved config holds. The
+    /// streams run at them wherever the output device allows.
+    pub chosen_sample_rate: u32,
+    pub chosen_buffer_size: Option<u32>,
+    pub chosen_input_device_id: Option<String>,
     pub output_device_name: Option<String>,
     pub input_device_id: Option<String>,
     pub input_device_name: Option<String>,
@@ -1261,8 +1271,8 @@ pub struct AudioState {
     recording_session: Mutex<Option<RecordingSession>>,
     /// Sample rate
     sample_rate: f32,
-    /// Output channels
-    channels: u16,
+    /// Output channels of the stream playing the engine
+    channels: AtomicU16,
     /// Audio budget meter - written by audio thread, read by main thread
     audio_budget_meter: Arc<AudioBudgetMeter>,
     /// Live per-module editor state, written by the audio thread and read by the
@@ -1332,7 +1342,7 @@ impl AudioState {
             recording_feed: Arc::new(Mutex::new(None)),
             recording_session: Mutex::new(None),
             sample_rate,
-            channels,
+            channels: AtomicU16::new(channels),
             audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             module_state_meta: Mutex::new(ModuleStateMetaCache::default()),
@@ -1440,8 +1450,10 @@ impl AudioState {
     }
 
     pub fn take_audio_thread_budget_snapshot_and_reset(&self) -> AudioBudgetSnapshot {
-        self.audio_budget_meter
-            .take_snapshot(self.sample_rate as f64, self.channels as f64)
+        self.audio_budget_meter.take_snapshot(
+            self.sample_rate as f64,
+            self.channels.load(Ordering::Relaxed) as f64,
+        )
     }
 
     /// Stop transport. Flips the atomic immediately (stop is synchronous by
@@ -1470,18 +1482,39 @@ impl AudioState {
         self.transport_meter.snapshot()
     }
 
-    /// Get shared references for audio processor creation
+    /// The output channel count of the stream the engine plays on.
+    pub fn set_channels(&self, channels: u16) {
+        self.channels.store(channels, Ordering::Relaxed);
+    }
+
+    /// What a new output stream's callback needs to play `engine`, which
+    /// this state's queues and meters belong to.
+    pub fn stream_endpoints(
+        &self,
+        engine: EngineSlot,
+        input_reader: InputBufferReader,
+        health: Arc<StreamHealth>,
+    ) -> AudioThreadEndpoints {
+        AudioThreadEndpoints {
+            engine,
+            input_reader,
+            health,
+            recording_feed: self.recording_feed.clone(),
+            audio_budget_meter: self.audio_budget_meter.clone(),
+            panicked: self.audio_thread_panicked.clone(),
+        }
+    }
+
+    /// The engine's shared state that the main thread reads, beside the
+    /// per-stream endpoints of `stream_endpoints`.
     pub fn get_shared_state(&self) -> AudioSharedState {
         AudioSharedState {
             stopped: self.stopped.clone(),
             scope_collection: self.scope_collection.clone(),
             vu_collection: self.vu_collection.clone(),
-            recording_feed: self.recording_feed.clone(),
-            audio_budget_meter: self.audio_budget_meter.clone(),
             module_states: self.module_states.clone(),
             midi_manager: self.midi_manager.clone(),
             transport_meter: self.transport_meter.clone(),
-            audio_thread_panicked: self.audio_thread_panicked.clone(),
             module_profile_collection: self.module_profile_collection.clone(),
         }
     }
@@ -1958,20 +1991,12 @@ pub struct AudioSharedState {
     pub stopped: Arc<AtomicBool>,
     pub scope_collection: Arc<Mutex<HashMap<ScopeBufferKey, ScopeBuffer>>>,
     pub vu_collection: Arc<Mutex<Vec<VuMeterState>>>,
-    /// Audio-thread half of the active recording session: a lock-free ring the
-    /// callback pushes f32 samples into. Disk I/O stays on the session's
-    /// writer thread.
-    pub recording_feed: Arc<Mutex<Option<RecordingFeed>>>,
-    pub audio_budget_meter: Arc<AudioBudgetMeter>,
     /// Live per-module editor state - written by audio thread, read by main thread
     pub module_states: Arc<Mutex<ModuleStateMap>>,
     /// MIDI input manager for polling MIDI messages
     pub midi_manager: Arc<MidiInputManager>,
     /// Transport state meter - written by audio thread, read by main thread
     pub transport_meter: Arc<TransportMeter>,
-    /// Set by the audio callback after catching a panic. The callback then
-    /// writes silence forever; the stream must be torn down to recover.
-    pub audio_thread_panicked: Arc<AtomicBool>,
     /// Per-module profiler snapshot — audio thread flushes here via try_lock
     /// at the end of every callback.
     pub module_profile_collection: ModuleProfileCollection,
@@ -2072,6 +2097,11 @@ struct AudioProcessor {
     /// `retry_pending_profile_seed`) so the audio thread never blocks on the
     /// profiler mutex. Normally `None`.
     pending_profile_shared_seed: Option<HashMap<String, ModuleProfileAccum>>,
+    /// Profiler records for the playing patch, built on the main thread when
+    /// the engine moves to another stream. The profiler keeps its records per
+    /// audio thread, so the new stream's thread installs these on its first
+    /// callback.
+    pending_profile_records_seed: Option<HashMap<String, ModuleProfileAccum>>,
     /// Pre-allocated buffer the pending MIDI queue is swapped into each
     /// callback (see `MidiInputManager::take_messages_into`), sorted in place,
     /// dispatched, and cleared. `Message` is drop-free (its device name is
@@ -2117,6 +2147,7 @@ impl AudioProcessor {
             link: crate::link::LinkState::new(),
             module_profile_collection: shared.module_profile_collection,
             pending_profile_shared_seed: None,
+            pending_profile_records_seed: None,
             midi_scratch: Vec::with_capacity(crate::midi::MIDI_BUFFER_SIZE),
         }
     }
@@ -2140,6 +2171,23 @@ impl AudioProcessor {
             Err(seed) => {
                 self.pending_profile_shared_seed = Some(seed);
             }
+        }
+    }
+
+    /// Seed the profiler records for the playing patch, for the thread of the
+    /// next stream this processor plays on. Main thread only: it allocates.
+    fn seed_profile_records_for_new_thread(&mut self) {
+        self.pending_profile_records_seed = Some(modular_core::profiling::build_seed(
+            self.patch.sampleables.keys().cloned(),
+        ));
+    }
+
+    /// Install records seeded by `seed_profile_records_for_new_thread` on
+    /// this audio thread. No-op when nothing is pending.
+    fn install_pending_profile_records(&mut self) {
+        if let Some(seed) = self.pending_profile_records_seed.take() {
+            let old = modular_core::profiling::swap_records(seed);
+            self.drop_profile_map(old);
         }
     }
 
@@ -2696,61 +2744,119 @@ impl AudioProcessor {
     }
 }
 
-/// The audio callback's ends of the command, error and garbage queues, the
-/// state it shares with the main thread, and the input ring buffer.
+/// The part of the audio callback that plays the patch. It outlives any one
+/// output stream, so moving to another device at the same sample rate and
+/// buffer size keeps the patch, its state and anything recording it.
+pub struct Engine {
+    processor: AudioProcessor,
+    final_state: FinalStateProcessor,
+}
+
+impl Engine {
+    pub fn new(
+        command_rx: CommandConsumer,
+        error_tx: ErrorProducer,
+        garbage_tx: GarbageProducer,
+        shared: AudioSharedState,
+        sample_rate: f32,
+        block_size: usize,
+    ) -> Self {
+        Self {
+            processor: AudioProcessor::new(
+                command_rx,
+                error_tx,
+                garbage_tx,
+                shared,
+                sample_rate,
+                block_size,
+            ),
+            final_state: FinalStateProcessor::new(sample_rate),
+        }
+    }
+
+    /// Ready the engine for a new output stream, whose first sample follows
+    /// the last one the old stream played after a gap. Main thread only: it
+    /// allocates.
+    pub fn resume_on_new_stream(&mut self) {
+        self.processor.link.reset_timing();
+        self.processor.seed_profile_records_for_new_thread();
+        self.final_state.resume_gain = 0.0;
+    }
+}
+
+/// Where an output stream's callback finds its [`Engine`], and where the
+/// engine goes back when the stream is dropped.
+pub type EngineSlot = Arc<Mutex<Option<Box<Engine>>>>;
+
+/// The callback's hold on its [`Engine`]. The callback takes the engine from
+/// the slot without blocking, so a stream can start before its engine is
+/// handed over and plays silence until then.
+struct EngineLease {
+    engine: Option<Box<Engine>>,
+    slot: EngineSlot,
+}
+
+impl EngineLease {
+    fn engine(&mut self) -> Option<&mut Engine> {
+        if self.engine.is_none()
+            && let Some(mut slot) = self.slot.try_lock()
+        {
+            self.engine = slot.take();
+        }
+        self.engine.as_deref_mut()
+    }
+}
+
+impl Drop for EngineLease {
+    fn drop(&mut self) {
+        if let Some(engine) = self.engine.take() {
+            *self.slot.lock() = Some(engine);
+        }
+    }
+}
+
+/// What an output stream's callback shares with the main thread besides its
+/// engine: the input ring buffer it reads, the recording feed it writes, its
+/// load meter and its panic flag.
 pub struct AudioThreadEndpoints {
-    pub command_rx: CommandConsumer,
-    pub error_tx: ErrorProducer,
-    pub garbage_tx: GarbageProducer,
-    pub shared: AudioSharedState,
+    pub engine: EngineSlot,
     pub input_reader: InputBufferReader,
+    pub recording_feed: Arc<Mutex<Option<RecordingFeed>>>,
+    pub audio_budget_meter: Arc<AudioBudgetMeter>,
+    pub panicked: Arc<AtomicBool>,
+    pub health: Arc<StreamHealth>,
 }
 
 pub fn make_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     endpoints: AudioThreadEndpoints,
-    block_size: usize,
 ) -> Result<cpal::Stream>
 where
     T: SizedSample + FromSample<f32>,
 {
     let AudioThreadEndpoints {
-        command_rx,
-        error_tx,
-        garbage_tx,
-        shared,
+        engine,
         mut input_reader,
+        recording_feed,
+        audio_budget_meter,
+        panicked: panicked_flag,
+        health,
     } = endpoints;
     let num_channels = config.channels as usize;
+    let mut lease = EngineLease {
+        engine: None,
+        slot: engine,
+    };
 
-    let err_fn = |err| eprintln!("Error building output sound stream: {err}");
-
-    let time_at_start = std::time::Instant::now();
-    println!("Time at start: {time_at_start:?}");
-
-    // Clone shared state for the closure
-    let recording_feed = shared.recording_feed.clone();
-    let audio_budget_meter = shared.audio_budget_meter.clone();
-    let panicked_flag = shared.audio_thread_panicked.clone();
-
-    // Create the audio processor that owns the patch
-    let sample_rate = config.sample_rate as f32;
-    let mut audio_processor = AudioProcessor::new(
-        command_rx,
-        error_tx,
-        garbage_tx,
-        shared,
-        sample_rate,
-        block_size,
-    );
-
-    let mut final_state_processor = FinalStateProcessor::new(sample_rate);
+    let err_health = health.clone();
+    let err_fn = move |err| err_health.report(&err);
 
     let stream = device
         .build_output_stream(
-            config,
+            *config,
             move |output: &mut [T], _info: &cpal::OutputCallbackInfo| {
+                health.beat();
                 // If a previous callback panicked, never touch the captured state
                 // again — it may be in an inconsistent state. Emit silence until the
                 // stream is torn down and the Synthesizer recreated.
@@ -2760,6 +2866,16 @@ where
                     }
                     return;
                 }
+                let Some(Engine {
+                    processor: audio_processor,
+                    final_state: final_state_processor,
+                }) = lease.engine()
+                else {
+                    for s in output.iter_mut() {
+                        *s = T::from_sample(0.0);
+                    }
+                    return;
+                };
                 // Dev-only: mark this thread as the audio thread so the global
                 // allocation detector records (and attributes) any alloc/dealloc
                 // made below. Placed after the panicked-flag early return and
@@ -3001,14 +3117,17 @@ where
                                                 output[frame_start + ch] = T::from_sample(0.0f32);
                                             }
                                         } else {
+                                            let gain = final_state_processor.resume_gain;
                                             for ch in 0..num_channels {
                                                 let v = if ch < PORT_MAX_LANES {
                                                     samples[ch]
                                                 } else {
                                                     0.0
                                                 };
-                                                output[frame_start + ch] = T::from_sample(v);
+                                                output[frame_start + ch] = T::from_sample(v * gain);
                                             }
+                                            final_state_processor.resume_gain =
+                                                (gain + final_state_processor.resume_step).min(1.0);
                                         }
                                         // Recorded samples stay f32 — the WAV
                                         // header declares Float32 regardless of
@@ -3109,6 +3228,7 @@ where
                     // callback's per-module profile data into the cross-thread
                     // snapshot. Both are no-ops when nothing is pending / profiling
                     // is disabled (early-out inside the calls).
+                    audio_processor.install_pending_profile_records();
                     audio_processor.retry_pending_profile_seed();
                     modular_core::profiling::flush_into(&audio_processor.module_profile_collection);
 
@@ -3139,17 +3259,18 @@ pub fn make_input_stream<T>(
     device: &cpal::Device,
     config: &cpal::StreamConfig,
     mut input_writer: InputBufferWriter,
+    health: Arc<StreamHealth>,
 ) -> Result<cpal::Stream>
 where
     T: SizedSample + cpal::Sample,
     f32: FromSample<T>,
 {
-    let err_fn = |err| eprintln!("Error building input sound stream: {err}");
+    let err_fn = move |err| health.report(&err);
 
     let mut f32_buffer: Vec<f32> = Vec::new();
     let stream = device
         .build_input_stream(
-            config,
+            *config,
             move |data: &[T], _info: &cpal::InputCallbackInfo| {
                 // Convert to f32 and write to ring buffer (reuse allocation)
                 f32_buffer.clear();
@@ -3226,9 +3347,14 @@ const SWAP_DECLICK_TAU_SECONDS: f32 = 0.001;
 /// zero and stops ticking.
 const SWAP_DECLICK_EPSILON: f32 = 1e-5;
 
-/// Per-stream attenuation state for fade-in/fade-out on stop/start
-/// transitions, plus the patch-swap output declick. Lives in the cpal closure
-/// and gets ticked once per emitted sample by the per-sample drain loop.
+/// How long the output fades in on a new stream that picks up a running
+/// engine, where the device starts from silence.
+const RESUME_FADE_SECONDS: f32 = 0.005;
+
+/// Attenuation state for fade-in/fade-out on stop/start transitions, plus the
+/// patch-swap output declick. Part of the [`Engine`], so it carries over when
+/// the engine moves to another stream, and gets ticked once per emitted
+/// sample by the per-sample drain loop.
 struct FinalStateProcessor {
     attenuation_factor: f32,
     volume_change: VolumeChange,
@@ -3245,6 +3371,12 @@ struct FinalStateProcessor {
     declick_armed: [bool; PORT_MAX_LANES],
     /// Per-sample decay coefficient derived from `SWAP_DECLICK_TAU_SECONDS`.
     declick_decay: f32,
+    /// Gain on what the device plays, rising to 1 after the engine moves to
+    /// a new stream. The recording leaves it out: the engine renders no gap,
+    /// so neither does the file.
+    resume_gain: f32,
+    /// Per-sample rise of `resume_gain`.
+    resume_step: f32,
 }
 
 impl FinalStateProcessor {
@@ -3257,6 +3389,8 @@ impl FinalStateProcessor {
             declick_level: [0.0; PORT_MAX_LANES],
             declick_armed: [false; PORT_MAX_LANES],
             declick_decay: (-1.0f32 / (SWAP_DECLICK_TAU_SECONDS * sample_rate)).exp(),
+            resume_gain: 1.0,
+            resume_step: 1.0 / (RESUME_FADE_SECONDS * sample_rate),
         }
     }
 
@@ -3636,12 +3770,9 @@ mod tests {
             stopped: Arc::new(AtomicBool::new(true)),
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
-            recording_feed: Arc::new(Mutex::new(None)),
-            audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             midi_manager: Arc::new(MidiInputManager::new()),
             transport_meter: Arc::new(TransportMeter::default()),
-            audio_thread_panicked: Arc::new(AtomicBool::new(false)),
             module_profile_collection: modular_core::profiling::new_collection(),
         };
 
@@ -3900,12 +4031,9 @@ mod tests {
             stopped: Arc::new(AtomicBool::new(true)),
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
-            recording_feed: Arc::new(Mutex::new(None)),
-            audio_budget_meter: Arc::new(AudioBudgetMeter::default()),
             module_states: Arc::new(Mutex::new(HashMap::new())),
             midi_manager: Arc::new(MidiInputManager::new()),
             transport_meter: Arc::new(TransportMeter::default()),
-            audio_thread_panicked: Arc::new(AtomicBool::new(false)),
             module_profile_collection: modular_core::profiling::new_collection(),
         };
 
