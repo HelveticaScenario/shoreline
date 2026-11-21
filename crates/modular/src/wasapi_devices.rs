@@ -202,7 +202,7 @@ pub fn enumerate_devices(host_id: &str) -> (Vec<AudioDeviceInfo>, Vec<AudioDevic
             } else {
                 default_input.as_deref() == Some(endpoint_id.as_str())
             },
-            id: cpal::DeviceId(cpal::HostId::Wasapi, endpoint_id).to_string(),
+            id: cpal::DeviceId::new(cpal::HostId::Wasapi, endpoint_id).to_string(),
             host_id: host_id.to_string(),
             name,
             input_channels: if is_output { 0 } else { channels },

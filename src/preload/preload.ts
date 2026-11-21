@@ -18,7 +18,11 @@ import {
     SyphonToggleResult,
     UpdateAvailableInfo,
 } from '../shared/ipcTypes';
-import type { FileChange, QueuedTrigger } from '../shared/ipcTypes';
+import type {
+    OutputDeviceNotice,
+    FileChange,
+    QueuedTrigger,
+} from '../shared/ipcTypes';
 import type {
     VideoCvValue,
     VideoPull,
@@ -136,29 +140,9 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_RECREATE_STREAMS]
         >;
         onFallbackWarning: (callback: (warning: string) => void) => () => void;
-        // Legacy (kept for backward compatibility)
-        refreshDeviceList: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_REFRESH_DEVICE_LIST]
-        >;
-        listHosts: Promisify<IPCHandlers[typeof IPC_CHANNELS.AUDIO_LIST_HOSTS]>;
-        listOutputDevices: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_LIST_OUTPUT_DEVICES]
-        >;
-        listInputDevices: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_LIST_INPUT_DEVICES]
-        >;
-        getOutputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_OUTPUT_DEVICE]
-        >;
-        getInputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_INPUT_DEVICE]
-        >;
-        setOutputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_SET_OUTPUT_DEVICE]
-        >;
-        setInputDevice: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_SET_INPUT_DEVICE]
-        >;
+        onOutputNotice: (
+            callback: (notice: OutputDeviceNotice) => void,
+        ) => () => void;
         getInputChannels: Promisify<
             IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]
         >;
@@ -401,29 +385,7 @@ const electronAPI: ElectronAPI = {
             IPC_CHANNELS.AUDIO_FALLBACK_WARNING,
         ),
 
-        // Legacy (kept for backward compatibility)
-        refreshDeviceList: (...args) =>
-            invokeIPC('AUDIO_REFRESH_DEVICE_LIST', ...args),
-
-        listHosts: (...args) => invokeIPC('AUDIO_LIST_HOSTS', ...args),
-
-        listOutputDevices: (...args) =>
-            invokeIPC('AUDIO_LIST_OUTPUT_DEVICES', ...args),
-
-        listInputDevices: (...args) =>
-            invokeIPC('AUDIO_LIST_INPUT_DEVICES', ...args),
-
-        getOutputDevice: (...args) =>
-            invokeIPC('AUDIO_GET_OUTPUT_DEVICE', ...args),
-
-        getInputDevice: (...args) =>
-            invokeIPC('AUDIO_GET_INPUT_DEVICE', ...args),
-
-        setOutputDevice: (...args) =>
-            invokeIPC('AUDIO_SET_OUTPUT_DEVICE', ...args),
-
-        setInputDevice: (...args) =>
-            invokeIPC('AUDIO_SET_INPUT_DEVICE', ...args),
+        onOutputNotice: menuEventHandler(IPC_CHANNELS.AUDIO_OUTPUT_NOTICE),
 
         getInputChannels: (...args) =>
             invokeIPC('AUDIO_GET_INPUT_CHANNELS', ...args),

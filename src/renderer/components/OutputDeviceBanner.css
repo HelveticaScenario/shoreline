@@ -1,0 +1,38 @@
+.output-device-banner {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 36px;
+    box-sizing: border-box;
+    padding: 6px 16px;
+    background: var(--bg-tertiary, #161616);
+    border-bottom: 1px solid var(--border-default, #2a2a2a);
+    font-size: calc(var(--font-size, 18px) * 0.72);
+    color: var(--text-primary, #cccccc);
+}
+
+.output-device-banner--stopped {
+    border-bottom-color: var(--color-warning, #d4a855);
+}
+
+.output-device-banner__message {
+    flex: 1;
+    min-width: 0;
+}
+
+.output-device-banner__dismiss {
+    flex-shrink: 0;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: calc(var(--font-size, 18px) * 0.67);
+    font-family: var(--font-mono, monospace);
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-secondary, #888888);
+    border: 1px solid var(--border-default, #2a2a2a);
+}
+
+.output-device-banner__dismiss:hover {
+    background: var(--bg-hover, #1a1a1a);
+}

@@ -1,0 +1,3 @@
+kind: New
+body: '`$mi.noise` plays Mutable Instruments Plaits'' filtered noise: noise held between ticks of a clock, from stepped crackle to smooth hiss, through a resonant filter you sweep from lowpass to highpass (`filtered`) or two bandpass filters (`bands`). Its `trigger` restarts the clock. Its default `blend` output crossfades `filtered` into `bands` as `mix` rises.'
+time: 2026-11-20T03:19:40.193158-05:00
