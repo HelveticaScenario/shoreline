@@ -1,12 +1,14 @@
 use std::ops::Range;
 
+use std::f32::consts::TAU;
+
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
         oscillators::{
-            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
+            FmMode, Landing, Resets, SyncRatios, apply_fm, sync_blamp, sync_blep, sync_ratio,
         },
         utils::{interpolate, sanitize, wrap_phase},
     },
@@ -33,8 +35,9 @@ struct SineOscillatorParams {
     #[input(
         "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -130,23 +133,22 @@ impl LaneState {
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
 
-        // A reset restarts the cycle, with a PolyBLEP placed at its subsample
-        // point to band-limit the discontinuity.
+        // A reset restarts the cycle from where the old one reaches it, with
+        // a PolyBLEP for the jump and a PolyBLAMP for the change of slope
+        // placed at its subsample point.
         let mut now = 0.0;
         if let Some(reset) = reset {
+            let frac = reset.frac();
             self.phase = reset.phase(increment);
-            let before = match reset {
-                Reset::Restart(_) => body,
-                Reset::Sync(frac) => interpolate(
-                    LUT_SINE,
-                    (read_phase + frac * increment).rem_euclid(1.0),
-                    LUT_SINE_SIZE,
-                ),
-            };
-            let after = interpolate(LUT_SINE, offset.rem_euclid(1.0), LUT_SINE_SIZE);
-            let (n, carry) = sync_blep(after - before, reset.frac());
-            now = n;
-            self.blep_carry = carry;
+            let sine = |phase: f32| interpolate(LUT_SINE, phase.rem_euclid(1.0), LUT_SINE_SIZE);
+            // The slope in output units per sample: the cosine, a quarter
+            // cycle ahead of the sine.
+            let slope = |phase: f32| TAU * sine(phase + 0.25) * increment;
+            let (reached, start) = (read_phase + frac * increment, offset);
+            let (jump, jump_carry) = sync_blep(sine(start) - sine(reached), frac);
+            let (bend, bend_carry) = sync_blamp(slope(start) - slope(reached), frac);
+            now = jump + bend;
+            self.blep_carry = jump_carry + bend_carry;
         }
 
         (body + pending + now) * 5.0

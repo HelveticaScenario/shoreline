@@ -7,9 +7,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        oscillators::{
-            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
-        },
+        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_ratio},
         utils::{sanitize, wrap_phase_f64},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -42,8 +40,9 @@ struct SawOscillatorParams {
     #[input(
         "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -101,8 +100,6 @@ struct LaneState {
     /// releases the mute.
     prev_out: f32,
     resets: Resets,
-    /// PolyBLEP residual carried into the next sample from a restart.
-    blep_carry: f32,
 }
 
 const SAW_DOCS: ModuleDocs = ModuleDocs {
@@ -205,26 +202,23 @@ impl LaneState {
         let read_old = (self.phase + read_offset).rem_euclid(1.0);
         let integral_old = triangle_integral(read_old, s);
 
-        // A sync reset lands `frac` into this interval: the wave runs the old
+        // A reset lands `frac` into this interval: the wave runs the old
         // cycle up to it and the new one from the cycle's start after it, and
         // the DPW body averages the two, band-limiting the jump like the
         // wave's own edges.
         let split = match reset {
-            Some(Reset::Sync(frac)) => {
-                let split = frac as f64 * phase_increment;
+            Some(reset) => {
+                let split = reset.frac() as f64 * phase_increment;
                 self.phase = wrap_phase_f64(phase_increment - split);
                 Some(triangle_integral((read_old + split).rem_euclid(1.0), s))
             }
-            _ => {
+            None => {
                 self.phase = wrap_phase_f64(self.phase + phase_increment);
                 None
             }
         };
         let read_phase = (self.phase + read_offset).rem_euclid(1.0);
 
-        // DPW body for this sample. A restart (below) lands in the upcoming
-        // interval, so the phase advanced normally here and the DPW
-        // differentiation stays valid; the restart is band-limited separately.
         let body = if phase_increment.abs() > 1.0e-7 {
             // The DPW slope is computed in f64: integral_new and
             // integral_old are near-equal when the phase increment is small
@@ -244,22 +238,7 @@ impl LaneState {
             naive_triangle(read_phase, s) as f32
         };
 
-        let pending = self.blep_carry;
-        self.blep_carry = 0.0;
-
-        // A restart resets the phase, with a PolyBLEP placed at the
-        // subsample crossing to band-limit the reset discontinuity.
-        let mut now = 0.0;
-        if let Some(Reset::Restart(frac)) = reset {
-            let before = naive_triangle(read_phase, s);
-            self.phase = 0.0;
-            let after = naive_triangle(read_offset, s);
-            let (n, carry) = sync_blep((after - before) as f32, frac);
-            now = n;
-            self.blep_carry = carry;
-        }
-
-        let out = (body + pending + now) * 5.0;
+        let out = body * 5.0;
 
         // Zero-cross mute: hold silence until the output crosses zero on its
         // gentle segment, then latch open. The waveform also crosses zero on

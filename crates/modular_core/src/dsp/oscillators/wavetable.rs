@@ -23,7 +23,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
+            FmMode, Landing, Resets, SyncRatios, apply_fm, sync_blamp, sync_blep, sync_ratio,
             wavetable_prep::{MipmapRead, PreparedWavetable},
         },
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
@@ -64,8 +64,9 @@ pub(crate) struct WavetableOscParams {
     #[input(
         "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -258,23 +259,23 @@ impl LaneState {
                 };
                 prepared.read(self.mip, frame_f, warped)
             };
-            // At the cycle's start the accumulator is 0, so the effective
-            // read phase is the offset itself. A sync reset jumps from where
-            // the table's cycle stands when it lands.
-            let after = read_at(read_offset);
-            let before = match reset {
-                Reset::Restart(_) => before,
-                Reset::Sync(frac) => {
-                    read_at((raw_phase as f64 + increment * frac as f64).rem_euclid(1.0) as f32)
-                }
+            // The slope in output units per sample, from a centred
+            // difference across a small part of the cycle.
+            let slope = |phase: f32| {
+                let ahead = read_at((phase + SLOPE_SPAN).rem_euclid(1.0));
+                let behind = read_at((phase - SLOPE_SPAN).rem_euclid(1.0));
+                (ahead - behind) / (2.0 * SLOPE_SPAN) * increment as f32
             };
-            let (now, carry) = sync_blep(after - before, reset.frac());
-            sample += now;
-            self.blep_carry = carry;
-            next = match reset {
-                Reset::Restart(_) => 0.0,
-                Reset::Sync(frac) => (increment * (1.0 - frac as f64)).rem_euclid(1.0),
-            };
+            // The cycle restarts from where the old one reaches it. At the
+            // cycle's start the accumulator is 0, so the effective read phase
+            // is the offset itself.
+            let frac = reset.frac();
+            let reached = (raw_phase as f64 + increment * frac as f64).rem_euclid(1.0) as f32;
+            let (jump, jump_carry) = sync_blep(read_at(read_offset) - read_at(reached), frac);
+            let (bend, bend_carry) = sync_blamp(slope(read_offset) - slope(reached), frac);
+            sample += jump + bend;
+            self.blep_carry = jump_carry + bend_carry;
+            next = (increment * (1.0 - frac as f64)).rem_euclid(1.0);
         }
 
         self.phase = next;
@@ -286,6 +287,10 @@ impl LaneState {
 
 /// Derive the lane count from the maximum of `pitch` and (optional)
 /// `position`. Clamped to `[1, PORT_MAX_LANES]`.
+/// Half the span, in cycles, of the difference a reset measures the table's
+/// slope across.
+const SLOPE_SPAN: f32 = 1.0 / 4096.0;
+
 #[allow(private_interfaces)]
 pub fn wavetable_derive_lane_count(params: &WavetableOscParams) -> usize {
     let pitch_ch = params.pitch.lanes();
