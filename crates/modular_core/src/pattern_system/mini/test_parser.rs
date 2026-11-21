@@ -441,12 +441,14 @@ impl<'a> Parser<'a> {
         if self.input[body_end] != b')' {
             return None;
         }
-        let body = std::str::from_utf8(&self.input[body_start..body_end]).ok()?;
-        if body.trim().is_empty() {
+        let body = std::str::from_utf8(&self.input[body_start..body_end])
+            .ok()?
+            .trim();
+        if body.is_empty() {
             return None;
         }
         self.pos = body_end + 1;
-        Some(body.trim().to_string())
+        Some(body.to_string())
     }
 
     fn matches_keyword_ci(&mut self, kw: &str) -> bool {
