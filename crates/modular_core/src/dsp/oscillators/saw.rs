@@ -582,4 +582,19 @@ mod tests {
             assert!(v.is_finite() && v.abs() <= 5.0 + 1e-3, "sample {i}: {v}");
         }
     }
+
+    #[test]
+    fn restart_starts_the_cycle_where_the_trigger_crosses() {
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the step the restart lands in, so that step ends four
+        // fifths of a step into the new cycle.
+        let mut osc = make_saw(0.0, false);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(0.0)));
+        run(&mut osc, 700);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(5.0)));
+        run(&mut osc, 1);
+        let step = crate::dsp::utils::voct_to_hz(0.0) as f64 / 48_000.0;
+        let phase = osc.lane_state[0].phase;
+        assert!((phase - 0.8 * step).abs() < 1e-6, "{phase}");
+    }
 }

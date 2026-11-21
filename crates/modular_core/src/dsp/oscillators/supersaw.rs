@@ -1020,7 +1020,7 @@ mod tests {
     }
 
     #[test]
-    fn restart_puts_every_saw_back_on_its_starting_phase() {
+    fn restart_starts_every_saw_where_the_trigger_crosses() {
         let mut s = make_supersaw(SupersawParams {
             restart: Some(mono(0.0)),
             ..params(mono(0.0), 5, 0.3)
@@ -1031,12 +1031,16 @@ mod tests {
         s.params.restart = Some(mono(5.0));
         s.update(48000.0);
         s.update(48000.0);
-        // Each saw stands within one step of its starting phase, its source
-        // with it.
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the sample, so the sample after the restart lands stands
+        // four fifths of each saw's step into its new cycle, its source with
+        // it.
+        let note = crate::dsp::utils::voct_to_hz(0.0);
         for voice in 0..5 {
             let cell = &s.lane_state[voice * PORT_MAX_LANES];
+            let step = voice_increment(s.state.positions[voice], note, 0.3, 1.0 / 48000.0);
             assert!(
-                (0.0..0.01).contains(&cell.phase),
+                (cell.phase - 0.8 * step).abs() < 1e-6,
                 "voice {voice}: {}",
                 cell.phase
             );

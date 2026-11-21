@@ -72,8 +72,7 @@ pub fn sync_ratio(octaves: f32) -> f32 {
     octaves.max(0.0).exp2()
 }
 
-/// The fastest a synced oscillator runs, in cycles per sample. At Nyquist its
-/// band-limiting corrections still keep it within its range.
+/// The fastest a synced oscillator runs, in cycles per sample: Nyquist.
 pub const MAX_SYNCED_INCREMENT: f32 = 0.5;
 
 /// A restart of an oscillator's cycle, landing `frac` of a sample into the
@@ -281,6 +280,19 @@ pub fn sync_blamp(slope_change: f32, frac: f32) -> (f32, f32) {
     let sixth = slope_change / 6.0;
     let before = 1.0 - frac;
     (sixth * before * before * before, sixth * frac * frac * frac)
+}
+
+/// [`sync_blep`] for a reset's `jump` plus [`sync_blamp`] for its
+/// `slope_change`, both `frac` into the upcoming interval, summed as
+/// `(this_sample, next_sample)`, for a wave running `dt` cycles a sample. The
+/// PolyBLAMP fades out toward Nyquist, where the wave no longer runs straight
+/// across a sample and the two-point correction would overshoot.
+#[inline]
+pub fn sync_corner(jump: f32, slope_change: f32, frac: f32, dt: f32) -> (f32, f32) {
+    let fade = (1.0 - dt.abs() / MAX_SYNCED_INCREMENT).max(0.0);
+    let (jump_now, jump_next) = sync_blep(jump, frac);
+    let (bend_now, bend_next) = sync_blamp(slope_change * fade * fade, frac);
+    (jump_now + bend_now, jump_next + bend_next)
 }
 
 pub mod enosc;
