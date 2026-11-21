@@ -1,40 +1,34 @@
-import type {
-    DeviceFollowReport,
-    StreamsChange,
-    Synthesizer,
-} from '@modular/core';
+import type { DeviceReport, StreamsChange, Synthesizer } from '@modular/core';
 import type { OutputDeviceNotice } from '../shared/ipcTypes';
 import type { AppliedPatchState } from './appliedPatchState';
 
-/** How often the output device is checked. */
-export const OUTPUT_DEVICE_POLL_MS = 1000;
+/** How often the audio devices are checked. */
+export const AUDIO_DEVICE_POLL_MS = 1000;
 
-type FollowingSynth = Pick<
-    Synthesizer,
-    'followOutputDevice' | 'isStopped' | 'stop'
->;
+type PollingSynth = Pick<Synthesizer, 'pollDevices' | 'isStopped' | 'stop'>;
 
 /**
- * Keep the output on a device that can play: follow the system default when
- * it changes (headphones unplugged, say), and reopen an output whose device
- * went away or changed its sample rate. The patch keeps playing, or waits for
+ * Keep the streams on devices that can play: follow the system default when
+ * it changes (headphones unplugged, say), move to a chosen output once it is
+ * connected, and reopen an output or input whose device went away or changed
+ * its sample rate. The patch keeps playing, or waits for
  * a device that went away, when the device runs at the engine's sample rate
  * and buffer size.
  * Otherwise the engine is rebuilt empty and stopped, so a patch that was
  * playing stops; so does one left playing on a device that is gone when a
  * move fails. Returns `null` when nothing changed.
  */
-export function followOutputDevice(
-    synth: FollowingSynth,
+export function pollAudioDevices(
+    synth: PollingSynth,
     appliedPatch: AppliedPatchState,
 ): {
-    report: DeviceFollowReport;
+    report: DeviceReport;
     stoppedPlayback: boolean;
     /** The engine no longer holds what was sent to it. */
     engineReset: boolean;
 } | null {
     const wasPlaying = !synth.isStopped();
-    const report = synth.followOutputDevice();
+    const report = synth.pollDevices();
     if (!report) {
         return null;
     }
@@ -50,7 +44,7 @@ export function followOutputDevice(
 
 /** The banner explaining what happened to the output device. */
 export function outputDeviceNotice(
-    report: DeviceFollowReport,
+    report: DeviceReport,
     stoppedPlayback: boolean,
 ): OutputDeviceNotice {
     const parts: string[] = [];

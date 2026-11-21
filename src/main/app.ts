@@ -48,9 +48,9 @@ import { createFallbackWarningChannel } from './fallbackWarning';
 import {
     outputDeviceNotice,
     appliedSettingsNotice,
-    followOutputDevice,
-    OUTPUT_DEVICE_POLL_MS,
-} from './outputDeviceFollow';
+    pollAudioDevices,
+    AUDIO_DEVICE_POLL_MS,
+} from './audioDevicePoll';
 import { bundledChangelog, fetchPublishedReleases } from './releaseNotesSource';
 import {
     isNewerVersion,
@@ -701,20 +701,17 @@ function sendOutputNotice(notice: OutputDeviceNotice, disconnected = false) {
 // The saved config is left alone: it holds the settings asked for, which the
 // next launch opens and a move falls back to where its device allows them.
 setInterval(() => {
-    const followed = followOutputDevice(synth, appliedPatch);
-    if (!followed) {
+    const polled = pollAudioDevices(synth, appliedPatch);
+    if (!polled) {
         return;
     }
-    if (followed.engineReset) {
+    if (polled.engineReset) {
         cvSent.values.clear();
     }
-    const notice = outputDeviceNotice(
-        followed.report,
-        followed.stoppedPlayback,
-    );
+    const notice = outputDeviceNotice(polled.report, polled.stoppedPlayback);
     console.log('Output device:', notice.message);
-    sendOutputNotice(notice, followed.report.event === 'Disconnected');
-}, OUTPUT_DEVICE_POLL_MS);
+    sendOutputNotice(notice, polled.report.event === 'Disconnected');
+}, AUDIO_DEVICE_POLL_MS);
 
 // Workspace root state
 let currentWorkspaceRoot: string | null = null;

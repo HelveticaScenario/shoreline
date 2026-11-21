@@ -368,7 +368,7 @@ pub struct CurrentAudioState {
     pub host_id: String,
     /// The device the output stream is open on, also while following the
     /// system default.
-    pub output_device_id: Option<String>,
+    pub output_device_id: String,
     /// The output the user chose: `None` for System Default. It differs
     /// from `output_device_id` while the chosen device is not connected.
     pub chosen_output_device_id: Option<String>,
@@ -1248,10 +1248,80 @@ pub fn create_audio_channels() -> (
 // AudioStateHandle - Main thread side
 // ============================================================================
 
+/// Queue slots single-module updates leave free, so patch, transport and
+/// Link commands still fit while the engine is not draining the queue, as
+/// while its output device is disconnected.
+const COMMAND_QUEUE_RESERVE: usize = 64;
+
+/// A single-module update waiting for room in the command queue.
+struct ParkedModule {
+    module_id: String,
+    module: Box<dyn modular_core::types::Sampleable>,
+    update_id: u64,
+}
+
+/// The main thread's end of the command queue. Single-module updates (a
+/// slider drag, a video region's level) can outpace an engine that is not
+/// running, so while the queue is short of room they wait here, the latest
+/// per module and patch update, and go out ahead of the next command once
+/// there is room.
+struct CommandSender {
+    tx: CommandProducer,
+    parked: Vec<ParkedModule>,
+}
+
+impl CommandSender {
+    fn flush(&mut self) {
+        let room = self
+            .tx
+            .slots()
+            .saturating_sub(COMMAND_QUEUE_RESERVE)
+            .min(self.parked.len());
+        for parked in self.parked.drain(..room) {
+            let pushed = self.tx.push(GraphCommand::SingleModuleUpdate {
+                module_id: parked.module_id,
+                module: parked.module,
+                update_id: parked.update_id,
+            });
+            debug_assert!(pushed.is_ok());
+        }
+    }
+
+    fn send(&mut self, command: GraphCommand) -> Result<()> {
+        self.flush();
+        self.tx.push(command).map_err(|_| {
+            napi::Error::from_reason(
+                "Command queue full - audio thread may be overloaded".to_string(),
+            )
+        })
+    }
+
+    fn send_module_update(
+        &mut self,
+        module_id: String,
+        module: Box<dyn modular_core::types::Sampleable>,
+        update_id: u64,
+    ) {
+        match self
+            .parked
+            .iter_mut()
+            .find(|parked| parked.module_id == module_id && parked.update_id == update_id)
+        {
+            Some(parked) => parked.module = module,
+            None => self.parked.push(ParkedModule {
+                module_id,
+                module,
+                update_id,
+            }),
+        }
+        self.flush();
+    }
+}
+
 /// Main thread handle for audio state. Sends commands to audio thread.
 pub struct AudioState {
     /// Command queue producer (main thread → audio thread)
-    command_tx: Mutex<CommandProducer>,
+    commands: Mutex<CommandSender>,
     /// Error queue consumer (main thread ← audio thread)
     error_rx: Mutex<ErrorConsumer>,
     /// Garbage queue consumer - drains deferred deallocations from audio thread
@@ -1333,7 +1403,10 @@ impl AudioState {
         block_size: usize,
     ) -> Self {
         Self {
-            command_tx: Mutex::new(command_tx),
+            commands: Mutex::new(CommandSender {
+                tx: command_tx,
+                parked: Vec::new(),
+            }),
             error_rx: Mutex::new(error_rx),
             garbage_rx: Mutex::new(garbage_rx),
             stopped: Arc::new(AtomicBool::new(true)),
@@ -1422,14 +1495,29 @@ impl AudioState {
         self.audio_thread_panicked.load(Ordering::SeqCst)
     }
 
-    /// Send a command to the audio thread
+    /// Send a command to the audio thread, after any single-module updates
+    /// waiting for room.
     pub(crate) fn send_command(&self, cmd: GraphCommand) -> Result<()> {
-        let mut tx = self.command_tx.lock();
-        tx.push(cmd).map_err(|_| {
-            napi::Error::from_reason(
-                "Command queue full - audio thread may be overloaded".to_string(),
-            )
-        })
+        self.commands.lock().send(cmd)
+    }
+
+    /// Send a rebuilt module to the audio thread. While the queue is short of
+    /// room it waits, replaced by a later rebuild of the same module for the
+    /// same patch update.
+    pub(crate) fn send_module_update(
+        &self,
+        module_id: String,
+        module: Box<dyn modular_core::types::Sampleable>,
+        update_id: u64,
+    ) {
+        self.commands
+            .lock()
+            .send_module_update(module_id, module, update_id);
+    }
+
+    /// Send the single-module updates waiting for room, as far as it allows.
+    pub(crate) fn flush_commands(&self) {
+        self.commands.lock().flush();
     }
 
     /// Drain deferred deallocations from the audio thread.
@@ -5546,6 +5634,75 @@ mod tests {
             Arc::new(MidiInputManager::new()),
             1,
         )
+    }
+
+    #[test]
+    fn module_updates_wait_for_room_and_keep_the_latest_per_module() {
+        let (cmd_producer, mut cmd_consumer, _err_producer, err_consumer, _garbage, garbage) =
+            create_audio_channels();
+        let state = AudioState::new_with_channels(
+            cmd_producer,
+            err_consumer,
+            garbage,
+            44_100.0,
+            2,
+            Arc::new(MidiInputManager::new()),
+            1,
+        );
+        let signal = |value: f64| serde_json::json!({ "min": 0, "max": 5, "value": value });
+        let module = |id: &str| modular_core::types::ModuleSpec {
+            id: id.into(),
+            module_type: "$signal".into(),
+            id_is_explicit: None,
+            skip_state_transfer: None,
+            params: signal(0.0),
+        };
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: vec![module("a"), module("b")],
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 1,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+        while cmd_consumer.pop().is_ok() {}
+
+        // Nothing drains the queue, as while the output device is gone.
+        for i in 0..COMMAND_QUEUE_CAPACITY {
+            for id in ["a", "b"] {
+                for (rebuilt, update_id) in state
+                    .rebuild_module(id, "$signal", signal(i as f64), 44_100.0)
+                    .unwrap()
+                {
+                    state.send_module_update(id.into(), rebuilt, update_id);
+                }
+            }
+        }
+        state.send_command(GraphCommand::Stop).unwrap();
+        let mut queued = Vec::new();
+        while let Ok(command) = cmd_consumer.pop() {
+            queued.push(command);
+        }
+        assert_eq!(
+            queued.len(),
+            COMMAND_QUEUE_CAPACITY - COMMAND_QUEUE_RESERVE + 1
+        );
+        assert!(matches!(queued.last(), Some(GraphCommand::Stop)));
+
+        state.flush_commands();
+        let mut waited = Vec::new();
+        while let Ok(GraphCommand::SingleModuleUpdate { module_id, .. }) = cmd_consumer.pop() {
+            waited.push(module_id);
+        }
+        waited.sort();
+        assert_eq!(waited, ["a", "b"]);
     }
 
     #[test]

@@ -18,7 +18,7 @@ use objc2_core_audio::{
 use objc2_core_foundation::CFString;
 
 use crate::coreaudio_devices::{address, default_device, read_qualified};
-use crate::device_follow::OutputEvent;
+use crate::device_poll::DeviceEvent;
 use crate::{AudioConfigOptions, Synthesizer};
 
 const PINNED_UID: &str = "BlackHole16ch_UID";
@@ -110,12 +110,12 @@ fn a_device_that_is_the_default_stays_put_when_the_default_moves() {
     set_default_output(other);
     std::thread::sleep(Duration::from_secs(2));
     assert!(
-        synth.follow_output_device().is_none(),
+        synth.poll_devices().is_none(),
         "a pinned output reacts to the default moving"
     );
     assert!(is_running(pinned), "the output left its device");
     assert!(!is_running(other), "the output followed the default");
-    assert_eq!(synth.output_device_id.clone(), Some(device_id));
+    assert_eq!(synth.streams.output_device_id, device_id);
 }
 
 #[test]
@@ -139,9 +139,9 @@ fn system_default_moves_with_the_default() {
     set_default_output(next);
     std::thread::sleep(Duration::from_millis(500));
     let report = synth
-        .follow_output_device()
+        .poll_devices()
         .expect("System Default does not follow the default");
-    assert_eq!(report.event, OutputEvent::Moved);
+    assert_eq!(report.event, DeviceEvent::Moved);
     assert!(!report.engine_reset, "the move does not keep the engine");
     std::thread::sleep(Duration::from_millis(500));
     assert!(is_running(next), "the output is not on the new default");

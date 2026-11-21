@@ -1,17 +1,15 @@
-import type { DeviceFollowReport, PatchGraph } from '@modular/core';
+import type { DeviceReport, PatchGraph } from '@modular/core';
 import { describe, expect, test, vi } from 'vitest';
 import { AppliedPatchState } from '../appliedPatchState';
 import {
     appliedSettingsNotice,
-    followOutputDevice,
+    pollAudioDevices,
     outputDeviceNotice,
-} from '../outputDeviceFollow';
+} from '../audioDevicePoll';
 
 const graph = { modules: [] } as unknown as PatchGraph;
 
-const report = (
-    over: Partial<DeviceFollowReport> = {},
-): DeviceFollowReport => ({
+const report = (over: Partial<DeviceReport> = {}): DeviceReport => ({
     engineReset: true,
     event: 'Moved',
     outputDeviceName: 'Speakers',
@@ -21,20 +19,20 @@ const report = (
     ...over,
 });
 
-function fakeSynth(moved: DeviceFollowReport | null, stopped: boolean) {
+function fakeSynth(moved: DeviceReport | null, stopped: boolean) {
     return {
-        followOutputDevice: vi.fn(() => moved),
+        pollDevices: vi.fn(() => moved),
         isStopped: vi.fn(() => stopped),
         stop: vi.fn(),
     };
 }
 
-describe('followOutputDevice', () => {
+describe('pollAudioDevices', () => {
     test('an unchanged default leaves the engine alone', () => {
         const applied = new AppliedPatchState();
         applied.record(graph, 'song', 1);
 
-        expect(followOutputDevice(fakeSynth(null, false), applied)).toBeNull();
+        expect(pollAudioDevices(fakeSynth(null, false), applied)).toBeNull();
         expect(applied.baseline(1).patchGraph).not.toBeNull();
     });
 
@@ -43,7 +41,7 @@ describe('followOutputDevice', () => {
         applied.record(graph, 'song', 1);
 
         expect(
-            followOutputDevice(fakeSynth(report(), false), applied)
+            pollAudioDevices(fakeSynth(report(), false), applied)
                 ?.stoppedPlayback,
         ).toBe(true);
         expect(applied.baseline(1).patchGraph).toBeNull();
@@ -54,7 +52,7 @@ describe('followOutputDevice', () => {
         applied.record(graph, 'song', 1);
         const synth = fakeSynth(report({ engineReset: false }), false);
 
-        expect(followOutputDevice(synth, applied)?.stoppedPlayback).toBe(false);
+        expect(pollAudioDevices(synth, applied)?.stoppedPlayback).toBe(false);
         expect(synth.stop).not.toHaveBeenCalled();
         expect(applied.baseline(1).patchGraph).not.toBeNull();
     });
@@ -67,7 +65,7 @@ describe('followOutputDevice', () => {
             false,
         );
 
-        expect(followOutputDevice(synth, applied)).toMatchObject({
+        expect(pollAudioDevices(synth, applied)).toMatchObject({
             engineReset: false,
             stoppedPlayback: false,
         });
@@ -77,10 +75,8 @@ describe('followOutputDevice', () => {
 
     test('a move while stopped stops nothing', () => {
         expect(
-            followOutputDevice(
-                fakeSynth(report(), true),
-                new AppliedPatchState(),
-            )?.stoppedPlayback,
+            pollAudioDevices(fakeSynth(report(), true), new AppliedPatchState())
+                ?.stoppedPlayback,
         ).toBe(false);
     });
 
@@ -92,7 +88,7 @@ describe('followOutputDevice', () => {
             false,
         );
 
-        expect(followOutputDevice(synth, applied)?.stoppedPlayback).toBe(false);
+        expect(pollAudioDevices(synth, applied)?.stoppedPlayback).toBe(false);
         expect(synth.stop).not.toHaveBeenCalled();
         expect(applied.baseline(1).patchGraph).not.toBeNull();
     });
@@ -105,7 +101,7 @@ describe('followOutputDevice', () => {
             false,
         );
 
-        expect(followOutputDevice(synth, applied)?.stoppedPlayback).toBe(true);
+        expect(pollAudioDevices(synth, applied)?.stoppedPlayback).toBe(true);
         expect(synth.stop).toHaveBeenCalled();
         expect(applied.baseline(1).patchGraph).toBeNull();
     });

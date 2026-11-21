@@ -123,7 +123,7 @@ export declare class Synthesizer {
    * This is the primary way to change audio devices after initialization.
    * An `output_device_id` of `None` opens the system default output of
    * `host_id` (the current host when `None`) and keeps following it (see
-   * `follow_output_device`). The engine carries on when the sample rate
+   * `poll_devices`). The engine carries on when the sample rate
    * and buffer size stay the same; otherwise a new engine starts stopped
    * and empty.
    */
@@ -136,14 +136,15 @@ export declare class Synthesizer {
    */
   restartAudio(): void
   /**
-   * Keep the output on a device that can play: while following the system
-   * default, move to the device the system now makes its default; when the
-   * output's stream has stopped (its device unplugged or reset), reopen it
-   * once the device is back. The engine keeps playing wherever the device
-   * runs at its sample rate and buffer size. Returns what changed, or `None` when nothing
-   * did. Cheap enough to poll every second.
+   * Keep the streams on devices that can play: while following the system
+   * default, move to the device the system now makes its default; move to
+   * a chosen output once it is connected; and when the output's or input's
+   * stream has stopped (its device unplugged or reset), reopen it once the
+   * device is back. The engine keeps playing wherever the device runs at
+   * its sample rate and buffer size. Returns what changed, or `None` when
+   * nothing did. Cheap enough to poll every second.
    */
-  followOutputDevice(): DeviceFollowReport | null
+  pollDevices(): DeviceReport | null
   /** List all available MIDI input ports */
   listMidiInputs(): Array<MidiInputInfo>
   /** Get the currently connected MIDI input port name (first port for backward compatibility) */
@@ -240,7 +241,7 @@ export interface CurrentAudioState {
    * The device the output stream is open on, also while following the
    * system default.
    */
-  outputDeviceId?: string
+  outputDeviceId: string
   /**
    * The output the user chose: `None` for System Default. It differs
    * from `output_device_id` while the chosen device is not connected.
@@ -288,12 +289,38 @@ export interface DeviceCacheSnapshot {
   hosts: Array<HostDeviceInfo>
 }
 
+/** What happened to the audio devices. */
+export type DeviceEvent = /** The output moved to a new system default device. */
+'Moved'|
 /**
- * What changed when the output followed a new system default device or
- * lost and regained its own.
+ * The chosen output was not connected and now is| and the streams
+ * moved to it.
  */
-export interface DeviceFollowReport {
-  event: OutputEvent
+'Connected'|
+/**
+ * The output's stream stopped and its device is not back yet. The
+ * engine waits frozen until it returns.
+ */
+'Disconnected'|
+/** The output's device is back and its streams reopened. */
+'Reconnected'|
+/**
+ * The output's device changed its sample rate and the streams reopened
+ * at the new rate.
+ */
+'RateChanged'|
+/**
+ * The input's stream stopped and the streams reopened on the same
+ * output.
+ */
+'InputReopened';
+
+/**
+ * What changed when the streams followed a new system default output, or
+ * lost and regained a device.
+ */
+export interface DeviceReport {
+  event: DeviceEvent
   /** The output device, when Shoreline lists it. */
   outputDeviceName?: string
   /** The input the streams opened with. */
@@ -391,32 +418,6 @@ export interface ModuleProfileSample {
    */
   mode: string
 }
-
-/** What happened to the audio devices. */
-export type OutputEvent = /** The output moved to a new system default device. */
-'Moved'|
-/**
- * The chosen output was not connected and now is| and the streams
- * moved to it.
- */
-'Connected'|
-/**
- * The output's stream stopped and its device is not back yet. The
- * engine waits frozen until it returns.
- */
-'Disconnected'|
-/** The output's device is back and its streams reopened. */
-'Reconnected'|
-/**
- * The output's device changed its sample rate and the streams reopened
- * at the new rate.
- */
-'RateChanged'|
-/**
- * The input's stream stopped and the streams reopened on the same
- * output.
- */
-'InputReopened';
 
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {
