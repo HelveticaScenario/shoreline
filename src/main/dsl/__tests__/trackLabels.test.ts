@@ -119,7 +119,10 @@ c: $sine('g4')
         const { patch } = exec(
             `lead: $sine(['c4', 'e4']).track({ gain: 3, pan: -2, spread: 1 })`,
         );
-        expect(meters(patch)[0]).toMatchObject({ gain: 3, pan: -2 });
+        expect(meters(patch)[0]).toMatchObject({
+            gain: { value: 3 },
+            pan: { value: -2 },
+        });
         const pan = patch.modules.find((m) => m.moduleType === '$pan');
         expect(pan?.params.spread).toBe(1);
     });

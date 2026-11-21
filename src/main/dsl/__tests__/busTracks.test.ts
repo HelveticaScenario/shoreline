@@ -63,7 +63,11 @@ describe('$bus tracks', () => {
                 gain: number;
             }[]
         ).find((m) => m.key === 'fx');
-        expect(fx).toMatchObject({ baseChannel: 2, channels: 1, gain: 3 });
+        expect(fx).toMatchObject({
+            baseChannel: 2,
+            channels: 1,
+            gain: { value: 3 },
+        });
     });
 
     test('a bus held in a const is a bus once labelled', () => {
@@ -81,12 +85,21 @@ describe('$bus tracks', () => {
         ).not.toThrow();
     });
 
-    test('a bus name is also its track signal', () => {
+    test("a bus name has the bus's controls but no audio", () => {
         expect(() =>
             run(`verb: $bus().lpf('c5')
-                 dry: $saw('c3').amp(verb.active).track({ sends: verb })
-                 follow: $sine('c4').amp($motionFollower(verb))`),
+                 dry: $saw('c3').amp(verb.active).gain(verb.level).track({ sends: verb })`),
         ).not.toThrow();
+        // Every track sends to every bus, so reading one would loop back.
+        expect(() =>
+            run(`verb: $bus().lpf('c5')
+                 dry: $saw('c3').track({ sends: verb })
+                 follow: $sine('c4').amp($motionFollower(verb))`),
+        ).toThrow(/verb is a bus, so its audio can't be used here \(line 3\)/);
+        expect(() =>
+            run(`verb: $bus().lpf('c5')
+                 wet: $trackTap('verb').hpf('c3')`),
+        ).toThrow(/verb is a bus, so its audio can't be used here/);
     });
 
     test('a bus nothing sends to is silent', () => {
@@ -114,12 +127,14 @@ describe('$bus tracks', () => {
             run(`low: $bus().xover()._low
                  dry: $saw('c3').track({ sends: low })`),
         ).toThrow(/which is not a bus/);
-        expect(() =>
-            run(`const b = $bus()
+        expect(
+            () =>
+                run(`const b = $bus()
                  verb: b.plate()
                  env: b.motionFollower()
                  dry: $saw('c3').track({ sends: verb })`),
-        ).not.toThrow();
+            // A track of its own, which reads the bus it sends to.
+        ).toThrow(/track env uses the audio of bus verb/);
     });
 
     test('a second track name in a pair is a send, not a level', () => {
@@ -172,5 +187,52 @@ describe('$bus tracks', () => {
 
     test('$bus takes no callback', () => {
         expect(() => run(`fx: $bus((m) => m)`)).toThrow(/takes no arguments/);
+    });
+});
+
+describe('no track reads a bus', () => {
+    // Every track sends to every bus, so reading one would feed it back.
+    test.each([
+        [
+            'a bus held in a const',
+            `const v = $bus()
+             verb: v.lpf('c6')
+             wet: $saw('c3').lpf(v)`,
+            /track wet uses the audio of bus verb \(line 3\)/,
+        ],
+        [
+            'a bus passed through a helper',
+            `const v = $bus()
+             const thru = (s) => [s][0]
+             verb: v.plate()
+             wet: $c(thru(v)).hpf('c3')`,
+            /track wet uses the audio of bus verb/,
+        ],
+        [
+            "a bus driving a track's gain",
+            `const v = $bus()
+             verb: v
+             duck: $saw('c3').track({ gain: $motionFollower(v) })`,
+            /track duck uses the audio of bus verb/,
+        ],
+        [
+            "a group's own chain",
+            `const v = $bus()
+             verb: v
+             drums: $group().amp($motionFollower(v))
+             kick$drums: $sine('c1')`,
+            /track drums uses the audio of bus verb/,
+        ],
+    ])('%s is an error', (_, patch, error) => {
+        expect(() => run(patch)).toThrow(error);
+    });
+
+    test("a bus's own chain and another bus may read it", () => {
+        expect(() =>
+            run(`const v = $bus()
+                 verb: v.plate().lpf(v)
+                 echo: $bus().amp($motionFollower(v))
+                 lead: $saw('c3').track({ sends: [verb, echo] })`),
+        ).not.toThrow();
     });
 });

@@ -1426,13 +1426,26 @@ class RangedBusSignal extends RangedCollection<BusSignal, RangedBusSignal> {
 type BusRooted = BusSignal | RangedBusSignal;
 
 /**
- * A bus track's final signal, as its label's name reads: a {@link TrackTap}
- * that the \`sends\` option of other tracks also takes.
+ * A bus track, as its label's name reads: what the \`sends\` option of other
+ * tracks takes, with the bus's mixer controls. It has no audio: a bus's audio
+ * is processed only on its own track, by chaining onto its \`$bus()\`.
  */
-class BusTap extends TrackTap {
+class BusTap {
   private constructor();
   /** Sets a bus track's name apart from any other track's. */
   #busTrack: true;
+  /** 5V while the bus is audible, 0V while it is muted. */
+  readonly active: CollectionWithRange;
+  /**
+   * The bus's gain (5 = unity), as the mixer's fader shows it.
+   * Ranged 0 to 10, or the gain signal's own range when it declares one.
+   */
+  readonly level: CollectionWithRange;
+  /**
+   * The bus's pan (-5 left to +5 right). Ranged -5 to 5, or the pan signal's
+   * own range when it declares one.
+   */
+  readonly panning: CollectionWithRange;
 }
 
 /** @internal */
@@ -1527,7 +1540,9 @@ function $bus(): BusSignal;
  * plus its \`.active\` gate, \`.level\` gain, and \`.panning\` as ranged
  * signals. Follows live mixer changes. A track's label already binds its
  * name to the same tap, so this is for a name held in a string. Spaces and
- * underscores match alike; a name no track has is an error.
+ * underscores match alike; a name no track has is an error. A bus's tap has
+ * its controls but no audio, as a bus's audio is processed only on its own
+ * track.
  *
  * @param name Name of the track to follow
  * @returns A {@link TrackTap}
