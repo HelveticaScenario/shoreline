@@ -1,3 +1,3 @@
 kind: New
-body: 'New `$mi.vcf`: Plaits'' virtual analog VCF voice, a saw, square or pulse with a sub-octave square through a resonant filter that follows the pitch, with its `highpass` output beside the low-pass one. Its default `blend` output crossfades the low-pass into the high-pass as `mix` rises.'
+body: 'New `$mi.vcf`: Plaits'' virtual analog VCF voice, a saw, square or pulse with a sub-octave square through a resonant filter that follows the pitch, with its `highpass` output beside the low-pass one. Its default `_blend` output crossfades the low-pass into the high-pass as `mix` rises.'
 time: 2026-11-20T03:23:02.836907-05:00
