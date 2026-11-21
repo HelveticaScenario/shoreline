@@ -1,5 +1,6 @@
 //! `$supersaw` renders identically on the block and per-sample paths: held and
-//! modulated pitch and detune, FM, hard sync, and mono and poly inputs.
+//! modulated pitch and detune, FM, hard sync, restart, and mono and poly
+//! inputs.
 
 mod block_common;
 
@@ -38,6 +39,14 @@ fn supersaw_paths_agree() {
         "$supersaw",
         json!({ "freq": [0.0, -2.0], "unison": 7, "detune": 0.5, "sync": [0.7, 2.4] }),
     );
+    check_paths_agree(
+        "$supersaw",
+        json!({ "freq": [1.0, -1.0], "unison": 3, "restart": poly_cable("src", LANES) }),
+    );
+    check_paths_agree(
+        "$supersaw",
+        json!({ "freq": 0.5, "unison": 5, "sync": cable("lfo", 0), "restart": cable("src", 1) }),
+    );
 }
 
 #[test]
@@ -45,7 +54,7 @@ fn allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$supersaw",
-            json!({ "freq": poly_cable("src", LANES), "unison": 6, "fm": cable("src", 0), "sync": cable("lfo", 1) })
+            json!({ "freq": poly_cable("src", LANES), "unison": 6, "fm": cable("src", 0), "sync": cable("lfo", 1), "restart": cable("src", 2) })
         ),
         0
     );

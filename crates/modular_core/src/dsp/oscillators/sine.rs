@@ -5,8 +5,10 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
-        utils::{SchmittTrigger, interpolate, sanitize, wrap_phase},
+        oscillators::{
+            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
+        },
+        utils::{interpolate, sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
 };
@@ -19,7 +21,7 @@ use schemars::JsonSchema;
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SineOscillatorParams {
-    #[input("oscillator pitch", type = pitch)]
+    #[input("oscillator pitch; with `sync` set, the pitch it restarts at", type = pitch)]
     freq: PolySignal,
     #[input("frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp)", type = audio)]
     #[deserr(default)]
@@ -28,10 +30,19 @@ struct SineOscillatorParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
+    #[input(
+        "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        type = control,
+        range = (0.0, ..),
+        control_range = (0.0, 4.0),
+    )]
     #[deserr(default)]
     #[block_input(optional)]
     sync: Option<PolySignal>,
+    #[input("each rising edge restarts the cycle", type = trig)]
+    #[deserr(default)]
+    #[block_input(optional)]
+    restart: Option<PolySignal>,
     #[input(
         "shifts where in the cycle the wave is read, in cycles; wraps around",
         type = control,
@@ -53,11 +64,8 @@ struct SineOscillatorOutputs {
 #[derive(Default, Clone, Copy, SeedSide)]
 struct LaneState {
     phase: f32,
-    /// Edge detector for the sync input.
-    sync_schmitt: SchmittTrigger,
-    /// Previous sync-input sample, for subsample edge interpolation.
-    sync_prev: f32,
-    /// PolyBLEP residual carried into the next sample from a sync reset.
+    resets: Resets,
+    /// PolyBLEP residual carried into the next sample from a reset.
     blep_carry: f32,
 }
 
@@ -96,10 +104,20 @@ pub struct SineOscillator {
 }
 
 impl LaneState {
-    /// Advance the phase by `increment` (cycles per sample) and return the
-    /// next output sample. `sync` is this sample's sync input, if connected.
+    /// Advance the phase by `increment` (cycles per sample at the note's
+    /// pitch) and return the next output sample. `restart` is this sample's
+    /// restart input and `sync_ratio` its sync, if connected.
     #[inline(always)]
-    fn step(&mut self, increment: f32, offset: f32, sync: Option<f32>) -> f32 {
+    fn step(
+        &mut self,
+        increment: f32,
+        offset: f32,
+        restart: Option<f32>,
+        sync_ratio: Option<f32>,
+    ) -> f32 {
+        let (increment, reset) =
+            self.resets
+                .step(self.phase, increment, restart, sync_ratio, Landing::Next);
         self.phase = wrap_phase(self.phase + increment);
 
         // Phase offset shifts the read position without altering the
@@ -107,24 +125,28 @@ impl LaneState {
         let read_phase = (self.phase + offset).rem_euclid(1.0);
 
         // Naive sample at the (pre-reset) phase, plus any residual carried
-        // from a sync reset on the previous sample.
+        // from a reset on the previous sample.
         let body = interpolate(LUT_SINE, read_phase, LUT_SINE_SIZE);
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
 
-        // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the discontinuity.
+        // A reset restarts the cycle, with a PolyBLEP placed at its subsample
+        // point to band-limit the discontinuity.
         let mut now = 0.0;
-        if let Some(v) = sync {
-            if self.sync_schmitt.process(v) {
-                let frac = sync_edge_fraction(self.sync_prev, v);
-                self.phase = 0.0;
-                let after = interpolate(LUT_SINE, offset.rem_euclid(1.0), LUT_SINE_SIZE);
-                let (n, carry) = sync_blep(after - body, frac);
-                now = n;
-                self.blep_carry = carry;
-            }
-            self.sync_prev = v;
+        if let Some(reset) = reset {
+            self.phase = reset.phase(increment);
+            let before = match reset {
+                Reset::Restart(_) => body,
+                Reset::Sync(frac) => interpolate(
+                    LUT_SINE,
+                    (read_phase + frac * increment).rem_euclid(1.0),
+                    LUT_SINE_SIZE,
+                ),
+            };
+            let after = interpolate(LUT_SINE, offset.rem_euclid(1.0), LUT_SINE_SIZE);
+            let (n, carry) = sync_blep(after - before, reset.frac());
+            now = n;
+            self.blep_carry = carry;
         }
 
         (body + pending + now) * 5.0
@@ -141,10 +163,11 @@ impl SineOscillator {
             let offset = p
                 .phase_offset
                 .value_or(lane, SineOscillatorParams::PHASE_OFFSET_DEFAULT);
-            let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
+            let restart = p.restart.as_ref().map(|restart| restart.get_value(lane));
+            let ratio = p.sync.as_ref().map(|sync| sync_ratio(sync.get_value(lane)));
             self.outputs
                 .sample
-                .set(lane, state.step(increment, offset, sync));
+                .set(lane, state.step(increment, offset, restart, ratio));
         }
     }
 
@@ -161,8 +184,10 @@ impl SineOscillator {
             freq,
             fm,
             sync,
+            restart,
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let mut ratios = SyncRatios::new(sync, range.start);
         // A pitch held for the whole range needs its exponential only once.
         let mut held_increments = [0.0f32; PORT_MAX_LANES];
         let held = freq.is_constant() && fm.is_constant();
@@ -174,7 +199,8 @@ impl SineOscillator {
         }
         for i in range {
             let (pitch, fm, offset) = (freq.row(i), fm.row(i), offset.row(i));
-            let sync = sync.as_ref().map(|sync| sync.row(i));
+            let restart = restart.as_ref().map(|restart| restart.row(i));
+            let ratios = ratios.at(i);
             let slots = outputs
                 .sample
                 .slot_mut(i)
@@ -186,7 +212,12 @@ impl SineOscillator {
                 } else {
                     apply_fm(pitch[lane], fm[lane], p.fm_mode) / sample_rate
                 };
-                *out = sanitize(state.step(increment, offset[lane], sync.map(|sync| sync[lane])));
+                *out = sanitize(state.step(
+                    increment,
+                    offset[lane],
+                    restart.map(|restart| restart[lane]),
+                    ratios[lane],
+                ));
             }
         }
         Some(())
@@ -207,6 +238,7 @@ mod tests {
             fm: Some(PolySignal::mono(Signal::Volts(fm_volts))),
             fm_mode,
             sync: None,
+            restart: None,
             phase_offset: None,
         };
         let lanes = params.freq.lanes().max(1);
@@ -245,5 +277,72 @@ mod tests {
             osc.outputs.sample.get(0).abs() > 1.0
         });
         assert!(recovered, "output must recover within a cycle");
+    }
+
+    fn render(osc: &mut SineOscillator, n: usize) -> Vec<f32> {
+        (0..n)
+            .map(|_| {
+                osc.update(48_000.0);
+                osc.outputs.sample.get(0)
+            })
+            .collect()
+    }
+
+    fn synced(freq: f32, octaves: Option<f32>) -> SineOscillator {
+        let mut osc = make_sine(0.0, FmMode::Exp);
+        osc.params.freq = PolySignal::mono(Signal::Volts(freq));
+        osc.params.sync = octaves.map(|v| PolySignal::mono(Signal::Volts(v)));
+        osc
+    }
+
+    /// Sync at 0 restarts each cycle exactly where it wraps anyway, so from
+    /// the first sample, across restarts and with sync switched on partway,
+    /// the wave is the free one.
+    #[test]
+    fn sync_at_zero_is_the_free_wave() {
+        let render = |sync_from: Option<usize>| {
+            let mut osc = synced(2.0, None);
+            (0..4000)
+                .map(|i| {
+                    osc.params.restart = Some(PolySignal::mono(Signal::Volts(if i % 1000 < 2 {
+                        5.0
+                    } else {
+                        0.0
+                    })));
+                    if sync_from == Some(i) {
+                        osc.params.sync = Some(PolySignal::mono(Signal::Volts(0.0)));
+                    }
+                    osc.update(48_000.0);
+                    osc.outputs.sample.get(0)
+                })
+                .collect::<Vec<f32>>()
+        };
+        let free = render(None);
+        for sync_from in [0, 1537] {
+            for (i, (synced, free)) in render(Some(sync_from)).iter().zip(&free).enumerate() {
+                assert!(
+                    (synced - free).abs() < 1e-3,
+                    "synced from {sync_from}, sample {i}: {synced} vs {free}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_synced_wave_repeats_at_the_note_period() {
+        // 300 Hz: a 160-sample period.
+        let freq = (300.0f32 / 261.625_58).log2();
+        let out = render(&mut synced(freq, Some(1.7)), 2000);
+        let free = render(&mut synced(freq, None), 2000);
+        for i in 400..1840 {
+            assert!(
+                (out[i] - out[i + 160]).abs() < 0.02,
+                "sample {i}: {} vs {}",
+                out[i],
+                out[i + 160]
+            );
+        }
+        let differs = (400..2000).any(|i| (out[i] - free[i - 1]).abs() > 1.0);
+        assert!(differs, "sync reshapes the wave");
     }
 }
