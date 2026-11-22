@@ -1,9 +1,13 @@
 import { describe, expect, test } from 'vitest';
 
+import schemas from '@modular/core/schemas.json';
+
 import * as prettier from 'prettier/standalone';
 import * as prettierBabel from 'prettier/plugins/babel';
 import * as prettierEstree from 'prettier/plugins/estree';
 
+import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
+import { indexApiSignatures } from '../apiSignatures';
 import { docHints } from '../apiTypeReader';
 import { syntaxErrors } from '../syntaxCheck';
 import { formatControlQuickFix } from '../controlFixFormat';
@@ -67,6 +71,16 @@ describe('computeControlQuickFixes — API methods and functions', () => {
         );
     });
 
+    test('.super takes the same controls as $super', () => {
+        const { source, fixes } = fixesAt('$`c3 e3`.super((f) => $saw(f)|)');
+        expect(apply(source, addFix(fixes, 'detune'))).toContain(
+            `detune: $slider('detune', 0.18, 0, 12)`,
+        );
+        expect(apply(source, addFix(fixes, 'width'))).toContain(
+            `width: $slider('width', 5, 0, 5)`,
+        );
+    });
+
     test("$super's options take the controls of the modules they feed", () => {
         const voice = `(f) => $saw(f)`;
         const { source, fixes } = fixesAt(`$super('c3', ${voice}|)`);
@@ -100,8 +114,32 @@ describe('computeControlQuickFixes — API methods and functions', () => {
     });
 
     test('a summary naming another param documents none of the first', () => {
-        const { fixes } = fixesAt(`$sine('c4').delay(|)`);
-        expect(addTitles(fixes)).toEqual([]);
+        const lib = buildLibSource(schemas).replace(
+            /\n}\n\nexport \{\};\n$/,
+            [
+                '',
+                '/** Shapes `x`, 0 to 5, default 2. */',
+                'function $shaped(x?: Poly<Signal>): Collection;',
+                '/** Mixes by `amount`, 0 to 5, default 2. */',
+                'function $mixed(x?: Poly<Signal>, amount?: Poly<Signal>): Collection;',
+                '}',
+                '',
+                'export {};',
+                '',
+            ].join('\n'),
+        );
+        const api = { index: indexApiSignatures(lib), schemas };
+        const titles = (source: string) =>
+            addTitles(
+                computeControlQuickFixes(
+                    source,
+                    source.indexOf(')'),
+                    api,
+                    LAYOUT,
+                ),
+            );
+        expect(titles('$shaped()')).toEqual(["Add slider for 'x'"]);
+        expect(titles('$mixed()')).toEqual([]);
     });
 
     test('a param with no stated default is wrapped but never added', () => {

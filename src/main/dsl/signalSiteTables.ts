@@ -4,7 +4,7 @@ import type {
     SignalSiteTables,
 } from '../../shared/dsl/signalSites';
 import { dslModules } from '../../shared/dsl/dslModuleDocs';
-import { chainNames } from '../../shared/dsl/referenceDocs';
+import { functionName } from '../../shared/dsl/referenceDocs';
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
 import { processModuleSchema, qualifiesForChain } from './paramsSchema';
@@ -83,6 +83,27 @@ function bufferParams(schema: ModuleSchema): string[] {
         .map(([name]) => name);
 }
 
+const BUILT_SITES: Record<string, BuiltSiteInfo> = {
+    $delay: DELAY_SITE,
+    $super: SUPER_SITE,
+};
+
+/** A site for each module the DSL builds, chaining as its docs say. */
+function builtModuleSites(
+    schemas: ModuleSchema[],
+): Record<string, ModuleSiteInfo> {
+    return Object.fromEntries(
+        dslModules(schemas).map((fn) => {
+            const name = functionName(fn);
+            const site = BUILT_SITES[name];
+            if (!site) {
+                throw new Error(`No signal site for ${name}`);
+            }
+            return [name, { ...site, chainable: Boolean(fn.chainable) }];
+        }),
+    );
+}
+
 /**
  * Describe the DSL to the editor's signal-site collector, in the names the
  * generated lib and the runtime use.
@@ -90,14 +111,12 @@ function bufferParams(schema: ModuleSchema): string[] {
 export function buildSignalSiteTables(
     schemas: ModuleSchema[],
 ): SignalSiteTables {
-    const chained = new Set(chainNames(dslModules(schemas)));
     const tables: SignalSiteTables = {
         chainMethods: CHAIN_METHODS,
         globals: GLOBAL_CHANNELS,
         modules: {
             $cross: CROSS_SITE,
-            $delay: { ...DELAY_SITE, chainable: chained.has('delay') },
-            $super: { ...SUPER_SITE, chainable: chained.has('super') },
+            ...builtModuleSites(schemas),
         },
         monoMembers: MONO_MEMBERS,
         // A pattern is the `$cycle` that plays it, which is mono.

@@ -19,7 +19,7 @@ import {
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 import { dslModules } from '../../../shared/dsl/dslModuleDocs';
-import { chainNames } from '../../../shared/dsl/referenceDocs';
+import { chainNames, functionName } from '../../../shared/dsl/referenceDocs';
 import { buildSignalSiteTables } from '../signalSiteTables';
 import { PATTERN_METHODS } from '../miniNotation';
 import { TrackTap } from '../trackTap';
@@ -179,12 +179,11 @@ describe('modules the DSL builds', () => {
         expect(() => execPatch(`${probes}\nout: $sine(0)`)).not.toThrow();
     });
 
-    test('the signal sites chain the same ones', () => {
+    test('each has a signal site that chains as its docs say', () => {
         const { modules } = buildSignalSiteTables(schemas as never);
-        for (const name of ['delay', 'super']) {
-            expect(modules[`$${name}`].chainable, name).toBe(
-                chained.includes(name),
-            );
+        for (const fn of dslModules(schemas)) {
+            const name = functionName(fn);
+            expect(modules[name]?.chainable, name).toBe(Boolean(fn.chainable));
         }
     });
 });
