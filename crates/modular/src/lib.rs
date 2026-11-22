@@ -14,6 +14,8 @@ mod pinned_output_tests;
 use device_poll::DeviceReport;
 mod graph_analysis;
 mod link;
+#[cfg(all(test, target_os = "linux"))]
+mod linux_hosts_tests;
 mod media_audio;
 mod midi;
 mod output_choice;

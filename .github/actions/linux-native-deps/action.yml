@@ -1,0 +1,17 @@
+name: Linux native-module dependencies
+description: >-
+    Install the system libraries the native module links on Linux: cpal's
+    ALSA, JACK and PipeWire hosts (PipeWire's bindings need libclang), and
+    udev. `packages` adds more.
+inputs:
+    packages:
+        description: Further apt packages to install.
+        required: false
+        default: ''
+runs:
+    using: composite
+    steps:
+        - shell: bash
+          run: |
+              sudo apt-get update
+              sudo apt-get install -y libasound2-dev libudev-dev libjack-jackd2-dev libpipewire-0.3-dev libclang-dev ${{ inputs.packages }}

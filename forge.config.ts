@@ -242,14 +242,18 @@ const config: ForgeConfig = {
             name: 'Shoreline',
         }),
         new MakerZIP({}, ['darwin']),
+        // The native module links libpipewire for cpal's PipeWire host, so
+        // it does not load without it.
         new MakerRpm({
             options: {
                 bin: 'Shoreline',
+                requires: ['libpipewire-0.3.so.0()(64bit)'],
             },
         }),
         new MakerDeb({
             options: {
                 bin: 'Shoreline',
+                depends: ['libpipewire-0.3-0t64 | libpipewire-0.3-0'],
             },
         }),
         // new MakerFlatpak({

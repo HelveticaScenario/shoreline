@@ -210,6 +210,12 @@ export interface AudioDeviceInfo {
   outputChannels: number
   /** Whether this is the default device for this host */
   isDefault: boolean
+  /**
+   * The system default itself rather than a device that is the default
+   * now: its stream moves to whatever device becomes the default. Shown
+   * only as System Default.
+   */
+  followsDefault: boolean
   /** Default sample rate in Hz */
   sampleRate: number
   /** Supported sample rates (common rates that the device supports) */

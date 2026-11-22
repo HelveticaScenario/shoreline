@@ -41,7 +41,7 @@ impl StreamHealth {
         }
     }
 
-    fn callbacks(&self) -> u64 {
+    pub(crate) fn callbacks(&self) -> u64 {
         self.callbacks.load(Ordering::Relaxed)
     }
 
