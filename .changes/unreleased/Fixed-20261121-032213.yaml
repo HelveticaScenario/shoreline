@@ -1,3 +1,0 @@
-kind: Fixed
-body: Renaming a sample, image or video in the file explorer keeps the name you type instead of adding `.mjs` to it, and renaming a patch without an extension keeps its own extension.
-time: 2026-11-21T03:22:13.477378-05:00

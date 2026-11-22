@@ -1,3 +1,0 @@
-kind: Improved
-body: When you haven't chosen a sample rate or buffer size, Shoreline now runs at 48 kHz with a 256-frame buffer wherever your audio device supports them, instead of the device's own defaults.
-time: 2026-11-21T02:41:46.175323-05:00
