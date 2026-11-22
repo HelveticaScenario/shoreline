@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
 import {
+    addFix,
     addTitles,
     apply,
     fixesAt,
@@ -186,12 +187,20 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
         expect(titles).not.toContain(`Add note slider for 'freq'`);
     });
 
-    test('a param with no fixed default is not added at a guessed value', () => {
-        // `rise` follows `fall` while unset, so a control at 0 would change it.
-        const { fixes } = fixesAt(
+    test('a param with no declared default is not added at a guessed value', () => {
+        // `freq` turns anti-aliasing on, so a control at any pitch changes it.
+        const { fixes } = fixesAt(`$fold($sine('c3'), 2|).track();`);
+        expect(addTitles(fixes)).not.toContain(`Add note slider for 'freq'`);
+    });
+
+    test('a param whose unset behaviour is described starts at its declared default', () => {
+        const { source, fixes } = fixesAt(
             `$slew($sine('1hz'), { fall: 0.5| }).track();`,
         );
-        expect(addTitles(fixes)).not.toContain(`Add slider for 'rise'`);
+        const rise = addFix(fixes, 'rise');
+        expect(sliderBeforeCaret(source, rise)).toBe(
+            `$slider('rise', 0.01, 0.001, 10)`,
+        );
     });
 
     test('creates the config object when absent', () => {

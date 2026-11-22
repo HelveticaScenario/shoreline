@@ -293,6 +293,52 @@ test.describe('vu meter panel', () => {
         await expect(muteButton).toHaveAttribute('data-code-pressed', 'true');
     });
 
+    test('cmd-click on a track name moves the cursor to its label', async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+
+        await window
+            .locator('.vu-meter[data-vu-key="bass"] .vu-meter-label')
+            .click({ modifiers: ['ControlOrMeta'] });
+        const source = await window.evaluate(() =>
+            window.__TEST_API__!.getEditorValue(),
+        );
+        await expect
+            .poll(() =>
+                window.evaluate(() => window.__TEST_API__!.getCursorOffset()),
+            )
+            .toBe(source.indexOf('bass$0m:'));
+        // The gesture moves the cursor and leaves the track untouched.
+        expect(source).toBe(TWO_OUT_PATCH);
+    });
+
+    test("cmd-click on a track name from another buffer opens the mixer's", async ({
+        window,
+    }) => {
+        await setupTwoOutPatch(window);
+        await openUntitledBuffer(window);
+        await expect
+            .poll(() =>
+                window.evaluate(() => window.__TEST_API__!.getEditorValue()),
+            )
+            .not.toBe(TWO_OUT_PATCH);
+
+        await window
+            .locator('.vu-meter[data-vu-key="bass"] .vu-meter-label')
+            .click({ modifiers: ['ControlOrMeta'] });
+        await expect
+            .poll(() =>
+                window.evaluate(() => window.__TEST_API__!.getEditorValue()),
+            )
+            .toBe(TWO_OUT_PATCH);
+        await expect
+            .poll(() =>
+                window.evaluate(() => window.__TEST_API__!.getCursorOffset()),
+            )
+            .toBe(TWO_OUT_PATCH.indexOf('bass$0m:'));
+    });
+
     test('cmd-click toggles the code state from the ghost, not the audio', async ({
         window,
     }) => {

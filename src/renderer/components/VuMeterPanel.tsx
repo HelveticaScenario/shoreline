@@ -10,6 +10,12 @@ import { OUT_PAN_RANGE } from '../../shared/dsl/controlRanges';
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
 import { trackGates } from '../../shared/dsl/trackGates';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
+import {
+    controlTooltip,
+    isJumpGesture,
+    jumpHandlers,
+    useJumpModifier,
+} from './controlPanel/controlChrome';
 import { Knob, type KnobHandlers, type KnobRange } from './VuKnob';
 import {
     type SendBus,
@@ -20,14 +26,13 @@ import {
 import './VuMeterPanel.css';
 
 /**
- * A Ctrl/Cmd gesture edits the DSL source only, leaving the running audio
- * untouched until the next patch update; the control then shows a ghost of
- * the code-side value. On macOS Ctrl+click arrives as a contextmenu event,
- * so the buttons detect the code-only gesture on that path too.
+ * A Ctrl/Cmd gesture on a control edits the DSL source only, leaving the
+ * running audio untouched until the next patch update; the control then
+ * shows a ghost of the code-side value. On macOS Ctrl+click arrives as a
+ * contextmenu event, so the buttons detect the code-only gesture on that path
+ * too. On a strip's name the same gesture jumps to its label.
  */
-function isCodeOnly(e: React.MouseEvent | React.PointerEvent): boolean {
-    return e.ctrlKey || e.metaKey;
-}
+const isCodeOnly = isJumpGesture;
 
 const MS_BUTTON_HINT = '⌃/⌘-click: edit code only';
 
@@ -62,6 +67,8 @@ interface VuMeterPanelProps extends KnobHandlers {
     unregisterCanvas: (key: string) => void;
     registerReadout: (key: string, el: HTMLElement) => void;
     unregisterReadout: (key: string) => void;
+    /** Ctrl/Cmd-click on a strip's name: move the cursor to its label. */
+    onJump: (key: string) => void;
 }
 
 /**
@@ -117,6 +124,7 @@ interface VuMeterProps extends KnobHandlers {
     unregisterCanvas: (key: string) => void;
     registerReadout: (key: string, el: HTMLElement) => void;
     unregisterReadout: (key: string) => void;
+    onJump: (key: string) => void;
 }
 
 function VuMeter({
@@ -140,6 +148,7 @@ function VuMeter({
     unregisterCanvas,
     registerReadout,
     unregisterReadout,
+    onJump,
     ...knobs
 }: VuMeterProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -259,17 +268,25 @@ function VuMeter({
             ? `ch ${output.baseChannel}–${output.baseChannel + 1}`
             : `ch ${output.baseChannel}`;
 
+    const title = output.main
+        ? 'End of chain'
+        : `${output.key} (${channelBadge})`;
+
     return (
         <div
             className={`vu-meter${suppressed ? ' vu-meter--suppressed' : ''}${
                 output.main ? ' vu-meter--main' : ''
             }`}
             data-vu-key={output.key}
-            title={
-                output.main ? 'End of chain' : `${output.key} (${channelBadge})`
-            }
+            title={title}
         >
-            <div className="vu-meter-header">
+            <div
+                className="vu-meter-header"
+                {...(!output.main && {
+                    ...jumpHandlers(output.key, onJump),
+                    title: controlTooltip(title),
+                })}
+            >
                 {fold && (
                     <button
                         className="vu-group-fold"
@@ -460,7 +477,9 @@ export function VuMeterPanel({
     onKnobCommit,
     registerKnob,
     unregisterKnob,
+    onJump,
 }: VuMeterPanelProps) {
+    const jump = useJumpModifier();
     const channelOutputs = outputs.filter((o) => !o.main);
     const trackOutputs = channelOutputs.filter((o) => !o.isBus);
     const busOutputs = channelOutputs.filter((o) => o.isBus);
@@ -541,6 +560,7 @@ export function VuMeterPanel({
         onGainRevert,
         onPeakReset,
         onKnobChange,
+        onJump,
         onKnobCommit,
         onToggleMute,
         onToggleSolo,
@@ -591,7 +611,11 @@ export function VuMeterPanel({
     };
 
     return (
-        <div ref={panelRef} className="vu-meter-panel">
+        <div
+            ref={panelRef}
+            className={`vu-meter-panel${jump.armed ? ' jump-armed' : ''}`}
+            onPointerMove={jump.onPointerMove}
+        >
             <div className="vu-meter-scroll">
                 {channelOutputs.length === 0 ? (
                     <div className="vu-meter-empty">

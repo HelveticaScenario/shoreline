@@ -72,6 +72,20 @@
     text-overflow: ellipsis;
 }
 
+.vu-meter-panel.jump-armed
+    .vu-meter:not(.vu-meter--main)
+    .vu-meter-header:hover {
+    cursor: pointer;
+}
+
+.vu-meter-panel.jump-armed
+    .vu-meter:not(.vu-meter--main)
+    .vu-meter-header:hover
+    .vu-meter-label {
+    color: var(--accent-primary);
+    text-decoration: underline;
+}
+
 .vu-meter-body {
     display: flex;
     flex: 1;

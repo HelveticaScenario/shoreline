@@ -36,8 +36,10 @@ struct NoiseParams {
     #[deserr(default)]
     color: NoiseKind,
     #[input(
-        "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
+        "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop",
         type = frequency,
+        default = -6.031,
+        default_doc = "a new value every sample",
     )]
     #[deserr(default)]
     rate: Option<PolySignal>,
