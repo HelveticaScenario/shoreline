@@ -23,7 +23,7 @@
         "test:rust": "yarn gen:sp-fixtures && cargo test",
         "test:e2e": "playwright test",
         "test:all": "yarn test:unit && yarn test:rust && yarn test:e2e",
-        "typecheck": "yarn build-native && tsc -b",
+        "typecheck": "yarn build-native && node node_modules/typescript-go/bin/tsc -b",
         "lint": "oxlint src --config .oxlintrc.json -A tsconfig-error",
         "lint:fix": "oxlint src --fix --config .oxlintrc.json -A tsconfig-error",
         "knip": "knip",
@@ -85,6 +85,7 @@
         "oxlint-tsgolint": "^7.0.2008",
         "peggy": "^5.1.1",
         "tsx": "^4.23.15",
+        "typescript-go": "npm:typescript@7.1.0-beta",
         "vite": "^7.3.8",
         "vitest": "^4.1.12",
         "webgpu": "^0.6.2"

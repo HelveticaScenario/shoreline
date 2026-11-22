@@ -215,6 +215,7 @@ Nothing is committed to master except through a PR. On every push to master, the
 
 - **Node 24.12.0 / Yarn 4.12.0** pinned via Volta.
 - **Rust edition 2024**.
+- **Two TypeScripts.** `yarn typecheck` compiles with TypeScript 7 (the `typescript-go` alias), which has no in-process API. Code that imports `typescript` gets 5.9, the version Monaco's worker embeds, so tests that build a program see what the editor sees; keep the two in step.
 - **Release targets**: macOS arm64 + x64, Windows x64, Linux x64. x86_64 builds assume `x86-64-v2` (root `.cargo/config.toml`), so benchmark that build, never `-C target-cpu=native`.
 - **sccache** (when it is the rustc wrapper) runs in client-side mode via `[env]` in the root `.cargo/config.toml`, so killing a build cannot drain the shared server's jobserver tokens. Keep that setting; sccache ignores it while `SCCACHE_ERROR_LOG` is set. If builds still sit at 0% CPU on every worktree, run `sccache --stop-server`, which restores the pool.
 - **Husky pre-commit hooks** run Prettier on `*.{ts,tsx,js,jsx,mjs,json,css,md}` and `cargo fmt` on Rust files.
