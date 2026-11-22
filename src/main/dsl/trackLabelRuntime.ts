@@ -19,7 +19,7 @@ import {
     analyzeTrackLabels,
     type TrackStatement,
 } from '../../shared/dsl/trackLabels';
-import { captureSourceLocation } from './captureSourceLocation';
+import { captureSourceLocation, lineSuffix } from './captureSourceLocation';
 import { type GraphBuilder, markTrackBinding } from './GraphBuilder';
 import { createTrackTap } from './trackTap';
 
@@ -59,7 +59,7 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
     if (errors.length > 0) {
         const first = errors[0];
         throw new Error(
-            `${first.message} (line ${lineColumn(file, first.start).line})`,
+            `${first.message}${lineSuffix(lineColumn(file, first.start))}`,
         );
     }
     if (tracks.length > 0 && source.includes(ACCESSOR)) {
@@ -77,7 +77,7 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
         const region = source.slice(labelStart, colonEnd);
         if (LINE_BREAK.test(region[1])) {
             throw new Error(
-                `write a track label and its colon on one line (line ${lineColumn(file, labelStart).line})`,
+                `write a track label and its colon on one line${lineSuffix(lineColumn(file, labelStart))}`,
             );
         }
         // Unit by unit, so every UTF-16 unit keeps its column.
@@ -104,7 +104,7 @@ export function prepareTrackLabels(source: string): TrackLabelProgram {
             const { name } = track;
             if (name in sandbox || builtins.has(name)) {
                 throw new Error(
-                    `track ${name} has the name of a DSL global, so it cannot be bound (line ${lineColumn(file, labelStart).line})`,
+                    `track ${name} has the name of a DSL global, so it cannot be bound${lineSuffix(lineColumn(file, labelStart))}`,
                 );
             }
             Object.defineProperty(sandbox, name, {

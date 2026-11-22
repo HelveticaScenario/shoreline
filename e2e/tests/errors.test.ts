@@ -94,3 +94,54 @@ test.describe('error handling', () => {
         }
     });
 });
+
+test.describe('error banner line numbers', () => {
+    const runAndReadBanner = async (
+        window: import('@playwright/test').Page,
+        source: string,
+    ) => {
+        await openUntitledBuffer(window);
+        await window.evaluate((code) => {
+            window.__TEST_API__!.setEditorValue(code);
+        }, source);
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        const banner = window.locator('.error-display');
+        await expect(banner).toBeVisible({ timeout: 10_000 });
+        return banner;
+    };
+
+    test('a syntax error shows its line', async ({ window }) => {
+        const banner = await runAndReadBanner(
+            window,
+            'const a = 1;\nconst b = ;\n',
+        );
+        await expect(banner.locator('.error-message')).toContainText(
+            '(line 2)',
+        );
+    });
+
+    test('an error thrown while the patch runs shows its line', async ({
+        window,
+    }) => {
+        const banner = await runAndReadBanner(
+            window,
+            'const a = 1;\n\nnotDefined();\n',
+        );
+        await expect(banner.locator('.error-message')).toContainText(
+            'notDefined is not defined (line 3)',
+        );
+    });
+
+    test('an engine error on one of several same-type modules shows its line', async ({
+        window,
+    }) => {
+        const banner = await runAndReadBanner(
+            window,
+            'a: $sine("c4");\nb: $sine({ type: "cable", module: "ghost", port: "output" });\n',
+        );
+        await expect(banner.locator('.validation-error')).toContainText(
+            "Module 'ghost' not found for cable source",
+        );
+        await expect(banner.locator('.error-location')).toHaveText('at line 2');
+    });
+});

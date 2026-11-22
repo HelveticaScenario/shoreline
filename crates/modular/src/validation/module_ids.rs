@@ -37,6 +37,7 @@ pub(super) fn validate_module_ids(patch: &PatchGraph, errors: &mut Vec<Validatio
                 location: Some(location_str.clone()),
                 expected_type: None,
                 actual_value: None,
+                module_id: Some(module.id.clone()),
             });
         }
 
@@ -47,6 +48,7 @@ pub(super) fn validate_module_ids(patch: &PatchGraph, errors: &mut Vec<Validatio
                 location: Some(location_str.clone()),
                 expected_type: None,
                 actual_value: None,
+                module_id: Some(module.id.clone()),
             }),
             Some(Some(required_type)) if module.module_type != required_type => {
                 errors.push(ValidationError {
@@ -58,6 +60,7 @@ pub(super) fn validate_module_ids(patch: &PatchGraph, errors: &mut Vec<Validatio
                     location: Some(location_str.clone()),
                     expected_type: None,
                     actual_value: None,
+                    module_id: Some(module.id.clone()),
                 });
             }
             _ => {}

@@ -667,6 +667,24 @@ pub struct ApplyPatchError {
     pub errors: Option<Vec<ValidationError>>,
 }
 
+impl ApplyPatchError {
+    fn validation(errors: Vec<ValidationError>) -> Self {
+        ApplyPatchError {
+            message: "Validation failed".to_string(),
+            errors: Some(errors),
+        }
+    }
+}
+
+impl From<napi::Error> for ApplyPatchError {
+    fn from(e: napi::Error) -> Self {
+        ApplyPatchError {
+            message: format!("Failed to apply patch: {}", e),
+            errors: None,
+        }
+    }
+}
+
 use crate::validation::ValidationError;
 use crate::validation::validate_patch;
 
@@ -1797,7 +1815,10 @@ impl AudioState {
 
     /// Build a PatchUpdate from desired graph and send to audio thread.
     /// This computes the diff using the shadow state and constructs new modules on the main thread.
-    pub fn apply_patch(&self, submission: PatchSubmission) -> Result<()> {
+    pub fn apply_patch(
+        &self,
+        submission: PatchSubmission,
+    ) -> std::result::Result<(), ApplyPatchError> {
         let PatchSubmission {
             graph: desired_graph,
             sample_rate,
@@ -1913,13 +1934,18 @@ impl AudioState {
                 state_metas.insert(id.clone(), meta);
                 state_live.insert(id.clone(), live);
             }
+            let location = crate::validation::format_module_location(&module_state);
             let deserialized =
                 crate::deserialize_params(&module_state.module_type, module_state.params, true)
                     .map_err(|e| {
-                        napi::Error::from_reason(format!(
-                            "Failed to deserialize params for {}: {}",
-                            id, e
-                        ))
+                        ApplyPatchError::validation(vec![ValidationError {
+                            field: "params".to_string(),
+                            message: e.to_string(),
+                            location: Some(location),
+                            expected_type: None,
+                            actual_value: None,
+                            module_id: Some(id.clone()),
+                        }])
                     })?;
             let mut sources = Vec::new();
             deserialized.params.collect_cables(&mut sources);
@@ -2056,17 +2082,14 @@ impl AudioState {
         } else {
             self.prune_settlements(&mut patches);
         }
-        sent
+        Ok(sent?)
     }
 
     pub fn handle_set_patch(&self, submission: PatchSubmission) -> Vec<ApplyPatchError> {
         // Validate patch
         let schemas = schema();
         if let Err(errors) = validate_patch(&submission.graph, &schemas) {
-            return vec![ApplyPatchError {
-                message: "Validation failed".to_string(),
-                errors: Some(errors),
-            }];
+            return vec![ApplyPatchError::validation(errors)];
         }
 
         // If stopped, clear audio-thread state and request a start. The audio
@@ -2084,10 +2107,7 @@ impl AudioState {
 
         // Apply patch
         if let Err(e) = self.apply_patch(submission) {
-            return vec![ApplyPatchError {
-                message: format!("Failed to apply patch: {}", e),
-                errors: None,
-            }];
+            return vec![e];
         }
 
         // No errors
@@ -5695,6 +5715,39 @@ mod tests {
         }
         waited.sort();
         assert_eq!(waited, ["a", "b"]);
+    }
+
+    #[test]
+    fn params_that_fail_to_deserialize_name_their_module() {
+        let state = create_test_audio_state();
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules: vec![modular_core::types::ModuleSpec {
+                    id: "$noise-2".into(),
+                    module_type: "$noise".into(),
+                    id_is_explicit: None,
+                    skip_state_transfer: None,
+                    params: serde_json::json!({ "unknown_param": 1.0 }),
+                }],
+                module_id_remaps: None,
+                scopes: vec![],
+                vu_meters: vec![],
+            },
+            sample_rate: 44_100.0,
+            trigger: QueuedTrigger::Immediate,
+            update_id: 1,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        let [error] = errors.as_slice() else {
+            panic!("expected one error");
+        };
+        let details = error.errors.as_deref().unwrap_or_default();
+        assert_eq!(details.len(), 1);
+        assert_eq!(details[0].module_id.as_deref(), Some("$noise-2"));
+        assert_eq!(details[0].location.as_deref(), Some("$noise(...)"));
+        assert!(details[0].message.contains("unknown parameter"));
     }
 
     #[test]
