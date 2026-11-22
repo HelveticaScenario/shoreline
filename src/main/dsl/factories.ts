@@ -393,9 +393,6 @@ export class DSLContext {
         const outputs = schema.outputs || [];
         const rootOutputs = resolvableOutputs(schema);
         const processed = processModuleSchema(schema);
-        const scaleParamNames = processed.params
-            .filter((p) => p.isScaleSignalInput)
-            .map((p) => p.name);
         const wavParamNames = processed.params
             .filter((p) => p.isWavInput)
             .map((p) => p.name);
@@ -470,16 +467,6 @@ export class DSLContext {
             for (const [name, value] of Object.entries(params)) {
                 if (!signalParamNames.has(name)) {
                     params[name] = patternPayload(value);
-                }
-            }
-
-            // The engine only accepts a signal scale; a spec string is
-            // shorthand for the notes of `$chord(spec)`.
-            for (const name of scaleParamNames) {
-                if (typeof params[name] === 'string') {
-                    params[name] = this.builder.getFactory('$chord')(
-                        params[name],
-                    );
                 }
             }
 

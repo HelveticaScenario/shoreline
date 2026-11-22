@@ -13,11 +13,8 @@
 //! (`C`, `Db3`, `f#5`); the octave defaults to 4, so `C` is C4 = 0 V.
 
 use arrayvec::ArrayVec;
-use deserr::{DeserializeError, ErrorKind, IntoValue, ValuePointerRef};
 
-use crate::Patch;
 use crate::poly::PORT_MAX_LANES;
-use crate::types::Connect;
 
 use super::chord_symbol;
 use super::{chord_names, scale_names};
@@ -429,50 +426,6 @@ impl<const N: usize> DedupSorted for ArrayVec<i8, N> {
             }
         }
         self.truncate(write);
-    }
-}
-
-impl Connect for ScaleSpec {
-    fn apply_default_connections(&mut self) {}
-    fn connect(&mut self, _patch: &Patch) {}
-    fn collect_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
-    fn collect_lane_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
-    fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
-    fn expand_lanes(&mut self, _expansion: &crate::types::LaneExpansion) {}
-    fn mark_glides(
-        &mut self,
-        _old: Option<&Self>,
-        _generation: u64,
-        _ids: &dyn crate::types::PreviousIds,
-    ) {
-    }
-}
-
-impl schemars::JsonSchema for ScaleSpec {
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("ScaleSpec")
-    }
-
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        String::json_schema(generator)
-    }
-}
-
-impl<E: DeserializeError> deserr::Deserr<E> for ScaleSpec {
-    fn deserialize_from_value<V: IntoValue>(
-        value: deserr::Value<V>,
-        location: ValuePointerRef<'_>,
-    ) -> Result<Self, E> {
-        let source = String::deserialize_from_value(value, location)?;
-        Self::parse(&source).map_err(|reason| {
-            deserr::take_cf_content(E::error::<V>(
-                None,
-                ErrorKind::Unexpected {
-                    msg: format!("Invalid scale specification \"{source}\": {reason}"),
-                },
-                location,
-            ))
-        })
     }
 }
 

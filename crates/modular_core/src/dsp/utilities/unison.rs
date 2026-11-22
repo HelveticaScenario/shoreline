@@ -98,11 +98,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
             title: "Chord with breathing detune",
             code: r#"
                 melody: $saw(
-                  $unison(
-                    $chord('C3[m9]'),
-                    3,
-                    $sine('0.1hz').range(0, 0.5),
-                  ),
+                  $unison('c3:m9', 3, $sine('0.1hz').range(0, 0.5)),
                 )
             "#,
         },

@@ -223,9 +223,9 @@ type ModeString =
     >;
 
 /**
- * A scale or chord spec: a root note (optional octave, default 4) followed by
- * a scale in \`()\` or a chord in \`[]\`. Used by {@link $chord} and accepted
- * by {@link $quantizer}'s \`scale\` (where it is shorthand for \`$chord(spec)\`).
+ * A scale or chord spec for a pattern's \`.scale(...)\`: a root note
+ * (optional octave, default 4) followed by a scale in \`()\` or a chord in
+ * \`[]\`.
  *
  * | Form | Example | Meaning |
  * |------|---------|---------|
@@ -2627,7 +2627,7 @@ export function generateDSL(schemas: Schemas): string {
             ' * )',
             ' * @example',
             ' * pad: $super(',
-            " *   $chord('C3[m9]'),",
+            " *   'c3:m9',",
             ' *   (freq, { phaseOffset }) =>',
             " *     $pulse(freq, { phaseOffset }).lpf('c6'),",
             ' *   { unison: 3, detune: 0.3 },',

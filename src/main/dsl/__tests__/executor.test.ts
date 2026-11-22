@@ -1229,7 +1229,7 @@ describe('utilities', () => {
 
     test('$super stacks every note of a chord and folds each to one lane', () => {
         const patch = execPatch(
-            "pad: $super($chord('C3[maj]'), (f, { phaseOffset }) => $saw(f, { phaseOffset }), { unison: 3 })",
+            "pad: $super('c3:M', (f, { phaseOffset }) => $saw(f, { phaseOffset }), { unison: 3 })",
         );
         const [unison] = findModules(patch, '$unison');
         expect(unison.params.count).toBe(3);
@@ -1300,23 +1300,7 @@ describe('utilities', () => {
             const patch = execPatch(`out: $quantizer($sine("C4"), "${scale}")`);
             const [quantizer] = findModules(patch, '$quantizer');
             expect(quantizer.params.scale).toHaveLength(notes);
-            expect(findModules(patch, '$chord').length).toBe(0);
         }
-    });
-
-    test('$quantizer string scale becomes a $chord feeding the scale input', () => {
-        const patch = execPatch('out: $quantizer($sine("C4"), "C[maj7]")');
-        const [chord] = findModules(patch, '$chord');
-        expect(chord.params.chord).toBe('C[maj7]');
-        const [quantizer] = findModules(patch, '$quantizer');
-        const scale = quantizer.params.scale as Array<{
-            module: string;
-            port: string;
-        }>;
-        expect(scale).toHaveLength(4);
-        expect(
-            scale.every((c) => c.module === chord.id && c.port === 'pitch'),
-        ).toBe(true);
     });
 
     test('$quantizer takes a signal scale and a gate', () => {
@@ -1324,7 +1308,6 @@ describe('utilities', () => {
             'const midi = $midiCV({ lanes: 4 })\n' +
                 'out: $quantizer($sine("1hz"), midi, { gate: midi._gate })',
         );
-        expect(findModules(patch, '$chord').length).toBe(0);
         const [midi] = findModules(patch, '$midiCV');
         const [quantizer] = findModules(patch, '$quantizer');
         const scale = quantizer.params.scale as Array<{
@@ -1352,23 +1335,12 @@ describe('utilities', () => {
         );
     });
 
-    test('$chord', () => {
-        const patch = execPatch('out: $saw($chord("C3[m7 inv1]"))');
-        expect(findModules(patch, '$chord').length).toBe(1);
-    });
-
     test('$inversion', () => {
         const patch = execPatch(
-            "const c = $inversion(['c3', 'e3', 'g3'], 1.5)\nout: $saw(c).amp(c._level)",
+            "const c = $inversion('c3:M', 1.5)\nout: $saw(c).amp(c._level)",
         );
         const [inversion] = findModules(patch, '$inversion');
         expect(inversion.params.amount).toBe(1.5);
-    });
-
-    test('$chord rejects an invalid spec', () => {
-        expect(() => execPatch('out: $saw($chord("C(maj7)"))')).toThrow(
-            /Invalid scale specification/,
-        );
     });
 
     test('$clockDivider', () => {

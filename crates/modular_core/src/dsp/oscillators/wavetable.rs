@@ -329,7 +329,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
             title: "Scanning pad",
             code: r#"
                 chord: $wavetable(
-                  $chord('C3[m9]'),
+                  'c3:m9',
                   'builtin/tables/mi/formants.wav',
                   $sine('0.1hz').range(0, 5),
                 )

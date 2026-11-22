@@ -14,8 +14,8 @@ const DOCS: DocContent = {
     categories: ['pitch'],
     description: 'Outputs every note of a chord.',
     examples: [
-        { code: "out: $saw($chord('C3[maj7]'))", title: 'Pad' },
-        { code: "out: $sine($chord('A[m9]'))", title: 'Bells' },
+        { code: "out: $saw('c3:M7')", title: 'Pad' },
+        { code: "out: $sine('a:m9')", title: 'Bells' },
     ],
     sections: [
         {
@@ -40,7 +40,7 @@ describe('tableToCompactMarkdown', () => {
 });
 
 describe('renderDocContentJsDoc', () => {
-    const lines = renderDocContentJsDoc(DOCS, '$chord');
+    const lines = renderDocContentJsDoc(DOCS, '$saw');
 
     test('description, sections, then the first example', () => {
         expect(lines).toEqual([
@@ -54,16 +54,16 @@ describe('renderDocContentJsDoc', () => {
             '',
             '```js',
             '// Pad',
-            "out: $saw($chord('C3[maj7]'))",
+            "out: $saw('c3:M7')",
             '```',
             '',
-            'More in the reference: {@link $chord}',
+            'More in the reference: {@link $saw}',
         ]);
     });
 
     test('no reference link when nothing is left out', () => {
         const one = { ...DOCS, examples: DOCS.examples.slice(0, 1) };
-        expect(renderDocContentJsDoc(one, '$chord').at(-1)).toBe('```');
+        expect(renderDocContentJsDoc(one, '$saw').at(-1)).toBe('```');
     });
 });
 

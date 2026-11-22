@@ -189,7 +189,7 @@ const OBXD2_HP_DOCS: ModuleDocs = ModuleDocs {
         title: "Airy thinned pad",
         code: r#"
             chord: $unstable.filter.obxd2Hp(
-              $saw($chord('C3[maj9]')),
+              $saw('c3:M9'),
               $sine('0.1hz').range('c3', 'c5'),
               2,
             )

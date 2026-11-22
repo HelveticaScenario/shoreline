@@ -235,7 +235,7 @@ const OBXD4_DOCS: ModuleDocs = ModuleDocs {
         title: "Dark brass swell",
         code: r#"
             chord: $unstable.filter.obxd4(
-              $saw($chord('F2[maj7]')),
+              $saw('f2:M7'),
               $sine('0.1hz').range('c3', 'c6'),
               2.5,
             )

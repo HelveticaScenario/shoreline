@@ -379,7 +379,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
             "lead: $saw('c3')                 // Stereo on channels 0 and 1",
-            "_pad$2: $sine($chord('C4[maj7]'))  // Muted, on channels 2 and 3",
+            "_pad$2: $sine('c4:M7')  // Muted, on channels 2 and 3",
             'S_click$4m: $noise()             // Soloed, mono on channel 4',
             'kick$drums: $tr808.kick($`c ~ c ~`)\nhats$drums: $tr808.hiHat($`c*8`)\ndrums: $group().comp()  // Both drums through one compressor',
             "kick: $tr808.kick($`c ~ c ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
@@ -396,7 +396,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         examples: [
             "tone: $sine('c').track({ gain: 2.5 })           // 50% gain",
             "tone: $sine('c').track({ pan: -2.5 })           // Pan left",
-            "chord: $saw($chord('C3[m7]')).track({ spread: 5 })  // Lanes fanned edge to edge",
+            "chord: $saw('c3:m7').track({ spread: 5 })  // Lanes fanned edge to edge",
             "tone: $sine('c').track({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
             "tone: $sine('c').track({ sends: [verb, [echo, 2]] })  // Also feed two buses",
         ],
