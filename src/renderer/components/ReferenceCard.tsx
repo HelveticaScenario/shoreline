@@ -2,6 +2,7 @@ import React, { memo } from 'react';
 import Markdown from 'react-markdown';
 import { LinkifyTypes } from './DocsTypeLinks';
 import { ColorizedCode } from './ColorizedCode';
+import { useQuoteExample } from '../hooks/useQuoteStyle';
 import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { EnumVariantInfo } from '../../shared/dsl/schemaTypeResolver';
@@ -81,16 +82,19 @@ const DocTableView: React.FC<{ table: DocTable }> = ({ table }) => (
     </table>
 );
 
-const Examples: React.FC<{ examples: DocExample[] }> = ({ examples }) => (
-    <>
-        {examples.map((e) => (
-            <figure key={e.title} className="doc-example">
-                <figcaption>{e.title}</figcaption>
-                <ColorizedCode code={e.code} />
-            </figure>
-        ))}
-    </>
-);
+const Examples: React.FC<{ examples: DocExample[] }> = ({ examples }) => {
+    const quote = useQuoteExample();
+    return (
+        <>
+            {examples.map((e) => (
+                <figure key={e.title} className="doc-example">
+                    <figcaption>{e.title}</figcaption>
+                    <ColorizedCode code={quote(e.code)} />
+                </figure>
+            ))}
+        </>
+    );
+};
 
 interface ReferenceCardProps {
     entry: ReferenceEntry;
