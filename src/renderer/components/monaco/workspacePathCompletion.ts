@@ -124,7 +124,7 @@ export function assetPaths(
             return assetPaths(entry.children ?? []);
         }
         const kind = entry.fileType;
-        return kind === undefined || kind === 'js'
+        return kind === undefined || kind === 'patch'
             ? []
             : [{ path: `/${entry.path}`, kind }];
     });

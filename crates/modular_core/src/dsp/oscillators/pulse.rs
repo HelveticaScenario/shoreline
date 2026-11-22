@@ -7,8 +7,8 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
-        utils::{SchmittTrigger, sanitize, wrap_phase},
+        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio},
+        utils::{sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -20,7 +20,7 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct PulseOscillatorParams {
-    #[input("oscillator pitch", type = pitch)]
+    #[input("oscillator pitch; with `sync` set, the pitch it restarts at", type = pitch)]
     freq: PolySignal,
     #[input(
         "pulse width: 0 a thin high spike, 2.5 square, 5 a thin low notch",
@@ -45,10 +45,20 @@ struct PulseOscillatorParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
+    #[input(
+        "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        type = control,
+        default = 0.0,
+        range = (0.0, ..),
+        control_range = (0.0, 3.0),
+    )]
     #[deserr(default)]
     #[block_input(optional)]
     sync: Option<PolySignal>,
+    #[input("each rising edge restarts the cycle", type = trig)]
+    #[deserr(default)]
+    #[block_input(optional)]
+    restart: Option<PolySignal>,
     #[input(
         "shifts where in the cycle the wave is read, in cycles; wraps around",
         type = control,
@@ -71,12 +81,11 @@ struct PulseLaneState {
     phase: f32,
     width: SwapGlide,
     pwm: SwapGlide,
-    /// Edge detector for the sync input.
-    sync_schmitt: SchmittTrigger,
-    /// Previous sync-input sample, for subsample edge interpolation.
-    sync_prev: f32,
-    /// PolyBLEP residual carried into the next sample from a sync reset.
+    resets: Resets,
+    /// PolyBLEP residual carried into the next sample from a reset.
     blep_carry: f32,
+    /// Whether the cycle reset on the last sample.
+    restarted: bool,
 }
 
 const PULSE_DOCS: ModuleDocs = ModuleDocs {
@@ -116,14 +125,29 @@ pub struct PulseOscillator {
 }
 
 impl PulseLaneState {
-    /// Advance the phase by `phase_increment` (cycles per sample) and return
-    /// the next output sample. `width` is this sample's glided width plus
-    /// PWM, clamped to 0–5, and `sync` its sync input, if connected.
+    /// Advance the phase by `phase_increment` (cycles per sample at the
+    /// note's pitch) and return the next output sample. `width` is this
+    /// sample's glided width plus PWM, clamped to 0–5, `restart` its restart
+    /// input and `sync_ratio` its sync, if connected.
     #[inline(always)]
-    fn step(&mut self, phase_increment: f32, width: f32, offset: f32, sync: Option<f32>) -> f32 {
+    fn step(
+        &mut self,
+        phase_increment: f32,
+        width: f32,
+        offset: f32,
+        restart: Option<f32>,
+        sync_ratio: Option<f32>,
+    ) -> f32 {
         // Pulse width (0.0 to 1.0, 0.5 is square wave)
         let pulse_width = (width / 5.0).clamp(0.01, 0.99);
 
+        let (phase_increment, reset) = self.resets.step(
+            self.phase,
+            phase_increment,
+            restart,
+            sync_ratio,
+            Landing::Next,
+        );
         self.phase = wrap_phase(self.phase + phase_increment);
 
         // Phase offset shifts the read position without altering the
@@ -134,38 +158,67 @@ impl PulseLaneState {
         let naive_pulse = |p: f32| if p < pulse_width { 1.0 } else { -1.0 };
 
         // Naive pulse plus PolyBLEP at its own rising (phase 0) and falling
-        // (phase = width) edges. The sync reset lands in the upcoming
-        // interval, so these operate on the real, pre-reset phase.
+        // (phase = width) edges. A reset lands in the upcoming interval, so
+        // these operate on the real, pre-reset phase. A reset band-limits the
+        // jump it makes, which replaces an edge ahead on the sample it lands
+        // and an edge just behind on the sample after it.
         let abs_phase_inc = phase_increment.abs();
-        let mut body = naive_pulse(read_phase);
-        body += poly_blep_pulse(read_phase, abs_phase_inc);
-        body -= poly_blep_pulse(
-            if read_phase >= pulse_width {
-                read_phase - pulse_width
+        let (restarted, resetting) = (self.restarted, reset.is_some());
+        let edge = |phase: f32| {
+            let replaced = if phase < abs_phase_inc {
+                restarted
             } else {
-                read_phase - pulse_width + 1.0
-            },
-            abs_phase_inc,
-        );
+                resetting
+            };
+            if replaced {
+                0.0
+            } else {
+                poly_blep_pulse(phase, abs_phase_inc)
+            }
+        };
+        let mut body = naive_pulse(read_phase);
+        body += edge(read_phase);
+        body -= edge(if read_phase >= pulse_width {
+            read_phase - pulse_width
+        } else {
+            read_phase - pulse_width + 1.0
+        });
 
         let pending = self.blep_carry;
         self.blep_carry = 0.0;
+        self.restarted = resetting;
 
-        // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the reset discontinuity.
-        // (The jump is zero when the pulse was already high at the reset.)
+        // A reset restarts the cycle, with a PolyBLEP placed at its subsample
+        // point to band-limit the jump to where a pulse running this way
+        // starts. The jump is zero when the pulse already stood there.
         let mut now = 0.0;
-        if let Some(v) = sync {
-            if self.sync_schmitt.process(v) {
-                let frac = sync_edge_fraction(self.sync_prev, v);
-                let before = naive_pulse(read_phase);
-                self.phase = 0.0;
-                let after = naive_pulse(read_offset);
-                let (n, carry) = sync_blep(after - before, frac);
-                now = n;
-                self.blep_carry = carry;
+        if let Some(reset) = reset {
+            let before = naive_pulse(read_phase);
+            self.phase = reset.phase(phase_increment);
+            let start = if phase_increment < 0.0 {
+                (read_offset - f32::EPSILON).rem_euclid(1.0)
+            } else {
+                read_offset
+            };
+            let (n, carry) = sync_blep(naive_pulse(start) - before, reset.frac());
+            now = n;
+            self.blep_carry = carry;
+            // The restarted cycle's own edges before the next sample, which
+            // that sample leaves to the carry.
+            let frac = reset.frac();
+            for (edge, rise) in [(0.0, 2.0), (pulse_width, -2.0)] {
+                let (ahead, jump) = if phase_increment < 0.0 {
+                    ((read_offset - edge).rem_euclid(1.0), -rise)
+                } else {
+                    ((edge - read_offset).rem_euclid(1.0), rise)
+                };
+                let at = frac + ahead / abs_phase_inc;
+                if ahead > 0.0 && at < 1.0 {
+                    let (n, carry) = sync_blep(jump, at);
+                    now += n;
+                    self.blep_carry += carry;
+                }
             }
-            self.sync_prev = v;
         }
 
         (body + pending + now) * 5.0
@@ -194,11 +247,12 @@ impl PulseOscillator {
             let offset = p
                 .phase_offset
                 .value_or(lane, PulseOscillatorParams::PHASE_OFFSET_DEFAULT);
-            let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
+            let restart = p.restart.as_ref().map(|restart| restart.get_value(lane));
+            let ratio = p.sync.as_ref().map(|sync| sync_ratio(sync.get_value(lane)));
             let width = (width + pwm).clamp(0.0, 5.0);
             self.outputs
                 .sample
-                .set(lane, state.step(increment, width, offset, sync));
+                .set(lane, state.step(increment, width, offset, restart, ratio));
         }
     }
 
@@ -227,8 +281,10 @@ impl PulseOscillator {
             pwm,
             fm,
             sync,
+            restart,
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let mut ratios = SyncRatios::new(sync, range.start);
         // A pitch held for the whole range needs its exponential only once.
         let mut held_increments = [0.0f32; PORT_MAX_LANES];
         let held = freq.is_constant() && fm.is_constant();
@@ -242,7 +298,8 @@ impl PulseOscillator {
         for i in range {
             let (pitch, fm, offset) = (freq.row(i), fm.row(i), offset.row(i));
             let (width, pwm) = (width.row(i), pwm.row(i));
-            let sync = sync.as_ref().map(|sync| sync.row(i));
+            let restart = restart.as_ref().map(|restart| restart.row(i));
+            let ratios = ratios.at(i);
             let slots = outputs
                 .sample
                 .slot_mut(i)
@@ -259,7 +316,8 @@ impl PulseOscillator {
                     increment,
                     width,
                     offset[lane],
-                    sync.map(|sync| sync[lane]),
+                    restart.map(|restart| restart[lane]),
+                    ratios[lane],
                 ));
             }
         }
@@ -288,3 +346,120 @@ fn poly_blep_pulse(phase: f32, phase_increment: f32) -> f32 {
 }
 
 message_handlers!(impl PulseOscillator {});
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::types::{OutputStruct, Signal};
+
+    fn make_pulse(freq: f32, sync: Option<f32>, restart: Option<PolySignal>) -> PulseOscillator {
+        let params = PulseOscillatorParams {
+            freq: PolySignal::mono(Signal::Volts(freq)),
+            width: None,
+            pwm: None,
+            fm: None,
+            fm_mode: FmMode::default(),
+            sync: sync.map(|v| PolySignal::mono(Signal::Volts(v))),
+            restart,
+            phase_offset: None,
+        };
+        let mut outputs = PulseOscillatorOutputs::default();
+        outputs.set_all_lanes(1);
+        PulseOscillator {
+            params,
+            outputs,
+            _lane_count: 1,
+            _channels: 1,
+            _block_index: Default::default(),
+            lane_state: vec![PulseLaneState::default(); 1].into_boxed_slice(),
+        }
+    }
+
+    fn render(osc: &mut PulseOscillator, n: usize) -> Vec<f32> {
+        (0..n)
+            .map(|_| {
+                osc.update(48_000.0);
+                osc.outputs.sample.get(0)
+            })
+            .collect()
+    }
+
+    /// Sync at 0 restarts each cycle exactly where it wraps anyway, so from
+    /// the first sample, across restarts and with sync switched on partway,
+    /// the wave is the free one.
+    #[test]
+    fn sync_at_zero_is_the_free_wave() {
+        let render = |sync_from: Option<usize>| {
+            let mut osc = make_pulse(2.0, None, None);
+            (0..4000)
+                .map(|i| {
+                    osc.params.restart = Some(PolySignal::mono(Signal::Volts(if i % 1000 < 2 {
+                        5.0
+                    } else {
+                        0.0
+                    })));
+                    if sync_from == Some(i) {
+                        osc.params.sync = Some(PolySignal::mono(Signal::Volts(0.0)));
+                    }
+                    osc.update(48_000.0);
+                    osc.outputs.sample.get(0)
+                })
+                .collect::<Vec<f32>>()
+        };
+        let free = render(None);
+        for sync_from in [0, 1537] {
+            for (i, (synced, free)) in render(Some(sync_from)).iter().zip(&free).enumerate() {
+                assert!(
+                    (synced - free).abs() < 1e-3,
+                    "synced from {sync_from}, sample {i}: {synced} vs {free}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn synced_output_stays_within_its_range() {
+        for freq in [-2.0, 1.0, 3.5] {
+            let mut osc = make_pulse(freq, Some(0.0), None);
+            for i in 0..8000 {
+                osc.params.sync = Some(PolySignal::mono(Signal::Volts(i as f32 / 1000.0)));
+                osc.update(48_000.0);
+                let v = osc.outputs.sample.get(0);
+                assert!(
+                    v.is_finite() && v.abs() <= 5.0 + 1e-3,
+                    "{freq} V, sample {i}: {v}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn restart_starts_the_cycle_where_the_trigger_crosses() {
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the sample, so the next sample stands four fifths of a step
+        // into the new cycle.
+        let mut osc = make_pulse(-2.0, None, Some(PolySignal::mono(Signal::Volts(0.0))));
+        render(&mut osc, 700);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(5.0)));
+        osc.update(48_000.0);
+        osc.update(48_000.0);
+        let step = crate::dsp::utils::voct_to_hz(-2.0) / 48_000.0;
+        let phase = osc.lane_state[0].phase;
+        assert!((phase - 0.8 * step).abs() < 1e-6, "{phase}");
+    }
+
+    #[test]
+    fn a_restarted_cycle_band_limits_the_edges_it_crosses_at_once() {
+        // Restarted a fifth of the way into a step, half a step short of its
+        // rising edge, the square crosses it at 0.7 of the step: the samples
+        // either side share its band-limiting, and neither overshoots.
+        let mut lane = PulseLaneState {
+            phase: 0.3,
+            ..Default::default()
+        };
+        let first = lane.step(0.01, 2.5, 0.995, Some(5.0), None);
+        let second = lane.step(0.01, 2.5, 0.995, Some(5.0), None);
+        assert!((first - 2.25).abs() < 1e-4, "{first}");
+        assert!((second - 2.75).abs() < 1e-4, "{second}");
+    }
+}

@@ -533,7 +533,7 @@ fn unison_copies_each_side_of_a_stereo_lane() {
         (
             "u",
             "$unison",
-            json!({ "input": cable("st", 0), "count": 2 }),
+            json!({ "input": cable("st", 0), "count": 2, "spread": 0.0 }),
         ),
     ])
     .unwrap();
@@ -605,7 +605,7 @@ const PER_SIDE: &[(&str, &[&str])] = &[
     ("$unstable.reverb2", &["input"]),
     ("$reverb", &["input"]),
     ("$mi.chorus", &["input"]),
-    ("$supersaw", &["freq", "detune", "fm", "sync"]),
+    ("$supersaw", &["freq", "detune", "fm", "sync", "restart"]),
 ];
 
 #[test]

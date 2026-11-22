@@ -7,8 +7,8 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::{
     dsp::{
-        oscillators::{FmMode, apply_fm, sync_blep, sync_edge_fraction},
-        utils::{SchmittTrigger, sanitize, wrap_phase_f64},
+        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_ratio},
+        utils::{sanitize, wrap_phase_f64},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -20,7 +20,7 @@ use crate::{
 #[deserr(rename_all = camelCase)]
 #[deserr(deny_unknown_fields)]
 struct SawOscillatorParams {
-    #[input("oscillator pitch", type = pitch)]
+    #[input("oscillator pitch; with `sync` set, the pitch it restarts at", type = pitch)]
     freq: PolySignal,
     #[input(
         "waveform: 0 saw, 2.5 triangle, 5 ramp, morphing in between",
@@ -37,10 +37,20 @@ struct SawOscillatorParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
-    #[input("hard sync: each rising edge restarts the cycle", type = trig)]
+    #[input(
+        "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        type = control,
+        default = 0.0,
+        range = (0.0, ..),
+        control_range = (0.0, 3.0),
+    )]
     #[deserr(default)]
     #[block_input(optional)]
     sync: Option<PolySignal>,
+    #[input("each rising edge restarts the cycle", type = trig)]
+    #[deserr(default)]
+    #[block_input(optional)]
+    restart: Option<PolySignal>,
     #[input(
         "shifts where in the cycle the wave is read, in cycles; wraps around",
         type = control,
@@ -89,12 +99,7 @@ struct LaneState {
     /// Previous (un-muted) output sample, used to detect the zero crossing that
     /// releases the mute.
     prev_out: f32,
-    /// Edge detector for the sync input.
-    sync_schmitt: SchmittTrigger,
-    /// Previous sync-input sample, for subsample edge interpolation.
-    sync_prev: f32,
-    /// PolyBLEP residual carried into the next sample from a sync reset.
-    blep_carry: f32,
+    resets: Resets,
 }
 
 const SAW_DOCS: ModuleDocs = ModuleDocs {
@@ -117,6 +122,10 @@ const SAW_DOCS: ModuleDocs = ModuleDocs {
             title: "Breathing triangle",
             code: "keys: $saw('a3', { shape: $sine('0.2hz').range(1, 4) })",
         },
+        DocExample {
+            title: "Sync sweep",
+            code: "lead: $saw('a2', { sync: $sine('0.2hz').range(0, 3) })",
+        },
     ],
 };
 
@@ -128,16 +137,18 @@ pub struct SawOscillator {
 }
 
 impl LaneState {
-    /// Advance the phase by `phase_increment` (cycles per sample) and return
-    /// the next output sample. `shape` is this sample's glided shape and
-    /// `sync` its sync input, if connected.
+    /// Advance the phase by `phase_increment` (cycles per sample at the
+    /// note's pitch) and return the next output sample. `shape` is this
+    /// sample's glided shape, `restart` its restart input and `sync_ratio` its
+    /// sync, if connected.
     #[inline(always)]
     fn step(
         &mut self,
         phase_increment: f64,
         shape: f32,
         offset: f32,
-        sync: Option<f32>,
+        restart: Option<f32>,
+        sync_ratio: Option<f32>,
         wait_for_zero_cross: bool,
     ) -> f32 {
         // Convert shape (0–5) to symmetry (peak position):
@@ -163,6 +174,7 @@ impl LaneState {
         if !self.seeded {
             let zero_cross = if s >= 0.5 { s * 0.5 } else { (1.0 + s) * 0.5 };
             self.phase = (zero_cross - 2.0 * read_offset).rem_euclid(1.0);
+            self.resets.seed(self.phase as f32);
             self.seeded = true;
             // Arm the zero-cross mute. With no offset the read starts on the
             // crossing, so prev_out is 0 and the mute releases on the first
@@ -173,16 +185,40 @@ impl LaneState {
             self.prev_out = naive_triangle(read_start, s) as f32 * 5.0;
         }
 
+        let (synced, reset) = self.resets.step(
+            self.phase as f32,
+            phase_increment as f32,
+            restart,
+            sync_ratio,
+            Landing::Now,
+        );
+        let phase_increment = if sync_ratio.is_some() {
+            synced as f64
+        } else {
+            phase_increment
+        };
+
         // DPW: compute integral at current phase BEFORE advancing
         let read_old = (self.phase + read_offset).rem_euclid(1.0);
         let integral_old = triangle_integral(read_old, s);
 
-        self.phase = wrap_phase_f64(self.phase + phase_increment);
+        // A reset lands `frac` into this interval: the wave runs the old
+        // cycle up to it and the new one from the cycle's start after it, and
+        // the DPW body averages the two, band-limiting the jump like the
+        // wave's own edges.
+        let split = match reset {
+            Some(reset) => {
+                let split = reset.frac() as f64 * phase_increment;
+                self.phase = wrap_phase_f64(phase_increment - split);
+                Some(triangle_integral((read_old + split).rem_euclid(1.0), s))
+            }
+            None => {
+                self.phase = wrap_phase_f64(self.phase + phase_increment);
+                None
+            }
+        };
         let read_phase = (self.phase + read_offset).rem_euclid(1.0);
 
-        // DPW body for this sample. The sync reset (below) lands in the
-        // upcoming interval, so the phase advanced normally here and the DPW
-        // differentiation stays valid; the reset is band-limited separately.
         let body = if phase_increment.abs() > 1.0e-7 {
             // The DPW slope is computed in f64: integral_new and
             // integral_old are near-equal when the phase increment is small
@@ -190,32 +226,19 @@ impl LaneState {
             // enough precision that f32 rounding does not get amplified into
             // per-sample hash on slow, LFO-rate outputs.
             let integral_new = triangle_integral(read_phase, s);
-            ((integral_new - integral_old) / phase_increment) as f32
+            let moved = match split {
+                Some(reached) => {
+                    reached - integral_old + integral_new - triangle_integral(read_offset, s)
+                }
+                None => integral_new - integral_old,
+            };
+            (moved / phase_increment) as f32
         } else {
             // Near-DC fallback: use naive waveform (no aliasing at low freq)
             naive_triangle(read_phase, s) as f32
         };
 
-        let pending = self.blep_carry;
-        self.blep_carry = 0.0;
-
-        // Hard sync: a rising edge resets the phase, with a PolyBLEP placed
-        // at the subsample crossing to band-limit the reset discontinuity.
-        let mut now = 0.0;
-        if let Some(v) = sync {
-            if self.sync_schmitt.process(v) {
-                let frac = sync_edge_fraction(self.sync_prev, v);
-                let before = naive_triangle(read_phase, s);
-                self.phase = 0.0;
-                let after = naive_triangle(read_offset, s);
-                let (n, carry) = sync_blep((after - before) as f32, frac);
-                now = n;
-                self.blep_carry = carry;
-            }
-            self.sync_prev = v;
-        }
-
-        let out = (body + pending + now) * 5.0;
+        let out = body * 5.0;
 
         // Zero-cross mute: hold silence until the output crosses zero on its
         // gentle segment, then latch open. The waveform also crosses zero on
@@ -265,8 +288,16 @@ impl SawOscillator {
             let offset = p
                 .phase_offset
                 .value_or(lane, SawOscillatorParams::PHASE_OFFSET_DEFAULT);
-            let sync = p.sync.as_ref().map(|sync| sync.get_value(lane));
-            let sample = state.step(increment, shape, offset, sync, p.wait_for_zero_cross);
+            let restart = p.restart.as_ref().map(|restart| restart.get_value(lane));
+            let ratio = p.sync.as_ref().map(|sync| sync_ratio(sync.get_value(lane)));
+            let sample = state.step(
+                increment,
+                shape,
+                offset,
+                restart,
+                ratio,
+                p.wait_for_zero_cross,
+            );
             self.outputs.sample.set(lane, sample);
         }
     }
@@ -292,8 +323,10 @@ impl SawOscillator {
             shape,
             fm,
             sync,
+            restart,
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
+        let mut ratios = SyncRatios::new(sync, range.start);
         // A pitch held for the whole range needs its exponential only once.
         let mut held_increments = [0.0f64; PORT_MAX_LANES];
         let held = freq.is_constant() && fm.is_constant();
@@ -306,7 +339,8 @@ impl SawOscillator {
         let last = range.end - 1;
         for i in range {
             let (pitch, fm, shape, offset) = (freq.row(i), fm.row(i), shape.row(i), offset.row(i));
-            let sync = sync.as_ref().map(|sync| sync.row(i));
+            let restart = restart.as_ref().map(|restart| restart.row(i));
+            let ratios = ratios.at(i);
             let slots = outputs
                 .sample
                 .slot_mut(i)
@@ -322,7 +356,8 @@ impl SawOscillator {
                     increment,
                     shape[lane].clamp(0.0, 5.0),
                     offset[lane],
-                    sync.map(|sync| sync[lane]),
+                    restart.map(|restart| restart[lane]),
+                    ratios[lane],
                     p.wait_for_zero_cross,
                 ));
             }
@@ -380,6 +415,7 @@ mod tests {
             fm: None,
             fm_mode: FmMode::default(),
             sync: None,
+            restart: None,
             phase_offset: Some(PolySignal::mono(Signal::Volts(phase_offset))),
             wait_for_zero_cross,
         };
@@ -494,5 +530,71 @@ mod tests {
             std < 1.0e-3,
             "per-sample step std {std} indicates high-frequency hash (clean ramp ≈ 0)"
         );
+    }
+
+    fn synced(sync: Option<f32>) -> SawOscillator {
+        let mut osc = make_saw(0.0, false);
+        osc.params.freq = PolySignal::mono(Signal::Volts(2.0));
+        osc.params.sync = sync.map(|v| PolySignal::mono(Signal::Volts(v)));
+        osc
+    }
+
+    /// Sync at 0 restarts each cycle exactly where it wraps anyway, so from
+    /// the first sample, across restarts and with sync switched on partway,
+    /// the wave is the free one.
+    #[test]
+    fn sync_at_zero_is_the_free_wave() {
+        let render = |sync_from: Option<usize>| {
+            let mut osc = synced(None);
+            (0..4000)
+                .map(|i| {
+                    osc.params.restart = Some(PolySignal::mono(Signal::Volts(if i % 1000 < 2 {
+                        5.0
+                    } else {
+                        0.0
+                    })));
+                    if sync_from == Some(i) {
+                        osc.params.sync = Some(PolySignal::mono(Signal::Volts(0.0)));
+                    }
+                    osc.update(48_000.0);
+                    osc.outputs.sample.get(0)
+                })
+                .collect::<Vec<f32>>()
+        };
+        let free = render(None);
+        for sync_from in [0, 1537] {
+            for (i, (synced, free)) in render(Some(sync_from)).iter().zip(&free).enumerate() {
+                assert!(
+                    (synced - free).abs() < 5e-3,
+                    "synced from {sync_from}, sample {i}: {synced} vs {free}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn synced_output_stays_within_its_range() {
+        let mut osc = synced(Some(0.0));
+        for i in 0..8000 {
+            osc.params.sync = Some(PolySignal::mono(Signal::Volts(i as f32 / 1000.0)));
+            osc.update(48_000.0);
+            let v = osc.outputs.sample.get(0);
+            assert!(v.is_finite() && v.abs() <= 5.0 + 1e-3, "sample {i}: {v}");
+        }
+    }
+
+    #[test]
+    fn restart_starts_the_cycle_where_the_trigger_crosses() {
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the step the restart lands in, so that step ends four
+        // fifths of a step into the new cycle.
+        let mut osc = make_saw(0.0, false);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(0.0)));
+        run(&mut osc, 700);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(5.0)));
+        run(&mut osc, 1);
+        let step = crate::dsp::utils::voct_to_hz(0.0) as f64 / 48_000.0;
+        let phase = osc.lane_state[0].phase;
+        assert!((phase - 0.8 * step).abs() < 1e-6, "{phase}");
     }
 }
