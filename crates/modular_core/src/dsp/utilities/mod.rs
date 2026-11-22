@@ -10,6 +10,7 @@ pub mod arithmetic;
 pub mod buffer;
 pub mod chord;
 pub mod chord_names;
+pub mod chord_symbol;
 pub mod clamp;
 pub mod clock_divider;
 pub mod coin_flip;

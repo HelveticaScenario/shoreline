@@ -19,6 +19,7 @@ use crate::Patch;
 use crate::poly::PORT_MAX_LANES;
 use crate::types::Connect;
 
+use super::chord_symbol;
 use super::{chord_names, scale_names};
 
 /// A fixed scale root (note letter + optional accidental + optional octave).
@@ -272,6 +273,20 @@ impl ScaleSpec {
         Self::new(base_midi, tuning, &pitch_classes)
     }
 
+    /// The chord a chord symbol names on the root at MIDI note `root`, as in a
+    /// pattern's `c3:m7`.
+    pub fn note_chord(root: i32, symbol: &str) -> Result<Self, String> {
+        let chord = chord_symbol::parse(symbol)?;
+        let tuning = if chord.just {
+            tuning_from_ratios(&JUST_RATIOS)
+        } else {
+            et_tuning()
+        };
+        let mut voicing = chord.voicing;
+        raise_lowest(&mut voicing, chord.inversion)?;
+        Self::new(root, tuning, &voicing)
+    }
+
     /// `root[…]`: `[tuning] (chord-name | intervals…) [invN]`.
     fn parse_chord(root: &FixedRoot, body: &str) -> Result<Self, String> {
         let mut tokens: ArrayVec<&str, { PORT_MAX_LANES + 2 }> = ArrayVec::new();
@@ -318,19 +333,7 @@ impl ScaleSpec {
             }
         }
 
-        if inversion >= voicing.len() {
-            return Err(format!(
-                "inversion inv{inversion} needs more than {} chord notes",
-                voicing.len()
-            ));
-        }
-        for interval in &mut voicing[..inversion] {
-            *interval = interval
-                .checked_add(12)
-                .ok_or_else(|| "inverted interval out of range".to_string())?;
-        }
-        voicing.sort_unstable();
-        voicing.dedup_sorted();
+        raise_lowest(&mut voicing, inversion)?;
 
         Self::new(root.base_midi(), tuning, &voicing)
     }
@@ -347,10 +350,7 @@ impl ScaleSpec {
             period_semitones: (span + 11) / 12 * 12,
             voltages: ArrayVec::new(),
         };
-        spec.voltages = voicing
-            .iter()
-            .map(|&n| spec.interval_voltage(n as i32) as f32)
-            .collect();
+        spec.voltages = spec.note_voltages().map(|v| v as f32).collect();
         Ok(spec)
     }
 
@@ -365,6 +365,13 @@ impl ScaleSpec {
         &self.voltages
     }
 
+    /// V/Oct voltage of each voicing note, ascending, at full precision.
+    pub fn note_voltages(&self) -> impl Iterator<Item = f64> + '_ {
+        self.voicing
+            .iter()
+            .map(|&n| self.interval_voltage(n as i32))
+    }
+
     /// V/Oct voltage of a signed degree. Degrees index the voicing and wrap by
     /// `period_semitones` (one octave for scales) in both directions.
     pub fn degree_voltage(&self, degree: i32) -> f64 {
@@ -373,6 +380,25 @@ impl ScaleSpec {
         let note = self.voicing[degree.rem_euclid(len) as usize] as i32;
         self.interval_voltage(note) + (period * self.period_semitones / 12) as f64
     }
+}
+
+/// Raise the lowest `n` notes of an ascending voicing an octave, keeping it
+/// ascending.
+fn raise_lowest(voicing: &mut ArrayVec<i8, PORT_MAX_LANES>, n: usize) -> Result<(), String> {
+    if n >= voicing.len() {
+        return Err(format!(
+            "inversion {n} needs more than {} chord notes",
+            voicing.len()
+        ));
+    }
+    for interval in &mut voicing[..n] {
+        *interval = interval
+            .checked_add(12)
+            .ok_or_else(|| "inverted interval out of range".to_string())?;
+    }
+    voicing.sort_unstable();
+    voicing.dedup_sorted();
+    Ok(())
 }
 
 trait DedupSorted {
@@ -523,6 +549,15 @@ mod tests {
         assert_eq!(semitones("C3[maj7]"), [-12.0, -8.0, -5.0, -1.0]);
         assert_eq!(semitones("A[m7]"), [9.0, 12.0, 16.0, 19.0]);
         assert_eq!(semitones("C[9]"), [0.0, 4.0, 7.0, 10.0, 14.0]);
+    }
+
+    #[test]
+    fn note_chord_inverts_like_a_chord_spec() {
+        assert_eq!(
+            ScaleSpec::note_chord(60, "m7^1").unwrap(),
+            ScaleSpec::parse("c[m7 inv1]").unwrap()
+        );
+        assert!(ScaleSpec::note_chord(60, "M^3").is_err());
     }
 
     #[test]

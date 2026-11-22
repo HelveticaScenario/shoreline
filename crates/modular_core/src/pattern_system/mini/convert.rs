@@ -37,6 +37,12 @@ pub trait FromMiniAtom: Clone + Send + Sync + 'static {
         }
     }
 
+    /// The values a chord atom plays: by default its single value from
+    /// `from_atom`.
+    fn from_chord(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+        Ok(vec![Self::from_atom(atom)?])
+    }
+
     /// Combine a list of head atoms with a tail value.
     /// Used for distributing patterns like `c:e:[f g]` -> `[c:e:f, c:e:g]`
     /// Default implementation prepends atoms to a single-element list with the value.
@@ -173,7 +179,10 @@ impl FromMiniAtom for bool {
     fn from_atom(atom: &AtomValue) -> Result<Self, ConvertError> {
         match atom {
             AtomValue::Number(n) => Ok(*n != 0.0),
-            AtomValue::Truthy | AtomValue::Hz(_) | AtomValue::Note { .. } => Ok(true),
+            AtomValue::Truthy
+            | AtomValue::Hz(_)
+            | AtomValue::Note { .. }
+            | AtomValue::Chord { .. } => Ok(true),
         }
     }
 
@@ -881,6 +890,17 @@ fn eval_u32(ast: &MiniASTU32) -> u32 {
 
 fn convert_inner<T: FromMiniAtom>(ast: &MiniAST) -> Result<Pattern<T>, ConvertError> {
     match ast {
+        MiniAST::Pure(Located {
+            node: atom @ AtomValue::Chord { .. },
+            span,
+        }) => {
+            let notes = T::from_chord(atom)?
+                .into_iter()
+                .map(|value| pure_with_span(value, span.clone()))
+                .collect();
+            Ok(stack(notes))
+        }
+
         MiniAST::Pure(Located { node, span }) => {
             let value = T::from_atom(node)?;
             Ok(pure_with_span(value, span.clone()))
@@ -2216,6 +2236,30 @@ mod tests {
             3,
             "Rotated Euclidean(3,8,2) should still have 3 hits"
         );
+    }
+
+    #[test]
+    fn chord_atom_plays_its_notes_together() {
+        use crate::dsp::seq::SeqValue;
+
+        let pat: Pattern<SeqValue> = convert(&parse("c3:M7^1 d").unwrap()).unwrap();
+        let haps = pat.query_arc(Fraction::from_integer(0), Fraction::new(1, 2));
+        let mut volts: Vec<f64> = haps.iter().filter_map(|h| h.value.to_voltage()).collect();
+        volts.sort_by(f64::total_cmp);
+        let expected = [4.0, 7.0, 11.0, 12.0].map(|semitones| semitones / 12.0 - 1.0);
+        assert_eq!(volts, expected);
+
+        let flat_root: Pattern<SeqValue> = convert(&parse("cb3:M").unwrap()).unwrap();
+        let lowest = flat_root
+            .query_arc(Fraction::from_integer(0), Fraction::from_integer(1))
+            .iter()
+            .filter_map(|h| h.value.to_voltage())
+            .fold(f64::INFINITY, f64::min);
+        assert_eq!(lowest, -13.0 / 12.0, "Cb3 is B2, as the note cb3 is");
+
+        let structure: Pattern<bool> = convert(&parse("c:M7").unwrap()).unwrap();
+        let onsets = structure.query_arc(Fraction::from_integer(0), Fraction::from_integer(1));
+        assert_eq!(onsets.len(), 1, "a chord is one onset in a struct pattern");
     }
 
     #[test]

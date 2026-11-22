@@ -32048,6 +32048,11 @@
                 "`c4`, `a#3`, `eb`"
               ],
               [
+                "note`:`chord",
+                "every note of a chord on that root at once",
+                "`c3:M7`, `eb:m7`"
+              ],
+              [
                 "number",
                 "a pitch voltage, 1 V per octave with 0 at C4",
                 "`0`, `-1`, `0.25`"
@@ -32102,6 +32107,90 @@
             {
               "title": "Bass that changes every bar",
               "code": "const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`\nmelody: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
+            }
+          ]
+        },
+        {
+          "title": "Chords",
+          "body": "A note, a colon and a chord symbol play every note of the chord at once, each on a voice of its own. Build the symbol from the parts below, in order: `c:m7`, `g:7b9b13sus`, `f:mM7^1%`. Scale patterns don't take chords.",
+          "table": {
+            "columns": [
+              "Part",
+              "Means",
+              "Example"
+            ],
+            "rows": [
+              [
+                "nothing, `M`",
+                "major",
+                "`c:M`, `c:6`"
+              ],
+              [
+                "`m`",
+                "minor",
+                "`c:m`, `c:m7`"
+              ],
+              [
+                "`dim`",
+                "diminished",
+                "`c:dim`, `c:dim7`"
+              ],
+              [
+                "`h`",
+                "half-diminished seventh",
+                "`c:h`, `c:h9`"
+              ],
+              [
+                "`aug`",
+                "augmented",
+                "`c:aug`, `c:aug7`"
+              ],
+              [
+                "`M` before a number",
+                "major seventh",
+                "`c:M7`, `c:mM7`"
+              ],
+              [
+                "`5` `6` `69` `7` `9` `11` `13`",
+                "`7` adds the 7th, and `9`, `11` and `13` bring the extensions under them too (`c:9` is C E G B♭ D), though major and dominant `11` drops the 3rd and `13` the 11th; `5` is root and fifth, `6` adds the 6th, `69` the 6th and 9th",
+                "`c:9`, `c:m11`, `c:5`"
+              ],
+              [
+                "`sus` `sus2` `sus4`",
+                "suspends the third",
+                "`c:7sus`"
+              ],
+              [
+                "`add` and a number",
+                "adds that note",
+                "`c:add9`, `c:madd2`"
+              ],
+              [
+                "`b` or `#` and a number",
+                "flattens or sharpens it",
+                "`c:7#11`, `c:m7b5`"
+              ],
+              [
+                "`alt`",
+                "altered dominant",
+                "`c:7alt`"
+              ],
+              [
+                "`^` and a number",
+                "raises the lowest N notes an octave",
+                "`c:M7^2`"
+              ],
+              [
+                "`%` at the end",
+                "just intonation",
+                "`c:M%`"
+              ]
+            ]
+          },
+          "examples": [
+            {
+              "title": "Chord changes",
+              "code": "const seq = $`<c3:M7 a2:m7 d3:m9 g2:7^1>`\nchords: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
             }
           ]
         },
@@ -32765,7 +32854,7 @@
           ]
         },
         "AtomValue": {
-          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), and `Truthy`\ncovers the `x` structure marker. Every other atom form (`m60` midi\nshorthand, sample-name identifiers, `2v` voltage, module references,\nquoted strings) has been removed from the grammar and is not\nrepresentable here.",
+          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), `Chord` covers\na note with a chord symbol (`c3:M7`), and `Truthy` covers the\n`x` structure marker. Other atom forms (`m60` midi shorthand,\nsample-name identifiers, `2v` voltage, module references, quoted strings)\nare not part of the grammar and are not representable here.",
           "oneOf": [
             {
               "description": "Numeric value. Module-level semantics decide the interpretation:\n`$cycle($(...))` maps a bare `Number` to volts (1V/oct); `.scale(...)`\nmaps it to an integer scale degree.",
@@ -32831,6 +32920,48 @@
               },
               "required": [
                 "Note"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A chord on a root note (e.g. `c3:M7`, `eb:m7^1`). `chord` is the chord\nsymbol after the colon.",
+              "type": "object",
+              "properties": {
+                "Chord": {
+                  "type": "object",
+                  "properties": {
+                    "letter": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "accidental": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "octave": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "format": "int32"
+                    },
+                    "chord": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "letter",
+                    "chord"
+                  ]
+                }
+              },
+              "required": [
+                "Chord"
               ],
               "additionalProperties": false
             },
