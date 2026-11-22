@@ -17,6 +17,7 @@ import { dslModules } from '../src/shared/dsl/dslModuleDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../src/shared/dsl/globalDocs';
 import {
     allExamples,
+    chainNames,
     functionToReferenceEntry,
     type DocContent,
     type ReferenceEntry,
@@ -38,9 +39,7 @@ const CHAINABLE = new Set([
     ...processSchemas(schemas as never)
         .filter(qualifiesForChain)
         .map((s) => s.name),
-    ...DSL_MODULES.filter((m) => m.chainable).map(
-        (m) => functionToReferenceEntry(m).name,
-    ),
+    ...chainNames(DSL_MODULES).map((name) => `$${name}`),
 ]);
 const DSL_MODULE_ENTRIES = DSL_MODULES.map(functionToReferenceEntry);
 

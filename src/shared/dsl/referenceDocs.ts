@@ -179,6 +179,18 @@ export interface FunctionDoc {
     chainable?: boolean;
 }
 
+/** The name `fn` is called by, as its first declaration gives it. */
+export function functionName(fn: FunctionDoc): string {
+    return parseDeclaration(fn.declarations[0]).name;
+}
+
+/** The chain-method names of `fns`: each chainable one's name without its `$`. */
+export function chainNames(fns: FunctionDoc[]): string[] {
+    return fns
+        .filter((fn) => fn.chainable)
+        .map((fn) => functionName(fn).slice(1));
+}
+
 /** `text` as a description and its optional meta. */
 export function readDocText(text: DocText): {
     description: string;

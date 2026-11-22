@@ -1,3 +1,3 @@
 kind: Improved
-body: 'The Docs panel''s Reference page is now called Modules, and the Globals page works like it: search, category filters, every example, and what each global returns. Hover docs for globals such as `$slider` and `$trackTap` now match the Globals page, and their links open it. `$delay` and `$super` are listed on the Modules page.'
+body: 'The Docs panel''s Reference page is now called Modules, and the Globals page works like it: search, category filters, every example, and what each global returns. Hover docs for globals such as `$slider` and `$trackTap` now match the Globals page, and their links open it. `$delay` is listed on the Modules page.'
 time: 2026-11-21T20:33:43.879168-05:00

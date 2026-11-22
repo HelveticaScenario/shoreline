@@ -19,7 +19,8 @@ import {
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 import { dslModules } from '../../../shared/dsl/dslModuleDocs';
-import { parseDeclaration } from '../../../shared/dsl/tsDeclaration';
+import { chainNames } from '../../../shared/dsl/referenceDocs';
+import { buildSignalSiteTables } from '../signalSiteTables';
 import { PATTERN_METHODS } from '../miniNotation';
 import { TrackTap } from '../trackTap';
 import { processModuleSchema, qualifiesForChain } from '../paramsSchema';
@@ -165,6 +166,29 @@ describe('chain modules', () => {
     });
 });
 
+describe('modules the DSL builds', () => {
+    const chained = chainNames(dslModules(schemas));
+
+    test('every chainable one is a chain method of a signal', () => {
+        const probes = chained
+            .map(
+                (name) =>
+                    `if (typeof $sine(0).${name} !== 'function') throw new Error('${name}')`,
+            )
+            .join('\n');
+        expect(() => execPatch(`${probes}\nout: $sine(0)`)).not.toThrow();
+    });
+
+    test('the signal sites chain the same ones', () => {
+        const { modules } = buildSignalSiteTables(schemas as never);
+        for (const name of ['delay', 'super']) {
+            expect(modules[`$${name}`].chainable, name).toBe(
+                chained.includes(name),
+            );
+        }
+    });
+});
+
 // ─── reserved names ──────────────────────────────────────────────────────────
 
 describe('reserved names', () => {
@@ -184,9 +208,7 @@ describe('reserved names', () => {
     test('every built-in member of a collection is reserved', () => {
         const chained = new Set([
             ...CHAIN_PATHS.map((path) => path.split('.')[0]),
-            ...dslModules(schemas)
-                .filter((m) => m.chainable)
-                .map((m) => parseDeclaration(m.declarations[0]).name.slice(1)),
+            ...chainNames(dslModules(schemas)),
         ]);
         const membersOf = (classes: { prototype: object }[]) =>
             classes.flatMap((cls) => Object.getOwnPropertyNames(cls.prototype));

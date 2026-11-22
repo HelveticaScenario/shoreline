@@ -5,7 +5,7 @@ import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
 import { VIDEO_GLOBALS } from '../../../main/dsl/videoLibGen';
 import { dslModules } from '../dslModuleDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../globalDocs';
-import { functionToReferenceEntry } from '../referenceDocs';
+import { functionName } from '../referenceDocs';
 import { chainDeclaration, parseDeclaration } from '../tsDeclaration';
 
 const entry = (name: string) => GLOBAL_ENTRIES.find((e) => e.name === name)!;
@@ -43,7 +43,7 @@ describe('the generated lib', () => {
 
     test('declares no function without docs', () => {
         const documented = new Set([
-            ...FUNCTIONS.map((f) => functionToReferenceEntry(f).name),
+            ...FUNCTIONS.map(functionName),
             ...VIDEO_GLOBALS.map((name) => `$${name}`),
         ]);
         const declared = [

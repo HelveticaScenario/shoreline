@@ -32,6 +32,7 @@ import {
     replaceSignals,
     PORT_MAX_LANES,
 } from './GraphBuilder';
+import type { ChainFunction } from './chainModules';
 import { $g1, $g2, $g3 } from './signalGroups';
 import { createTrackTap, type TrackTap } from './trackTap';
 import { analyzeSourceSpans } from './analyzeSource';
@@ -48,6 +49,8 @@ import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $, $arrange } from './miniNotation';
 import { DELAY_SITE, SUPER_SITE } from './signalSiteTables';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
+import { chainNames } from '../../shared/dsl/referenceDocs';
 import { outputSetOf } from './outputResolution';
 import { superDefaults } from '../../shared/dsl/superDefaults';
 import { setActiveCycleFactory } from './patterns';
@@ -639,12 +642,31 @@ export function executePatchScript(
 
     // Modules built from others have no schema, so the ones their docs mark
     // `chainable` (`dslModuleDocs.ts`) are made chain methods here.
-    builder.registerChainMethod('delay', (self, ...args) =>
-        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
-    );
-    builder.registerChainMethod('super', (self, ...args) =>
-        $super(self as Collection, ...(args as [SuperVoice, SuperOptions?])),
-    );
+    const builtChains: Record<string, ChainFunction> = {
+        delay: (self, ...args) =>
+            $delay(
+                self as Collection,
+                ...(args as [PolySignal, DelayOptions?]),
+            ),
+        super: (self, ...args) =>
+            $super(
+                self as Collection,
+                ...(args as [SuperVoice, SuperOptions?]),
+            ),
+    };
+    const chained = chainNames(dslModules(schemas));
+    const unmatched = [
+        ...chained.filter((name) => !(name in builtChains)),
+        ...Object.keys(builtChains).filter((name) => !chained.includes(name)),
+    ];
+    if (unmatched.length > 0) {
+        throw new Error(
+            `DSL execution error: chainable in the docs but not here, or here but not in the docs: ${unmatched.join(', ')}`,
+        );
+    }
+    for (const name of chained) {
+        builder.registerChainMethod(name, builtChains[name]);
+    }
 
     const $keyframes = userNamespaceTree['$keyframes'];
     if (typeof $keyframes !== 'function') {

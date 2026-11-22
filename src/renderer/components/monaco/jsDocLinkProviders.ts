@@ -23,7 +23,7 @@ import { executeCommand } from '../../keybindings/commands';
 import { isDslType } from '../../../shared/dsl/typeDocs';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
 import { dslModules } from '../../../shared/dsl/dslModuleDocs';
-import { functionToReferenceEntry } from '../../../shared/dsl/referenceDocs';
+import { functionName } from '../../../shared/dsl/referenceDocs';
 import {
     type JsDocLinkRef,
     type JsDocLinkResolver,
@@ -144,7 +144,7 @@ export function registerJsDocLinkProviders(
 
     const moduleNames = new Set([
         ...schemas.map((s) => s.name),
-        ...dslModules(schemas).map((m) => functionToReferenceEntry(m).name),
+        ...dslModules(schemas).map(functionName),
     ]);
     const namespaces = new Set(
         schemas.flatMap((s) => {
