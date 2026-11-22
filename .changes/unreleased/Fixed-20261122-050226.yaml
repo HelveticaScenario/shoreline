@@ -1,3 +1,0 @@
-kind: Fixed
-body: 'Links (symlinks) in the workspace folder are followed everywhere: linked files and folders show in the file explorer and in path completions, update when their contents change, and samples, `$v.video` and `$v.image` files load through them, even when a link points outside the workspace (a sample library kept elsewhere, say). Files can be saved, moved and renamed into a linked folder, including one on another drive.'
-time: 2026-11-22T05:02:26.490843-05:00
