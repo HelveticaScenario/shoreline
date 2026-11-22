@@ -17,16 +17,20 @@ struct ClampParams {
     #[input("signal to clamp", type = audio, bounds)]
     input: PolySignal,
     #[input(
-        "lowest value let through; leave out to keep the bottom unclamped",
+        "lowest value let through",
         type = control,
+        default = -5.0,
+        default_doc = "unclamped",
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
     min: Option<PolySignal>,
     #[input(
-        "highest value let through; leave out to keep the top unclamped",
+        "highest value let through",
         type = control,
+        default = 5.0,
+        default_doc = "unclamped",
         control_range = (-5.0, 5.0),
     )]
     #[deserr(default)]

@@ -1,24 +1,28 @@
 /**
- * Pieces shared by every control in the panel: the Ctrl/Cmd "go to code"
- * gesture, the out-of-sync marker, and the tooltip that explains both.
+ * Pieces shared by the Controls panel and the mixer: the Ctrl/Cmd "go to
+ * code" gesture, the out-of-sync marker, and the tooltip that explains both.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { ControlBinding } from '../../app/controlBinding';
 
 const JUMP_HINT = '⌃/⌘-click: go to code';
 
-function isJumpGesture(e: React.MouseEvent | React.PointerEvent): boolean {
+/** Ctrl or Cmd held: the jump gesture, and in the mixer the code-only one. */
+export function isJumpGesture(e: {
+    ctrlKey: boolean;
+    metaKey: boolean;
+}): boolean {
     return e.ctrlKey || e.metaKey;
 }
 
 /**
- * A Ctrl/Cmd-click on a control moves the editor cursor inside its call
- * instead of operating the control. The handlers run in the capture phase so
+ * A Ctrl/Cmd-click on a jump target moves the editor cursor to its place in
+ * the source instead of operating it. The handlers run in the capture phase so
  * the control never sees the gesture; on macOS Ctrl+click also raises a
  * context menu, which is suppressed.
  */
-export function jumpHandlers(offset: number, onJump: (offset: number) => void) {
+export function jumpHandlers<T>(target: T, onJump: (target: T) => void) {
     return {
         onClickCapture: (e: React.MouseEvent) => {
             if (isJumpGesture(e)) {
@@ -41,23 +45,27 @@ export function jumpHandlers(offset: number, onJump: (offset: number) => void) {
             if (isJumpGesture(e)) {
                 e.preventDefault();
                 e.stopPropagation();
-                onJump(offset);
+                onJump(target);
             }
         },
     };
 }
 
 /**
- * Whether Ctrl/Cmd is held, so the hovered control can show it is a jump
- * target. Window listeners run in the capture phase so the editor, which
- * usually has focus, cannot swallow the keys; losing focus clears the state
- * since the key-up may land in another window.
+ * Whether Ctrl/Cmd is held, so the hovered target can show it is jumpable.
+ * Window listeners run in the capture phase so the editor, which usually has
+ * focus, cannot swallow the keys; losing focus clears the state since the
+ * key-up may land in another window. Spread `onPointerMove` on the panel to
+ * pick up a modifier pressed while another window had focus.
  */
-export function useJumpModifier(): [boolean, (held: boolean) => void] {
-    const [held, setHeld] = useState(false);
+export function useJumpModifier(): {
+    armed: boolean;
+    onPointerMove: (e: React.PointerEvent) => void;
+} {
+    const [armed, setArmed] = useState(false);
     useEffect(() => {
-        const onKey = (e: KeyboardEvent) => setHeld(e.ctrlKey || e.metaKey);
-        const onBlur = () => setHeld(false);
+        const onKey = (e: KeyboardEvent) => setArmed(isJumpGesture(e));
+        const onBlur = () => setArmed(false);
         window.addEventListener('keydown', onKey, true);
         window.addEventListener('keyup', onKey, true);
         window.addEventListener('blur', onBlur);
@@ -67,7 +75,11 @@ export function useJumpModifier(): [boolean, (held: boolean) => void] {
             window.removeEventListener('blur', onBlur);
         };
     }, []);
-    return [held, setHeld];
+    const onPointerMove = useCallback(
+        (e: React.PointerEvent) => setArmed(isJumpGesture(e)),
+        [],
+    );
+    return { armed, onPointerMove };
 }
 
 /** Tooltip for a control: why it is out of sync, if it is, plus the jump hint. */

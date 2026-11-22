@@ -8,6 +8,8 @@ import type { ElectronAPI } from '../preload/preload';
 
 interface TestAPI {
     getEditorValue: () => string;
+    /** The cursor's offset in the editor's text, or null with no model. */
+    getCursorOffset: () => number | null;
     setEditorValue: (code: string) => void;
     executePatch: () => Promise<void>;
     getLastPatchResult: () => any;
