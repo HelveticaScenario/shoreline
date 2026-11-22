@@ -54,7 +54,7 @@ Each rule is declared once and both paths call it.
 - **Unary, non-decreasing.** `$round`, `$floor`, `$ceil`, `$curve`, `$clamp` use `Bounds::map` with the same function as their samples. `$slew` passes its input's bounds through. `$sah` and `$tah` latch the input's bounds with the sample they hold, so a held sample keeps the bounds it was taken under.
 - **Params.** `$remap`: `(outMin, outMax)`. This is a declaration, not a hull: a four-argument remap of an input that leaves its stated range leaves this one too, as it always has. `$wrap`: `(min, max)` sorted.
 - **Pass-through.** `$signal` is `input` kind over its value: `point(v)` for a constant, its cable's bounds otherwise.
-- **Two inputs.** `_crossfade`: the sorted hull of dry and wet.
+- **Two inputs.** `$crossfade`: the sorted hull of `a` and `b`.
 - **`$erratic`.** In `blend` and `clamp` its output bounds are `(min, max)`, in that order; in `shift` it is unbounded.
 
 ## Consumers and the DSL

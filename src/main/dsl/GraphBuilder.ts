@@ -2587,7 +2587,7 @@ export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
 
 /**
  * Crossfade `original` (dry) against `result` (wet) by `mix` (0 = dry, 5 = wet,
- * 2.5 = equal) through `_crossfade`, which cycles the narrower leg across the
+ * 2.5 = equal) through `$crossfade`, which cycles the narrower leg across the
  * wider. Backs `.pipeMix` and `.wet`.
  */
 function crossfadeMix(
@@ -2602,7 +2602,7 @@ function crossfadeMix(
         captureSourceLocation(),
         MIX_SLOT,
     ) as PolySignal;
-    return builder.getFactory('_crossfade')(
+    return builder.getFactory('$crossfade')(
         sumsLanes(builder, result) && original.items.length > 1
             ? builder.getFactory('$mix')(
                   original.items.map((item) => new Collection(item)),
