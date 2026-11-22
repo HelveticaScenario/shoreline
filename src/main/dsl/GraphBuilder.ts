@@ -40,7 +40,7 @@ import {
     type ChainFunction,
     type ChainHost,
 } from './chainModules';
-import { captureSourceLocation } from './captureSourceLocation';
+import { captureSourceLocation, lineSuffix } from './captureSourceLocation';
 import { type FeedbackTrack, findBusFeedback } from './busFeedback';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import {
@@ -1560,7 +1560,7 @@ export class GraphBuilder implements ChainHost {
                         const target = this.groupsByName.get(group.group);
                         if (!target) {
                             throw new Error(
-                                `track ${group.label} cannot play into ${group.group}, which is not a group. A group is a track whose signal is $group() or methods chained on it`,
+                                `track ${group.label} cannot play into ${group.group}, which is not a group. A group is a track whose signal is $group() or methods chained on it${lineSuffix(group.sourceLocation)}`,
                             );
                         }
                         target.addMember(outputSignals);
@@ -1732,10 +1732,9 @@ export class GraphBuilder implements ChainHost {
         for (const { label, tap, sourceLocation } of this.trackTaps) {
             const out = outsByLabel.get(trackNameKey(label));
             if (!out) {
-                const at = sourceLocation
-                    ? ` (line ${sourceLocation.line})`
-                    : '';
-                throw new Error(`$trackTap: no track is named "${label}"${at}`);
+                throw new Error(
+                    `$trackTap: no track is named "${label}"${lineSuffix(sourceLocation)}`,
+                );
             }
             let sources = outSources.get(trackNameKey(label));
             if (!sources) {
@@ -1750,12 +1749,9 @@ export class GraphBuilder implements ChainHost {
             if (out.isBus) {
                 // Every track sends to every bus, so a track reading a bus's
                 // audio would feed back into it.
-                const at = sourceLocation
-                    ? ` (line ${sourceLocation.line})`
-                    : '';
                 tap.resolveControls(
                     sources,
-                    `${label} is a bus, so its audio can't be used here${at}. A bus's audio is processed only on its own track: chain the effect onto ${label}'s $bus() instead. Its name still works in sends, and .active, .level and .panning read its mixer controls.`,
+                    `${label} is a bus, so its audio can't be used here${lineSuffix(sourceLocation)}. A bus's audio is processed only on its own track: chain the effect onto ${label}'s $bus() instead. Its name still works in sends, and .active, .level and .panning read its mixer controls.`,
                 );
             } else {
                 tap.resolve(sources);
@@ -1877,9 +1873,8 @@ export class GraphBuilder implements ChainHost {
             }),
         );
         if (feedback) {
-            const loc = feedback.track.sourceLocation;
             throw new Error(
-                `track ${feedback.track.label} uses the audio of bus ${feedback.bus}${loc ? ` (line ${loc.line})` : ''}. A bus's audio is processed only on its own track: chain the effect onto ${feedback.bus}'s $bus() instead.`,
+                `track ${feedback.track.label} uses the audio of bus ${feedback.bus}${lineSuffix(feedback.track.sourceLocation)}. A bus's audio is processed only on its own track: chain the effect onto ${feedback.bus}'s $bus() instead.`,
             );
         }
 

@@ -159,6 +159,7 @@ fn validate_signal_reference(
                     location: Some(location.to_string()),
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
                 return;
             };
@@ -173,6 +174,7 @@ fn validate_signal_reference(
                     location: Some(location.to_string()),
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
                 return;
             };
@@ -187,6 +189,7 @@ fn validate_signal_reference(
                     location: Some(location.to_string()),
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
             }
         }
@@ -232,6 +235,7 @@ pub(super) fn validate_signals_in_json_value(
                     location: Some(location.to_string()),
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
                 return;
             };
@@ -250,6 +254,7 @@ pub(super) fn validate_signals_in_json_value(
                     location: Some(location.to_string()),
                     expected_type: Some("a buffer output port (e.g. $buffer's 'buffer')".to_string()),
                     actual_value: None,
+                    module_id: None,
                 });
             }
         }

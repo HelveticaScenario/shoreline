@@ -179,6 +179,7 @@ fn test_unknown_module_type() {
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
     assert!(errors[0].message.contains("Unknown module type"));
+    assert_eq!(errors[0].module_id.as_deref(), Some("foo-1"));
 }
 
 #[test]
@@ -220,6 +221,7 @@ fn test_cable_to_nonexistent_module() {
     let errors = result.unwrap_err();
     assert_eq!(errors.len(), 1);
     assert!(errors[0].message.contains("not found for cable source"));
+    assert_eq!(errors[0].module_id.as_deref(), Some("root"));
 }
 
 #[test]

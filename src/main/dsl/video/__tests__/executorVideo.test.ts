@@ -58,7 +58,9 @@ describe('$v in the DSL executor', () => {
                 `throw new Error('missing:' + Object.keys($v).filter((k) => $v[k] === undefined).join(','));`,
             );
         } catch (error) {
-            missing = (error as Error).message.split('missing:')[1];
+            missing = (error as Error).message
+                .split('missing:')[1]
+                .replace(/ \(line \d+\)$/, '');
         }
         expect(missing).toBe('');
     });

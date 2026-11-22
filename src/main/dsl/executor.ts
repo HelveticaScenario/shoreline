@@ -10,6 +10,7 @@ import {
     deriveLaneCountChecked,
     spreadNoteLiterals,
 } from './factories';
+import { errorSourceLocation, lineSuffix } from './captureSourceLocation';
 import type {
     AnyCollection,
     BufferOutputRef,
@@ -1081,7 +1082,10 @@ export function executePatchScript(
                 ? (error as { message: string }).message
                 : null;
         if (message !== null) {
-            throw new Error(`DSL execution error: ${message}`, {
+            const located = /\bline \d+/.test(message)
+                ? message
+                : message + lineSuffix(errorSourceLocation(error));
+            throw new Error(`DSL execution error: ${located}`, {
                 cause: error,
             });
         }
