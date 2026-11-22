@@ -2961,6 +2961,31 @@ describe('error lines', () => {
         );
     });
 
+    test.each([
+        'const a = 1;\nconst b = (',
+        'const a = 1;\nconst b = (\n',
+        'const a = 1;\nconst s = `abc',
+        'const a = 1;\nfunction f() {\n  return 1;\n',
+    ])(
+        'input that ends inside an open bracket names no line past the end: %j',
+        (source) => {
+            let message = '';
+            try {
+                exec(source);
+            } catch (error) {
+                message = (error as Error).message;
+            }
+            expect(message).toMatch(/^DSL execution error: /);
+            expect(message).not.toMatch(/\(line \d+\)/);
+        },
+    );
+
+    test("a message that mentions a line of its own still gets the patch's line", () => {
+        expect(() =>
+            exec('const a = 1;\n\n\n\nconst x = JSON.parse("{bad");\n'),
+        ).toThrow(/\(line 1 column 2\) \(line 5\)$/);
+    });
+
     test('an error on the first line names line 1', () => {
         expect(() => exec('throw new Error("boom");')).toThrow(
             /boom \(line 1\)$/,

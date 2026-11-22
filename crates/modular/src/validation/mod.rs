@@ -18,7 +18,7 @@ pub struct ValidationError {
     pub expected_type: Option<String>,
     /// JSON snippet of the actual value that failed
     pub actual_value: Option<String>,
-    /// Id of the module the error belongs to, which the DSL maps to its source line
+    /// Id of the module the error belongs to, which the renderer maps to its source line
     pub module_id: Option<String>,
 }
 

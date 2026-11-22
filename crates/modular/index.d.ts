@@ -508,7 +508,7 @@ export interface ValidationError {
   expectedType?: string
   /** JSON snippet of the actual value that failed */
   actualValue?: string
-  /** Id of the module the error belongs to, which the DSL maps to its source line */
+  /** Id of the module the error belongs to, which the renderer maps to its source line */
   moduleId?: string
 }
 
