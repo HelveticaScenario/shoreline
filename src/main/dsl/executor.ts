@@ -575,11 +575,6 @@ export function executePatchScript(
         );
     };
 
-    // `$delay` is built from other modules and has no schema, so it is made a chain method here.
-    builder.registerChainMethod('delay', (self, ...args) =>
-        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
-    );
-
     const $unison = userNamespaceTree['$unison'];
     const $stereoFold = userNamespaceTree['$stereoFold'];
     const superDefault = superDefaults(schemas);
@@ -600,17 +595,19 @@ export function executePatchScript(
         width?: PolySignal;
     }
 
+    type SuperVoice = (
+        voices: Collection,
+        options: { phaseOffset: Collection },
+    ) => Collection;
+
     const $super = (
         freq: PolySignal,
-        cb: (
-            voices: Collection,
-            options: { phaseOffset: Collection },
-        ) => Collection,
+        cb: SuperVoice,
         opts: SuperOptions = {},
     ): Collection => {
         if (typeof cb !== 'function') {
             throw new TypeError(
-                "$super: the second argument builds one voice, e.g. $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))",
+                "$super: pass a function that builds one voice, e.g. $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))",
             );
         }
         if (typeof opts !== 'object' || opts === null) {
@@ -639,6 +636,15 @@ export function executePatchScript(
             },
         );
     };
+
+    // Modules built from others have no schema, so the ones their docs mark
+    // `chainable` (`dslModuleDocs.ts`) are made chain methods here.
+    builder.registerChainMethod('delay', (self, ...args) =>
+        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
+    );
+    builder.registerChainMethod('super', (self, ...args) =>
+        $super(self as Collection, ...(args as [SuperVoice, SuperOptions?])),
+    );
 
     const $keyframes = userNamespaceTree['$keyframes'];
     if (typeof $keyframes !== 'function') {

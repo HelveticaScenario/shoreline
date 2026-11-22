@@ -18,6 +18,8 @@ import {
     ModuleOutput,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
+import { dslModules } from '../../../shared/dsl/dslModuleDocs';
+import { parseDeclaration } from '../../../shared/dsl/tsDeclaration';
 import { PATTERN_METHODS } from '../miniNotation';
 import { TrackTap } from '../trackTap';
 import { processModuleSchema, qualifiesForChain } from '../paramsSchema';
@@ -182,7 +184,9 @@ describe('reserved names', () => {
     test('every built-in member of a collection is reserved', () => {
         const chained = new Set([
             ...CHAIN_PATHS.map((path) => path.split('.')[0]),
-            'delay',
+            ...dslModules(schemas)
+                .filter((m) => m.chainable)
+                .map((m) => parseDeclaration(m.declarations[0]).name.slice(1)),
         ]);
         const membersOf = (classes: { prototype: object }[]) =>
             classes.flatMap((cls) => Object.getOwnPropertyNames(cls.prototype));

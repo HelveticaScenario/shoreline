@@ -46,6 +46,7 @@ export function dslModules(schemas: readonly ModuleSchema[]): FunctionDoc[] {
     if (defaults) {
         const { unison, detune, width } = defaults;
         docs.push({
+            chainable: true,
             declarations: [
                 '$super(freq: Poly<Signal>, cb: (freq: UnisonOutputs, options: { phaseOffset: CollectionWithRange }) => Collection | CollectionWithRange, options?: { unison?: number; detune?: Poly<Signal>; width?: Poly<Signal> }): Collection',
             ],
@@ -61,6 +62,10 @@ export function dslModules(schemas: readonly ModuleSchema[]): FunctionDoc[] {
                     {
                         code: "pad: $super(\n  'c3:m9',\n  (freq, { phaseOffset }) =>\n    $pulse(freq, { phaseOffset }).lpf('c6'),\n  { unison: 3, detune: 0.3 },\n)",
                         title: 'A filtered pulse chord',
+                    },
+                    {
+                        code: 'lead: $`c3 e3 g3 b3`.super((freq, { phaseOffset }) =>\n  $saw(freq, { phaseOffset }),\n)',
+                        title: 'A melody through the stack',
                     },
                 ],
                 sections: [],
