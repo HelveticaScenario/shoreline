@@ -3,6 +3,7 @@ import * as path from 'path';
 import { assetKind } from '../shared/assetFiles';
 import type { FileTreeEntry } from '../shared/ipcTypes';
 import { isPatchPath } from '../shared/patchFiles';
+import { isWithin } from './workspacePaths';
 
 export interface WorkspaceTree {
     /** The workspace's patches and loadable assets, folder by folder. */
@@ -13,6 +14,18 @@ export interface WorkspaceTree {
      * link.
      */
     linkedFolders: Map<string, string>;
+    /**
+     * The real paths of the linked folders a watch on the workspace folder
+     * cannot see: those outside it, and those inside a folder it ignores.
+     */
+    unwatchedFolders: Set<string>;
+    /** Where each broken link points, so its target can be awaited. */
+    missingTargets: Set<string>;
+}
+
+/** Whether the explorer leaves out files and folders of this name. */
+export function isIgnoredName(name: string): boolean {
+    return name.startsWith('.') || name === 'node_modules';
 }
 
 /** The explorer's file type for a patch or an asset a patch can load, or undefined for any other file. */
@@ -23,11 +36,6 @@ function explorerFileType(filename: string): FileTreeEntry['fileType'] {
     return assetKind(filename);
 }
 
-/** Whether `file` is `folder` or lies inside it; both are real paths. */
-export function isWithin(folder: string, file: string): boolean {
-    return file === folder || file.startsWith(folder + path.sep);
-}
-
 /**
  * Read the workspace folder, following links to files and folders wherever
  * they point. Hidden files and `node_modules` are skipped, as are broken
@@ -35,12 +43,14 @@ export function isWithin(folder: string, file: string): boolean {
  */
 export function readWorkspaceTree(root: string): WorkspaceTree {
     const linkedFolders = new Map<string, string>();
+    const unwatchedFolders = new Set<string>();
+    const missingTargets = new Set<string>();
     let realRoot: string;
     try {
         realRoot = fs.realpathSync(root);
     } catch (error) {
         console.error('Error reading directory:', root, error);
-        return { entries: [], linkedFolders };
+        return { entries: [], linkedFolders, missingTargets, unwatchedFolders };
     }
 
     const read = (
@@ -58,7 +68,7 @@ export function readWorkspaceTree(root: string): WorkspaceTree {
         }
 
         for (const item of items) {
-            if (item.name.startsWith('.') || item.name === 'node_modules') {
+            if (isIgnoredName(item.name)) {
                 continue;
             }
             const itemRelativePath = relativePath
@@ -74,6 +84,16 @@ export function readWorkspaceTree(root: string): WorkspaceTree {
                     isDirectory = target.isDirectory();
                     isFile = target.isFile();
                 } catch {
+                    try {
+                        missingTargets.add(
+                            path.resolve(
+                                dirPath,
+                                fs.readlinkSync(itemAbsolutePath),
+                            ),
+                        );
+                    } catch {
+                        // The link itself is unreadable: nothing to await.
+                    }
                     continue;
                 }
             }
@@ -88,12 +108,20 @@ export function readWorkspaceTree(root: string): WorkspaceTree {
                 if (ancestors.has(real)) {
                     continue;
                 }
-                if (
-                    item.isSymbolicLink() &&
-                    !isWithin(realRoot, real) &&
-                    !linkedFolders.has(real)
-                ) {
-                    linkedFolders.set(real, itemRelativePath);
+                if (item.isSymbolicLink()) {
+                    if (!isWithin(realRoot, real)) {
+                        unwatchedFolders.add(real);
+                        if (!linkedFolders.has(real)) {
+                            linkedFolders.set(real, itemRelativePath);
+                        }
+                    } else if (
+                        path
+                            .relative(realRoot, real)
+                            .split(path.sep)
+                            .some(isIgnoredName)
+                    ) {
+                        unwatchedFolders.add(real);
+                    }
                 }
                 const children = read(
                     itemAbsolutePath,
@@ -130,5 +158,7 @@ export function readWorkspaceTree(root: string): WorkspaceTree {
     return {
         entries: read(root, '', new Set([realRoot])),
         linkedFolders,
+        missingTargets,
+        unwatchedFolders,
     };
 }

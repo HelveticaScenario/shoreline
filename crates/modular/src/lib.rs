@@ -419,8 +419,9 @@ impl WavCache {
     }
 
     /// The file `path` names: a workspace-rooted `/...` path or a bundled
-    /// `builtin/...` one. Every segment after the prefix must be a plain name,
-    /// and the file, with links followed, must lie inside the prefix's folder.
+    /// `builtin/...` one. Every segment after the prefix must be a plain name.
+    /// A workspace file may lie wherever its links lead; a bundled file, with
+    /// links followed, must lie inside the bundled folder.
     fn asset_file(&self, path: &str) -> Result<PathBuf> {
         if let Some(relative) = path.strip_prefix(BUILTIN_PREFIX) {
             return file_inside(&self.builtin_path, relative, Links::Contained).map_err(|e| {

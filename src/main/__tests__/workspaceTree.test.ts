@@ -34,6 +34,9 @@ describe('readWorkspaceTree', () => {
     fs.symlinkSync(path.join(root, 'own'), path.join(root, 'own-link'));
     fs.symlinkSync(root, path.join(root, 'own', 'back-to-root'));
     fs.symlinkSync(path.join(root, 'gone'), path.join(root, 'broken.wav'));
+    fs.mkdirSync(path.join(root, '.stash'));
+    fs.writeFileSync(path.join(root, '.stash', 'hat.wav'), '');
+    fs.symlinkSync(path.join(root, '.stash'), path.join(root, 'stash'));
 
     const tree = readWorkspaceTree(root);
 
@@ -45,6 +48,7 @@ describe('readWorkspaceTree', () => {
             'own-link/snare.wav',
             'own/snare.wav',
             'song.mjs',
+            'stash/hat.wav',
         ]);
     });
 
@@ -54,8 +58,18 @@ describe('readWorkspaceTree', () => {
         );
     });
 
-    test('records only the linked folders outside the workspace', () => {
+    test('maps only the linked folders outside the workspace to their links', () => {
         expect([...tree.linkedFolders]).toEqual([[library, 'library']]);
+    });
+
+    test('names the linked folders a watch on the workspace cannot see', () => {
+        expect([...tree.unwatchedFolders].sort()).toEqual(
+            [library, path.join(root, '.stash')].sort(),
+        );
+    });
+
+    test('names where each broken link points', () => {
+        expect([...tree.missingTargets]).toEqual([path.join(root, 'gone')]);
     });
 });
 

@@ -80,7 +80,7 @@ import {
 import { PERFORMANCE_WINDOW_NAME } from '../shared/video/performanceWindowName';
 import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
-import { readWorkspaceTree } from './workspaceTree';
+import { isIgnoredName, readWorkspaceTree } from './workspaceTree';
 import { builtinAssetsDir } from './builtinAssetsDir';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
@@ -771,11 +771,13 @@ function validatePathInWorkspace(filePath: string): string | null {
 }
 
 let workspaceWatcher: fs.FSWatcher | null = null;
-/** Watchers on the linked folders outside the workspace folder, by real
- *  path; the workspace folder's own watcher does not follow links. */
+/** Recursive watchers on the linked folders the workspace folder's own
+ *  watcher cannot see, by real path, since it does not follow links. */
 const linkedFolderWatchers = new Map<string, fs.FSWatcher>();
-/** The current workspace's linked folders outside it, from its last listing:
- *  real target path to the workspace-relative path of its link. */
+/** Watchers waiting for the missing target of a broken link, by the target's
+ *  path, each on its nearest folder that exists. */
+const missingTargetWatchers = new Map<string, fs.FSWatcher>();
+/** The current workspace's linked folders, from its last listing. */
 let workspaceLinkedFolders = new Map<string, string>();
 let workspaceChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -786,11 +788,7 @@ let workspaceChangeTimer: ReturnType<typeof setTimeout> | null = null;
  * the explorer does.
  */
 function onWorkspaceChange(filename: string | null): void {
-    if (
-        filename
-            ?.split(/[\\/]/)
-            .some((p) => p.startsWith('.') || p === 'node_modules')
-    ) {
+    if (filename?.split(/[\\/]/).some(isIgnoredName)) {
         return;
     }
     if (workspaceChangeTimer) clearTimeout(workspaceChangeTimer);
@@ -802,12 +800,17 @@ function onWorkspaceChange(filename: string | null): void {
     }, 150);
 }
 
-/** A recursive watcher on `folder` feeding `onWorkspaceChange`, or null when
- *  the folder cannot be watched. */
-function watchFolder(folder: string, onError: () => void): fs.FSWatcher | null {
+/** A watcher on `folder`, or null when it cannot be watched; `onError` runs
+ *  when a working watch fails. */
+function watchFolder(
+    folder: string,
+    recursive: boolean,
+    onEvent: (filename: string | null) => void,
+    onError: () => void,
+): fs.FSWatcher | null {
     try {
-        const watcher = fs.watch(folder, { recursive: true }, (_event, name) =>
-            onWorkspaceChange(name),
+        const watcher = fs.watch(folder, { recursive }, (_event, name) =>
+            onEvent(name),
         );
         watcher.on('error', (error) => {
             console.warn('Stopped watching', folder, error);
@@ -824,29 +827,66 @@ function watchWorkspace(root: string | null): void {
     workspaceWatcher?.close();
     workspaceWatcher = null;
     workspaceLinkedFolders = new Map();
-    watchLinkedFolders([]);
+    syncWatchers(linkedFolderWatchers, [], watchLinkedFolder);
+    syncWatchers(missingTargetWatchers, [], watchMissingTarget);
     if (!root) return;
-    workspaceWatcher = watchFolder(root, () => watchWorkspace(null));
+    workspaceWatcher = watchFolder(root, true, onWorkspaceChange, () =>
+        watchWorkspace(null),
+    );
 }
 
-/** Watch exactly `folders`, the real paths of the workspace's linked folders
- *  outside it. */
-function watchLinkedFolders(folders: Iterable<string>): void {
-    const wanted = new Set(folders);
-    for (const [folder, watcher] of linkedFolderWatchers) {
-        if (!wanted.has(folder)) {
+/** Keep a watcher in `watchers` for exactly the keys in `wanted`, starting
+ *  missing ones with `start`. */
+function syncWatchers(
+    watchers: Map<string, fs.FSWatcher>,
+    wanted: Iterable<string>,
+    start: (key: string) => fs.FSWatcher | null,
+): void {
+    const keep = new Set(wanted);
+    for (const [key, watcher] of watchers) {
+        if (!keep.has(key)) {
             watcher.close();
-            linkedFolderWatchers.delete(folder);
+            watchers.delete(key);
         }
     }
-    for (const folder of wanted) {
-        if (linkedFolderWatchers.has(folder)) continue;
-        const watcher = watchFolder(folder, () => {
-            linkedFolderWatchers.get(folder)?.close();
-            linkedFolderWatchers.delete(folder);
-        });
-        if (watcher) linkedFolderWatchers.set(folder, watcher);
+    for (const key of keep) {
+        if (watchers.has(key)) continue;
+        const watcher = start(key);
+        if (watcher) watchers.set(key, watcher);
     }
+}
+
+function watchLinkedFolder(folder: string): fs.FSWatcher | null {
+    return watchFolder(folder, true, onWorkspaceChange, () => {
+        linkedFolderWatchers.get(folder)?.close();
+        linkedFolderWatchers.delete(folder);
+    });
+}
+
+/**
+ * Watch the nearest existing folder above `target`, a broken link's target,
+ * so the explorer refreshes once it appears (a drive mounted, a folder made).
+ * The watch moves down as the folders above the target appear.
+ */
+function watchMissingTarget(target: string): fs.FSWatcher | null {
+    let folder = path.dirname(target);
+    while (!fs.existsSync(folder) && path.dirname(folder) !== folder) {
+        folder = path.dirname(folder);
+    }
+    const rewatch = () => {
+        missingTargetWatchers.get(target)?.close();
+        missingTargetWatchers.delete(target);
+        if (fs.existsSync(target)) {
+            onWorkspaceChange(null);
+            return;
+        }
+        const watcher = watchMissingTarget(target);
+        if (watcher) missingTargetWatchers.set(target, watcher);
+    };
+    return watchFolder(folder, false, rewatch, () => {
+        missingTargetWatchers.get(target)?.close();
+        missingTargetWatchers.delete(target);
+    });
 }
 
 /**
@@ -1544,7 +1584,16 @@ registerIPCHandler('FS_LIST_FILES', () => {
     }
     const tree = readWorkspaceTree(currentWorkspaceRoot);
     workspaceLinkedFolders = tree.linkedFolders;
-    watchLinkedFolders(tree.linkedFolders.keys());
+    syncWatchers(
+        linkedFolderWatchers,
+        tree.unwatchedFolders,
+        watchLinkedFolder,
+    );
+    syncWatchers(
+        missingTargetWatchers,
+        tree.missingTargets,
+        watchMissingTarget,
+    );
     return tree.entries;
 });
 
@@ -1588,6 +1637,16 @@ registerIPCHandler('FS_WATCH_OPEN_FILES', (filePaths) => {
         const absolutePath = validatePathInWorkspace(filePath);
         if (absolutePath) {
             watchedPathSpellings.set(absolutePath, filePath);
+            // A link to a file elsewhere: another program saves the target,
+            // in a folder the link's own folder watch never sees.
+            try {
+                const real = fs.realpathSync(absolutePath);
+                if (!watchedPathSpellings.has(real)) {
+                    watchedPathSpellings.set(real, filePath);
+                }
+            } catch {
+                // Missing for now: the link's folder watch reports it later.
+            }
         }
     }
     openFileWatcher.setFiles([...watchedPathSpellings.keys()]);

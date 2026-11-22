@@ -1,6 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { isWithin } from './workspaceTree';
+
+/** Whether `file` is `folder` or lies inside it. */
+export function isWithin(folder: string, file: string): boolean {
+    return file === folder || file.startsWith(folder + path.sep);
+}
 
 /**
  * Resolve a caller-supplied file path to an absolute path, enforcing

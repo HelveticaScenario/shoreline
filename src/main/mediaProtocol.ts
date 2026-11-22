@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 import { MEDIA_SCHEME, parseMediaUrl } from '../shared/video/mediaUrl';
+import { isWithin } from './workspacePaths';
 
 /**
  * Lets the renderer load the workspace's pictures and recordings. Must run
@@ -46,7 +47,7 @@ function workspaceFile(
     if (workspaceRoot === null) return null;
     const root = path.resolve(workspaceRoot);
     const file = path.resolve(root, relative);
-    return file.startsWith(root + path.sep) ? file : null;
+    return file !== root && isWithin(root, file) ? file : null;
 }
 
 const CONTENT_TYPES: Record<string, string> = {
@@ -74,11 +75,8 @@ function contentType(file: string): string | undefined {
  * file. Links are followed wherever they point, so a link in the workspace
  * can bring in media kept elsewhere.
  */
-function servableFile(
-    workspaceRoot: string | null,
-    file: string | null,
-): string | null {
-    if (file === null || workspaceRoot === null) return null;
+function servableFile(file: string | null): string | null {
+    if (file === null) return null;
     try {
         const real = fs.realpathSync(file);
         return contentType(real) !== undefined && fs.statSync(real).isFile()
@@ -94,10 +92,7 @@ export function mediaFileExists(
     workspaceRoot: string | null,
     relative: string,
 ): boolean {
-    return (
-        servableFile(workspaceRoot, workspaceFile(workspaceRoot, relative)) !==
-        null
-    );
+    return servableFile(workspaceFile(workspaceRoot, relative)) !== null;
 }
 
 /**
@@ -142,7 +137,7 @@ export function handleMediaProtocol(
 ): void {
     protocol.handle(MEDIA_SCHEME, async (request) => {
         const root = getWorkspaceRoot();
-        const file = servableFile(root, resolveMediaFile(root, request.url));
+        const file = servableFile(resolveMediaFile(root, request.url));
         if (file === null) return new Response('Not found', { status: 404 });
         const { size } = await fs.promises.stat(file);
         const headers: Record<string, string> = {
