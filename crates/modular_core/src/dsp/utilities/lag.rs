@@ -15,8 +15,10 @@ struct LagProcessorParams {
     #[input("signal to smooth", type = audio, bounds)]
     input: PolySignal,
     #[input(
-        "seconds the output takes to climb 1 V; follows fall when not patched",
+        "seconds the output takes to climb 1 V",
         type = control,
+        default = 0.01,
+        default_doc = "the same as `fall`",
         range = (0.001, ..),
         control_range = (0.001, 10.0),
     )]

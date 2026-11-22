@@ -13791,7 +13791,7 @@
           "default": "white"
         },
         "rate": {
-          "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
+          "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -13801,7 +13801,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "frequency"
+            "paramType": "frequency",
+            "defaultValue": -6.031
           }
         },
         "interp": {
@@ -13979,8 +13980,10 @@
     "signalParams": [
       {
         "name": "rate",
-        "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
+        "description": "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop",
         "paramType": "frequency",
+        "defaultValue": -6.031,
+        "defaultDoc": "a new value every sample",
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -26650,7 +26653,7 @@
           }
         },
         "min": {
-          "description": "lowest value let through; leave out to keep the bottom unclamped",
+          "description": "lowest value let through",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -26661,12 +26664,13 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": -5.0,
             "controlMin": -5.0,
             "controlMax": 5.0
           }
         },
         "max": {
-          "description": "highest value let through; leave out to keep the top unclamped",
+          "description": "highest value let through",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -26677,6 +26681,7 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 5.0,
             "controlMin": -5.0,
             "controlMax": 5.0
           }
@@ -26770,8 +26775,10 @@
       },
       {
         "name": "min",
-        "description": "lowest value let through; leave out to keep the bottom unclamped",
+        "description": "lowest value let through",
         "paramType": "control",
+        "defaultValue": -5.0,
+        "defaultDoc": "unclamped",
         "controlMin": -5.0,
         "controlMax": 5.0,
         "carriesBounds": false,
@@ -26781,8 +26788,10 @@
       },
       {
         "name": "max",
-        "description": "highest value let through; leave out to keep the top unclamped",
+        "description": "highest value let through",
         "paramType": "control",
+        "defaultValue": 5.0,
+        "defaultDoc": "unclamped",
         "controlMin": -5.0,
         "controlMax": 5.0,
         "carriesBounds": false,
@@ -28213,7 +28222,7 @@
           }
         },
         "rise": {
-          "description": "seconds the output takes to climb 1 V; follows fall when not patched",
+          "description": "seconds the output takes to climb 1 V",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -28224,6 +28233,7 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.01,
             "minValue": 0.001,
             "controlMin": 0.001,
             "controlMax": 10.0
@@ -28336,8 +28346,10 @@
       },
       {
         "name": "rise",
-        "description": "seconds the output takes to climb 1 V; follows fall when not patched",
+        "description": "seconds the output takes to climb 1 V",
         "paramType": "control",
+        "defaultValue": 0.01,
+        "defaultDoc": "the same as `fall`",
         "minValue": 0.001,
         "controlMin": 0.001,
         "controlMax": 10.0,
