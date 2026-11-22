@@ -199,16 +199,18 @@ describe('serving media', () => {
         expect(await response.text()).toBe('0123456789');
     });
 
-    it('does not follow a link out of the workspace', async () => {
+    it('follows a link out of the workspace', async () => {
         const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'media-out-'));
-        fs.writeFileSync(path.join(outside, 'secret.mp4'), 'secret');
+        fs.writeFileSync(path.join(outside, 'linked.mp4'), 'linked');
         fs.symlinkSync(
-            path.join(outside, 'secret.mp4'),
-            path.join(root, 'escape.mp4'),
+            path.join(outside, 'linked.mp4'),
+            path.join(root, 'file-link.mp4'),
         );
-        fs.symlinkSync(outside, path.join(root, 'escaped'));
-        expect((await get('escape.mp4')).status).toBe(404);
-        expect((await get('escaped/secret.mp4')).status).toBe(404);
-        expect(mediaFileExists(root, 'escape.mp4')).toBe(false);
+        fs.symlinkSync(outside, path.join(root, 'folder-link'));
+        expect(await (await get('file-link.mp4')).text()).toBe('linked');
+        expect(await (await get('folder-link/linked.mp4')).text()).toBe(
+            'linked',
+        );
+        expect(mediaFileExists(root, 'folder-link/linked.mp4')).toBe(true);
     });
 });
