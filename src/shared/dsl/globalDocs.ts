@@ -3,14 +3,14 @@
  * the generated Monaco typings and the Docs panel's Globals page both read.
  * `$scopeXY` is documented with the video namespace (`videoDocs.ts`).
  */
-import type { GlobalDoc, ReferenceEntry } from './referenceDocs';
-import { globalToReferenceEntry } from './referenceDocs';
+import type { FunctionDoc, ReferenceEntry } from './referenceDocs';
+import { functionToReferenceEntry } from './referenceDocs';
 
 const CONTROL_LABEL = 'Display label, a string literal unique within its group';
 const CONTROL_GROUP =
     'The group to place the control in: a `$cGroup(...)` call or a const bound to one';
 
-export const GLOBALS: GlobalDoc[] = [
+export const GLOBALS: FunctionDoc[] = [
     {
         declarations: [
             '$hz(frequency: number): number',
@@ -131,7 +131,7 @@ export const GLOBALS: GlobalDoc[] = [
         returns: { description: 'One tuple per combination' },
     },
     ...[1, 2, 3].map(
-        (n): GlobalDoc => ({
+        (n): FunctionDoc => ({
             declarations: [`$g${n}(signals: Poly<Signal>): SignalGroup`],
             docs: {
                 categories: ['utility'],
@@ -647,5 +647,5 @@ export const GLOBALS: GlobalDoc[] = [
 
 /** Every global's reference entry, in `GLOBALS` order. */
 export const GLOBAL_ENTRIES: ReferenceEntry[] = GLOBALS.map(
-    globalToReferenceEntry,
+    functionToReferenceEntry,
 );

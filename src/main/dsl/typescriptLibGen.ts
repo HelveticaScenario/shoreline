@@ -14,7 +14,7 @@ import {
     qualifiesForChain,
 } from './paramsSchema';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
-import { superDefaults } from '../../shared/dsl/superDefaults';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
 import {
     generateVideoChainMembers,
     generateVideoGlobals,
@@ -41,8 +41,12 @@ import {
     readDocText,
     renderDocContentJsDoc,
 } from '../../shared/dsl/referenceDocs';
+import type { FunctionDoc } from '../../shared/dsl/referenceDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../../shared/dsl/globalDocs';
-import { parseDeclaration } from '../../shared/dsl/tsDeclaration';
+import {
+    chainDeclaration,
+    parseDeclaration,
+} from '../../shared/dsl/tsDeclaration';
 
 const BASE_LIB_SOURCE = `
 /** The **\`console\`** object provides access to the debugging console (e.g., the Web console in Firefox). */
@@ -495,6 +499,7 @@ interface Pattern extends PatternModule {
    * melody2: $\`-1 0 2 4\`.scale("a3(min)").saw()       // negative degrees wrap below the root
    * melody3: $\`0 1 2 3 4\`.scale("c(0 2 4 7 9)").saw() // custom intervals (pentatonic)
    * melody4: $\`0 4 7\`.scale("c(just)").saw()          // just intonation
+   * melody5: $\`0 2 4 4+ 5\`.scale("c(major)").saw()   // 4+ is G#, a passing note outside the scale
    * \`\`\`
    *
    * ### Atoms
@@ -502,6 +507,7 @@ interface Pattern extends PatternModule {
    * | Form | Meaning | Example |
    * |------|---------|---------|
    * | Bare integer | Scale degree (0-indexed) | \`0\`, \`2\`, \`-1\` |
+   * | Integer then \`+\`s or \`-\`s | That degree, raised or lowered a semitone per mark, so it can leave the scale | \`2+\`, \`4--\`, \`-1+\` |
    * | \`~\` or \`-\` | Rest (gate low, no pitch change) | \`'0 ~ 2 ~'\`, \`'0 - 2 -'\` |
    *
    * ### Scale strings
@@ -515,6 +521,9 @@ interface Pattern extends PatternModule {
    * | \`tonic[chord]\` | \`"c[maj7]"\`, \`"a3[m9]"\` | Chord tones; degrees step through the chord |
    * | \`tonic[chord invN]\` | \`"c[maj inv1]"\` | Inverted chord; degree 0 is the lowest note |
    * | \`chromatic\` | \`"chromatic"\` | All 12 semitones, 12-TET |
+   *
+   * A semitone mark steps to the neighbouring note of the scale's 12-tone
+   * tuning, so in \`"c(just)"\` it lands on a just-tuned note.
    *
    * Degrees wrap by an octave for scales. A chord wraps by its span rounded up
    * to whole octaves, so \`"c[9]"\` repeats every two octaves. See
@@ -589,7 +598,9 @@ interface ScalePattern extends Pattern {
   /**
    * \`.trans(...)\` transposes a scale pattern by another scale-degree
    * mini-notation string: the two patterns' degrees are added, so negative
-   * degrees transpose down, and each note keeps its own scale.
+   * degrees transpose down, and each note keeps its own scale. A note's
+   * \`+\`/\`-\` semitone marks stay with it, and marks on a \`.trans\` degree
+   * (\`.trans("0+")\`) raise or lower every note that degree moves.
    * \`.add(...)\` and \`.sub(...)\` are the collection's: they add to and
    * subtract from the sequencer's output signal, in volts.
    * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
@@ -978,7 +989,7 @@ ${renderTrackTapMembers()}
 }
 
 
-${renderGlobalFunctions()}
+${renderFunctions(GLOBALS).join('\n')}
 
 ${generateVideoGlobals()}
 
@@ -1290,32 +1301,46 @@ function renderTrackTapMembers(): string {
 }
 
 /**
- * Every global function from `GLOBALS`, each overload under the global's
- * docs (`renderDocContentJsDoc`) and the `@param`s it declares.
+ * The JSDoc of `fn` above one `declaration`: its docs
+ * (`renderDocContentJsDoc`) after any `lead` lines, then the `@param`s it
+ * declares from the `from`th on.
  */
-function renderGlobalFunctions(): string {
-    return GLOBALS.flatMap((global) => {
-        const { name } = parseDeclaration(global.declarations[0]);
-        const returns =
-            global.returns &&
-            withMeta(global.returns.description, global.returns.meta);
-        return global.declarations.flatMap((declaration) => [
-            ...jsDocComment([
-                ...renderDocContentJsDoc(global.docs, name),
-                ...parseDeclaration(declaration)
-                    .params.filter((p) => p.name in global.params)
-                    .map((p) => {
-                        const { description, meta } = readDocText(
-                            global.params[p.name],
-                        );
-                        return `@param ${p.name} ${withMeta(description, meta)}`;
-                    }),
-                ...(returns ? [`@returns ${returns}`] : []),
-            ]),
+function functionJsDoc(
+    fn: FunctionDoc,
+    declaration: string,
+    { indent = '', lead = [] as string[], from = 0 } = {},
+): string[] {
+    const { name, params } = parseDeclaration(declaration);
+    const returns =
+        fn.returns && withMeta(fn.returns.description, fn.returns.meta);
+    return jsDocComment(
+        [
+            ...lead,
+            ...renderDocContentJsDoc(fn.docs, name),
+            ...params
+                .slice(from)
+                .filter((p) => p.name in fn.params)
+                .map((p) => {
+                    const { description, meta } = readDocText(
+                        fn.params[p.name],
+                    );
+                    return `@param ${p.name} ${withMeta(description, meta)}`;
+                }),
+            ...(returns ? [`@returns ${returns}`] : []),
+        ],
+        indent,
+    );
+}
+
+/** Every overload of each of `fns`, documented, as a global function. */
+function renderFunctions(fns: FunctionDoc[]): string[] {
+    return fns.flatMap((fn) =>
+        fn.declarations.flatMap((declaration) => [
+            ...functionJsDoc(fn, declaration),
             `function ${declaration};`,
             '',
-        ]);
-    }).join('\n');
+        ]),
+    );
 }
 
 export function buildLibSource(schemas: Schemas): string {
@@ -1824,6 +1849,15 @@ function declaredRangeArgs(
     });
 }
 
+/** The lines a chain method's docs open with, before its module's own. */
+function chainLead(name: string): string[] {
+    return [
+        `Chain through \`${name}\` with this signal as its first`,
+        `argument. Equivalent to \`${name}(this, ...)\`.`,
+        '',
+    ];
+}
+
 /**
  * The args and doc comment of `moduleSchema`'s chain method: the module's
  * factory without its first positional, which the receiver supplies, and the
@@ -1835,11 +1869,7 @@ function chainSignature(
 ): { args: string[]; doc: string[] } {
     const { args, docLines } = buildSignature(moduleSchema, {
         positionalStart: 1,
-        leadDocLines: [
-            `Chain through \`${moduleSchema.name}\` with this signal as its first`,
-            `argument. Equivalent to \`${moduleSchema.name}(this, ...)\`.`,
-            '',
-        ],
+        leadDocLines: chainLead(moduleSchema.name),
     });
     return {
         args,
@@ -2073,80 +2103,8 @@ export function generateDSL(schemas: Schemas): string {
         'export function $buffer(input: Signal, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    // Shared inline options type for `$delay` and `.delay`.
-    const delayOpts =
-        'opts?: { feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | CollectionWithRange; maxTime?: number }';
-    // Shared documentation body for `$delay` and `.delay`; the chain form
-    // prepends a header for its call convention. `$delay` is a DSL helper, so
-    // the doc is hand-written rather than schema-derived.
-    const delayBody = [
-        'Delay with feedback: sum the input with the attenuated feedback,',
-        'optionally process that mix through `feedbackCb`, write it into a',
-        'buffer of `maxTime` seconds, and read it back `time` seconds late. The',
-        'delayed read is attenuated by `feedback` and summed back in, so a',
-        '`feedbackCb` filter colours every recirculation. With `feedback` 0 you',
-        'still hear the first echo; higher values repeat it.',
-        '',
-        '`feedback` is 0-5 (5 = unity), clamped, default 2.5. `maxTime` (default',
-        '5) sizes the buffer and caps how long `time` can be. Returns the wet',
-        'signal.',
-        '',
-        '```js',
-        '// mix the dry signal back in for a classic echo',
-        "let src = $saw('c3')",
-        'echo: $mix([src, $delay(src, 0.25, { feedback: 3 })])',
-        '',
-        '// lowpass in the loop — echoes darken on every repeat',
-        "dark: src.delay(0.5, { feedbackCb: (m) => m.lpf('800hz') })",
-        '```',
-    ];
-    // Render the `$delay` doc at `indent`, prepending optional `header` lines
-    // (a chain-form intro) before the shared body.
-    const renderDelayDoc = (indent: string, header: string[]): string[] =>
-        jsDocComment(
-            header.length > 0 ? [...header, '', ...delayBody] : delayBody,
-            indent,
-        );
-    const chainDelayHeader = [
-        'Chain through `$delay` with this signal as its first argument.',
-        'Equivalent to `$delay(this, time, opts)`.',
-    ];
-    lines.push(...renderDelayDoc('', []));
-    lines.push(
-        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection;`,
-    );
-
-    // `$super` exists only where the modules it builds do; its docs state
-    // their defaults.
-    const superDefault = superDefaults(schemas as unknown as ModuleSchema[]);
-    if (superDefault) {
-        const { unison, detune, width } = superDefault;
-        lines.push(
-            ...jsDocComment([
-                'A detuned, stereo-spread unison stack of any voice. `cb` builds one',
-                'voice from the detuned `$unison` copies of `freq`, and the copies are',
-                'folded into one stereo lane per note the way `$supersaw` spreads its',
-                'saws. Pass `phaseOffset` on to the oscillator so the copies never all',
-                'line up.',
-                "@param freq The note's pitch",
-                "@param cb Builds one voice from the copies' pitches",
-                `@param options \`unison\`: copies per note (default ${unison}); \`detune\`: semitones between the lowest and highest copy (default ${detune}); \`width\`: how far the copies fan out, 0 centred to 5 hard left and right (default ${width})`,
-                '@example',
-                "lead: $super('c3', (freq, { phaseOffset }) =>",
-                '  $saw(freq, { phaseOffset }),',
-                ')',
-                '@example',
-                'pad: $super(',
-                "  'c3:m9',",
-                '  (freq, { phaseOffset }) =>',
-                "    $pulse(freq, { phaseOffset }).lpf('c6'),",
-                '  { unison: 3, detune: 0.3 },',
-                ')',
-            ]),
-            'export function $super(freq: Poly<Signal>, cb: (freq: UnisonOutputs, options: { phaseOffset: CollectionWithRange }) => Collection | CollectionWithRange, options?: { unison?: number; detune?: Poly<Signal>; width?: Poly<Signal> }): Collection;',
-            '',
-        );
-    }
+    const builtModules = dslModules(schemas as unknown as ModuleSchema[]);
+    lines.push(...renderFunctions(builtModules));
 
     // Chain methods. The qualifying set matches the runtime's exactly: both
     // apply `qualifiesForChain` to the same schemas.
@@ -2234,10 +2192,18 @@ export function generateDSL(schemas: Schemas): string {
             `  readonly ${seg}: ModuleChain${pascal(seg)}<Plain, Ranged>;`,
         );
     }
-    lines.push(
-        ...renderDelayDoc('  ', chainDelayHeader),
-        `  delay(time: Poly<Signal>, ${delayOpts}): Plain;`,
-    );
+    for (const fn of builtModules.filter((m) => m.chainable)) {
+        for (const declaration of fn.declarations) {
+            lines.push(
+                ...functionJsDoc(fn, declaration, {
+                    from: 1,
+                    indent: '  ',
+                    lead: chainLead(parseDeclaration(declaration).name),
+                }),
+                `  ${chainDeclaration(declaration, 'Plain')};`,
+            );
+        }
+    }
     lines.push('}');
 
     lines.push('');

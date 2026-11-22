@@ -12,7 +12,8 @@
  * Differences from krill.pegjs:
  *   - Emits the shared `MiniAST` shape directly (no {type_, source_, options_}
  *     intermediate wrappers).
- *   - Atom kinds reduced to Number, Hz, Note, Chord, Scale, Rest. No sample-name identifiers,
+ *   - Atom kinds reduced to Number, Hz, Note, Chord, Scale, Rest, plus Altered
+ *     (a number with trailing `+`/`-` semitone marks). No sample-name identifiers,
  *     MIDI shorthand, module-reference atoms, string atoms, or voltage atoms.
  *   - Modifier operands reuse the same AST typing as the Rust parser
  *     (MiniASTF64 for fast/slow factors and degrade probabilities,
@@ -241,6 +242,7 @@ Value
   / ChordValue
   / ScaleValue
   / NoteValue
+  / AlteredValue
   / NumberValue
 
 // `x` is the truthy structure marker used by `.struct(...)` boolean patterns
@@ -254,6 +256,16 @@ TruthyValue
 HzValue
   = n:Number "hz"i {
       return { Pure: located({ Hz: n }, location()) };
+    }
+
+// A number followed by a run of `+` or `-` marks, each raising or lowering it
+// one semitone (`2+`, `4--`). The run must not be followed by a number, so
+// `2-3` stays the two atoms `2` and `-3`, nor by the other mark, so `2+-` is
+// an error rather than `2+` and a rest.
+AlteredValue
+  = n:Number marks:$("+"+ / "-"+) !("."? [0-9]) ![+-] {
+      const semitones = marks[0] === "+" ? marks.length : -marks.length;
+      return { Pure: located({ Altered: { value: n, semitones } }, location()) };
     }
 
 NumberValue

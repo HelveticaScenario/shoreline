@@ -817,7 +817,7 @@ export class GraphBuilder implements ChainHost {
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
     private schemaByName = new Map<string, ProcessedModuleSchema>();
-    /** Chain methods backed by a DSL helper rather than a module (`delay`). */
+    /** Chain methods backed by a DSL function rather than a schema's factory (`delay`). */
     private chainHelpers = new Map<string, ChainFunction>();
     private scopes: ScopeWithLocation[] = [];
     /** The roots among the scoped values, which draw the output they are taken as. */

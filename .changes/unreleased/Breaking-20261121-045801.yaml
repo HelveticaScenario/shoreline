@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    In a `.scale(...)` pattern, follow a degree with `+` or `-` marks to raise or lower it a semitone per mark, reaching notes outside the scale: `$("0 2 4 4+ 5").scale("c(major)")` plays G# as a passing note. The marks stay with the note through `.trans`, and in a just or Pythagorean scale they land on that tuning's notes. A `-` written straight after a number is now one of these marks, not a rest, so put a space before a rest that follows a number:
+
+    ```js
+    // before
+    melody: $`0 2- 4`.saw()
+    // after
+    melody: $`0 2 - 4`.saw()
+    ```
+time: 2026-11-21T04:58:01.051543-05:00

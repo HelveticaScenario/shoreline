@@ -32835,6 +32835,33 @@
               "description": "Structure atom `x` — an onset marker with no pitch of its own, only\nmeaningful in boolean (`.struct(...)`) patterns.",
               "type": "string",
               "const": "Truthy"
+            },
+            {
+              "description": "A number with trailing `+`/`-` marks (`2+`, `4--`), each raising or\nlowering it one semitone. Only scale patterns accept it: the semitones\napply after the degree resolves through the scale, so they reach notes\noutside it.",
+              "type": "object",
+              "properties": {
+                "Altered": {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number",
+                      "format": "double"
+                    },
+                    "semitones": {
+                      "type": "integer",
+                      "format": "int32"
+                    }
+                  },
+                  "required": [
+                    "value",
+                    "semitones"
+                  ]
+                }
+              },
+              "required": [
+                "Altered"
+              ],
+              "additionalProperties": false
             }
           ]
         },

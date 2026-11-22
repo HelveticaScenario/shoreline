@@ -13,7 +13,11 @@ import {
     isDslType,
 } from '../../shared/dsl/typeDocs';
 import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
-import { moduleToReferenceEntry } from '../../shared/dsl/referenceDocs';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
+import {
+    functionToReferenceEntry,
+    moduleToReferenceEntry,
+} from '../../shared/dsl/referenceDocs';
 import { GLOBAL_ENTRIES } from '../../shared/dsl/globalDocs';
 import './DocsPanel.css';
 
@@ -173,10 +177,12 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             .then((schemaList) => {
                 // Modules named with a leading `_` are internal; hide them from user-facing docs
                 setModuleEntries(
-                    schemaList
-                        .filter((e) => !e.name.startsWith('_'))
-                        .map(moduleToReferenceEntry)
-                        .sort(byName),
+                    [
+                        ...schemaList
+                            .filter((e) => !e.name.startsWith('_'))
+                            .map(moduleToReferenceEntry),
+                        ...dslModules(schemaList).map(functionToReferenceEntry),
+                    ].sort(byName),
                 );
             })
             .catch(console.error);

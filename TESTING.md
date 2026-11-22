@@ -31,7 +31,7 @@ Shoreline is an Electron app (React/TypeScript renderer) on a Rust DSP engine. T
     - `src/main/dsl/__tests__/executor.test.ts` — DSL source to `PatchGraph`, without Electron.
     - `generatedExampleValidity.test.ts` — every module and global docs example runs as a valid patch.
     - `referenceDocs.test.ts` — every module's and global's docs have the required shape, and every example is formatted as Format Document prints it.
-    - `globalDocs.test.ts` — each global's docs match its declarations, and the generated typings declare every global as documented.
+    - `globalDocs.test.ts` — each global's and DSL-built module's docs match its declarations, and the generated typings declare every such function as documented.
 - **Fixtures:** `yarn gen:dsl-ranged-fixture` and `yarn gen:parser-parity-fixture` regenerate the fixtures the Rust tests compare against. CI fails if the committed parser-parity fixture differs from a fresh run.
 
 ## Playwright E2E tests
