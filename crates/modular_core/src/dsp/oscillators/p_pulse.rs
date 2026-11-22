@@ -1,5 +1,5 @@
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::wrap,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -58,7 +58,7 @@ const P_PULSE_DOCS: ModuleDocs = ModuleDocs {
     description: "The pulse wave of `$pulse`, following a phase input instead \
                   of its own pitch. Warp the phase with `$pWarp` to reshape the \
                   cycle before it is read.",
-    categories: &[ModuleCategory::Oscillator, ModuleCategory::Phase],
+    categories: &[ReferenceCategory::Oscillator, ReferenceCategory::Phase],
     sections: &[],
     examples: &[DocExample {
         title: "Mirrored pulse sweep",

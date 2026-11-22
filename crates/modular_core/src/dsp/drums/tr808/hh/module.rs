@@ -10,9 +10,9 @@ use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot_of};
 use crate::dsp::drums::tr808::metal::MetalFilters;
 use crate::dsp::drums::voice::rails;
 use crate::dsp::utils::rng::seed_base;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 /// Scale each hat's output so an unaccented hit peaks near 5 V.
 const CLOSED_GAIN: f32 = 2.996;
@@ -85,7 +85,7 @@ const HH808_DOCS: ModuleDocs = ModuleDocs {
     description: "The 808's closed and open hi-hats: the cymbal's square waves filtered \
                   to a thin, bright band, short and tight when closed and ringing when \
                   open. As on the 808, a closed hit chokes a ringing open hat.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Hats with open offbeats",

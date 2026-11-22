@@ -8,9 +8,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::fx::enosc_tables::{aa_segment, interpolate_segment};
 use crate::dsp::utils::voct_to_hz;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -55,7 +55,7 @@ const SEGMENT_DOCS: ModuleDocs = ModuleDocs {
     description: "Morphs a signal through eight shapes as `amount` rises: clean at first, then \
                   squashed and squared off, then stepped and rippling with overtones. Works best \
                   on simple waveforms like sines and triangles.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Slowly morphing sine",

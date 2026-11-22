@@ -5,10 +5,10 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::bounds::Bounds;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::{ModuleParamErrors, check_declared_range};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params(declares_range = (min, max))]
@@ -55,7 +55,7 @@ const SIGNAL_DOCS: ModuleDocs = ModuleDocs {
     description: "Passes its input on unchanged, giving a value or cable a module of its own: \
                   a named point in the patch to tap, scope or reuse. A constant set here glides \
                   to its new value when the patch updates instead of jumping.",
-    categories: &[ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Utility],
     sections: &[],
     examples: &[DocExample {
         title: "One pitch shared by two oscillators",

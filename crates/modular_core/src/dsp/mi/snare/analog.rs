@@ -3,8 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::random::Random,
@@ -95,7 +95,7 @@ const SNARE_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' 808-style snare: a pulse rings \
                   the drum's shell modes, mixed with band-passed noise for the \
                   snares. Leave `trigger` unpatched and it drones.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[
         DocExample {

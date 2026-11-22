@@ -5,9 +5,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState};
 use crate::dsp::utils::voct_to_hz;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -57,7 +57,7 @@ const P_WARP_DOCS: ModuleDocs = ModuleDocs {
                   oscillator after it plays a new timbre. Chain warps for more \
                   complex shapes, and modulate their amounts for sweeping, \
                   vocal motion.",
-    categories: &[ModuleCategory::Phase],
+    categories: &[ReferenceCategory::Phase],
     sections: &[],
     examples: &[
         DocExample {

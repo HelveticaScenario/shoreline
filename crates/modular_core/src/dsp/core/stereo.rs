@@ -3,9 +3,9 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PairSignal, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -29,7 +29,7 @@ const STEREO_DOCS: ModuleDocs = ModuleDocs {
     summary: "Join two sides into stereo",
     description: "Makes a stereo signal from a left and a right signal, lane by lane. A \
                   stereo input is folded to mono first.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Two sines a fifth apart",
@@ -84,7 +84,7 @@ const MONO_DOCS: ModuleDocs = ModuleDocs {
     summary: "Fold stereo to mono",
     description: "Averages the two sides of each lane, `(L + R) / 2`. A mono signal passes \
                   unchanged.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "A stereo pair as one voice",
@@ -133,7 +133,7 @@ const LEFT_DOCS: ModuleDocs = ModuleDocs {
     summary: "Left side of stereo",
     description: "The left side of each lane, as a mono signal. A mono signal passes \
                   unchanged.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Swap the sides",
@@ -171,7 +171,7 @@ const RIGHT_DOCS: ModuleDocs = ModuleDocs {
     summary: "Right side of stereo",
     description: "The right side of each lane, as a mono signal. A mono signal passes \
                   unchanged.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Only the right side",
@@ -208,7 +208,7 @@ const MID_DOCS: ModuleDocs = ModuleDocs {
     summary: "Mid of a stereo signal",
     description: "The mid of each lane, `(L + R) / 2`, as a mono signal: what both sides \
                   share. Pair it with `$side` and rebuild with `$fromMidSide`.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Narrow a stereo signal",
@@ -243,7 +243,7 @@ const SIDE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Side of a stereo signal",
     description: "The side of each lane, `(L - R) / 2`, as a mono signal: what makes it wide. \
                   A mono signal's side is silent.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Only the width",
@@ -293,7 +293,7 @@ const FROM_MID_SIDE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Stereo from mid and side",
     description: "Rebuilds a stereo signal from its mid and side, lane by lane: \
                   `L = mid + side`, `R = mid - side`. A stereo input is folded to mono first.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Widen a stereo signal",

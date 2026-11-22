@@ -5,8 +5,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::block_input::InputScratch;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{param_errors::ModuleParamErrors, poly::LaneSum};
 
 /// Number of tap slots the video renderer can read.
@@ -113,7 +113,7 @@ const VIDEO_TAP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Audio signal for video",
     description: "Publishes an audio signal to the video renderer. The DSL inserts one \
                   for each audio signal a `$v` input reads.",
-    categories: &[ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Utility],
     sections: &[],
     examples: &[DocExample {
         title: "LFO driving a video oscillator",

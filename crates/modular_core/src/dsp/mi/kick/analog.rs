@@ -3,8 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{oscillators::FmMode, utils::SchmittTrigger},
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -105,7 +105,7 @@ const KICK_DOCS: ModuleDocs = ModuleDocs {
                   a resonant filter whose pitch jumps on the attack and bends \
                   with its own level, then an overdrive. Leave `trigger` \
                   unpatched and it drones as a sine.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[
         DocExample {

@@ -6,15 +6,15 @@
 //! module's user-facing docs. Params and outputs are documented on their own
 //! fields with `#[input]` and `#[output]`, never here. The editor renders the
 //! serialized [`ModuleDocsSchema`] two ways: compactly in Monaco's hover and
-//! completion, and in full in the Reference pane.
+//! completion, and in full in the Docs panel.
 //!
 //! The serialized shape matches `DocContent` in `src/shared/dsl/referenceDocs.ts`,
-//! which globals, collection methods and video modules share.
+//! which the docs of globals share.
 
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 
-use crate::module_category::ModuleCategory;
+use crate::reference_category::ReferenceCategory;
 
 pub struct ModuleDocs {
     /// A few words naming what the module is, for reference lists.
@@ -22,7 +22,7 @@ pub struct ModuleDocs {
     /// What the module is for, in a sentence or three of inline markdown:
     /// no headings, tables or code blocks.
     pub description: &'static str,
-    pub categories: &'static [ModuleCategory],
+    pub categories: &'static [ReferenceCategory],
     /// Reference material too long for the description, such as a syntax
     /// table. Most modules have none.
     pub sections: &'static [DocSection],
@@ -62,7 +62,7 @@ pub struct ModuleDocsSchema {
     /// Typed as strings in TypeScript so `schemas.json` imports, whose string
     /// literals widen, still satisfy this interface.
     #[napi(ts_type = "Array<string>")]
-    pub categories: Vec<ModuleCategory>,
+    pub categories: Vec<ReferenceCategory>,
     pub sections: Vec<DocSectionSchema>,
     pub examples: Vec<DocExampleSchema>,
 }

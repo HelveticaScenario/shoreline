@@ -2,8 +2,8 @@ use std::ops::Range;
 
 use std::f32::consts::TAU;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
@@ -76,7 +76,7 @@ const SINE_DOCS: ModuleDocs = ModuleDocs {
                   soft leads and the classic FM carrier or modulator. \
                   Through-zero FM from another oscillator turns it into bells \
                   and electric pianos.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

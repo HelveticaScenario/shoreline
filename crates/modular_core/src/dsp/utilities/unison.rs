@@ -3,9 +3,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::unison_phase::{UnisonPhases, phase_glide_step};
 use crate::dsp::utils::unison_voices::{detune_octaves, spread_position, unison_lane};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 fn default_count() -> usize {
     1
@@ -80,7 +80,7 @@ const UNISON_DOCS: ModuleDocs = ModuleDocs {
     description: "Turns each pitch into a stack of detuned copies for thick unison \
                   leads and supersaw-style pads. Each copy is a full set of the \
                   input's lanes, up to 64 lanes in all.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[
         DocExample {

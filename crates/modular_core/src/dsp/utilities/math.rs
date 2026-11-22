@@ -1,7 +1,7 @@
 use crate::dsp::utils::{hz_to_voct_f64, voct_to_hz_f64};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::{ClockMessages, Connect};
 use deserr::{DeserializeError, Deserr, ErrorKind, IntoValue, ValuePointerRef};
 use fasteval::{Compiler, Evaler, Instruction};
@@ -146,7 +146,7 @@ const MATH_DOCS: ModuleDocs = ModuleDocs {
     description: "Evaluates a formula every sample, for any transformation no other \
                   module offers. It runs once per lane, as wide as its widest \
                   input.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[DocSection {
         title: "Writing an expression",
         body: "Use `x`, `y` and `z` for the patched inputs and `t` for the time in \

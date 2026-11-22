@@ -4,10 +4,10 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{rng::hash_bipolar, voct_to_hz, wrap_phase};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::ModuleParamErrors;
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 #[cfg(test)]
 mod tests;
@@ -342,7 +342,7 @@ const SWELL_DOCS: ModuleDocs = ModuleDocs {
                   and levels that breathe irregularly; `tilt` and `roll` are \
                   the matching lean of a boat on the water. Changing a param \
                   bends the waves rather than restarting them.",
-    categories: &[ModuleCategory::Modulation],
+    categories: &[ReferenceCategory::Modulation],
     sections: &[],
     examples: &[
         DocExample {

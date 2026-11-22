@@ -19,9 +19,9 @@ use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::sanitize;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 use scale::{EnoscScale, ScaleNotes};
@@ -287,7 +287,7 @@ const ENOSC_DOCS: ModuleDocs = ModuleDocs {
                   drones. The output is stereo, odd voices left and even voices \
                   right, and the other outputs split the voices the way the \
                   hardware's stereo modes do. Inputs are read as mono.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

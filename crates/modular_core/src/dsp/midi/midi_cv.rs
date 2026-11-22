@@ -11,9 +11,9 @@ use serde::Serialize;
 use crate::dsp::utils::{
     GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE, TempGate, TempGateState, min_gate_samples,
 };
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 use crate::types::{
     DeviceName, MidiChannelPressure, MidiControlChange, MidiNoteOff, MidiNoteOn, MidiPitchBend,
     MidiPolyPressure,
@@ -134,7 +134,7 @@ const MIDI_CV_DOCS: ModuleDocs = ModuleDocs {
     description: "Turns notes from a MIDI keyboard or controller into pitch, gate, velocity and \
                   expression voltages for playing a patch live. Set `lanes` above 1 for a \
                   polyphonic synth, one voice per lane, or leave it at 1 for a mono lead.",
-    categories: &[ModuleCategory::Midi],
+    categories: &[ReferenceCategory::Midi],
     sections: &[],
     examples: &[
         DocExample {

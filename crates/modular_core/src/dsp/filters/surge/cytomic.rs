@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::fasttan;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Cytomic coefficient slots (Surge `cytomic_quadform::Coeff`).
 const CY_A1: usize = 0;
@@ -106,7 +106,7 @@ const FAST_SVF_DOCS: ModuleDocs = ModuleDocs {
     summary: "Clean state-variable filter",
     description: "A clean, linear multimode filter that stays smooth under fast, even \
                   audio-rate, cutoff modulation.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Audio-rate bandpass FM",

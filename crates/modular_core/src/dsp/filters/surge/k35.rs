@@ -9,8 +9,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fasttan, fasttanh_clamped};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// K35 coefficient slots (Surge `k35_coeffs`).
 const K35_G: usize = 0;
@@ -199,7 +199,7 @@ const K35_LP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Korg 35 lowpass",
     description: "The lowpass from the early Korg MS-20: bright, aggressive resonance that \
                   turns snarling as `saturation` rises.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Snarling lead",
@@ -229,7 +229,7 @@ const K35_HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Korg 35 highpass",
     description: "The highpass from the early Korg MS-20: thins a sound with a sharp, \
                   whistling resonance that grits up as `saturation` rises.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Whistling highpass on a saw",

@@ -11,8 +11,8 @@ use super::coeffs::{
     map_4pole_resonance, note_to_omega, resoscale, to_coupled_form, to_normalized_lattice,
 };
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Highpass biquad kernel.
 #[derive(Clone, Copy, Default)]
@@ -109,7 +109,7 @@ const HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge highpass filter",
     description: "Surge's resonant highpass in 12 or 24 dB slopes, for thinning a sound or a \
                   whistling rising sweep.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Resonant highpass sweep",

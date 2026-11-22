@@ -1,9 +1,9 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -40,7 +40,7 @@ const SPREAD_DOCS: ModuleDocs = ModuleDocs {
     summary: "Evenly spaced lane values",
     description: "Fills a set of lanes with values spaced from `min` to `max`, for \
                   fanning pitches, pans or detunes across a polyphonic patch.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[
         DocExample {

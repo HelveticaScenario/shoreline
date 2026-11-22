@@ -7,8 +7,8 @@ use deserr::Deserr;
 use napi::Result;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::types::{DeviceName, MidiControlChange, MidiControlChange14Bit};
 
 #[params]
@@ -58,7 +58,7 @@ const MIDI_CC_DOCS: ModuleDocs = ModuleDocs {
     summary: "MIDI controller to voltage",
     description: "Follows one knob, fader or wheel on a MIDI controller as a 0–5 V control \
                   voltage, for playing any param of a patch by hand.",
-    categories: &[ModuleCategory::Midi],
+    categories: &[ReferenceCategory::Midi],
     sections: &[],
     examples: &[DocExample {
         title: "Mod wheel filter sweep",

@@ -5,9 +5,9 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 /// Lower bound for the post-scale frequency, keeping `hz_to_voct` away from log2(≤0).
@@ -42,7 +42,7 @@ const MUL_HZ_DOCS: ModuleDocs = ModuleDocs {
     description: "Multiplies a pitch's frequency by a ratio, for pure just intervals \
                   and harmonics that equal-tempered transposition misses. A ratio of \
                   1.5 is a beatless fifth.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[DocExample {
         title: "Just-tuned fifths",

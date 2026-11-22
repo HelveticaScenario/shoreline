@@ -7,8 +7,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Saturation algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -51,7 +51,7 @@ const SATURATE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Saturation and clipping",
     description: "Warms, thickens or squares off a signal, from gentle rounding \
                   to hard clipping. Modelled on the Surge XT saturator shapes.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Driven bass",

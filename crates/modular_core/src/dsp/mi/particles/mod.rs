@@ -4,8 +4,8 @@ mod particle;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -129,7 +129,7 @@ const PARTICLES_DOCS: ModuleDocs = ModuleDocs {
                   impulses ringing resonant filters tuned around the pitch, \
                   from crackle and rain to dripping water and a pitched, \
                   reverberant cloud.",
-    categories: &[ModuleCategory::Oscillator, ModuleCategory::Random],
+    categories: &[ReferenceCategory::Oscillator, ReferenceCategory::Random],
     sections: &[],
     examples: &[
         DocExample {

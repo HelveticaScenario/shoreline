@@ -10,8 +10,8 @@ use super::primitives::{Frame, Limiter};
 use super::reverb::{Reverb, ReverbSettings};
 use super::{FULL_SCALE_VOLTS, unit};
 use crate::dsp::utils::sanitize;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Hardware rate the reverb's delays are tuned to at `size` 0.
 const HARDWARE_RATE: f32 = 48000.0;
@@ -159,7 +159,7 @@ const BEADS_REVERB_DOCS: ModuleDocs = ModuleDocs {
                   single knob from dry to a long, loud wash, so it needs no separate dry/wet \
                   blend. Put \
                   `$granular` or `$wowFlutter` before it for the rest of Beads' colour.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[DocSection {
         title: "Matching a Beads quality",
         body: "Beads sets its reverb to these `size` and `tone` values for each `quality` of \

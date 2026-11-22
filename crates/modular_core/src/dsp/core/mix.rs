@@ -4,8 +4,8 @@ use schemars::JsonSchema;
 use std::mem::MaybeUninit;
 use std::ops::Range;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     block_input::{InputScratch, OptionBlockInput, SCRATCH_LEN},
     dsp::utils::{audio_taper, sanitize},
@@ -93,7 +93,7 @@ const MIX_DOCS: ModuleDocs = ModuleDocs {
     description: "Mixes several signals into one, keeping their lanes apart: lane n of \
                   every input lands on output lane n, so mixing two four-voice signals \
                   still gives four voices. Use `$setLanes` to fold lanes together instead.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Saw and sub-octave square layered",

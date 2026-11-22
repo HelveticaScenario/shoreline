@@ -11,8 +11,8 @@ use super::coeffs::{
     map_4pole_resonance, note_to_omega, resoscale, to_coupled_form, to_normalized_lattice,
 };
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Lowpass biquad kernel.
 #[derive(Clone, Copy, Default)]
@@ -112,7 +112,7 @@ const LP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge lowpass filter",
     description: "Surge's resonant lowpass in 12 or 24 dB slopes: smooth at the default \
                   `'standard'` drive, precise at `'clean'`, gritty and singing at `'driven'`.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Driven acid line",

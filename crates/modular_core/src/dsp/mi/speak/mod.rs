@@ -7,8 +7,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use super::accent::{Accent, plaits_volts};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -167,7 +167,7 @@ const SPEAK_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' talking voice: a speak-and-spell's \
                   LPC-10 synth saying colours, numbers, letters and synth words \
                   at the pitch you play.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

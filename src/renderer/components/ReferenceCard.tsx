@@ -9,6 +9,7 @@ import type {
     DocExample,
     DocTable,
     ReferenceEntry,
+    ValueDoc,
 } from '../../shared/dsl/referenceDocs';
 
 /** A number stays on the line of its unit, e.g. `5 V`. */
@@ -92,12 +93,28 @@ const Examples: React.FC<{ examples: DocExample[] }> = ({ examples }) => (
     </>
 );
 
+const Meta: React.FC<{ meta?: string }> = ({ meta }) =>
+    meta ? <span className="param-meta">{meta}</span> : null;
+
+/** An output or a returned member: its name, a note such as `(default)`,
+ *  its description and range. */
+const ValueItem: React.FC<{ value: ValueDoc; note?: string }> = ({
+    value,
+    note,
+}) => (
+    <li>
+        <strong>{value.name}</strong>
+        {note}: <InlineDoc text={value.description} />
+        <Meta meta={value.meta} />
+    </li>
+);
+
 interface ReferenceCardProps {
     entry: ReferenceEntry;
     onTypeClick: (typeName: DslTypeName) => void;
 }
 
-/** The full Reference-pane view of one entry. */
+/** The full Docs-panel view of one module or global. */
 export const ReferenceCard = memo<ReferenceCardProps>(
     ({ entry, onTypeClick }) => {
         const { docs } = entry;
@@ -124,6 +141,7 @@ export const ReferenceCard = memo<ReferenceCardProps>(
                             {entry.params.map((p) => (
                                 <li key={p.name}>
                                     <strong>
+                                        {p.rest && '...'}
                                         {p.name}
                                         {p.type && (
                                             <>
@@ -142,11 +160,7 @@ export const ReferenceCard = memo<ReferenceCardProps>(
                                             <InlineDoc text={p.description} />
                                         </>
                                     )}
-                                    {p.meta && (
-                                        <span className="param-meta">
-                                            {p.meta}
-                                        </span>
-                                    )}
+                                    <Meta meta={p.meta} />
                                     {p.variants &&
                                         (p.variants.length > 8 ? (
                                             <details className="enum-variants">
@@ -177,18 +191,39 @@ export const ReferenceCard = memo<ReferenceCardProps>(
                         <h4>Outputs</h4>
                         <ul>
                             {entry.outputs.map((out) => (
-                                <li key={out.name}>
-                                    <strong>{out.name}</strong>
-                                    {out.main && ' (default)'}
-                                    : <InlineDoc text={out.description} />
-                                    {out.meta && (
-                                        <span className="param-meta">
-                                            {out.meta}
-                                        </span>
-                                    )}
-                                </li>
+                                <ValueItem
+                                    key={out.name}
+                                    value={out}
+                                    note={out.main ? ' (default)' : undefined}
+                                />
                             ))}
                         </ul>
+                    </>
+                )}
+                {entry.returns && (
+                    <>
+                        <h4>Returns</h4>
+                        <p>
+                            <strong>
+                                <LinkifyTypes
+                                    text={entry.returns.type}
+                                    onTypeClick={onTypeClick}
+                                />
+                            </strong>{' '}
+                            &mdash;{' '}
+                            <InlineDoc text={entry.returns.description} />
+                            <Meta meta={entry.returns.meta} />
+                        </p>
+                        {entry.returns.members && (
+                            <ul>
+                                {entry.returns.members.map((member) => (
+                                    <ValueItem
+                                        key={member.name}
+                                        value={member}
+                                    />
+                                ))}
+                            </ul>
+                        )}
                     </>
                 )}
                 {docs.sections.map((section) => (
