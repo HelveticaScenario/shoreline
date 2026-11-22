@@ -372,7 +372,7 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 
 /**
  * The \`$cycle\` sequencer a pattern plays through, as the pattern has it.
- * What a member gives back (a lane, a slice, the receiver of \`.scope()\`)
+ * What a member gives back (a lane, a slice, what \`.scope()\` returns)
  * is that sequencer's signal, not a pattern.
  */
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };

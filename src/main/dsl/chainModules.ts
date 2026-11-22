@@ -46,6 +46,13 @@ export function drySourceOf(value: object): unknown {
     return DRY.get(value);
 }
 
+/** Give `copy` the dry source of `value`, so `.wet()` works on either. */
+export function carryDrySource(copy: object, value: object): void {
+    if (DRY.has(value)) {
+        DRY.set(copy, DRY.get(value));
+    }
+}
+
 /**
  * Record `dry` as the source of `result` and of each of its named outputs,
  * so `.wet()` works on a root and on an output named explicitly.
