@@ -40,7 +40,7 @@ export function ControlPanel({
     groups,
     ...handlers
 }: ControlPanelProps) {
-    const [jumpArmed, setJumpArmed] = useJumpModifier();
+    const jump = useJumpModifier();
 
     if (sliders.length === 0 && buttons.length === 0 && groups.length === 0) {
         return (
@@ -61,9 +61,8 @@ export function ControlPanel({
 
     return (
         <div
-            className={`control-panel${jumpArmed ? ' jump-armed' : ''}`}
-            // Picks up a modifier pressed while another window had focus.
-            onPointerMove={(e) => setJumpArmed(e.ctrlKey || e.metaKey)}
+            className={`control-panel${jump.armed ? ' jump-armed' : ''}`}
+            onPointerMove={jump.onPointerMove}
         >
             <ControlList
                 path={[]}

@@ -764,16 +764,38 @@ function App() {
             : (vuDecorationsRef.current?.offsetOf(idx) ?? null);
     }, []);
 
-    /** Ctrl/Cmd-click on a mixer strip's name: move the cursor to its label. */
+    /** A strip jump waiting for the editor to show the mixer's buffer. */
+    const pendingVuJumpRef = useRef<string | null>(null);
+
+    /**
+     * Ctrl/Cmd-click on a mixer strip's name: move the cursor to its label,
+     * first switching the editor to the buffer the mixer's tracks came from.
+     */
     const handleVuJump = useCallback(
         (key: string) => {
             const offset = vuLabelOffset(key);
             if (offset !== null) {
                 handleControlJump(offset);
+                return;
+            }
+            const source = buffers.find((b) => b.id === vuSourceIdRef.current);
+            if (source) {
+                pendingVuJumpRef.current = key;
+                setActiveBufferId(getBufferId(source));
             }
         },
-        [vuLabelOffset, handleControlJump],
+        [buffers, vuLabelOffset, handleControlJump, setActiveBufferId],
     );
+    // Runs after the editor has swapped in the buffer's model, which its
+    // anchors were placed on.
+    useEffect(() => {
+        const key = pendingVuJumpRef.current;
+        const offset = key === null ? null : vuLabelOffset(key);
+        if (offset !== null) {
+            pendingVuJumpRef.current = null;
+            handleControlJump(offset);
+        }
+    }, [visibleCode.bufferId, vuLabelOffset, handleControlJump]);
 
     /**
      * Mirror a mixer control change into the DSL source of the track named

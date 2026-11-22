@@ -12,6 +12,7 @@ import { trackGates } from '../../shared/dsl/trackGates';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
 import {
     controlTooltip,
+    isJumpGesture,
     jumpHandlers,
     useJumpModifier,
 } from './controlPanel/controlChrome';
@@ -25,14 +26,13 @@ import {
 import './VuMeterPanel.css';
 
 /**
- * A Ctrl/Cmd gesture edits the DSL source only, leaving the running audio
- * untouched until the next patch update; the control then shows a ghost of
- * the code-side value. On macOS Ctrl+click arrives as a contextmenu event,
- * so the buttons detect the code-only gesture on that path too.
+ * A Ctrl/Cmd gesture on a control edits the DSL source only, leaving the
+ * running audio untouched until the next patch update; the control then
+ * shows a ghost of the code-side value. On macOS Ctrl+click arrives as a
+ * contextmenu event, so the buttons detect the code-only gesture on that path
+ * too. On a strip's name the same gesture jumps to its label.
  */
-function isCodeOnly(e: React.MouseEvent | React.PointerEvent): boolean {
-    return e.ctrlKey || e.metaKey;
-}
+const isCodeOnly = isJumpGesture;
 
 const MS_BUTTON_HINT = '⌃/⌘-click: edit code only';
 
@@ -479,7 +479,7 @@ export function VuMeterPanel({
     unregisterKnob,
     onJump,
 }: VuMeterPanelProps) {
-    const [jumpArmed, setJumpArmed] = useJumpModifier();
+    const jump = useJumpModifier();
     const channelOutputs = outputs.filter((o) => !o.main);
     const trackOutputs = channelOutputs.filter((o) => !o.isBus);
     const busOutputs = channelOutputs.filter((o) => o.isBus);
@@ -613,9 +613,8 @@ export function VuMeterPanel({
     return (
         <div
             ref={panelRef}
-            className={`vu-meter-panel${jumpArmed ? ' jump-armed' : ''}`}
-            // Picks up a modifier pressed while another window had focus.
-            onPointerMove={(e) => setJumpArmed(e.ctrlKey || e.metaKey)}
+            className={`vu-meter-panel${jump.armed ? ' jump-armed' : ''}`}
+            onPointerMove={jump.onPointerMove}
         >
             <div className="vu-meter-scroll">
                 {channelOutputs.length === 0 ? (

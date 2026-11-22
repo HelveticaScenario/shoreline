@@ -1,3 +1,3 @@
 kind: Improved
-body: ⌃/⌘-click a track's name in the mixer to jump the editor's cursor to its label, as with the controls in the Controls panel.
+body: ⌃/⌘-click a track's name in the mixer to jump the editor's cursor to its label, switching to the tab the mixer's tracks came from if another is showing, as with the controls in the Controls panel.
 time: 2026-11-22T02:22:06.893211-05:00
