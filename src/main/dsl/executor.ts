@@ -498,22 +498,10 @@ export function executePatchScript(
         );
     }
 
+    // Documented with `$delay`'s declaration (`dslModuleDocs.ts`).
     interface DelayOptions {
-        /**
-         * Feedback amount, 0–5 (0 = no repeats, 5 = 100% = unity, default
-         * 2.5 = 50%). Clamped to 0–5. May be a signal for modulation.
-         */
         feedback?: PolySignal;
-        /**
-         * Optional processor applied to the dry-plus-feedback mix before it is
-         * written to the buffer — e.g. a filter or saturator that colours every
-         * recirculation of the delay.
-         */
         feedbackCb?: (mixed: Collection) => Collection;
-        /**
-         * Maximum delay time in seconds — sizes the underlying buffer and
-         * caps how long `time` can be (default 5).
-         */
         maxTime?: number;
     }
 
@@ -528,17 +516,8 @@ export function executePatchScript(
         return 1;
     };
 
-    /**
-     * Delay with feedback: sum `input` with the attenuated feedback, optionally
-     * process that mix through `feedbackCb`, write it into a `$buffer` of
-     * `maxTime` seconds, and read it back `time` seconds late. The delayed read
-     * is attenuated by `feedback` and summed back in, so a `feedbackCb` filter
-     * colours every recirculation. With `feedback = 0` you still hear the first
-     * echo; higher values repeat it.
-     *
-     * Returns the wet `$delayRead` output. Mix the dry signal back yourself
-     * (`$mix([input, $delay(input, time)])`) or use `.delay(time).wet(mix)`.
-     */
+    // Sums `input` with the attenuated feedback, passes the mix through
+    // `feedbackCb`, writes it into a `$buffer` and reads it back `time` late.
     const $delay = (
         input: Collection,
         time: PolySignal,
@@ -614,20 +593,13 @@ export function executePatchScript(
         );
     }
 
+    // Documented with `$super`'s declaration (`dslModuleDocs.ts`).
     interface SuperOptions {
-        /** Copies per note. */
         unison?: number;
-        /** Semitones between the lowest and highest copy. */
         detune?: PolySignal;
-        /** How far the copies fan out across the stereo field. */
         width?: PolySignal;
     }
 
-    /**
-     * A detuned, stereo-spread unison stack of any voice: `cb` builds one
-     * voice from the `$unison` copies of `freq`, and the copies it makes are
-     * folded into one stereo lane per note.
-     */
     const $super = (
         freq: PolySignal,
         cb: (

@@ -4,7 +4,8 @@
  * Examples come from three sources:
  *   1. The structured docs (`docs.examples` and section examples) of each
  *      module, declared in its Rust `ModuleDocs` const and carried by
- *      `schemas.json`, and of each global, in `GLOBALS`.
+ *      `schemas.json`, of each global, in `GLOBALS`, and of each module the
+ *      DSL builds, in `dslModules`.
  *   2. `@example` JSDoc tags hand-written in `typescriptLibGen.ts`.
  *   3. ```js fenced blocks in hand-written JSDoc there.
  *
@@ -18,6 +19,8 @@ import { describe, expect, test } from 'vitest';
 import { validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
+import { dslModules } from '../../../shared/dsl/dslModuleDocs';
+import { functionToReferenceEntry } from '../../../shared/dsl/referenceDocs';
 import {
     allExamples,
     type DocContent,
@@ -177,6 +180,9 @@ const fromDocs = [
     ...GLOBAL_ENTRIES.flatMap((g) =>
         structuredExamples('global', g.name, g.docs),
     ),
+    ...dslModules(schemas)
+        .map(functionToReferenceEntry)
+        .flatMap((m) => structuredExamples('module', m.name, m.docs)),
 ];
 const docsCode = new Set(fromDocs.map((e) => e.code));
 // The generated JSDoc repeats each entry's first example; count it once.
