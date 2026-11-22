@@ -205,6 +205,175 @@ describe('atom kinds', () => {
     });
 });
 
+describe('altered atoms `+` / `-`', () => {
+    const altered = (src: string) => firstPureAtom(patternPayload($(src)).ast);
+
+    test('each mark is one semitone, + up and - down', () => {
+        expect(altered('2+')).toEqual({
+            Pure: {
+                node: { Altered: { value: 2, semitones: 1 } },
+                span: { start: 0, end: 2 },
+            },
+        });
+        expect(altered('4---')).toEqual({
+            Pure: {
+                node: { Altered: { value: 4, semitones: -3 } },
+                span: { start: 0, end: 4 },
+            },
+        });
+        expect(altered('-1++')).toEqual({
+            Pure: {
+                node: { Altered: { value: -1, semitones: 2 } },
+                span: { start: 0, end: 4 },
+            },
+        });
+    });
+
+    test('take modifiers and weights after the marks', () => {
+        const r = patternPayload($('2+*2 3-@2'));
+        expect(r.ast).toEqual({
+            Sequence: [
+                [
+                    {
+                        Fast: [
+                            {
+                                Pure: {
+                                    node: {
+                                        Altered: { value: 2, semitones: 1 },
+                                    },
+                                    span: { start: 0, end: 2 },
+                                },
+                            },
+                            { Pure: { node: 2, span: { start: 3, end: 4 } } },
+                        ],
+                    },
+                    null,
+                ],
+                [
+                    {
+                        Pure: {
+                            node: { Altered: { value: 3, semitones: -1 } },
+                            span: { start: 5, end: 7 },
+                        },
+                    },
+                    2,
+                ],
+            ],
+        });
+    });
+
+    test('a spaced `-` is still a rest', () => {
+        const r = patternPayload($('2 -'));
+        expect(r.ast).toEqual({
+            Sequence: [
+                [
+                    {
+                        Pure: {
+                            node: { Number: 2 },
+                            span: { start: 0, end: 1 },
+                        },
+                    },
+                    null,
+                ],
+                [{ Rest: { start: 2, end: 3 } }, null],
+            ],
+        });
+    });
+
+    test('marks followed by a number are not marks', () => {
+        const r = patternPayload($('2-3'));
+        expect('Sequence' in r.ast).toBe(true);
+        if ('Sequence' in r.ast) {
+            expect(r.ast.Sequence.map(([e]) => e)).toEqual([
+                { Pure: { node: { Number: 2 }, span: { start: 0, end: 1 } } },
+                { Pure: { node: { Number: -3 }, span: { start: 1, end: 3 } } },
+            ]);
+        }
+    });
+
+    test('mixed marks and marks on notes do not parse', () => {
+        expect(() => $('2+-')).toThrow(MiniParseError);
+        expect(() => $('c4+')).toThrow(MiniParseError);
+    });
+});
+
+describe('chords', () => {
+    test('a note, a colon and a chord symbol is a Chord atom', () => {
+        const r = patternPayload($('eb3:m7^1%'));
+        expect(r.ast).toEqual({
+            Pure: {
+                node: {
+                    Chord: {
+                        letter: 'e',
+                        accidental: 'b',
+                        octave: 3,
+                        chord: 'm7^1%',
+                    },
+                },
+                span: { start: 0, end: 9 },
+            },
+        });
+    });
+
+    test('the root octave may be left out', () => {
+        const atom = firstPureAtom(patternPayload($('c:M7 g')).ast);
+        expect(atom).toEqual({
+            Pure: {
+                node: {
+                    Chord: {
+                        letter: 'c',
+                        accidental: null,
+                        octave: null,
+                        chord: 'M7',
+                    },
+                },
+                span: { start: 0, end: 4 },
+            },
+        });
+    });
+
+    test('a chord takes modifiers, euclidean included', () => {
+        const r = patternPayload($('c3:m(3,8)'));
+        if (!('Euclidean' in r.ast)) throw new Error('expected Euclidean');
+        const inner = r.ast.Euclidean.pattern;
+        if (!('Pure' in inner)) throw new Error('expected Pure');
+        expect(inner.Pure.node).toMatchObject({ Chord: { chord: 'm' } });
+        expect('Fast' in patternPayload($('c3:M7*2')).ast).toBe(true);
+    });
+
+    test('a colon with no symbol is a parse error', () => {
+        expect(() => $('c: e')).toThrow(MiniParseError);
+    });
+});
+
+describe('scales', () => {
+    test('a note with a scale in parentheses is a Scale atom', () => {
+        const r = patternPayload($('d3( dorian )'));
+        expect(r.ast).toEqual({
+            Pure: {
+                node: {
+                    Scale: {
+                        letter: 'd',
+                        accidental: null,
+                        octave: 3,
+                        scale: 'dorian',
+                    },
+                },
+                span: { start: 0, end: 12 },
+            },
+        });
+    });
+
+    test('a comma in the parentheses keeps them a euclidean rhythm', () => {
+        expect('Euclidean' in patternPayload($('c(3,8)')).ast).toBe(true);
+        expect('Euclidean' in patternPayload($('c(<3 5>,8)')).ast).toBe(true);
+    });
+
+    test('empty parentheses are a parse error', () => {
+        expect(() => $('c( )')).toThrow(MiniParseError);
+    });
+});
+
 describe('sequences and groupings', () => {
     test('space-separated sequence', () => {
         const r = patternPayload($('0 1 2'));

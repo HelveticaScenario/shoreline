@@ -19,8 +19,8 @@ use super::wav_load::silent_buffer;
 use super::{
     FULL_SCALE_VOLTS, GranularQuality, folded, grain_params, input_value, sides_match, unit,
 };
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -68,10 +68,11 @@ struct GranularParams {
     #[input(
         "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
         type = pitch,
+        default = 0.0,
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    #[input("pitch of the input, so `freq` plays in tune", type = pitch)]
+    #[input("pitch of the input, so `freq` plays in tune", type = pitch, default = 0.0)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
     #[input(
@@ -150,7 +151,7 @@ const GRANULAR_DOCS: ModuleDocs = ModuleDocs {
                   of live sound. Each lane records and plays in stereo. For grain-to-grain variation, modulate its settings with \
                   something sampled on the same trigger, such as `$sah`. Follow it with `$wowFlutter` and `$reverb` for the \
                   rest of Beads' sound.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[DocExample {
         title: "Chord cloud from a single saw",

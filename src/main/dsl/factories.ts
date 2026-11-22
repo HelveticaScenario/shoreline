@@ -1,5 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
-import { deriveLaneCount } from '@modular/core';
+import { deriveLaneCount, noteVoltages } from '@modular/core';
 import {
     BaseCollection,
     GraphBuilder,
@@ -212,6 +212,25 @@ interface NamespaceTree {
     [key: string]: NamespaceTree | FactoryFunction;
 }
 
+/**
+ * The voltage of each note of a chord or scale literal (`'c3:M7'`,
+ * `'d(dorian)'`), one per lane, or `undefined` for any other value. No other
+ * signal string holds `:` or `(`.
+ */
+function literalNotes(value: unknown): number[] | undefined {
+    return typeof value === 'string' && /[:(]/.test(value)
+        ? noteVoltages(value)
+        : undefined;
+}
+
+/** `value` with each chord or scale literal in it, alone or in an array, spread into its notes. */
+export function spreadNoteLiterals(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => literalNotes(v) ?? [v]);
+    }
+    return literalNotes(value) ?? value;
+}
+
 function sanitizeIdentifier(name: string): string {
     let id = name.replace(
         /[^a-zA-Z0-9_$]+(.)?/g,
@@ -323,8 +342,9 @@ export class DSLContext {
     /**
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
-     * contents of a `$gN` group, and spread the collections inside an array.
-     * `slot` names the value in resolution records.
+     * contents of a `$gN` group, spread the collections inside an array, and
+     * spread each chord or scale literal into its notes. `slot` names the value in
+     * resolution records.
      */
     private signalParam(
         value: unknown,
@@ -353,13 +373,17 @@ export class DSLContext {
         };
         if (Array.isArray(value)) {
             return value.flatMap((v, i) => {
+                const notes = literalNotes(v);
+                if (notes) {
+                    return notes;
+                }
                 const resolved = resolve(v, elementSlot(slot, i));
                 return resolved instanceof BaseCollection
                     ? resolved.items
                     : [resolved];
             });
         }
-        return resolve(value, slot);
+        return literalNotes(value) ?? resolve(value, slot);
     }
 
     /**
@@ -369,9 +393,6 @@ export class DSLContext {
         const outputs = schema.outputs || [];
         const rootOutputs = resolvableOutputs(schema);
         const processed = processModuleSchema(schema);
-        const scaleParamNames = processed.params
-            .filter((p) => p.isScaleSignalInput)
-            .map((p) => p.name);
         const wavParamNames = processed.params
             .filter((p) => p.isWavInput)
             .map((p) => p.name);
@@ -446,16 +467,6 @@ export class DSLContext {
             for (const [name, value] of Object.entries(params)) {
                 if (!signalParamNames.has(name)) {
                     params[name] = patternPayload(value);
-                }
-            }
-
-            // The engine only accepts a signal scale; a spec string is
-            // shorthand for the notes of `$chord(spec)`.
-            for (const name of scaleParamNames) {
-                if (typeof params[name] === 'string') {
-                    params[name] = this.builder.getFactory('$chord')(
-                        params[name],
-                    );
                 }
             }
 
@@ -549,7 +560,6 @@ export class DSLContext {
                     }
                     markRoot(root!, {
                         outputs: rootOutputs,
-                        resolver: this.builder.outputResolver,
                         values: named,
                     });
                     return root! as MultiOutput;

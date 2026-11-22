@@ -28,15 +28,25 @@ use modular_core::pattern_system::{Fraction, Pattern, mini};
 use serde::Deserialize;
 
 fn add_iv(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
-    match (a.degree(), b.degree()) {
-        (Some(da), Some(db)) => IntervalValue::Degree(da + db),
+    match (a, b) {
+        (IntervalValue::Degree { degree: da, .. }, IntervalValue::Degree { degree: db, .. }) => {
+            IntervalValue::Degree {
+                degree: da + db,
+                semitones: 0,
+            }
+        }
         _ => IntervalValue::Rest,
     }
 }
 
 fn sub_iv(a: &IntervalValue, b: &IntervalValue) -> IntervalValue {
-    match (a.degree(), b.degree()) {
-        (Some(da), Some(db)) => IntervalValue::Degree(da - db),
+    match (a, b) {
+        (IntervalValue::Degree { degree: da, .. }, IntervalValue::Degree { degree: db, .. }) => {
+            IntervalValue::Degree {
+                degree: da - db,
+                semitones: 0,
+            }
+        }
         _ => IntervalValue::Rest,
     }
 }
@@ -108,8 +118,8 @@ fn extract_actual(pat: &Pattern<IntervalValue>) -> Extracted {
     let mut rest_count = 0usize;
     let mut out: Vec<CmpHap> = haps
         .iter()
-        .filter_map(|h| match h.value.degree() {
-            Some(d) => {
+        .filter_map(|h| match h.value {
+            IntervalValue::Degree { degree: d, .. } => {
                 let whole = h
                     .whole
                     .as_ref()
@@ -117,7 +127,7 @@ fn extract_actual(pat: &Pattern<IntervalValue>) -> Extracted {
                 let part = [frac_pair(&h.part.begin), frac_pair(&h.part.end)];
                 Some((whole, part, d))
             }
-            None => {
+            IntervalValue::Rest => {
                 rest_count += 1;
                 None
             }

@@ -13,12 +13,10 @@
 //! (`C`, `Db3`, `f#5`); the octave defaults to 4, so `C` is C4 = 0 V.
 
 use arrayvec::ArrayVec;
-use deserr::{DeserializeError, ErrorKind, IntoValue, ValuePointerRef};
 
-use crate::Patch;
 use crate::poly::PORT_MAX_LANES;
-use crate::types::Connect;
 
+use super::chord_symbol;
 use super::{chord_names, scale_names};
 
 /// A fixed scale root (note letter + optional accidental + optional octave).
@@ -214,32 +212,27 @@ impl ScaleSpec {
                 );
             }
         };
-        if !source.ends_with(close) {
-            return Err(format!("missing closing '{close}'"));
-        }
-
-        let root_str = &source[..open];
-        let root = FixedRoot::parse(root_str)
-            .ok_or_else(|| format!("invalid root note \"{root_str}\""))?;
-        let body = &source[open + 1..source.len() - close.len_utf8()];
-
+        let body = source[open + 1..]
+            .strip_suffix(close)
+            .ok_or_else(|| format!("missing closing '{close}'"))?;
+        let root = parse_root(&source[..open])?;
         if is_chord {
             Self::parse_chord(&root, body)
         } else {
-            Self::parse_scale(&root, body)
+            Self::note_scale(root.base_midi(), body)
         }
     }
 
-    /// `root(…)`: named scale, tuning keyword, or `[tuning] intervals…`.
-    fn parse_scale(root: &FixedRoot, body: &str) -> Result<Self, String> {
+    /// The scale `root(body)` names on the root at MIDI note `root`: a named
+    /// scale, a tuning keyword, or `[tuning] intervals…`.
+    pub fn note_scale(root: i32, body: &str) -> Result<Self, String> {
         let body = body.trim();
-        let base_midi = root.base_midi();
 
         if let Some(tuning) = named_tuning(body) {
-            return Self::new(base_midi, tuning, &CHROMATIC);
+            return Self::new(root, tuning, &CHROMATIC);
         }
         if let Some(intervals) = scale_names::lookup(body) {
-            return Self::new(base_midi, et_tuning(), intervals);
+            return Self::new(root, et_tuning(), intervals);
         }
 
         let mut tokens = body.split_whitespace().peekable();
@@ -269,7 +262,36 @@ impl ScaleSpec {
             return Err(format!("scale \"{body}\" has no intervals"));
         }
         pitch_classes.sort_unstable();
-        Self::new(base_midi, tuning, &pitch_classes)
+        Self::new(root, tuning, &pitch_classes)
+    }
+
+    /// The notes a signal literal names: a chord (`c3:M7`) or a scale
+    /// (`d(dorian)`).
+    pub fn note_literal(source: &str) -> Result<Self, String> {
+        let source = source.trim();
+        if let Some((root, symbol)) = source.split_once(':') {
+            return Self::note_chord(parse_root(root)?.base_midi(), symbol);
+        }
+        match source.strip_suffix(')').and_then(|s| s.split_once('(')) {
+            Some((root, body)) => Self::note_scale(parse_root(root)?.base_midi(), body),
+            None => Err(
+                "expected note:chord or note(scale), e.g. \"c3:M7\" or \"d(dorian)\"".to_string(),
+            ),
+        }
+    }
+
+    /// The chord a chord symbol names on the root at MIDI note `root`, as in a
+    /// pattern's `c3:m7`.
+    pub fn note_chord(root: i32, symbol: &str) -> Result<Self, String> {
+        let chord = chord_symbol::parse(symbol)?;
+        let tuning = if chord.just {
+            tuning_from_ratios(&JUST_RATIOS)
+        } else {
+            et_tuning()
+        };
+        let mut voicing = chord.voicing;
+        raise_lowest(&mut voicing, chord.inversion)?;
+        Self::new(root, tuning, &voicing)
     }
 
     /// `root[…]`: `[tuning] (chord-name | intervals…) [invN]`.
@@ -318,19 +340,7 @@ impl ScaleSpec {
             }
         }
 
-        if inversion >= voicing.len() {
-            return Err(format!(
-                "inversion inv{inversion} needs more than {} chord notes",
-                voicing.len()
-            ));
-        }
-        for interval in &mut voicing[..inversion] {
-            *interval = interval
-                .checked_add(12)
-                .ok_or_else(|| "inverted interval out of range".to_string())?;
-        }
-        voicing.sort_unstable();
-        voicing.dedup_sorted();
+        raise_lowest(&mut voicing, inversion)?;
 
         Self::new(root.base_midi(), tuning, &voicing)
     }
@@ -347,10 +357,7 @@ impl ScaleSpec {
             period_semitones: (span + 11) / 12 * 12,
             voltages: ArrayVec::new(),
         };
-        spec.voltages = voicing
-            .iter()
-            .map(|&n| spec.interval_voltage(n as i32) as f32)
-            .collect();
+        spec.voltages = spec.note_voltages().map(|v| v as f32).collect();
         Ok(spec)
     }
 
@@ -365,14 +372,46 @@ impl ScaleSpec {
         &self.voltages
     }
 
-    /// V/Oct voltage of a signed degree. Degrees index the voicing and wrap by
-    /// `period_semitones` (one octave for scales) in both directions.
-    pub fn degree_voltage(&self, degree: i32) -> f64 {
+    /// V/Oct voltage of each voicing note, ascending, at full precision.
+    pub fn note_voltages(&self) -> impl Iterator<Item = f64> + '_ {
+        self.voicing
+            .iter()
+            .map(|&n| self.interval_voltage(n as i32))
+    }
+
+    /// V/Oct voltage of a signed degree raised by `semitones` chromatic steps.
+    /// Degrees index the voicing and wrap by `period_semitones` (one octave for
+    /// scales) in both directions; the chromatic steps follow the tuning, so a
+    /// just scale's altered note is the just-tuned one beside it.
+    pub fn degree_voltage(&self, degree: i32, semitones: i32) -> f64 {
         let len = self.voicing.len() as i32;
         let period = degree.div_euclid(len);
         let note = self.voicing[degree.rem_euclid(len) as usize] as i32;
-        self.interval_voltage(note) + (period * self.period_semitones / 12) as f64
+        self.interval_voltage(note + period * self.period_semitones + semitones)
     }
+}
+
+/// Raise the lowest `n` notes of an ascending voicing an octave, keeping it
+/// ascending.
+fn raise_lowest(voicing: &mut ArrayVec<i8, PORT_MAX_LANES>, n: usize) -> Result<(), String> {
+    if n >= voicing.len() {
+        return Err(format!(
+            "inversion {n} needs more than {} chord notes",
+            voicing.len()
+        ));
+    }
+    for interval in &mut voicing[..n] {
+        *interval = interval
+            .checked_add(12)
+            .ok_or_else(|| "inverted interval out of range".to_string())?;
+    }
+    voicing.sort_unstable();
+    voicing.dedup_sorted();
+    Ok(())
+}
+
+fn parse_root(root: &str) -> Result<FixedRoot, String> {
+    FixedRoot::parse(root).ok_or_else(|| format!("invalid root note \"{root}\""))
 }
 
 trait DedupSorted {
@@ -389,50 +428,6 @@ impl<const N: usize> DedupSorted for ArrayVec<i8, N> {
             }
         }
         self.truncate(write);
-    }
-}
-
-impl Connect for ScaleSpec {
-    fn apply_default_connections(&mut self) {}
-    fn connect(&mut self, _patch: &Patch) {}
-    fn collect_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
-    fn collect_lane_cables(&self, _sink: &mut Vec<crate::types::CableSource>) {}
-    fn inject_index_ptr(&mut self, _ptr: *const std::cell::Cell<usize>) {}
-    fn expand_lanes(&mut self, _expansion: &crate::types::LaneExpansion) {}
-    fn mark_glides(
-        &mut self,
-        _old: Option<&Self>,
-        _generation: u64,
-        _ids: &dyn crate::types::PreviousIds,
-    ) {
-    }
-}
-
-impl schemars::JsonSchema for ScaleSpec {
-    fn schema_name() -> std::borrow::Cow<'static, str> {
-        std::borrow::Cow::Borrowed("ScaleSpec")
-    }
-
-    fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        String::json_schema(generator)
-    }
-}
-
-impl<E: DeserializeError> deserr::Deserr<E> for ScaleSpec {
-    fn deserialize_from_value<V: IntoValue>(
-        value: deserr::Value<V>,
-        location: ValuePointerRef<'_>,
-    ) -> Result<Self, E> {
-        let source = String::deserialize_from_value(value, location)?;
-        Self::parse(&source).map_err(|reason| {
-            deserr::take_cf_content(E::error::<V>(
-                None,
-                ErrorKind::Unexpected {
-                    msg: format!("Invalid scale specification \"{source}\": {reason}"),
-                },
-                location,
-            ))
-        })
     }
 }
 
@@ -526,6 +521,26 @@ mod tests {
     }
 
     #[test]
+    fn note_chord_inverts_like_a_chord_spec() {
+        assert_eq!(
+            ScaleSpec::note_chord(60, "m7^1").unwrap(),
+            ScaleSpec::parse("c[m7 inv1]").unwrap()
+        );
+        assert!(ScaleSpec::note_chord(60, "M^3").is_err());
+    }
+
+    #[test]
+    fn note_literal_reads_a_chord_or_a_scale() {
+        let chord = ScaleSpec::note_literal("eb3:m7^1").unwrap();
+        assert_eq!(chord, ScaleSpec::parse("eb3[m7 inv1]").unwrap());
+        let scale = ScaleSpec::note_literal("d3(dorian)").unwrap();
+        assert_eq!(scale, ScaleSpec::parse("d3(dorian)").unwrap());
+        for bad in ["c3:nope", "h:M", "c3M", "c(nope)", "c[maj]"] {
+            assert!(ScaleSpec::note_literal(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
     fn chord_voicing_intervals_keep_register() {
         assert_eq!(semitones("C[0 7 16]"), [0.0, 7.0, 16.0]);
         assert_eq!(semitones("C[16 0 7]"), [0.0, 7.0, 16.0]);
@@ -569,18 +584,34 @@ mod tests {
     #[test]
     fn degree_voltage_wraps_by_period() {
         let major = ScaleSpec::parse("C(major)").unwrap();
-        assert!((major.degree_voltage(7) - 1.0).abs() < 1e-9);
-        assert!((major.degree_voltage(-1) - (-1.0 / 12.0)).abs() < 1e-9);
-        assert!((major.degree_voltage(-7) - (-1.0)).abs() < 1e-9);
+        assert!((major.degree_voltage(7, 0) - 1.0).abs() < 1e-9);
+        assert!((major.degree_voltage(-1, 0) - (-1.0 / 12.0)).abs() < 1e-9);
+        assert!((major.degree_voltage(-7, 0) - (-1.0)).abs() < 1e-9);
 
         // A 9th chord spans more than an octave, so it repeats every two.
         let ninth = ScaleSpec::parse("C[9]").unwrap();
-        assert!((ninth.degree_voltage(4) - 14.0 / 12.0).abs() < 1e-9);
-        assert!((ninth.degree_voltage(5) - 2.0).abs() < 1e-9);
-        assert!((ninth.degree_voltage(-1) - (14.0 / 12.0 - 2.0)).abs() < 1e-9);
+        assert!((ninth.degree_voltage(4, 0) - 14.0 / 12.0).abs() < 1e-9);
+        assert!((ninth.degree_voltage(5, 0) - 2.0).abs() < 1e-9);
+        assert!((ninth.degree_voltage(-1, 0) - (14.0 / 12.0 - 2.0)).abs() < 1e-9);
 
         // An inverted triad repeats every octave from its lowest note.
         let inv = ScaleSpec::parse("C[maj inv1]").unwrap();
-        assert!((inv.degree_voltage(3) - 16.0 / 12.0).abs() < 1e-9);
+        assert!((inv.degree_voltage(3, 0) - 16.0 / 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn degree_voltage_alters_by_chromatic_steps_of_the_tuning() {
+        let major = ScaleSpec::parse("C(major)").unwrap();
+        // E raised to F, E lowered three steps to C#.
+        assert!((major.degree_voltage(2, 1) - 5.0 / 12.0).abs() < 1e-9);
+        assert!((major.degree_voltage(2, -3) - 1.0 / 12.0).abs() < 1e-9);
+        // B raised past the octave to C5, C lowered below it to B3.
+        assert!((major.degree_voltage(6, 1) - 1.0).abs() < 1e-9);
+        assert!((major.degree_voltage(-7, -1) - (-13.0 / 12.0)).abs() < 1e-9);
+
+        // In just intonation the altered note keeps the just tuning: the
+        // major third lowered is the just minor third.
+        let just = ScaleSpec::parse("C(just 0 2 4 5 7 9 11)").unwrap();
+        assert!((just.degree_voltage(2, -1) - 1.2_f64.log2()).abs() < 1e-9);
     }
 }

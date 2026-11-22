@@ -12,13 +12,13 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Patch,
-    dsp::utils::midi_to_voct_f64,
+    dsp::{utilities::ScaleSpec, utils::midi_to_voct_f64},
     pattern_system::{
         Pattern,
         mini::{
             FromMiniAtom, MiniAST,
             ast::AtomValue,
-            convert::{ConvertError, HasRest},
+            convert::{ALTERED_OUTSIDE_SCALE_ERR, ConvertError, HasRest},
         },
     },
     types::Connect,
@@ -165,7 +165,7 @@ impl SeqValue {
 }
 
 /// Convert a note letter, accidental, and octave to MIDI note number.
-fn note_to_midi(letter: char, accidental: Option<char>, octave: Option<i32>) -> Option<f64> {
+fn note_to_midi(letter: char, accidental: Option<char>, octave: Option<i32>) -> Option<i32> {
     let base = match letter.to_ascii_lowercase() {
         'c' => 0,
         'd' => 2,
@@ -185,7 +185,7 @@ fn note_to_midi(letter: char, accidental: Option<char>, octave: Option<i32>) -> 
 
     // Default octave to 4 if not specified
     let oct = octave.unwrap_or(4);
-    Some(((oct + 1) * 12 + base + acc_offset) as f64)
+    Some((oct + 1) * 12 + base + acc_offset)
 }
 
 impl FromMiniAtom for SeqValue {
@@ -206,7 +206,7 @@ impl FromMiniAtom for SeqValue {
                 octave,
             } => {
                 if let Some(midi) = note_to_midi(*letter, *accidental, *octave) {
-                    Ok(SeqValue::voltage(midi_to_voct_f64(midi)))
+                    Ok(SeqValue::voltage(midi_to_voct_f64(f64::from(midi))))
                 } else {
                     Err(ConvertError::InvalidAtom(format!(
                         "Invalid note: {}{}{}",
@@ -219,12 +219,46 @@ impl FromMiniAtom for SeqValue {
                     )))
                 }
             }
+            AtomValue::Chord { .. } | AtomValue::Scale { .. } => Err(ConvertError::InvalidAtom(
+                "a chord or scale plays several notes, so it cannot stand for a single value"
+                    .to_string(),
+            )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() \
                  boolean patterns"
                     .to_string(),
             )),
+            AtomValue::Altered { .. } => Err(ConvertError::InvalidAtom(
+                ALTERED_OUTSIDE_SCALE_ERR.to_string(),
+            )),
         }
+    }
+
+    fn from_notes(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+        let root = |letter: &char, accidental: &Option<char>, octave: &Option<i32>| {
+            note_to_midi(*letter, *accidental, *octave)
+                .ok_or_else(|| ConvertError::InvalidAtom(format!("invalid root note {letter}")))
+        };
+        let spec = match atom {
+            AtomValue::Chord {
+                letter,
+                accidental,
+                octave,
+                chord,
+            } => ScaleSpec::note_chord(root(letter, accidental, octave)?, chord),
+            AtomValue::Scale {
+                letter,
+                accidental,
+                octave,
+                scale,
+            } => ScaleSpec::note_scale(root(letter, accidental, octave)?, scale),
+            _ => return Ok(vec![Self::from_atom(atom)?]),
+        };
+        Ok(spec
+            .map_err(ConvertError::InvalidAtom)?
+            .note_voltages()
+            .map(SeqValue::voltage)
+            .collect())
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {
@@ -964,6 +998,83 @@ mod tests {
         let v: Vec<f64> = haps.iter().map(|h| h.value.to_voltage().unwrap()).collect();
         assert!((v[0] - 2.0 / 12.0).abs() < 1e-9, "v[0]={}", v[0]);
         assert!((v[1] - 4.0 / 12.0).abs() < 1e-9, "v[1]={}", v[1]);
+    }
+
+    /// Semitones above C4 of each hap in the first cycle of `source`.
+    fn cycle_semitones(source: SeqPatternSource) -> Vec<f64> {
+        SeqPatternParam::from_source(source)
+            .unwrap()
+            .pattern()
+            .unwrap()
+            .query_arc(Fraction::from_integer(0), Fraction::from_integer(1))
+            .iter()
+            .map(|h| h.value.to_voltage().unwrap() * 12.0)
+            .collect()
+    }
+
+    fn assert_semitones(actual: &[f64], expected: &[f64]) {
+        assert_eq!(actual.len(), expected.len(), "{actual:?} vs {expected:?}");
+        for (a, e) in actual.iter().zip(expected) {
+            assert!((a - e).abs() < 1e-9, "{actual:?} vs {expected:?}");
+        }
+    }
+
+    #[test]
+    fn test_scale_altered_degrees_leave_the_scale() {
+        // C major degrees 0, 2, 6, -7 → C, E, B, C3; altered → C#, D#, C5, B2.
+        let semis = cycle_semitones(scale_src(
+            single_source("0+ 2- 6+ -7-"),
+            "c(maj)".to_string(),
+        ));
+        assert_semitones(&semis, &[1.0, 3.0, 12.0, -13.0]);
+        let semis = cycle_semitones(scale_src(single_source("4++ 4---"), "c(maj)".to_string()));
+        assert_semitones(&semis, &[9.0, 4.0]);
+    }
+
+    #[test]
+    fn test_scale_trans_moves_the_degree_and_keeps_the_alteration() {
+        // Degree 2- is E♭; trans by 1 degree moves to F, then lowers to E.
+        let l = ParsedPatternPayload::parse_for_test("2-");
+        let r = ParsedPatternPayload::parse_for_test("1");
+        let source = trans_src(
+            scale_src(SeqPatternSource::Single(l), "c(maj)".to_string()),
+            r,
+            SpAlignmentMode::In,
+        );
+        assert_semitones(&cycle_semitones(source), &[4.0]);
+
+        // An altered trans step alters every note it lands on.
+        let l = ParsedPatternPayload::parse_for_test("0 2");
+        let r = ParsedPatternPayload::parse_for_test("0+");
+        let source = trans_src(
+            scale_src(SeqPatternSource::Single(l), "c(maj)".to_string()),
+            r,
+            SpAlignmentMode::In,
+        );
+        assert_semitones(&cycle_semitones(source), &[1.0, 5.0]);
+    }
+
+    #[test]
+    fn test_scale_altered_degree_follows_the_tuning() {
+        // The just major third lowered one step is the just minor third.
+        let semis = cycle_semitones(scale_src(
+            single_source("2-"),
+            "c(just 0 2 4 5 7 9 11)".to_string(),
+        ));
+        assert_semitones(&semis, &[12.0 * 1.2_f64.log2()]);
+    }
+
+    #[test]
+    fn test_altered_atom_outside_a_scale_is_rejected() {
+        let scaled = || scale_src(single_source("0 2"), "c(maj)".to_string());
+        for source in [
+            single_source("0 2+"),
+            SeqPatternSource::Struct(struct_payload("1 1-", scaled())),
+            SeqPatternSource::Fast(fast_payload("2+", scaled())),
+        ] {
+            let err = SeqPatternParam::from_source(source).unwrap_err();
+            assert!(err.to_string().contains("space before"), "{err}");
+        }
     }
 
     #[test]
@@ -2160,15 +2271,15 @@ mod tests {
     #[test]
     fn test_note_to_midi_helper() {
         // C4 = MIDI 60
-        assert_eq!(note_to_midi('c', None, Some(4)), Some(60.0));
+        assert_eq!(note_to_midi('c', None, Some(4)), Some(60));
         // C (default octave 4) = MIDI 60
-        assert_eq!(note_to_midi('c', None, None), Some(60.0));
+        assert_eq!(note_to_midi('c', None, None), Some(60));
         // C#4 = MIDI 61
-        assert_eq!(note_to_midi('c', Some('#'), Some(4)), Some(61.0));
+        assert_eq!(note_to_midi('c', Some('#'), Some(4)), Some(61));
         // A0 = MIDI 21
-        assert_eq!(note_to_midi('a', None, Some(0)), Some(21.0));
+        assert_eq!(note_to_midi('a', None, Some(0)), Some(21));
         // A1 = MIDI 33 (our 0V reference)
-        assert_eq!(note_to_midi('a', None, Some(1)), Some(33.0));
+        assert_eq!(note_to_midi('a', None, Some(1)), Some(33));
     }
 
     #[test]

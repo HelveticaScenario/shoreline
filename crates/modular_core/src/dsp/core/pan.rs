@@ -5,9 +5,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::sanitize;
 use crate::dsp::utils::unison_voices::centred_position;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -20,6 +20,7 @@ struct PanParams {
     #[input(
         "where each lane sits: -5 left, 0 centre, +5 right",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
         fold,
     )]
@@ -48,12 +49,12 @@ const PAN_DOCS: ModuleDocs = ModuleDocs {
     description: "Pans each lane, with equal-power gains that keep a centred lane at its level. \
                   A stereo lane moves as a whole: panning right carries its left side \
                   across. Raise `spread` to fan the lanes of a chord out from the centre.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[
         DocExample {
             title: "Chord fanned across the stereo field",
-            code: "chord: $pan($saw($chord('C3[m9]')), 0, { spread: 4 })",
+            code: "chord: $pan($saw('c3:m9'), 0, { spread: 4 })",
         },
         DocExample {
             title: "An autopanned bass",

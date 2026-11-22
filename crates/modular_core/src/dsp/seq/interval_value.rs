@@ -2,24 +2,17 @@
 //!
 //! A pattern under `.scale(scale)` parses its integer atoms as
 //! [`IntervalValue`]s; `seq::lower` gives each its scale, adds `.trans`
-//! degrees with `sp_combine`, and resolves it to a V/Oct voltage.
+//! degrees with `sp_combine`, and resolves it to a V/Oct voltage, applying
+//! its semitones after the scale.
 
 /// Value type for scale-degree patterns: either a degree or a rest.
 #[derive(Clone, Debug)]
 pub enum IntervalValue {
-    /// Scale degree (can be negative for downward movement)
-    Degree(i32),
+    /// Scale degree (negative moves down), raised by `semitones` chromatic
+    /// steps once it resolves through the scale.
+    Degree { degree: i32, semitones: i32 },
     /// Rest - no output, gate low
     Rest,
-}
-
-impl IntervalValue {
-    pub fn degree(&self) -> Option<i32> {
-        match self {
-            IntervalValue::Degree(d) => Some(*d),
-            IntervalValue::Rest => None,
-        }
-    }
 }
 
 impl crate::pattern_system::mini::convert::FromMiniAtom for IntervalValue {
@@ -28,25 +21,28 @@ impl crate::pattern_system::mini::convert::FromMiniAtom for IntervalValue {
     ) -> Result<Self, crate::pattern_system::mini::convert::ConvertError> {
         use crate::pattern_system::mini::ast::AtomValue;
         use crate::pattern_system::mini::convert::ConvertError;
-        match atom {
-            AtomValue::Number(n) => {
-                if !n.is_finite() || n.fract() != 0.0 {
-                    return Err(ConvertError::InvalidAtom(format!(
-                        "IntervalValue requires integer scale degrees, got {n}"
-                    )));
-                }
-                Ok(IntervalValue::Degree(*n as i32))
-            }
-            AtomValue::Hz(_) => Err(ConvertError::InvalidAtom(
+        let (n, semitones) = match atom {
+            AtomValue::Number(n) => (*n, 0),
+            AtomValue::Altered { value, semitones } => (*value, *semitones),
+            AtomValue::Hz(_) => return Err(ConvertError::InvalidAtom(
                 "a scale pattern reads its atoms as scale-degree integers, so Hz atoms are not allowed under .scale(...)".into(),
             )),
-            AtomValue::Note { .. } => Err(ConvertError::InvalidAtom(
-                "a scale pattern reads its atoms as scale-degree integers, so note names are not allowed under .scale(...)".into(),
+            AtomValue::Note { .. } | AtomValue::Chord { .. } | AtomValue::Scale { .. } => return Err(ConvertError::InvalidAtom(
+                "a scale pattern reads its atoms as scale-degree integers, so note names, chords and scales are not allowed under .scale(...)".into(),
             )),
-            AtomValue::Truthy => Err(ConvertError::InvalidAtom(
+            AtomValue::Truthy => return Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() boolean patterns".into(),
             )),
+        };
+        if !n.is_finite() || n.fract() != 0.0 {
+            return Err(ConvertError::InvalidAtom(format!(
+                "IntervalValue requires integer scale degrees, got {n}"
+            )));
         }
+        Ok(IntervalValue::Degree {
+            degree: n as i32,
+            semitones,
+        })
     }
 
     fn from_list(

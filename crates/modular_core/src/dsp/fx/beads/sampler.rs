@@ -22,8 +22,8 @@ use super::resample::Resampler;
 use super::voice::VoiceControls;
 use super::wav_load::cached_load;
 use super::{FULL_SCALE_VOLTS, GranularQuality, folded, grain_params, sides_match, unit};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// A voice fully wet with no feedback: frozen, it records nothing.
 const CONTROLS: VoiceControls = VoiceControls {
@@ -68,10 +68,11 @@ struct GranularSamplerParams {
     #[input(
         "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
         type = pitch,
+        default = 0.0,
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    #[input("pitch of the file, so `freq` plays in tune", type = pitch)]
+    #[input("pitch of the file, so `freq` plays in tune", type = pitch, default = 0.0)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
     #[input(
@@ -169,7 +170,7 @@ const GRANULAR_SAMPLER_DOCS: ModuleDocs = ModuleDocs {
                   a live input: turn a sample into a texture, a stretched drone or a pitched \
                   cloud. For grain-to-grain variation, modulate its settings with something \
                   sampled on the same trigger, such as `$sah`.",
-    categories: &[ModuleCategory::Sampler],
+    categories: &[ReferenceCategory::Sampler],
     sections: &[],
     examples: &[DocExample {
         title: "Scattered pad texture",

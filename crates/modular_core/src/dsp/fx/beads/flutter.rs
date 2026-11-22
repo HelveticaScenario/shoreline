@@ -9,8 +9,8 @@ use crate::poly::{LaneSum, LaneSumExt, PolyOutput, PolySignal};
 
 use super::wow_flutter::{WowModulation, write_read};
 use super::{FULL_SCALE_VOLTS, input_value};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Rate the hardware runs its wow and flutter at.
 const HARDWARE_RATE: f32 = 24000.0;
@@ -99,12 +99,12 @@ const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
     description: "The drifting pitch wobble and softened highs of worn tape, from Mutable \
                   Instruments Beads' dirty tape setting. Every lane wobbles together, as if \
                   one tape carried them all.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[
         DocExample {
             title: "Warbly tape chords",
-            code: "chord: $saw($chord('F3[maj9]')).lpf('f5', 1).wowFlutter()",
+            code: "chord: $saw('f3:M9').lpf('f5', 1).wowFlutter()",
         },
         DocExample {
             title: "The full Beads chain",

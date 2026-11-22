@@ -1,13 +1,13 @@
 /**
- * The shape every reference entry's docs take — modules today; globals,
- * collection methods (`.range`, `.out`) and video modules as they join one
- * reference — and the two renderings of it: compact JSDoc for Monaco's hover
- * and completion, and a `ReferenceEntry` the Reference pane lays out in
- * full. Type docs (`TYPE_DOCS`) keep their own shape.
+ * The shape every reference entry's docs take — modules and globals — and
+ * the two renderings of it: compact JSDoc for Monaco's hover and completion,
+ * and a `ReferenceEntry` the Docs panel lays out in full. Type docs
+ * (`TYPE_DOCS`) keep their own shape.
  */
 import { formatOutputMeta, paramMeta } from './paramRange';
 import type { EnumVariantInfo, Schema } from './schemaTypeResolver';
 import { getEnumVariants, schemaToTypeExpr } from './schemaTypeResolver';
+import { parseDeclaration, unionOf } from './tsDeclaration';
 
 export interface DocExample {
     /** What you hear, e.g. "Acid bass sweep". */
@@ -48,25 +48,41 @@ export interface ParamDoc {
     /** Range and default, e.g. `0–5, default 2.5`. */
     meta?: string;
     variants?: EnumVariantInfo[];
+    /** Takes every remaining argument, as `...name`. */
+    rest?: boolean;
 }
 
-export interface OutputDoc {
+/** A value an entry gives: a module's output, or a member of what a DSL
+ *  function returns, such as a track tap's `.level`. */
+export interface ValueDoc {
     name: string;
     description: string;
-    /** The output a bare reference to the entry reads. */
-    main: boolean;
+    /** Range, e.g. `0–5` or `gate`. */
     meta?: string;
 }
 
+export interface OutputDoc extends ValueDoc {
+    /** The output a bare reference to the entry reads. */
+    main: boolean;
+}
+
+/** What a DSL function gives back. Schema modules list outputs instead. */
+export interface ReturnDoc {
+    /** TypeScript type, every overload's joined. */
+    type: string;
+    description: string;
+    meta?: string;
+    /** Members read with a dot, named with it. */
+    members?: ValueDoc[];
+}
+
 export interface ReferenceEntry {
-    kind: 'module' | 'global' | 'method' | 'video';
     name: string;
-    /** For methods: the DSL types that carry it. */
-    owners?: string[];
     /** Call shape with param names only, e.g. `$lpf(input, cutoff, { … })`. */
     signature: string;
     params: ParamDoc[];
     outputs?: OutputDoc[];
+    returns?: ReturnDoc;
     docs: DocContent;
     /** The module's sound and params may still change between releases. */
     experimental?: boolean;
@@ -128,7 +144,6 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
     return {
         docs: module.docs,
         experimental: module.experimental,
-        kind: 'module',
         name: module.name,
         outputs: module.outputs.map((o) => ({
             description: o.description,
@@ -139,6 +154,98 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
         params,
         signature: moduleSignature(module),
     };
+}
+
+/** A description, with the range or default it shows beside it. */
+export type DocText = string | { description: string; meta: string };
+
+/** A DSL function's declarations and docs: a global, or a module the DSL
+ *  builds from others. */
+export interface FunctionDoc {
+    /** TypeScript declarations, one per overload, e.g.
+     *  `$note(noteName: string): number`. The first names the function and
+     *  orders its documented params. */
+    declarations: string[];
+    /** Keyed by the first declaration's param names. */
+    params: Record<string, DocText>;
+    returns?: {
+        description: string;
+        meta?: string;
+        /** Members read with a dot, keyed by name with their leading dot. */
+        members?: Record<string, DocText>;
+    };
+    docs: DocContent;
+    /** Also a chain method, `sig.name(...)` passing `sig` as the first argument. */
+    chainable?: boolean;
+}
+
+/** The name `fn` is called by, as its first declaration gives it. */
+export function functionName(fn: FunctionDoc): string {
+    return parseDeclaration(fn.declarations[0]).name;
+}
+
+/** The chain-method names of `fns`: each chainable one's name without its `$`. */
+export function chainNames(fns: FunctionDoc[]): string[] {
+    return fns
+        .filter((fn) => fn.chainable)
+        .map((fn) => functionName(fn).slice(1));
+}
+
+/** `text` as a description and its optional meta. */
+export function readDocText(text: DocText): {
+    description: string;
+    meta?: string;
+} {
+    return typeof text === 'object' ? text : { description: text };
+}
+
+/** A DSL function as a reference entry. Its params are the first declaration's,
+ *  each typed as every overload types it. */
+export function functionToReferenceEntry(fn: FunctionDoc): ReferenceEntry {
+    const all = fn.declarations.map(parseDeclaration);
+    const [first] = all;
+    const params = first.params.map(
+        (param): ParamDoc => ({
+            ...readDocText(fn.params[param.name]),
+            name: param.name,
+            rest: param.rest || undefined,
+            type: unionOf(
+                all.flatMap((d) =>
+                    d.params
+                        .filter((p) => p.name === param.name)
+                        .map((p) => p.types),
+                ),
+            ),
+        }),
+    );
+    const signature = `${first.name}(${first.params
+        .map((p) =>
+            p.rest ? `...${p.name}` : p.optional ? `${p.name}?` : p.name,
+        )
+        .join(', ')})`;
+    const returns = fn.returns && {
+        description: fn.returns.description,
+        members: fn.returns.members
+            ? Object.entries(fn.returns.members).map(([name, text]) => ({
+                  ...readDocText(text),
+                  name,
+              }))
+            : undefined,
+        meta: fn.returns.meta,
+        type: unionOf(all.map((d) => d.returns)),
+    };
+    return {
+        docs: fn.docs,
+        name: first.name,
+        params,
+        returns,
+        signature,
+    };
+}
+
+/** Every example in `docs`, sections included. */
+export function allExamples(docs: DocContent): DocExample[] {
+    return [...docs.examples, ...docs.sections.flatMap((s) => s.examples)];
 }
 
 /**
@@ -157,8 +264,8 @@ export function tableToCompactMarkdown(table: DocTable): string[] {
 
 /**
  * The concise in-editor view of `docs` as JSDoc body lines: the description,
- * each section's text and table, and the first example. When the Reference
- * pane holds more (further examples, section examples), a closing link opens
+ * each section's text and table, and the first example. When the Docs
+ * panel holds more (further examples, section examples), a closing link opens
  * it at `name`.
  */
 export function renderDocContentJsDoc(
@@ -188,7 +295,7 @@ export function renderDocContentJsDoc(
     const omitted =
         more.length > 0 || docs.sections.some((s) => s.examples.length > 0);
     if (omitted) {
-        lines.push('', `More in the reference: {@link ${name}}`);
+        lines.push('', `More in the docs: {@link ${name}}`);
     }
     return lines;
 }

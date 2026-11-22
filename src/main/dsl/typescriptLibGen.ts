@@ -14,11 +14,13 @@ import {
     qualifiesForChain,
 } from './paramsSchema';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
-import { superDefaults } from '../../shared/dsl/superDefaults';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
 import {
     generateVideoChainMembers,
+    generateVideoGlobals,
     generateVideoNamespace,
 } from './videoLibGen';
+import { jsDocComment } from './jsDoc';
 import {
     BUS_TRACK_OPTIONS,
     TRACK_OPTIONS,
@@ -35,7 +37,16 @@ import {
 } from '../../shared/dsl/paramRange';
 import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
 import { outputName } from './outputNames';
-import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
+import {
+    readDocText,
+    renderDocContentJsDoc,
+} from '../../shared/dsl/referenceDocs';
+import type { FunctionDoc } from '../../shared/dsl/referenceDocs';
+import { GLOBAL_ENTRIES, GLOBALS } from '../../shared/dsl/globalDocs';
+import {
+    chainDeclaration,
+    parseDeclaration,
+} from '../../shared/dsl/tsDeclaration';
 
 const BASE_LIB_SOURCE = `
 /** The **\`console\`** object provides access to the debugging console (e.g., the Web console in Firefox). */
@@ -187,6 +198,22 @@ type Note = \`\${NoteNames}\${Accidental}\${number | ''}\`
 
 type HZ = \`\${number}hz\` | \`\${number}Hz\`
 
+/**
+ * A chord: a {@link Note}, a colon and a chord symbol, one lane per note,
+ * lowest first. The symbol is the one patterns use (see {@link $cycle}).
+ * @example $saw("c3:M7")        // four lanes: C3, E3, G3, B3
+ * @example $saw("eb:m7^1%")     // first inversion, just intonation
+ */
+type Chord = \`\${Note}:\${string}\`
+
+/**
+ * A scale: a {@link Note} with a scale in parentheses, one lane per note,
+ * lowest first, written as in a pattern (see {@link $cycle}).
+ * @example $saw("d3(dorian)")       // seven lanes
+ * @example $saw("c(0 2 4 7 9)")     // your own scale, in semitones
+ */
+type Scale = \`\${Note}(\${string})\`
+
 type CaseVariants<T extends string> = 
   | Lowercase<T>
   | Uppercase<T>
@@ -207,9 +234,9 @@ type ModeString =
     >;
 
 /**
- * A scale or chord spec: a root note (optional octave, default 4) followed by
- * a scale in \`()\` or a chord in \`[]\`. Used by {@link $chord} and accepted
- * by {@link $quantizer}'s \`scale\` (where it is shorthand for \`$chord(spec)\`).
+ * A scale or chord spec for a pattern's \`.scale(...)\`: a root note
+ * (optional octave, default 4) followed by a scale in \`()\` or a chord in
+ * \`[]\`.
  *
  * | Form | Example | Meaning |
  * |------|---------|---------|
@@ -253,6 +280,8 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * - A **number** (constant voltage)
  * - A **{@link Note}** string like \`"C4"\` or \`"A#3"\`
  * - A **{@link HZ}** string like \`"440hz"\`
+ * - A **{@link Chord}** string like \`"c3:M7"\`, one lane per note
+ * - A **{@link Scale}** string like \`"d(dorian)"\`, one lane per note
  * - A **{@link Collection}** from another module, one voice per lane
  * 
  * @example $sine("C4")           // Note string
@@ -262,10 +291,10 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * @see {@link Poly<Signal>} - for multi-lane signals
  * @see {@link Collection} - for module connections
  */
-type Signal = number | Note | HZ | Collection | CollectionWithRange;
+type Signal = number | Note | HZ | Chord | Scale | Collection | CollectionWithRange;
 
-/** A {@link Signal} that holds still: a number, note or frequency. */
-type ConstantSignal = number | Note | HZ;
+/** A {@link Signal} that holds still: a number, note, frequency, chord or scale. */
+type ConstantSignal = number | Note | HZ | Chord | Scale;
 
 /** A {@link Signal} whose range the engine knows, or a constant it carries along. */
 type RangedSignal = ConstantSignal | CollectionWithRange;
@@ -372,7 +401,7 @@ type DropFirst<T extends unknown[]> = T extends [unknown, ...infer R] ? R : neve
 
 /**
  * The \`$cycle\` sequencer a pattern plays through, as the pattern has it.
- * What a member gives back (a lane, a slice, the receiver of \`.scope()\`)
+ * What a member gives back (a lane, a slice, what \`.scope()\` returns)
  * is that sequencer's signal, not a pattern.
  */
 type PatternModule = { [K in keyof CycleOutputs]: CycleOutputs[K] };
@@ -470,6 +499,7 @@ interface Pattern extends PatternModule {
    * melody2: $\`-1 0 2 4\`.scale("a3(min)").saw()       // negative degrees wrap below the root
    * melody3: $\`0 1 2 3 4\`.scale("c(0 2 4 7 9)").saw() // custom intervals (pentatonic)
    * melody4: $\`0 4 7\`.scale("c(just)").saw()          // just intonation
+   * melody5: $\`0 2 4 4+ 5\`.scale("c(major)").saw()   // 4+ is G#, a passing note outside the scale
    * \`\`\`
    *
    * ### Atoms
@@ -477,6 +507,7 @@ interface Pattern extends PatternModule {
    * | Form | Meaning | Example |
    * |------|---------|---------|
    * | Bare integer | Scale degree (0-indexed) | \`0\`, \`2\`, \`-1\` |
+   * | Integer then \`+\`s or \`-\`s | That degree, raised or lowered a semitone per mark, so it can leave the scale | \`2+\`, \`4--\`, \`-1+\` |
    * | \`~\` or \`-\` | Rest (gate low, no pitch change) | \`'0 ~ 2 ~'\`, \`'0 - 2 -'\` |
    *
    * ### Scale strings
@@ -490,6 +521,9 @@ interface Pattern extends PatternModule {
    * | \`tonic[chord]\` | \`"c[maj7]"\`, \`"a3[m9]"\` | Chord tones; degrees step through the chord |
    * | \`tonic[chord invN]\` | \`"c[maj inv1]"\` | Inverted chord; degree 0 is the lowest note |
    * | \`chromatic\` | \`"chromatic"\` | All 12 semitones, 12-TET |
+   *
+   * A semitone mark steps to the neighbouring note of the scale's 12-tone
+   * tuning, so in \`"c(just)"\` it lands on a just-tuned note.
    *
    * Degrees wrap by an octave for scales. A chord wraps by its span rounded up
    * to whole octaves, so \`"c[9]"\` repeats every two octaves. See
@@ -543,113 +577,6 @@ interface Pattern extends PatternModule {
 }
 
 /**
- * Parse a mini-notation source string into a {@link Pattern}. Every
- * mini-notation literal in the DSL flows through \`$\`, called with a string
- * or as a template tag — \`$cycle\` accepts a pattern, not a raw string.
- *
- * \`\`\`js
- * melody: $\`c4 e4 g4\`.saw()                 // basic sequence
- * const bass = $("c2 [c2 g2] c2 e2")      // the same, called with a string
- * melody2: $saw(bass).amp($perc(bass))
- * \`\`\`
- *
- * Binding the pattern to a \`const\` keeps its editor highlighting.
- * Throws if \`source\` is not a string or fails to parse.
- *
- * ### Atoms
- *
- * | Form | Meaning | Example |
- * |------|---------|---------|
- * | Bare number | Direct V/Oct voltage (1 V/oct CV) | \`0\`, \`1.5\`, \`-0.25\` |
- * | \`<n>hz\` | Frequency in Hz (converted to V/Oct) | \`440hz\`, \`220hz\` |
- * | Note letter (+ accidental, + octave) | Pitched note | \`c4\`, \`d#3\`, \`eb5\` |
- * | \`~\` or \`-\` | Rest (gate low) | \`'c4 ~ e4'\`, \`'c4 - e4'\` |
- *
- * ### Mini-notation
- *
- * | Syntax | Meaning | Example |
- * |--------|---------|---------|
- * | \`a b c\` | Sequence — one element per time slot | \`'c4 e4 g4'\` |
- * | \`[a b c]\` | Fast subsequence — subdivides parent slot | \`'c4 [e4 g4]'\` |
- * | \`<a b c>\` | Slow / alternating — one element per cycle | \`'<c4 e4 g4>'\` |
- * | \`a|b|c\` | Random choice each time the slot is reached | \`'c4|e4|g4'\` |
- * | \`a, b\` | Stack — comma-separated patterns play simultaneously | \`'c4 e4, g4 b4'\` |
- * | \`{a b, c d e}\` | Polymeter — children scaled to a shared step count, then stacked. \`%n\` overrides the step count: \`{a b c}%4\` | \`'{c4 e4, g4 b4 d5}'\` |
- * | \`a . b c\` | Feet — split the slot at \`.\` boundaries (useful for aligning polymeter children) | \`'{c4 . e4 g4, f4 a4 . b4}'\` |
- *
- * Grouping, stacks, polymeter, and random choice nest arbitrarily.
- *
- * ### Per-element modifiers
- *
- * Modifiers attach directly to an element (no spaces) and chain in any order.
- *
- * | Modifier | Syntax | Meaning |
- * |----------|--------|---------|
- * | Weight | \`@n\` | Relative duration within a sequence (default 1) |
- * | Elongate | \`_\` | Bare \`_\` extends the preceding step's weight by 1; \`'c4 _ _'\` is the same as \`'c4@3'\` |
- * | Speed up | \`*n\` | Repeat \`n\` times within the slot |
- * | Slow down | \`/n\` | Stretch over \`n\` cycles |
- * | Replicate | \`!n\` | Duplicate the element \`n\` times (default 2) |
- * | Degrade | \`?\` or \`?n\` | Randomly drop the element (\`?\` ≈ 50 %) |
- * | Euclidean | \`(k,n)\` or \`(k,n,offset)\` | Distribute \`k\` pulses over \`n\` steps |
- *
- * @param source mini-notation source string
- */
-declare function $(source: string): Pattern;
-/**
- * Parse a mini-notation template into a {@link Pattern}:
- * \`\` $\`c4 e4 g4\` \`\` is \`$("c4 e4 g4")\`, and interpolated values join
- * the source as the untagged template would print them.
- */
-declare function $(
-  strings: TemplateStringsArray,
-  ...values: unknown[]
-): Pattern;
-
-/**
- * Arrange patterns over multiple cycles, mirroring Strudel's \`arrange\`.
- * Each argument is a \`[cycles, pattern]\` tuple: the \`pattern\` (any pattern,
- * including a nested \`$arrange(...)\`) plays for \`cycles\` cycles, and the
- * sections play back-to-back, looping with period \`Σ cycles\`.
- *
- * Each scale-pattern section resolves through its own scale, so an
- * arrangement can switch keys between sections. When every section is a
- * scale pattern, the arrangement is one, and \`.trans\` moves each section
- * within its own scale; \`.scale(...)\` on an arrangement puts every section
- * in one scale.
- *
- * \`\`\`js
- * // 4 cycles of a C-major arp, then 2 of an A-minor arp, looping every 6
- * melody: $arrange(
- *   [4, $\`0 2 4 7\`.scale("c(major)")],
- *   [2, $\`0 2 4\`.scale("a(min)")],
- * ).trans("<0 1>").saw()
- * \`\`\`
- *
- * Cycle counts must be **positive integers**, except a single **trailing**
- * section may use \`Infinity\` to loop forever once reached (any section after
- * an \`Infinity\` section could never play and is rejected):
- *
- * \`\`\`js
- * melody: $arrange(
- *   [2, $\`c4 e4 g4\`],            // intro, played once
- *   [Infinity, $\`0 2 4\`.scale("f(lydian)")],  // then loops forever
- * ).saw()
- * \`\`\`
- *
- * The result is a pattern like any other, so arrangements nest as sections
- * of another \`$arrange(...)\`.
- *
- * @param sections \`[cycles, pattern]\` tuples, in play order
- */
-declare function $arrange(
-  ...sections: [number, ScalePattern][]
-): ScalePattern;
-declare function $arrange(
-  ...sections: [number, Pattern][]
-): Pattern;
-
-/**
  * One Strudel-style alignment for \`.trans\`.
  */
 type AlignmentMode = ${literalUnion(ALIGNMENT_MODES)};
@@ -671,7 +598,9 @@ interface ScalePattern extends Pattern {
   /**
    * \`.trans(...)\` transposes a scale pattern by another scale-degree
    * mini-notation string: the two patterns' degrees are added, so negative
-   * degrees transpose down, and each note keeps its own scale.
+   * degrees transpose down, and each note keeps its own scale. A note's
+   * \`+\`/\`-\` semitone marks stay with it, and marks on a \`.trans\` degree
+   * (\`.trans("0+")\`) raise or lower every note that degree moves.
    * \`.add(...)\` and \`.sub(...)\` are the collection's: they add to and
    * subtract from the sequencer's output signal, in volts.
    * Bare \`.trans(x)\` defaults to \`.trans.in(x)\`; explicit
@@ -1056,151 +985,14 @@ class DeferredCollection extends BaseCollection {
  */
 class TrackTap extends Collection {
   protected constructor();
-  /** 5V while the track is audible, 0V while it is muted or silenced by another track's solo. */
-  readonly active: CollectionWithRange;
-  /**
-   * The track's gain (5 = unity), as the mixer's fader shows it.
-   * Ranged 0 to 10, or the gain signal's own range when it declares one.
-   */
-  readonly level: CollectionWithRange;
-  /**
-   * The track's pan (-5 left to +5 right); 0 for mono tracks. Ranged -5 to 5, or
-   * the pan signal's own range when it declares one.
-   */
-  readonly panning: CollectionWithRange;
+${renderTrackTapMembers()}
 }
 
 
-// Helper functions exposed by the DSL runtime
+${renderFunctions(GLOBALS).join('\n')}
 
-/**
- * Convert a frequency in Hertz to a voltage value (1V/octave).
- * @param frequency Frequency in Hz
- * @returns Voltage value for use as a {@link Signal}
- * @example $hz(440)  // A4
- * @example $hz(261.63)  // ~C4
- */
-function $hz(frequency: number): number;
-/**
- * Convert frequencies in Hertz to voltage values (1V/octave).
- * @param frequency Frequencies in Hz
- * @returns One voltage value per frequency
- * @example chord: $saw($hz([220, 330]))  // two voices
- */
-function $hz(frequency: number[]): number[];
-/**
- * Convert a frequency signal in Hertz to a 1V/octave pitch, sample by
- * sample. Frequencies at or below 0 Hz read as 0.0001 Hz.
- * @param frequency Frequency in Hz
- * @returns The pitch as a {@link Collection}
- * @example const f = $slider('pitch', 220, 100, 500); tone: $saw($hz(f))
- */
-function $hz(frequency: Poly<number>): Collection;
-/**
- * Convert a frequency in Hertz, as a number or a signal, to a 1V/octave
- * pitch.
- * @param frequency Frequency in Hz
- * @returns The pitch, as a voltage value for a number
- */
-function $hz(
-  frequency: number | Poly<number>,
-): number | number[] | Collection;
+${generateVideoGlobals()}
 
-/**
- * Convert a note name string to a voltage value (1V/octave).
- * @param noteName Note name like "C4", "A#3", "Bb5"
- * @returns Voltage value for use as a {@link Signal}
- * @example $note("C4")  // Middle C
- * @example $note("A4")  // 440 Hz
- */
-function $note(noteName: string): number;
-
-/**
- * Create a {@link Collection} holding the lanes of every argument, in order.
- *
- * Collections support chainable DSP methods, iteration, indexing, and spreading.
- * Bare {@link Signal} literals (numbers, note/Hz strings) are lifted into
- * $signal modules, so they can be mixed in alongside module outputs.
- * @param args Signals, or arrays of them, to group
- * @returns A {@link Collection} of their lanes
- * @example keys: $c($sine('c3'), $sine('e3')).amp(0.5)
- * @example $c(440, 'c4', $sine('e3'))  // Bare number/string lifted into $signal
- * @example $c($\`c4 e4\`, 'g4')      // A pattern contributes its voices
- * @example $c($sine('c3'), $sine('e3'), $sine('g3'))[0]  // Index access: a one-lane Collection
- * @example [...$c($sine('c3'), $sine('e3'))]             // Spread to an array of one-lane Collections
- * @see {@link $r} - for ranged signals
- */
-function $c(...args: (Signal | Signal[])[]): Collection;
-
-/**
- * Create a {@link CollectionWithRange} holding the lanes of every ranged
- * argument, each keeping its range.
- * 
- * Like $c() for ranged collections: range() maps each from its own range.
- * @param args Ranged signals, or arrays of them, to group
- * @returns A {@link CollectionWithRange} of their lanes
- * @example $r($sine('1hz'), $sine('2hz')).range(0, 5)
- * @example $r(...[$sine('3hz'), $sine('4hz')]).range(0, 1)
- * @see {@link $c} - for signals without known ranges
- */
-function $r(...args: (CollectionWithRange | CollectionWithRange[])[]): CollectionWithRange;
-
-/**
- * Read the format, tempo, loops and cue points of a WAV file.
- * @param path The file, from the workspace folder: \`'/wavs/loop.wav'\`
- * @example
- * // Play a loop at the tempo it was recorded at
- * const loop = '/wavs/loop.wav'
- * $setTempo($wavMeta(loop).bpm ?? 120)
- * sample: $sampler(loop, $clock._barTrigger)
- */
-function $wavMeta(path: string): WavMeta;
-
-/**
- * Set the global tempo for the root clock.
- * @param tempo Tempo in BPM
- * @example $setTempo(120)  // 120 beats per minute
- * @example $setTempo(140)  // 140 beats per minute
- */
-function $setTempo(tempo: number): void;
-
-/**
- * Set the main gain applied to the final mix.
- * @param gain Gain as a {@link LaneSum<Signal>} (5, unity, is the default; 12 dB per step of 1)
- * @example $setMainGain(3.5) // -18 dB
- * @example $setMainGain(5.0) // unity (default)
- * @example $setMainGain($adsr($clock._beatTrigger, {})) // modulate gain from envelope
- */
-function $setMainGain(gain: LaneSum<Signal>): void;
-
-/**
- * An XY oscilloscope as the patch's picture: shorthand for
- * \`$v.scopeXY(x, y, config).out()\`. Each lane of \`x\` and \`y\` is its own
- * signal, paired off in order with the shorter side cycling, one trace per pair.
- * @param x Horizontal signal(s)
- * @param y Vertical signal(s)
- * @param config See \`$v.scopeXY\`
- * @example $scopeXY($sine($hz(440)), $sine($hz(311)))
- * @example $scopeXY($c($sine('c3'), $sine('e3')), $sine('g3')) // 2 traces, both share the same Y
- */
-function $scopeXY(
-  x: ScopeAxis,
-  y: ScopeAxis,
-  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | Collection | CollectionWithRange; persistence?: number | Collection | CollectionWithRange; lineWidth?: number | Collection | CollectionWithRange; upsample?: boolean },
-): VideoSignal;
-
-/**
- * Set the time signature for the root clock.
- * Both values must be positive integers.
- * @param numerator Beats per bar (e.g. 3, 4, 6, 7)
- * @param denominator Beat value (e.g. 4 for quarter note, 8 for eighth note)
- * @example $setTimeSignature(4, 4)  // 4/4 time (default)
- * @example $setTimeSignature(3, 4)  // 3/4 waltz time
- * @example $setTimeSignature(6, 8)  // 6/8 compound time
- * @example $setTimeSignature(7, 8)  // 7/8 asymmetric time
- * @example $setTimeSignature(5, 4)  // 5/4 time
- */
-function $setTimeSignature(numerator: number, denominator: number): void;
 
 /**
  * Groove template: per-step timing offsets and velocities over a grid. Step
@@ -1225,103 +1017,6 @@ interface GrooveTemplate {
 }
 
 /**
- * Set the global groove. Every $cycle and $drumMap starts its notes on it,
- * keeping their lengths, unless given its own groove or playhead; $clock._grooveOffset,
- * $clock._grooveVelocity and $clock._grooveTrigger expose it directly.
- * @param template Groove template, e.g. from $swing
- * @example $setGroove($swing(0.6))  // MPC-style 60% sixteenth swing
- * @example $setGroove({ timing: [0, 0.2, 0, 0.15], velocity: [1, 0.6, 0.8, 0.5] })
- */
-function $setGroove(template: GrooveTemplate): void;
-
-/**
- * Swing template: each pair of grid steps is split ratio : (1 - ratio).
- * @param ratio Share of each pair given to its first step (0.5 = straight, 0.66 = triplet feel)
- * @param config.grid Grid steps per cycle (default 16 = sixteenth swing; 8 = eighth swing)
- * @param config.humanize Largest random timing offset per step, in grid steps (default 0)
- * @example $setGroove($swing(0.58))
- * @example $setGroove($swing(0.66, { grid: 8 }))
- * @example $setGroove($swing(0.6, { humanize: 0.05 }))  // swing with a little looseness
- */
-function $swing(
-  ratio: number,
-  config?: { grid?: number; humanize?: number },
-): GrooveTemplate;
-
-/**
- * Create a DeferredCollection with placeholder signals that can be assigned later.
- * Useful for feedback loops and forward references.
- * @param lanes Number of deferred outputs (1-64, default 1)
- * @example
- * const fb = $deferred();
- * // the delay's buffer breaks the cycle, so the deferred can feed back in
- * const echoed = $delay($noise('white').amp(fb[0]), 0.25);
- * fb.set(echoed);
- * noise: echoed;
- */
-function $deferred(lanes?: number): DeferredCollection;
-
-/**
- * Create a slider control that binds a UI slider to a signal module.
- *
- * The slider appears in the Control panel and allows real-time parameter adjustment.
- * Dragging the slider updates both the audio engine and the source code value.
- *
- * Value, min, and max must share one unit: all numbers (volts), all hz strings,
- * or all note strings. Hz and note sliders travel linearly in V/Oct (evenly
- * spaced octaves); note sliders snap to semitones.
- *
- * @param label Display label for the slider (must be a string literal, unique within its group)
- * @param value Initial value (must be a numeric or string literal)
- * @param min Minimum slider value (must be a numeric or string literal)
- * @param max Maximum slider value (must be a numeric or string literal)
- * @param group The {@link ControlGroup} to place the slider in (a $cGroup call or a const bound to one)
- * @returns A CollectionWithRange carrying the slider's current value (range [min, max])
- *
- * @example
- * const vol = $slider("Volume", 0.5, 0, 1);
- * tone: $sine(440).amp(vol);
- * @example
- * tone: $sine($slider("Pitch", "440hz", "55hz", "1760hz"));
- * @example
- * tone: $saw($slider("Root", "c3", "c2", "c5"));
- */
-function $slider(label: string, value: number, min: number, max: number, group?: ControlGroup): CollectionWithRange;
-function $slider(label: string, value: HZ, min: HZ, max: HZ, group?: ControlGroup): CollectionWithRange;
-function $slider(label: string, value: Note, min: Note, max: Note, group?: ControlGroup): CollectionWithRange;
-
-/**
- * Create a momentary gate button in the Control panel: 5V while held, 0V
- * otherwise. Chain through .hold for a fixed-length trigger per press.
- *
- * @param label Display label for the button (must be a string literal, unique within its group)
- * @param group The {@link ControlGroup} to place the button in (a $cGroup call or a const bound to one)
- * @returns A CollectionWithRange carrying the button output (range [0, 5])
- *
- * @example
- * lead: $sine('c4').amp($adsr($btn("play")));
- * @example
- * // fixed 100 ms trigger per press, however long the button is held
- * lead: $sine('c4').amp($adsr($btn("hit").hold(0.1)));
- */
-function $btn(label: string, group?: ControlGroup): CollectionWithRange;
-
-/**
- * Create a latched toggle button in the Control panel: clicking flips between
- * 0V and 5V and rewrites the initial-state literal in the source, so the
- * state survives re-execution.
- *
- * @param label Display label for the button (must be a string literal, unique within its group)
- * @param initial Initial state (must be a true/false literal)
- * @param group The {@link ControlGroup} to place the button in (a $cGroup call or a const bound to one)
- * @returns A CollectionWithRange carrying the button output (range [0, 5])
- *
- * @example
- * bass: $saw('c2').amp($toggleBtn("drone", false));
- */
-function $toggleBtn(label: string, initial: boolean, group?: ControlGroup): CollectionWithRange;
-
-/**
  * A reference to a group of controls in the Control panel, created by
  * {@link $cGroup}. Pass it as a control's \`group\` argument (or another
  * group's \`group\` param) to place that control inside the group.
@@ -1339,31 +1034,6 @@ interface ControlGroupParams {
     group?: ControlGroup;
 }
 
-/**
- * Create a group of controls: controls given the returned group as their
- * \`group\` argument appear together in the Control panel under a collapsible
- * header. Clicking the header rewrites the \`collapsed\` literal in the source,
- * so the state survives re-execution. Groups nest through \`params.group\`.
- *
- * Pass the \`$cGroup(...)\` call itself or a const bound to it as the group, so
- * the Control panel can place the controls before evaluation.
- *
- * @param label Display label for the group (must be a string literal, unique among its siblings)
- * @param params Collapsed state and parent group (must be an object literal)
- * @returns A ControlGroup reference to pass as a control's group argument
- *
- * @example
- * const voice = $cGroup("Voice");
- * tone: $sine($slider("Pitch", "c4", "c2", "c6", voice))
- *     .amp($adsr($btn("Play", voice)));
- * @example
- * // nested, with the inner group collapsed
- * const synth = $cGroup("Synth");
- * const amp = $cGroup("Amp", { collapsed: true, group: synth });
- * tone: $saw($slider("Root", "c3", "c2", "c5", synth))
- *     .amp($slider("Level", 0.5, 0, 1, amp));
- */
-function $cGroup(label: string, params?: ControlGroupParams): ControlGroup;
 
 /** @internal */
 declare const __busRoot: unique symbol;
@@ -1502,159 +1172,6 @@ class GroupTap extends TrackTap {
 }
 
 /**
- * A group: the sum, as one stereo lane, of every track whose label ends in
- * \`$\` and the name of this group's track. Those tracks play into the group
- * after their own pan, gain, mute and solo, and reach the output only
- * through it. Chain effects on it and label the result: that track is the
- * group, and plays to the main output, to the channels of its own
- * \`$N\` / \`$Nm\` suffix, or into another group. A group has one track, a
- * group track can send to buses, and a bus track cannot play into a group.
- *
- * @returns The group's signal
- *
- * @example
- * kick$drums: $tr808.kick($\`c ~ c ~\`)
- * hats$drums: $tr808.hiHat($\`c*8\`)
- * drums: $group().comp().track({ gain: 4 })
- */
-function $group(): GroupSignal;
-
-/**
- * A send-return bus: the mix of every signal sent to it through a track's
- * \`sends\` option, as one stereo lane. Chain effects on it and label the
- * result to hear it. That track is the bus: its name is what \`sends\`
- * takes, and reads as the track's signal like any other track's name. A bus
- * has one track, and a bus track cannot send to another bus or be soloed:
- * it keeps playing while other tracks are soloed.
- *
- * @returns The bus's signal
- *
- * @example
- * verb: $bus().plate()
- * lead: $saw('a').track({ sends: [verb, 3] })
- * bass$0m: $sine('a2').track({ sends: [verb, 2] })
- */
-function $bus(): BusSignal;
-
-/**
- * Tap the track named \`name\`: its audio after pan, gain and mute/solo,
- * plus its \`.active\` gate, \`.level\` gain, and \`.panning\` as ranged
- * signals. Follows live mixer changes. A track's label already binds its
- * name to the same tap, so this is for a name held in a string. Spaces and
- * underscores match alike; a name no track has is an error. A bus's tap has
- * its controls but no audio, as a bus's audio is processed only on its own
- * track.
- *
- * @param name Name of the track to follow
- * @returns A {@link TrackTap}
- *
- * @example
- * bass: $saw('c2')
- * const tap = $trackTap('bass')
- * // Follows the bass fader and pan
- * lead: $sine('c5').gain(tap.level).track({ pan: tap.panning })
- * // Silent while bass is muted or soloed out
- * bell: $sine('g5').gain(tap.active)
- */
-function $trackTap(label: string): TrackTap;
-
-/**
- * Set a custom end-of-chain processor applied to the final mix before output gain.
- *
- * The callback receives the fully mixed {@link Collection} and should return a
- * processed signal. It is called once during patch finalization.
- *
- * @param cb Transform applied to the final mix
- *
- * @example
- * $setEndOfChainCb((mix) => $lpf(mix, '2000hz'));
- */
-function $setEndOfChainCb(cb: (mixed: Collection) => Collection | CollectionWithRange): void;
-
-/**
- * Compute the Cartesian product of the given arrays.
- *
- * Returns every possible combination of one element from each array,
- * as a typed tuple array. Pairs well with the array overload of \`.pipe()\`
- * to fan a signal across multiple parameter dimensions.
- *
- * @param arrays Zero or more arrays to combine
- * @returns Array of typed tuples, one per combination
- *
- * @example
- * // Fan oscillators across every combination of frequency and waveform
- * cartesian: $mix(
- *   $cartesian([220, 440], ['sine', 'saw']).map(([freq, shape]) =>
- *     shape === 'sine' ? $sine($hz(freq)) : $saw($hz(freq)),
- *   ),
- * );
- *
- * @example $cartesian([1, 2], ['a', 'b'])
- * // → [[1,'a'], [1,'b'], [2,'a'], [2,'b']]
- */
-function $cartesian<A extends unknown[][]>(...arrays: A): ElementsOf<A>[];
-
-/**
- * Tag a parameter value into signal group 1.
- *
- * Parameters in different groups multiply (cartesian product of lanes)
- * within a module instead of cycling together; parameters in the same group
- * cycle as usual, and untagged parameters are group 0. Lower-numbered groups
- * vary fastest across the resulting lanes. The product across groups may
- * not exceed 64 lanes, and \`$gN\` must wrap the entire parameter value —
- * it cannot appear inside an array.
- *
- * @example
- * // 3 pitches x 2 phase offsets = 6 voices
- * tone: $sine($g1(["c3", "e3", "g3"]), {
- *   phaseOffset: $g2([0, 0.25]),
- * })
- */
-function $g1(signals: Poly<Signal>): SignalGroup;
-
-/**
- * Tag a parameter value into signal group 2 — see {@link $g1}.
- *
- * @example
- * // 3 pitches x 2 phase offsets = 6 voices
- * tone: $sine($g1(["c3", "e3", "g3"]), {
- *   phaseOffset: $g2([0, 0.25]),
- * })
- */
-function $g2(signals: Poly<Signal>): SignalGroup;
-
-/**
- * Tag a parameter value into signal group 3 — see {@link $g1}.
- *
- * @example
- * // 2 pitches x 2 shapes x 2 phases = 8 voices
- * tone: $saw($g1(["c2", "c3"]), {
- *   shape: $g2([0, 2.5]),
- *   phaseOffset: $g3([0, 0.5]),
- * })
- */
-function $g3(signals: Poly<Signal>): SignalGroup;
-
-/**
- * @param count Size of the output
- * @param playhead 0..1 position (wraps), e.g. an LFO into \`.range(0, 1)\`
- * @param range \`[off, on]\` weight pair (default \`[0, 5]\`, 5 = unity)
- * @param interpolationType Easing between keyframes (default linear)
- *
- * @example
- * // Crossfade the amplitude of the different voices
- * const osc = $sine(['c', 'e', 'g'])
- * const weights = $cross(osc.length, $sine('0.25hz').range(0, 1));
- * chord: osc.amp(weights);
- */
-function $cross(
-    count: number,
-    playhead: LaneSum<Signal>,
-    range?: [number, number],
-    interpolationType?: Parameters<typeof $keyframes>[1]['interpolationType'],
-): Collection;
-
-/**
  * Phase warps for modules that accept a {@link PhaseWarp} (the \`phase\`
  * param of \`$wavetable\`, \`$enosc\` and \`$pWarp\`).
  *
@@ -1771,6 +1288,60 @@ interface VideoBuffer {
 
 ${generateVideoNamespace()}
 `;
+
+/** `TrackTap`'s members, documented as what `$trackTap` returns. */
+function renderTrackTapMembers(): string {
+    const trackTap = GLOBAL_ENTRIES.find((e) => e.name === '$trackTap');
+    return (trackTap?.returns?.members ?? [])
+        .flatMap(({ name, description, meta }) => [
+            ...jsDocComment([withMeta(description, meta)], '  '),
+            `  readonly ${name.replace(/^\./, '')}: CollectionWithRange;`,
+        ])
+        .join('\n');
+}
+
+/**
+ * The JSDoc of `fn` above one `declaration`: its docs
+ * (`renderDocContentJsDoc`) after any `lead` lines, then the `@param`s it
+ * declares from the `from`th on.
+ */
+function functionJsDoc(
+    fn: FunctionDoc,
+    declaration: string,
+    { indent = '', lead = [] as string[], from = 0 } = {},
+): string[] {
+    const { name, params } = parseDeclaration(declaration);
+    const returns =
+        fn.returns && withMeta(fn.returns.description, fn.returns.meta);
+    return jsDocComment(
+        [
+            ...lead,
+            ...renderDocContentJsDoc(fn.docs, name),
+            ...params
+                .slice(from)
+                .filter((p) => p.name in fn.params)
+                .map((p) => {
+                    const { description, meta } = readDocText(
+                        fn.params[p.name],
+                    );
+                    return `@param ${p.name} ${withMeta(description, meta)}`;
+                }),
+            ...(returns ? [`@returns ${returns}`] : []),
+        ],
+        indent,
+    );
+}
+
+/** Every overload of each of `fns`, documented, as a global function. */
+function renderFunctions(fns: FunctionDoc[]): string[] {
+    return fns.flatMap((fn) =>
+        fn.declarations.flatMap((declaration) => [
+            ...functionJsDoc(fn, declaration),
+            `function ${declaration};`,
+            '',
+        ]),
+    );
+}
 
 export function buildLibSource(schemas: Schemas): string {
     const schemaLib = generateDSL(schemas);
@@ -2002,17 +1573,15 @@ function generateMultiOutputInterface(
 
     const interfaceName = getMultiOutputInterfaceName(moduleSchema);
 
-    const lines: string[] = [];
-    lines.push(`${indent}/**`);
-    lines.push(`${indent} * Output type for ${moduleSchema.name} module.`);
-    lines.push(
-        `${indent} * Used directly, it stands for the output that fits the input it`,
+    const lines = jsDocComment(
+        [
+            `Output type for ${moduleSchema.name} module.`,
+            'Used directly, it stands for the output that fits the input it',
+            `is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
+            'itself is always that output.',
+        ],
+        indent,
     );
-    lines.push(
-        `${indent} * is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
-    );
-    lines.push(`${indent} * itself is always that output.`);
-    lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
@@ -2280,6 +1849,15 @@ function declaredRangeArgs(
     });
 }
 
+/** The lines a chain method's docs open with, before its module's own. */
+function chainLead(name: string): string[] {
+    return [
+        `Chain through \`${name}\` with this signal as its first`,
+        `argument. Equivalent to \`${name}(this, ...)\`.`,
+        '',
+    ];
+}
+
 /**
  * The args and doc comment of `moduleSchema`'s chain method: the module's
  * factory without its first positional, which the receiver supplies, and the
@@ -2291,19 +1869,11 @@ function chainSignature(
 ): { args: string[]; doc: string[] } {
     const { args, docLines } = buildSignature(moduleSchema, {
         positionalStart: 1,
-        leadDocLines: [
-            `Chain through \`${moduleSchema.name}\` with this signal as its first`,
-            `argument. Equivalent to \`${moduleSchema.name}(this, ...)\`.`,
-            '',
-        ],
+        leadDocLines: chainLead(moduleSchema.name),
     });
     return {
         args,
-        doc: [
-            `${indent}/**`,
-            ...docLines.map((line) => `${indent} * ${line}`),
-            `${indent} */`,
-        ],
+        doc: jsDocComment(docLines, indent),
     };
 }
 
@@ -2360,14 +1930,7 @@ function renderFactoryFunction(
     });
     const returnType = getFactoryReturnType(moduleSchema);
 
-    const doc =
-        docLines.length > 0
-            ? [
-                  `${indent}/**`,
-                  ...docLines.map((line) => `${indent} * ${line}`),
-                  `${indent} */`,
-              ]
-            : [];
+    const doc = jsDocComment(docLines, indent);
     const overload = (overloadArgs: string[], type: string) => [
         ...doc,
         `${indent}export function ${functionName}(${overloadArgs.join(', ')}): ${type};`,
@@ -2540,83 +2103,8 @@ export function generateDSL(schemas: Schemas): string {
         'export function $buffer(input: Signal, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    // Shared inline options type for `$delay` and `.delay`.
-    const delayOpts =
-        'opts?: { feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | CollectionWithRange; maxTime?: number }';
-    // Shared documentation body for `$delay` and `.delay`; the chain form
-    // prepends a header for its call convention. `$delay` is a DSL helper, so
-    // the doc is hand-written rather than schema-derived.
-    const delayBody = [
-        'Delay with feedback: sum the input with the attenuated feedback,',
-        'optionally process that mix through `feedbackCb`, write it into a',
-        'buffer of `maxTime` seconds, and read it back `time` seconds late. The',
-        'delayed read is attenuated by `feedback` and summed back in, so a',
-        '`feedbackCb` filter colours every recirculation. With `feedback` 0 you',
-        'still hear the first echo; higher values repeat it.',
-        '',
-        '`feedback` is 0-5 (5 = unity), clamped, default 2.5. `maxTime` (default',
-        '5) sizes the buffer and caps how long `time` can be. Returns the wet',
-        'signal.',
-        '',
-        '```js',
-        '// mix the dry signal back in for a classic echo',
-        "let src = $saw('c3')",
-        'echo: $mix([src, $delay(src, 0.25, { feedback: 3 })])',
-        '',
-        '// lowpass in the loop — echoes darken on every repeat',
-        "dark: src.delay(0.5, { feedbackCb: (m) => m.lpf('800hz') })",
-        '```',
-    ];
-    // Render the `$delay` doc at `indent`, prepending optional `header` lines
-    // (a chain-form intro) before the shared body.
-    const renderDelayDoc = (indent: string, header: string[]): string[] => {
-        const star = `${indent} *`;
-        const line = (text: string) => (text === '' ? star : `${star} ${text}`);
-        const out = [`${indent}/**`, ...header.map(line)];
-        if (header.length > 0) out.push(star);
-        out.push(...delayBody.map(line), `${indent} */`);
-        return out;
-    };
-    const chainDelayHeader = [
-        'Chain through `$delay` with this signal as its first argument.',
-        'Equivalent to `$delay(this, time, opts)`.',
-    ];
-    lines.push(...renderDelayDoc('', []));
-    lines.push(
-        `export function $delay(input: Collection | CollectionWithRange, time: Poly<Signal>, ${delayOpts}): Collection;`,
-    );
-
-    // `$super` exists only where the modules it builds do; its docs state
-    // their defaults.
-    const superDefault = superDefaults(schemas as unknown as ModuleSchema[]);
-    if (superDefault) {
-        const { unison, detune, width } = superDefault;
-        lines.push(
-            '/**',
-            ' * A detuned, stereo-spread unison stack of any voice. `cb` builds one',
-            ' * voice from the detuned `$unison` copies of `freq`, and the copies are',
-            ' * folded into one stereo lane per note the way `$supersaw` spreads its',
-            ' * saws. Pass `phaseOffset` on to the oscillator so the copies never all',
-            ' * line up.',
-            " * @param freq The note's pitch",
-            " * @param cb Builds one voice from the copies' pitches",
-            ` * @param options \`unison\`: copies per note (default ${unison}); \`detune\`: semitones between the lowest and highest copy (default ${detune}); \`width\`: how far the copies fan out, 0 centred to 5 hard left and right (default ${width})`,
-            ' * @example',
-            " * lead: $super('c3', (freq, { phaseOffset }) =>",
-            ' *   $saw(freq, { phaseOffset }),',
-            ' * )',
-            ' * @example',
-            ' * pad: $super(',
-            " *   $chord('C3[m9]'),",
-            ' *   (freq, { phaseOffset }) =>',
-            " *     $pulse(freq, { phaseOffset }).lpf('c6'),",
-            ' *   { unison: 3, detune: 0.3 },',
-            ' * )',
-            ' */',
-            'export function $super(freq: Poly<Signal>, cb: (freq: UnisonOutputs, options: { phaseOffset: CollectionWithRange }) => Collection | CollectionWithRange, options?: { unison?: number; detune?: Poly<Signal>; width?: Poly<Signal> }): Collection;',
-            '',
-        );
-    }
+    const builtModules = dslModules(schemas as unknown as ModuleSchema[]);
+    lines.push(...renderFunctions(builtModules));
 
     // Chain methods. The qualifying set matches the runtime's exactly: both
     // apply `qualifiesForChain` to the same schemas.
@@ -2687,11 +2175,11 @@ export function generateDSL(schemas: Schemas): string {
 
     lines.push('');
     lines.push(
-        '/**',
-        ' * The chain methods of a collection: every module whose first',
-        ' * argument is a {@link Poly<Signal>}, with the receiver as that argument.',
-        " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
-        ' */',
+        ...jsDocComment([
+            'The chain methods of a collection: every module whose first',
+            'argument is a {@link Poly<Signal>}, with the receiver as that argument.',
+            "@example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
+        ]),
     );
     lines.push(
         'interface ModuleChain<Plain = Collection, Ranged = CollectionWithRange> {',
@@ -2704,10 +2192,18 @@ export function generateDSL(schemas: Schemas): string {
             `  readonly ${seg}: ModuleChain${pascal(seg)}<Plain, Ranged>;`,
         );
     }
-    lines.push(
-        ...renderDelayDoc('  ', chainDelayHeader),
-        `  delay(time: Poly<Signal>, ${delayOpts}): Plain;`,
-    );
+    for (const fn of builtModules.filter((m) => m.chainable)) {
+        for (const declaration of fn.declarations) {
+            lines.push(
+                ...functionJsDoc(fn, declaration, {
+                    from: 1,
+                    indent: '  ',
+                    lead: chainLead(parseDeclaration(declaration).name),
+                }),
+                `  ${chainDeclaration(declaration, 'Plain')};`,
+            );
+        }
+    }
     lines.push('}');
 
     lines.push('');

@@ -200,10 +200,18 @@ describe('a scoped root', () => {
         ).toEqual(['gate']);
     });
 
-    test('draws the output it was resolved to before the scope', () => {
+    test('follows only the value its scope returns', () => {
         expect(
             scopedPorts('const seq = $`0`\nout: $perc(seq)\nseq.scope()'),
-        ).toEqual(['trig']);
+        ).toEqual(['cv']);
+    });
+
+    test('scoped twice, each scope draws where its own copy is plugged in', () => {
+        expect(
+            scopedPorts(
+                'const seq = $`c e`\nout: $adsr(seq.scope())\nout2: $saw(seq.scope())',
+            ),
+        ).toEqual(['gate', 'cv']);
     });
 
     test('is recorded only where it is plugged in', () => {
@@ -218,8 +226,14 @@ describe('a scoped root', () => {
         expect(scopedPorts('$`c e`.scope()')).toEqual(['cv']);
     });
 
-    test('read by name, draws that output', () => {
-        expect(scopedPorts('out: $perc($`0`.scope()._gate)')).toEqual(['gate']);
+    test('read by name, draws the output it reads as itself', () => {
+        expect(scopedPorts('out: $perc($`0`.scope()._gate)')).toEqual(['cv']);
+    });
+
+    test('beside a scope of a named output, draws the output it reads as itself', () => {
+        expect(
+            scopedPorts('const seq = $`g4`\nseq.scope()\nseq._gate.scope()'),
+        ).toEqual(['cv', 'gate']);
     });
 
     test('a slice of it plugged in takes it too', () => {

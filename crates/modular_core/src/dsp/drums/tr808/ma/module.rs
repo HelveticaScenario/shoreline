@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -41,7 +41,7 @@ const MA808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 maracas",
     description: "The 808's maracas: a short shake of high, hissing noise, for a light \
                   shuffle on top of a beat.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Sixteenth shaker",

@@ -1,5 +1,5 @@
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
@@ -37,7 +37,7 @@ const P_SINE_DOCS: ModuleDocs = ModuleDocs {
                   own pitch. Drive it from `$ramp` through `$pWarp` to bend the \
                   cycle into new timbres, or share one ramp between phase \
                   oscillators to keep them locked together.",
-    categories: &[ModuleCategory::Oscillator, ModuleCategory::Phase],
+    categories: &[ReferenceCategory::Oscillator, ReferenceCategory::Phase],
     sections: &[],
     examples: &[DocExample {
         title: "Bending sine",

@@ -1,0 +1,3 @@
+kind: Improved
+body: The editor's "Add slider" quick fixes now offer `pan` on `$pan`, `offset` on `$quantizer`, `freq` and `rootFreq` on `$granular`, `$granularSampler` and `$clockedDelay`, `rate` on `$noise`, `min` and `max` on `$clamp`, and `rise` on `$slew`. Leaving those last four out still works as before.
+time: 2026-11-22T04:00:37.511608-05:00

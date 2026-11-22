@@ -3,6 +3,8 @@ import type {
     ModuleSiteInfo,
     SignalSiteTables,
 } from '../../shared/dsl/signalSites';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
+import { functionName } from '../../shared/dsl/referenceDocs';
 import { CHAIN_METHODS } from './chainMethods';
 import { resolvableOutputs } from './outputResolution';
 import { processModuleSchema, qualifiesForChain } from './paramsSchema';
@@ -12,10 +14,12 @@ import {
     qualifiedMultiOutputInterfaceName,
 } from './typescriptLibGen';
 
-/** `$delay(input, time, { feedback })`: a helper called like a module. */
-export const DELAY_SITE: ModuleSiteInfo = {
+/** A module the DSL builds from others; its docs say whether it chains. */
+type BuiltSiteInfo = Omit<ModuleSiteInfo, 'chainable'>;
+
+/** `$delay(input, time, { feedback })`. */
+export const DELAY_SITE: BuiltSiteInfo = {
     buffers: [],
-    chainable: true,
     monoOutputs: [],
     folds: [],
     inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
@@ -24,9 +28,8 @@ export const DELAY_SITE: ModuleSiteInfo = {
 };
 
 /** `$super(freq, cb, { detune, width })`: a stereo unison stack of `cb`'s voice. */
-export const SUPER_SITE: ModuleSiteInfo = {
+export const SUPER_SITE: BuiltSiteInfo = {
     buffers: [],
-    chainable: false,
     folds: [],
     inputs: { detune: 'cv', freq: 'cv', width: 'cv' },
     monoOutputs: [],
@@ -80,6 +83,27 @@ function bufferParams(schema: ModuleSchema): string[] {
         .map(([name]) => name);
 }
 
+const BUILT_SITES: Record<string, BuiltSiteInfo> = {
+    $delay: DELAY_SITE,
+    $super: SUPER_SITE,
+};
+
+/** A site for each module the DSL builds, chaining as its docs say. */
+function builtModuleSites(
+    schemas: ModuleSchema[],
+): Record<string, ModuleSiteInfo> {
+    return Object.fromEntries(
+        dslModules(schemas).map((fn) => {
+            const name = functionName(fn);
+            const site = BUILT_SITES[name];
+            if (!site) {
+                throw new Error(`No signal site for ${name}`);
+            }
+            return [name, { ...site, chainable: Boolean(fn.chainable) }];
+        }),
+    );
+}
+
 /**
  * Describe the DSL to the editor's signal-site collector, in the names the
  * generated lib and the runtime use.
@@ -92,8 +116,7 @@ export function buildSignalSiteTables(
         globals: GLOBAL_CHANNELS,
         modules: {
             $cross: CROSS_SITE,
-            $delay: DELAY_SITE,
-            $super: SUPER_SITE,
+            ...builtModuleSites(schemas),
         },
         monoMembers: MONO_MEMBERS,
         // A pattern is the `$cycle` that plays it, which is mono.

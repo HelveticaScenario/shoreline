@@ -8,8 +8,8 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers::{self, ADDITIVE_SCALE};
 use crate::dsp::utils::dc_blocker::DcBlocker;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Harmonic-generating algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -112,7 +112,7 @@ const HARMONIC_DOCS: ModuleDocs = ModuleDocs {
     description: "Adds chosen harmonics to brighten or thicken a tone; on a \
                   sine it turns a pure tone organ-like or reedy. Modelled on \
                   the Surge XT harmonic shapes.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Sine to organ",

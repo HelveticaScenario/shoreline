@@ -3,8 +3,8 @@ use schemars::JsonSchema;
 
 use self::voice::{RELEASE_SLOTS, Ramp, Release, Voice, push_release};
 use super::slice::SliceParam;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     Wav,
     dsp::utils::SchmittTrigger,
@@ -155,7 +155,7 @@ const SAMPLER_DOCS: ModuleDocs = ModuleDocs {
     description: "Plays a WAV file, or one slice of it, each time the gate rises: one-shots, \
                   held notes or loops depending on `mode`. Change `speed` to pitch it up, down \
                   or into reverse, and step `slice` through a pattern to chop a break.",
-    categories: &[ModuleCategory::Sampler],
+    categories: &[ReferenceCategory::Sampler],
     sections: &[DocSection {
         title: "Slicing",
         body: "Give `slice` a signal and the whole file is one slice. Give it `[points, signal]` \

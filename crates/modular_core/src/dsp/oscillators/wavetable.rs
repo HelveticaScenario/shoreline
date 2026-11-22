@@ -19,8 +19,8 @@ use std::f32::consts::PI;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{
@@ -322,14 +322,14 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
                   Sweep `position` with an LFO or envelope, and bend each cycle \
                   further with a `$phase.*` warp. Tables bundled with the app \
                   live under `'builtin/tables/'`.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {
             title: "Scanning pad",
             code: r#"
                 chord: $wavetable(
-                  $chord('C3[m9]'),
+                  'c3:m9',
                   'builtin/tables/mi/formants.wav',
                   $sine('0.1hz').range(0, 5),
                 )

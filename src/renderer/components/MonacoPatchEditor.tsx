@@ -374,6 +374,7 @@ export function MonacoPatchEditor({
             return;
         }
         return setupMonacoJavascript(monaco, libSource, {
+            quotes: () => quotesRef.current,
             schemas,
         });
     }, [monaco, libSource, schemas]);
@@ -400,6 +401,12 @@ export function MonacoPatchEditor({
         fontSize,
         prettierConfig,
     } = useTheme();
+
+    const quotes = resolvePrettierOptions(prettierConfig).quotes;
+    const quotesRef = useRef(quotes);
+    useEffect(() => {
+        quotesRef.current = quotes;
+    }, [quotes]);
     const monacoThemeId = `theme-${appTheme.id}`;
 
     // Open help for DSL symbols on Cmd+Click (not Cmd+Hover)

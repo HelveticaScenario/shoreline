@@ -34,6 +34,8 @@ export const DSL_TYPE_NAMES = [
     'CollectionWithRange',
     'Note',
     'HZ',
+    'Chord',
+    'Scale',
     'Track labels',
     'TrackOptions',
 ] as const;
@@ -149,6 +151,34 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
         name: 'CollectionWithRange',
         seeAlso: ['Collection'],
+    },
+
+    Chord: {
+        definition: '`${Note}:${string}`',
+        description:
+            'A chord string: a note, a colon and a chord symbol, one lane per note, lowest first. ' +
+            "The symbol is the one patterns use; see $cycle's Chords section.",
+        examples: [
+            '"c3:M7"        // C3, E3, G3, B3',
+            '"eb:m7^1"      // Eb minor 7, first inversion',
+            '"g2:7b9b13sus" // an altered sus dominant',
+        ],
+        name: 'Chord',
+        seeAlso: ['Signal', 'Note'],
+    },
+
+    Scale: {
+        definition: '`${Note}(${string})`',
+        description:
+            'A scale string: a note with a scale in parentheses, one lane per note, lowest first. ' +
+            'The parentheses hold a scale name, semitones above the root, a tuning (`just`, `pythag`), or a tuning then semitones, as in a pattern.',
+        examples: [
+            '"d3(dorian)"    // D dorian from D3',
+            '"c(0 2 4 7 9)"  // your own scale, in semitones',
+            '"a(just)"       // all 12 steps in just intonation',
+        ],
+        name: 'Scale',
+        seeAlso: ['Signal', 'Chord', 'Note'],
     },
 
     HZ: {
@@ -313,7 +343,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     Signal: {
-        definition: 'number | Note | HZ | Collection | CollectionWithRange',
+        definition:
+            'number | Note | HZ | Chord | Scale | Collection | CollectionWithRange',
         description:
             'An audio signal value. This is the fundamental type for all audio connections in the modular system. ' +
             'Signals follow the 1V/octave convention where 0V corresponds to C4 (~261.63 Hz).',
@@ -321,6 +352,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$sine("C4")           // Note string - converted to 1V/oct',
             '$sine(440)            // Number - constant voltage',
             '$sine("440hz")        // Hz string - converted to voltage',
+            '$saw("c3:M7")         // Chord string - one lane per note',
+            '$saw("d3(dorian)")    // Scale string - one lane per note',
             '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
@@ -330,6 +363,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Collection',
             'Note',
             'HZ',
+            'Chord',
+            'Scale',
         ],
     },
 
@@ -344,7 +379,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
             "lead: $saw('c3')                 // Stereo on channels 0 and 1",
-            "_pad$2: $sine($chord('C4[maj7]'))  // Muted, on channels 2 and 3",
+            "_pad$2: $sine('c4:M7')  // Muted, on channels 2 and 3",
             'S_click$4m: $noise()             // Soloed, mono on channel 4',
             'kick$drums: $tr808.kick($`c ~ c ~`)\nhats$drums: $tr808.hiHat($`c*8`)\ndrums: $group().comp()  // Both drums through one compressor',
             "kick: $tr808.kick($`c ~ c ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
@@ -361,7 +396,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         examples: [
             "tone: $sine('c').track({ gain: 2.5 })           // 50% gain",
             "tone: $sine('c').track({ pan: -2.5 })           // Pan left",
-            "chord: $saw($chord('C3[m7]')).track({ spread: 5 })  // Lanes fanned edge to edge",
+            "chord: $saw('c3:m7').track({ spread: 5 })  // Lanes fanned edge to edge",
             "tone: $sine('c').track({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
             "tone: $sine('c').track({ sends: [verb, [echo, 2]] })  // Also feed two buses",
         ],
@@ -369,446 +404,6 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         seeAlso: ['Track labels', 'Collection', 'Poly<Signal>'],
     },
 };
-
-export interface GlobalFunctionDoc {
-    name: string;
-    signature: string;
-    description: string;
-    params?: { name: string; type: string; description: string }[];
-    returns?: string;
-    examples: string[];
-    group: string;
-}
-
-/**
- * Documentation for all DSL global functions and helpers.
- */
-export const GLOBAL_DOCS: GlobalFunctionDoc[] = [
-    // ---- Helpers ----
-    {
-        description:
-            'Convert a frequency in Hertz to a 1V/octave voltage value. Numbers and number arrays convert to voltage values; a frequency that includes a signal converts sample by sample, with frequencies at or below 0 Hz read as 0.0001 Hz. Note and Hz strings are already pitches and are rejected.',
-        examples: [
-            '$hz(440)    // A4',
-            '$hz(261.63) // ~C4',
-            '$hz([220, 330]) // two voices',
-            "$hz($slider('pitch', 220, 100, 500)) // a slider in Hz",
-        ],
-        group: 'Helpers',
-        name: '$hz',
-        params: [
-            {
-                name: 'frequency',
-                type: 'number | Poly<number>',
-                description: 'Frequency in Hz',
-            },
-        ],
-        returns:
-            'A voltage value for a number, one per element for a number array, otherwise a Collection',
-        signature:
-            '$hz(frequency: number | Poly<number>): number | number[] | Collection',
-    },
-    {
-        description: 'Convert a note name string to a 1V/octave voltage value.',
-        examples: ['$note("C4")  // Middle C', '$note("A4")  // 440 Hz'],
-        group: 'Helpers',
-        name: '$note',
-        params: [
-            {
-                name: 'noteName',
-                type: 'string',
-                description: 'Note name like "C4", "A#3", "Bb5"',
-            },
-        ],
-        returns: 'Voltage value usable as a Signal',
-        signature: '$note(noteName: string): number',
-    },
-    {
-        description:
-            'Create a Collection holding the lanes of every argument, in order. Collections support chainable DSP methods, indexing, and spreading.',
-        examples: [
-            'mix: $c(osc1, osc2).amp(0.5)',
-            '$c(osc1, osc2)[0]  // index access: a one-lane collection',
-        ],
-        group: 'Helpers',
-        name: '$c',
-        signature: '$c(...args: (Signal | Signal[])[]): Collection',
-    },
-    {
-        description:
-            'Create a CollectionWithRange holding the lanes of every ranged argument. The range() method maps each from its own range.',
-        examples: ['mix: $r(lfo1, lfo2).range(0, 5)'],
-        group: 'Helpers',
-        name: '$r',
-        signature:
-            '$r(...args: (CollectionWithRange | CollectionWithRange[])[]): CollectionWithRange',
-    },
-    {
-        description:
-            'Compute the Cartesian product of the given arrays. Returns every possible combination of one element from each array.',
-        examples: [
-            "$cartesian([220, 440], ['sine', 'saw'])\n// → [[220,'sine'],[220,'saw'],[440,'sine'],[440,'saw']]",
-            "tones: $cartesian([1, 2], ['a', 'b']).pipe(\n  (osc, [freq, shape]) => $oscillator({ freq, shape }),\n)",
-        ],
-        group: 'Helpers',
-        name: '$cartesian',
-        signature:
-            '$cartesian<A extends unknown[][]>(...arrays: A): ElementsOf<A>[]',
-    },
-    {
-        description:
-            'Tag a parameter value into signal group 1 (also $g2, $g3). Parameters in different groups multiply — the module gets the cartesian product of the group widths as voices — while parameters in the same group cycle together. Untagged parameters are group 0. Lower-numbered groups vary fastest. The product may not exceed 64 lanes, and $gN must wrap the entire parameter value.',
-        examples: [
-            'tone: $sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) })\n// 3 x 2 = 6 voices',
-        ],
-        group: 'Helpers',
-        name: '$g1',
-        signature: '$g1(signals: Poly<Signal>): SignalGroup',
-    },
-    {
-        description: 'Tag a parameter value into signal group 2 — see $g1.',
-        examples: [
-            'tone: $sine($g1(["c3", "e3", "g3"]), { phaseOffset: $g2([0, 0.25]) })',
-        ],
-        group: 'Helpers',
-        name: '$g2',
-        signature: '$g2(signals: Poly<Signal>): SignalGroup',
-    },
-    {
-        description: 'Tag a parameter value into signal group 3 — see $g1.',
-        examples: [
-            'tone: $saw($g1(["c2", "c3"]), { shape: $g2([0, 2.5]), phaseOffset: $g3([0, 0.5]) })',
-        ],
-        group: 'Helpers',
-        name: '$g3',
-        signature: '$g3(signals: Poly<Signal>): SignalGroup',
-    },
-    // ---- Global Settings ----
-    {
-        description: 'Set the global tempo for the root clock.',
-        examples: ['$setTempo(120)  // 120 BPM', '$setTempo(140)  // 140 BPM'],
-        group: 'Global Settings',
-        name: '$setTempo',
-        params: [
-            { name: 'tempo', type: 'number', description: 'Tempo in BPM' },
-        ],
-        signature: '$setTempo(tempo: number): void',
-    },
-    {
-        description:
-            'Set the time signature for the root clock. Both values must be positive integers.',
-        examples: [
-            '$setTimeSignature(4, 4)  // 4/4 (default)',
-            '$setTimeSignature(3, 4)  // 3/4 waltz',
-            '$setTimeSignature(7, 8)  // 7/8 asymmetric',
-        ],
-        group: 'Global Settings',
-        name: '$setTimeSignature',
-        params: [
-            {
-                name: 'numerator',
-                type: 'number',
-                description: 'Beats per bar (e.g. 3, 4, 6, 7)',
-            },
-            {
-                name: 'denominator',
-                type: 'number',
-                description:
-                    'Beat value (e.g. 4 for quarter note, 8 for eighth note)',
-            },
-        ],
-        signature:
-            '$setTimeSignature(numerator: number, denominator: number): void',
-    },
-    {
-        description:
-            'Set the global groove. Every $cycle and $drumMap starts its notes on it, keeping their lengths, unless given its own groove or playhead.',
-        examples: [
-            '$setGroove($swing(0.6))  // 60% sixteenth swing',
-            '$setGroove({ timing: [0, 0.2, 0, 0.15], velocity: [1, 0.6, 0.8, 0.5] })',
-        ],
-        group: 'Global Settings',
-        name: '$setGroove',
-        params: [
-            {
-                name: 'template',
-                type: 'GrooveTemplate',
-                description:
-                    'Per-step timing offsets (grid steps) and velocities (0-1), plus grid, amount, velocityAmount, random and seed',
-            },
-        ],
-        signature: '$setGroove(template: GrooveTemplate): void',
-    },
-    {
-        description:
-            'Swing groove template: each pair of grid steps is split ratio : (1 - ratio).',
-        examples: [
-            '$setGroove($swing(0.58))  // light sixteenth swing',
-            '$setGroove($swing(0.66, { grid: 8 }))  // triplet-feel eighths',
-            '$setGroove($swing(0.6, { humanize: 0.05 }))  // swing with a little looseness',
-        ],
-        group: 'Global Settings',
-        name: '$swing',
-        params: [
-            {
-                name: 'ratio',
-                type: 'number',
-                description:
-                    'Share of each pair given to its first step (0.5 = straight)',
-            },
-            {
-                name: 'config',
-                type: '{ grid?: number; humanize?: number }',
-                description:
-                    'grid: grid steps per cycle (default 16); humanize: largest random timing offset per step, in grid steps (default 0)',
-            },
-        ],
-        signature:
-            '$swing(ratio: number, config?: { grid?: number; humanize?: number }): GrooveTemplate',
-    },
-    {
-        description:
-            'Set the main gain applied to the final mix: 5, unity, is the default, and each step of 1 is 12 dB.',
-        examples: [
-            '$setMainGain(3.5) // -18 dB',
-            '$setMainGain(5.0) // unity gain (default)',
-            "$setMainGain($sine('1hz')) // modulated gain",
-        ],
-        group: 'Global Settings',
-        name: '$setMainGain',
-        params: [
-            {
-                name: 'gain',
-                type: 'LaneSum<Signal>',
-                description: 'Gain level (2.5 default, 5.0 unity)',
-            },
-        ],
-        signature: '$setMainGain(gain: LaneSum<Signal>): void',
-    },
-    // ---- Controls -----
-    {
-        description:
-            'Create a UI slider bound to a signal module. The slider appears in the Control panel as soon as it is written. Dragging it rewrites the source value, and drives the audio engine in real time once the patch is evaluated.',
-        examples: [
-            'const vol = $slider("Volume", 0.5, 0, 1);\ntone: $sine(440).amp(vol);',
-            'const cutoff = $slider("Cutoff", 1000, 100, 8000);\ntone: $saw(440).pipe(s => $lpf(s, cutoff));',
-        ],
-        group: 'Controls',
-        name: '$slider',
-        params: [
-            {
-                name: 'label',
-                type: 'string',
-                description:
-                    'Display label (must be a string literal, unique within its group)',
-            },
-            {
-                name: 'value',
-                type: 'number | string',
-                description:
-                    'Initial value: a number, an hz string like "440hz", or a note like "c4" (must be a literal)',
-            },
-            {
-                name: 'min',
-                type: 'number | string',
-                description:
-                    'Minimum value, in the same unit (must be a literal)',
-            },
-            {
-                name: 'max',
-                type: 'number | string',
-                description:
-                    'Maximum value, in the same unit (must be a literal)',
-            },
-            {
-                name: 'group',
-                type: 'ControlGroup',
-                description:
-                    'Group to place the control in: a $cGroup(...) call or a const bound to one (optional)',
-            },
-        ],
-        returns:
-            'CollectionWithRange carrying the current slider value (range [min, max])',
-        signature:
-            '$slider(label: string, value: number | string, min: number | string, max: number | string, group?: ControlGroup): CollectionWithRange',
-    },
-    {
-        description:
-            'Create a momentary gate button in the Control panel: 5V while held, 0V otherwise. Chain through .hold for a fixed-length trigger per press.',
-        examples: [
-            'lead: $sine("c4").amp($adsr($btn("play")));',
-            '// fixed 100 ms trigger per press, however long the button is held\nlead: $sine("c4").amp($adsr($btn("hit").hold(0.1)));',
-        ],
-        group: 'Controls',
-        name: '$btn',
-        params: [
-            {
-                name: 'label',
-                type: 'string',
-                description:
-                    'Display label (must be a string literal, unique within its group)',
-            },
-            {
-                name: 'group',
-                type: 'ControlGroup',
-                description:
-                    'Group to place the control in: a $cGroup(...) call or a const bound to one (optional)',
-            },
-        ],
-        returns:
-            'CollectionWithRange carrying the button output (range [0, 5])',
-        signature:
-            '$btn(label: string, group?: ControlGroup): CollectionWithRange',
-    },
-    {
-        description:
-            'Create a latched toggle button in the Control panel: clicking flips between 0V and 5V and rewrites the initial-state literal in the source, so the state survives re-execution.',
-        examples: ['bass: $saw("c2").amp($toggleBtn("drone", false));'],
-        group: 'Controls',
-        name: '$toggleBtn',
-        params: [
-            {
-                name: 'label',
-                type: 'string',
-                description:
-                    'Display label (must be a string literal, unique within its group)',
-            },
-            {
-                name: 'initial',
-                type: 'boolean',
-                description: 'Initial state (must be a true/false literal)',
-            },
-            {
-                name: 'group',
-                type: 'ControlGroup',
-                description:
-                    'Group to place the control in: a $cGroup(...) call or a const bound to one (optional)',
-            },
-        ],
-        returns:
-            'CollectionWithRange carrying the button output (range [0, 5])',
-        signature:
-            '$toggleBtn(label: string, initial: boolean, group?: ControlGroup): CollectionWithRange',
-    },
-    {
-        description:
-            'Create a group of controls. Controls given the returned group as their last argument appear together in the Control panel under a collapsible header; groups nest through params.group. Clicking the header rewrites the collapsed literal in the source. Control labels need only be unique within their group.',
-        examples: [
-            'const voice = $cGroup("Voice");\ntone: $sine($slider("Pitch", "c4", "c2", "c6", voice)).amp($adsr($btn("Play", voice)));',
-            'const synth = $cGroup("Synth");\nconst amp = $cGroup("Amp", { collapsed: true, group: synth });\ntone: $saw($slider("Root", "c3", "c2", "c5", synth)).amp($slider("Level", 0.5, 0, 1, amp));',
-        ],
-        group: 'Controls',
-        name: '$cGroup',
-        params: [
-            {
-                name: 'label',
-                type: 'string',
-                description:
-                    'Display label (must be a string literal, unique among its siblings)',
-            },
-            {
-                name: 'params',
-                type: '{ collapsed?: boolean, group?: ControlGroup }',
-                description:
-                    'collapsed: whether the group starts collapsed (a true/false literal); group: a parent group to nest in. Must be an object literal; optional',
-            },
-        ],
-        returns:
-            "A ControlGroup reference. Pass the $cGroup(...) call or a const bound to it as a control's group argument.",
-        signature:
-            '$cGroup(label: string, params?: { collapsed?: boolean, group?: ControlGroup }): ControlGroup',
-    },
-    // ---- Advanced ----
-    {
-        description:
-            'Create placeholder signals that can be assigned later. Useful for feedback loops.',
-        examples: [
-            "const fb = $deferred();\nconst echoed = $delay($noise('white').amp(fb[0]), 0.25);\nfb.set(echoed);\nnoise: echoed;",
-        ],
-        group: 'Advanced',
-        name: '$deferred',
-        params: [
-            {
-                name: 'lanes',
-                type: 'number',
-                description: 'Number of deferred outputs (1-64, default 1)',
-            },
-        ],
-        returns: 'DeferredCollection',
-        signature: '$deferred(lanes?: number): DeferredCollection',
-    },
-
-    {
-        description:
-            "A group: one stereo lane, the sum of every track whose label ends in `$` and the name of this group's track. Those tracks play into the group after their own pan, gain, mute and solo, and reach the output only through it. " +
-            'Chain effects on it and label the result: that track is the group. It plays to the main output, to the channels of its own `$N` / `$Nm` suffix, or into another group, so groups nest. ' +
-            'A group has one track, a group track can send to buses, and a bus track cannot play into a group. The mixer shows a group with its tracks beside it, and can fold them away.',
-        examples: [
-            'kick$drums: $tr808.kick($`c ~ c ~`)\nhats$drums: $tr808.hiHat($`c*8`)\ndrums: $group().comp().track({ gain: 4 })',
-            "// Groups nest: drums and bass share a rhythm group on channels 2 and 3\nkick$drums: $tr808.kick($`c ~ c ~`)\ndrums$rhythm: $group()\nbass$rhythm: $saw('c2')\nrhythm$2: $group().lpf('c7')",
-        ],
-        group: 'Advanced',
-        name: '$group',
-        params: [],
-        returns: "The group's signal, to chain on and label",
-        signature: '$group(): GroupSignal',
-    },
-    {
-        description:
-            'A send-return bus: one stereo lane, the mix of every signal sent to it through the `sends` option of `.track()`. ' +
-            "Chain effects on it and label the result to hear it. That track is the bus: its name is what `sends` takes, and reads as the track's signal like any other name. " +
-            'A bus has one track, and a bus track cannot send to another bus or be soloed: it keeps playing while other tracks are soloed, so a soloed track is heard with its sends. The mixer shows bus tracks on the right, just left of the main strip.',
-        examples: [
-            "fx: $bus().plate()\ntone: $saw('a').track({ sends: [fx, 3] })\nbass: $sine('a2').track({ sends: fx })",
-            "// One track feeding two buses at different levels\nverb: $bus().plate().track({ gain: 3 })\necho: $bus().delay(0.25)\nkeys: $saw('c3').track({ sends: [[verb, 2], [echo, 4]] })",
-        ],
-        group: 'Advanced',
-        name: '$bus',
-        params: [],
-        returns: "The bus's signal, to chain on and label",
-        signature: '$bus(): BusSignal',
-    },
-    {
-        description:
-            'Tap the track named `name`: one lane of its audio after pan, gain and mute/solo, stereo for a stereo track, ' +
-            'with `.active` (0–5V gate), `.level` (gain, 0–10), and `.panning` (-5–5) as ranged signals. ' +
-            'Follows live mixer changes. A track label already binds its name to this tap; `$trackTap` is for a name held in a string. A name no track has is an error.',
-        examples: [
-            "bass: $saw('c2')\nconst tap = $trackTap('bass')\nlead: $sine('c5').gain(tap.level).track({ pan: tap.panning })\nbell: $sine('g5').gain(tap.active)",
-        ],
-        group: 'Advanced',
-        name: '$trackTap',
-        params: [
-            {
-                name: 'name',
-                type: 'string',
-                description: 'Name of the track to follow',
-            },
-        ],
-        returns: 'TrackTap',
-        signature: '$trackTap(name: string): TrackTap',
-    },
-    {
-        description:
-            'Set a custom processor applied to the final mix just before the main gain. ' +
-            'The callback receives the fully mixed Collection and should return a processed signal.',
-        examples: [
-            `$setEndOfChainCb((mix) => $lpf(mix, '2000hz'));`,
-            '$setEndOfChainCb((mix) => mix.scope());',
-        ],
-        group: 'Advanced',
-        name: '$setEndOfChainCb',
-        params: [
-            {
-                name: 'cb',
-                type: '(mixed: Collection) => Collection | CollectionWithRange',
-                description: 'Transform applied to the final mix',
-            },
-        ],
-        signature:
-            '$setEndOfChainCb(cb: (mixed: Collection) => Collection | CollectionWithRange): void',
-    },
-];
 
 /**
  * Check if a string is a known DSL type name.

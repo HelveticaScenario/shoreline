@@ -68,6 +68,10 @@
     "description": "MIDI input."
   },
   {
+    "name": "control",
+    "description": "Sliders and buttons in the Control panel."
+  },
+  {
     "name": "utility",
     "description": "General signal plumbing such as routing and smoothing."
   }

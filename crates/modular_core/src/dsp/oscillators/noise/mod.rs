@@ -3,9 +3,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{hash_bipolar, seed_base};
 use crate::dsp::utils::voct_to_hz;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 mod generators;
 mod lane;
@@ -36,8 +36,10 @@ struct NoiseParams {
     #[deserr(default)]
     color: NoiseKind,
     #[input(
-        "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop. Unpatched, a new value every sample",
+        "how often a new value is drawn; for telegraph and dust the average events per second, for lfsrShort the pitch of its loop",
         type = frequency,
+        default = -6.031,
+        default_doc = "a new value every sample",
     )]
     #[deserr(default)]
     rate: Option<PolySignal>,
@@ -110,7 +112,7 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
                   colored noise for hats, wind and surf, shift-register noise \
                   for chiptune percussion, and random triggers. Clocked slowly \
                   by `rate`, any color becomes stepped or smooth random CV.",
-    categories: &[ModuleCategory::Oscillator, ModuleCategory::Random],
+    categories: &[ReferenceCategory::Oscillator, ReferenceCategory::Random],
     sections: &[],
     examples: &[
         DocExample {
@@ -123,7 +125,7 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
                 melody: $sine(
                   $quantizer(
                     $noise('white', { rate: '4hz' }).range('c3', 'c5'),
-                    $chord('C(minor)'),
+                    'c(minor)',
                   ),
                 )
             "#,

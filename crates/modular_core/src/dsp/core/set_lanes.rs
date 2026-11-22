@@ -2,9 +2,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::core::mix::MixMode;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 fn default_lanes() -> usize {
     1
@@ -50,7 +50,7 @@ const SET_LANES_DOCS: ModuleDocs = ModuleDocs {
     description: "Folds a polyphonic signal down to a set number of lanes, panning the \
                   voices evenly across them: 1 for a mono sum, 2 for a stereo spread. With more \
                   outputs than inputs it spreads the input to fill every output instead.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[DocExample {
         title: "Detuned saws spread across stereo",

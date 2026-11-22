@@ -38,6 +38,8 @@ pub(crate) fn lower_source(source: SeqPatternSource) -> Lowered<SeqValue> {
 pub(crate) enum DegreeValue {
     Note {
         degree: i32,
+        /// Chromatic steps added after `degree` resolves through the scale.
+        semitones: i32,
         /// The scale of the nearest enclosing `.scale(...)`. Every note that
         /// reaches a scale pattern's root has one: `is_scaled` admits only
         /// trees whose every source sits under a `.scale`.
@@ -51,8 +53,9 @@ pub(crate) enum DegreeValue {
 impl DegreeValue {
     fn from_interval(value: &IntervalValue) -> Self {
         match value {
-            IntervalValue::Degree(degree) => DegreeValue::Note {
+            IntervalValue::Degree { degree, semitones } => DegreeValue::Note {
                 degree: *degree,
+                semitones: *semitones,
                 scale: None,
                 glide: 0.0,
                 ease: GlideEase::default(),
@@ -65,11 +68,12 @@ impl DegreeValue {
         match self {
             DegreeValue::Note {
                 degree,
+                semitones,
                 scale: Some(scale),
                 glide,
                 ease,
             } => SeqValue::Voltage {
-                volts: scale.degree_voltage(*degree),
+                volts: scale.degree_voltage(*degree, *semitones),
                 glide: *glide,
                 ease: *ease,
             },
@@ -161,48 +165,41 @@ impl Domain for DegreeValue {
             .map_err(|reason| format!("invalid scale \"{}\": {reason}", payload.scale))?;
         let scale = Arc::new(scale);
         let (inner, per_source) = Self::lower(*payload.pattern)?;
-        let scaled = inner.fmap(move |value| match value {
-            DegreeValue::Note {
-                degree,
-                glide,
-                ease,
-                ..
-            } => DegreeValue::Note {
-                degree: *degree,
-                scale: Some(Arc::clone(&scale)),
-                glide: *glide,
-                ease: *ease,
-            },
-            DegreeValue::Rest => DegreeValue::Rest,
+        let scaled = inner.fmap(move |value| {
+            let mut value = value.clone();
+            if let DegreeValue::Note { scale: s, .. } = &mut value {
+                *s = Some(Arc::clone(&scale));
+            }
+            value
         });
         Ok((scaled, per_source))
     }
 
-    /// Add the `rhs` degrees to each note, aligned by `mode`. A note keeps its
-    /// own scale and glide.
+    /// Add the `rhs` degrees and semitones to each note, aligned by `mode`. A
+    /// note keeps its own scale and glide.
     fn trans(payload: TransPatternPayload) -> Lowered<Self> {
         let (lhs, mut per_source) = Self::lower(*payload.pattern)?;
         let (rhs, rhs_meta) = parse_source::<IntervalValue>(payload.rhs)?;
         let rhs = rhs.offset_pattern_idx(per_source.len() as u32);
         per_source.extend(rhs_meta);
         let combined = combine_sp(&lhs, &rhs, payload.mode.to_rt(), |note, step| {
-            match (note, step.degree()) {
+            let mut note = note.clone();
+            match (&mut note, step) {
                 (
                     DegreeValue::Note {
-                        degree,
-                        scale,
-                        glide,
-                        ease,
+                        degree, semitones, ..
                     },
-                    Some(step),
-                ) => DegreeValue::Note {
-                    degree: degree + step,
-                    scale: scale.clone(),
-                    glide: *glide,
-                    ease: *ease,
-                },
-                _ => DegreeValue::Rest,
+                    IntervalValue::Degree {
+                        degree: step,
+                        semitones: shift,
+                    },
+                ) => {
+                    *degree += step;
+                    *semitones += shift;
+                }
+                _ => return DegreeValue::Rest,
             }
+            note
         });
         Ok((combined, per_source))
     }
@@ -212,15 +209,15 @@ impl Domain for DegreeValue {
     }
 
     fn with_glide(&self, glide: f64, ease: GlideEase) -> Self {
-        match self {
-            DegreeValue::Note { degree, scale, .. } => DegreeValue::Note {
-                degree: *degree,
-                scale: scale.clone(),
-                glide,
-                ease,
-            },
-            DegreeValue::Rest => DegreeValue::Rest,
+        let mut note = self.clone();
+        if let DegreeValue::Note {
+            glide: g, ease: e, ..
+        } = &mut note
+        {
+            *g = glide;
+            *e = ease;
         }
+        note
     }
 }
 

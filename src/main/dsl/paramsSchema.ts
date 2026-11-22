@@ -96,10 +96,9 @@ export interface ParamDescriptor {
      */
     isLaneSumInput?: boolean;
     /**
-     * Scale input (ScaleSignal): a poly signal of note pitches, or a spec
-     * string the factory rewrites into a `$chord` module. Its lanes form one
-     * shared set of notes, so it never contributes to a module's lane count
-     * and takes no part in `$g` signal-group expansion.
+     * Scale input (ScaleSignal): a poly signal of note pitches whose lanes
+     * form one shared set of notes, so it never contributes to a module's
+     * lane count and takes no part in `$g` signal-group expansion.
      */
     isScaleSignalInput?: boolean;
     /** A WAV file, written in the DSL as a `/`-rooted workspace path. */

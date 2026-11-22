@@ -8,6 +8,7 @@ import {
     setDSLWrapperLineOffset,
     captureSourceLocation,
     deriveLaneCountChecked,
+    spreadNoteLiterals,
 } from './factories';
 import type {
     AnyCollection,
@@ -31,6 +32,7 @@ import {
     replaceSignals,
     PORT_MAX_LANES,
 } from './GraphBuilder';
+import type { ChainFunction } from './chainModules';
 import { $g1, $g2, $g3 } from './signalGroups';
 import { createTrackTap, type TrackTap } from './trackTap';
 import { analyzeSourceSpans } from './analyzeSource';
@@ -47,6 +49,8 @@ import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $, $arrange } from './miniNotation';
 import { DELAY_SITE, SUPER_SITE } from './signalSiteTables';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
+import { chainNames } from '../../shared/dsl/referenceDocs';
 import { outputSetOf } from './outputResolution';
 import { superDefaults } from '../../shared/dsl/superDefaults';
 import { setActiveCycleFactory } from './patterns';
@@ -420,11 +424,11 @@ export function executePatchScript(
             sourceLocation,
             (node): BufferOutputRef => {
                 // Resolve the input signal and set params
-                const resolvedInput = replaceSignals(input);
-                node._setParam('input', resolvedInput);
+                const notes = spreadNoteLiterals(input);
+                node._setParam('input', replaceSignals(notes));
                 builder.setModuleChannels(
                     node.id,
-                    builder.liftedChannelsOf([input]),
+                    builder.liftedChannelsOf([notes]),
                 );
                 node._setParam('length', lengthSeconds);
 
@@ -497,22 +501,10 @@ export function executePatchScript(
         );
     }
 
+    // Documented with `$delay`'s declaration (`dslModuleDocs.ts`).
     interface DelayOptions {
-        /**
-         * Feedback amount, 0–5 (0 = no repeats, 5 = 100% = unity, default
-         * 2.5 = 50%). Clamped to 0–5. May be a signal for modulation.
-         */
         feedback?: PolySignal;
-        /**
-         * Optional processor applied to the dry-plus-feedback mix before it is
-         * written to the buffer — e.g. a filter or saturator that colours every
-         * recirculation of the delay.
-         */
         feedbackCb?: (mixed: Collection) => Collection;
-        /**
-         * Maximum delay time in seconds — sizes the underlying buffer and
-         * caps how long `time` can be (default 5).
-         */
         maxTime?: number;
     }
 
@@ -527,17 +519,8 @@ export function executePatchScript(
         return 1;
     };
 
-    /**
-     * Delay with feedback: sum `input` with the attenuated feedback, optionally
-     * process that mix through `feedbackCb`, write it into a `$buffer` of
-     * `maxTime` seconds, and read it back `time` seconds late. The delayed read
-     * is attenuated by `feedback` and summed back in, so a `feedbackCb` filter
-     * colours every recirculation. With `feedback = 0` you still hear the first
-     * echo; higher values repeat it.
-     *
-     * Returns the wet `$delayRead` output. Mix the dry signal back yourself
-     * (`$mix([input, $delay(input, time)])`) or use `.delay(time).wet(mix)`.
-     */
+    // Sums `input` with the attenuated feedback, passes the mix through
+    // `feedbackCb`, writes it into a `$buffer` and reads it back `time` late.
     const $delay = (
         input: Collection,
         time: PolySignal,
@@ -595,11 +578,6 @@ export function executePatchScript(
         );
     };
 
-    // `$delay` is a DSL helper, not a module, so it is made a chain method here.
-    builder.registerChainMethod('delay', (self, ...args) =>
-        $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
-    );
-
     const $unison = userNamespaceTree['$unison'];
     const $stereoFold = userNamespaceTree['$stereoFold'];
     const superDefault = superDefaults(schemas);
@@ -613,31 +591,26 @@ export function executePatchScript(
         );
     }
 
+    // Documented with `$super`'s declaration (`dslModuleDocs.ts`).
     interface SuperOptions {
-        /** Copies per note. */
         unison?: number;
-        /** Semitones between the lowest and highest copy. */
         detune?: PolySignal;
-        /** How far the copies fan out across the stereo field. */
         width?: PolySignal;
     }
 
-    /**
-     * A detuned, stereo-spread unison stack of any voice: `cb` builds one
-     * voice from the `$unison` copies of `freq`, and the copies it makes are
-     * folded into one stereo lane per note.
-     */
+    type SuperVoice = (
+        voices: Collection,
+        options: { phaseOffset: Collection },
+    ) => Collection;
+
     const $super = (
         freq: PolySignal,
-        cb: (
-            voices: Collection,
-            options: { phaseOffset: Collection },
-        ) => Collection,
+        cb: SuperVoice,
         opts: SuperOptions = {},
     ): Collection => {
         if (typeof cb !== 'function') {
             throw new TypeError(
-                "$super: the second argument builds one voice, e.g. $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))",
+                "$super: pass a function that builds one voice, e.g. $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))",
             );
         }
         if (typeof opts !== 'object' || opts === null) {
@@ -655,8 +628,6 @@ export function executePatchScript(
             ]),
             () => {
                 const voices = $unison(freq, unison, detune) as Collection;
-                // Read past the root, so offering the phase does not count as
-                // taking the copies as their phase.
                 const phaseOffset = outputSetOf(voices)?.values
                     .phase as Collection;
                 const voice = builder.outputResolver.withUserCode(() =>
@@ -667,6 +638,34 @@ export function executePatchScript(
         );
     };
 
+    // Modules built from others have no schema, so the ones their docs mark
+    // `chainable` (`dslModuleDocs.ts`) are made chain methods here.
+    const builtChains: Record<string, ChainFunction> = {
+        delay: (self, ...args) =>
+            $delay(
+                self as Collection,
+                ...(args as [PolySignal, DelayOptions?]),
+            ),
+        super: (self, ...args) =>
+            $super(
+                self as Collection,
+                ...(args as [SuperVoice, SuperOptions?]),
+            ),
+    };
+    const chained = chainNames(dslModules(schemas));
+    const unmatched = [
+        ...chained.filter((name) => !(name in builtChains)),
+        ...Object.keys(builtChains).filter((name) => !chained.includes(name)),
+    ];
+    if (unmatched.length > 0) {
+        throw new Error(
+            `DSL execution error: chainable in the docs but not here, or here but not in the docs: ${unmatched.join(', ')}`,
+        );
+    }
+    for (const name of chained) {
+        builder.registerChainMethod(name, builtChains[name]);
+    }
+
     const $keyframes = userNamespaceTree['$keyframes'];
     if (typeof $keyframes !== 'function') {
         throw new Error(
@@ -674,13 +673,6 @@ export function executePatchScript(
         );
     }
 
-    /**
-     * @example
-     * // crossfade 3 voices by a slow LFO
-     * const osc = $sine(['c', 'e', 'g'])
-     * const weights = $cross(osc.length, $sine('0.25hz').range(0, 1));
-     * chord: osc.amp(weights);
-     */
     const $cross = (
         count: number,
         playhead: PolySignal,
@@ -840,7 +832,10 @@ export function executePatchScript(
 
     const warpHelper =
         (type: string, field: string) => (value: unknown, next?: unknown) => {
-            const t = wrapWarp({ type, [field]: replaceSignals(value) });
+            const t = wrapWarp({
+                type,
+                [field]: replaceSignals(spreadNoteLiterals(value)),
+            });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })
                 : t;

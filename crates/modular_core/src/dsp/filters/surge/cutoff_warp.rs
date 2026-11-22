@@ -11,8 +11,8 @@ use super::coeffs::note_to_hz;
 use super::fastmath::{fastcos, fastsin, fasttanh_clamped, softclip};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 use crate::dsp::shape::shapers::ojd;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Biquad passband shared by the warp families.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -213,7 +213,7 @@ const CUTOFF_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     description: "A resonant lowpass with saturation in its feedback, so drive bends the sweep \
                   into a hot, distorted, slightly unstable growl; `resWarpLp` squashes the \
                   resonant peak instead. More `stages` cut steeper and saturate harder.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Growling saturated sweep",
@@ -232,7 +232,7 @@ const CUTOFF_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp highpass",
     description: "A resonant highpass with saturation in its feedback, for a thin, crackling, \
                   overdriven top end; `resWarpHp` thickens the peak instead.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Crackling highpass sweep",
@@ -251,7 +251,7 @@ const CUTOFF_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp bandpass",
     description: "A resonant bandpass with saturation in its feedback: a narrow, distorted \
                   band that honks when driven, where `resWarpBp` buzzes.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Honking distorted wah",
@@ -269,7 +269,7 @@ const CUTOFF_WARP_NOTCH_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp notch",
     description: "A notch with saturation in its feedback, so the hole it cuts smears and \
                   grits up with level.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Gritty notch sweep",
@@ -287,7 +287,7 @@ const CUTOFF_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Cutoff Warp allpass",
     description: "An allpass with saturation in its feedback: phase-smearing that adds its own \
                   distortion; stack `stages` for a deeper smear.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Driven phase smear",

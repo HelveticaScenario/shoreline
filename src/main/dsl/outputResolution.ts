@@ -24,8 +24,6 @@ const OUTPUT_SET = Symbol('outputSet');
 export interface OutputSet {
     outputs: readonly ResolvableOutput[];
     values: Readonly<Record<string, unknown>>;
-    /** The resolver that tracks which output the root is first taken as. */
-    resolver: OutputResolver;
     /** The roots this one was sliced or joined from; taking it takes them. */
     parents?: readonly OutputSet[];
 }
@@ -44,18 +42,12 @@ export type CallSite = { line: number; column: number };
 
 /**
  * Tag `root` as standing for every output in `set`, and give it each output
- * by name behind an underscore (`seq._trig`). Reading one by name takes the
- * root as that output.
+ * by name behind an underscore (`seq._trig`).
  */
 export function markRoot(root: object, set: OutputSet): void {
     Object.defineProperty(root, OUTPUT_SET, { value: set });
     for (const [name, value] of Object.entries(set.values)) {
-        Object.defineProperty(root, `_${name}`, {
-            get() {
-                set.resolver.take(set, name);
-                return value;
-            },
-        });
+        Object.defineProperty(root, `_${name}`, { value });
     }
 }
 
@@ -86,13 +78,13 @@ export class OutputResolver {
     private inCall = false;
     private firstChoices = new Map<OutputSet, string>();
 
-    /** The output `set`'s root was first taken as, if it was. */
+    /** The output `set`'s root was first plugged in as, if it was. */
     firstChoice(set: OutputSet): string | undefined {
         return this.firstChoices.get(set);
     }
 
-    /** Note that `set`'s root, and the roots it came from, were taken as `name`. */
-    take(set: OutputSet, name: string): void {
+    /** Note that `set`'s root, and the roots it came from, were plugged in as `name`. */
+    private take(set: OutputSet, name: string): void {
         if (!this.firstChoices.has(set)) {
             this.firstChoices.set(set, name);
         }

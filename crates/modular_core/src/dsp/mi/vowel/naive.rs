@@ -13,8 +13,8 @@ use crate::dsp::mi::core::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::oscillators::FmMode,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -263,7 +263,7 @@ const FORMANT_VOWEL_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' simplest vowel synthesis: a \
                   glottal impulse train through five tuned band-pass \
                   filters, singing smooth, choir-like vowels at the pitch.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[DocExample {
         title: "Morphing vowels",

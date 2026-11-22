@@ -24,7 +24,8 @@
 //!
 //! Scope:
 //! - Sequences, stacks (`,`), fast subsequences `[...]`, slow subsequences `<...>`
-//! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), rest (`~`)
+//! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), chords
+//!   (`c3:M7`), scales (`d(dorian)`), rest (`~`), altered numbers (`2+`, `4--`)
 //! - Note letters 'a'..'g' also parse as a note without octave.
 //! - Modifiers: `*`, `/`, `!`, `?`, `@`, `(k,n,rot?)`
 //! - Random choice: `a|b|c`
@@ -382,6 +383,30 @@ impl<'a> Parser<'a> {
                 };
                 // Optional octave
                 let octave = self.maybe_integer_i32()?;
+                if let Some(chord) = self.chord_body() {
+                    return Ok(MiniAST::Pure(Located::new(
+                        AtomValue::Chord {
+                            letter: letter as char,
+                            accidental,
+                            octave,
+                            chord,
+                        },
+                        start,
+                        self.pos,
+                    )));
+                }
+                if let Some(scale) = self.scale_body() {
+                    return Ok(MiniAST::Pure(Located::new(
+                        AtomValue::Scale {
+                            letter: letter as char,
+                            accidental,
+                            octave,
+                            scale,
+                        },
+                        start,
+                        self.pos,
+                    )));
+                }
                 let end = self.pos;
                 return Ok(MiniAST::Pure(Located::new(
                     AtomValue::Note {
@@ -405,12 +430,87 @@ impl<'a> Parser<'a> {
             let end = self.pos;
             return Ok(MiniAST::Pure(Located::new(AtomValue::Hz(n), start, end)));
         }
+        if let Some(semitones) = self.semitone_marks() {
+            return Ok(MiniAST::Pure(Located::new(
+                AtomValue::Altered {
+                    value: n,
+                    semitones,
+                },
+                start,
+                self.pos,
+            )));
+        }
         let end = self.pos;
         Ok(MiniAST::Pure(Located::new(
             AtomValue::Number(n),
             start,
             end,
         )))
+    }
+
+    /// A run of `+` or `-` marks after a number, as a signed semitone count.
+    /// Mirrors the peggy AlteredValue rule: the run must not be followed by a
+    /// number, so `2-3` stays the two atoms `2` and `-3`, nor by the other
+    /// mark.
+    fn semitone_marks(&mut self) -> Option<i32> {
+        let mark = self.peek().filter(|c| *c == b'+' || *c == b'-')?;
+        let mut end = self.pos;
+        while self.input.get(end) == Some(&mark) {
+            end += 1;
+        }
+        let digit_at = |i: usize| self.input.get(i).is_some_and(u8::is_ascii_digit);
+        if digit_at(end)
+            || (self.input.get(end) == Some(&b'.') && digit_at(end + 1))
+            || matches!(self.input.get(end), Some(b'+' | b'-'))
+        {
+            return None;
+        }
+        let count = (end - self.pos) as i32;
+        self.pos = end;
+        Some(if mark == b'+' { count } else { -count })
+    }
+
+    /// A chord symbol after its root note and `:`, consumed with the colon;
+    /// the characters match the peggy grammar's `ChordSymbolChar`.
+    fn chord_body(&mut self) -> Option<String> {
+        if self.peek() != Some(b':') {
+            return None;
+        }
+        let start = self.pos + 1;
+        let len = self.input[start..]
+            .iter()
+            .take_while(|&&b| b.is_ascii_alphanumeric() || matches!(b, b'#' | b'^' | b'%'))
+            .count();
+        if len == 0 {
+            return None;
+        }
+        self.pos = start + len;
+        std::str::from_utf8(&self.input[start..self.pos])
+            .ok()
+            .map(str::to_string)
+    }
+
+    /// A scale's `(…)` directly after its root note, consumed with its
+    /// parentheses. A body holding `,` is a euclidean modifier instead, as in
+    /// the peggy grammar's `ScaleBody`.
+    fn scale_body(&mut self) -> Option<String> {
+        if self.peek() != Some(b'(') {
+            return None;
+        }
+        let start = self.pos + 1;
+        let len = self.input[start..]
+            .iter()
+            .position(|&b| matches!(b, b')' | b'(' | b',' | b'[' | b']' | b'<' | b'>'))?;
+        let end = start + len;
+        if self.input[end] != b')' {
+            return None;
+        }
+        let body = std::str::from_utf8(&self.input[start..end]).ok()?.trim();
+        if body.is_empty() {
+            return None;
+        }
+        self.pos = end + 1;
+        Some(body.to_string())
     }
 
     fn matches_keyword_ci(&mut self, kw: &str) -> bool {

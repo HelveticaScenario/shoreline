@@ -154,11 +154,11 @@ A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crat
 - `sections`: titled body, `DocTable` and examples, only for real reference material such as a syntax guide;
 - `examples`: titled patches that run as written, formatted as the editor's Format Document prints them (Prettier with `DEFAULT_PRETTIER_OPTIONS`). A multi-line example is an indented raw string opening on its own line; the schema strips the indent.
 
-Monaco shows the description, sections and first example; the Reference pane shows everything. `tests/module_docs.rs` checks the shape, and `generatedExampleValidity.test.ts` runs every example, and `referenceDocs.test.ts` checks each is formatted.
+Monaco shows the description, sections and first example; the Docs panel's Modules page shows everything. A global's docs take the same shape in its `GLOBALS` entry (`src/shared/dsl/globalDocs.ts`), beside its TypeScript declarations, and the Globals page shows them; a module the DSL builds from other modules (`$delay`, `$super`) takes it in `src/shared/dsl/dslModuleDocs.ts`, and the Modules page lists it beside the rest. `referenceDocs.test.ts` checks every module's and global's docs for this shape and each example's formatting, and `generatedExampleValidity.test.ts` runs every example.
 
 ### Experimental Modules
 
-`#[module(name = "$comp", docs = COMP_DOCS, args(input), experimental)]` marks a module experimental; the editor's hover, completion and signature help, and the Reference pane tell users its sound and params may still change, so its `ModuleDocs` never says so itself.
+`#[module(name = "$comp", docs = COMP_DOCS, args(input), experimental)]` marks a module experimental; the editor's hover, completion and signature help, and the Docs panel tell users its sound and params may still change, so its `ModuleDocs` never says so itself.
 
 - **Mark a module experimental** when any of these hold: its API (name, params, ranges, outputs) isn't settled; its sound hasn't been validated against a reference or by listening; a planned feature would change its param shape; it is one of several competing candidates.
 - **Not a reason:** failing the alloc audit or another engine rule. A module that breaks those never merges.

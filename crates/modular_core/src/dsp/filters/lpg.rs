@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::filter::{Svf, tan_dirty},
@@ -132,7 +132,7 @@ const LPG_DOCS: ModuleDocs = ModuleDocs {
                   in Mutable Instruments Plaits: each ping opens it louder and brighter, then \
                   it closes with the slow, bouncy tail of plucked and struck sounds. With \
                   neither `trigger` nor `level` patched, the sound passes straight through.",
-    categories: &[ModuleCategory::Filter, ModuleCategory::Dynamics],
+    categories: &[ReferenceCategory::Filter, ReferenceCategory::Dynamics],
     sections: &[],
     examples: &[
         DocExample {

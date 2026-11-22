@@ -1,5 +1,5 @@
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::sanitize,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -15,8 +15,10 @@ struct LagProcessorParams {
     #[input("signal to smooth", type = audio, bounds)]
     input: PolySignal,
     #[input(
-        "seconds the output takes to climb 1 V; follows fall when not patched",
+        "seconds the output takes to climb 1 V",
         type = control,
+        default = 0.01,
+        default_doc = "the same as `fall`",
         range = (0.001, ..),
         control_range = (0.001, 10.0),
     )]
@@ -52,7 +54,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
                   portamento on a pitch, softened steps on stepped modulation, or a \
                   gate rounded into a rise and fall. Rising and falling can glide at \
                   different rates.",
-    categories: &[ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Utility],
     sections: &[],
     examples: &[
         DocExample {

@@ -12,8 +12,8 @@ use crate::dsp::mi::core::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::oscillators::FmMode,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -250,7 +250,7 @@ const SAM_VOWEL_DOCS: ModuleDocs = ModuleDocs {
                   synthesizer: three sine formants restarted on every \
                   glottal pulse, for a buzzy, retro voice with consonants \
                   on `trigger`.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[DocExample {
         title: "Retro syllables",

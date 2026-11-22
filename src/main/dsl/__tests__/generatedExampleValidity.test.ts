@@ -2,8 +2,10 @@
  * Validates that every documented code example evaluates to a valid patch.
  *
  * Examples come from three sources:
- *   1. Each module's structured docs (`docs.examples` and section examples),
- *      declared in its Rust `ModuleDocs` const and carried by `schemas.json`.
+ *   1. The structured docs (`docs.examples` and section examples) of each
+ *      module, declared in its Rust `ModuleDocs` const and carried by
+ *      `schemas.json`, of each global, in `GLOBALS`, and of each module the
+ *      DSL builds, in `dslModules`.
  *   2. `@example` JSDoc tags hand-written in `typescriptLibGen.ts`.
  *   3. ```js fenced blocks in hand-written JSDoc there.
  *
@@ -16,6 +18,13 @@
 import { describe, expect, test } from 'vitest';
 import { validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
+import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
+import { dslModules } from '../../../shared/dsl/dslModuleDocs';
+import { functionToReferenceEntry } from '../../../shared/dsl/referenceDocs';
+import {
+    allExamples,
+    type DocContent,
+} from '../../../shared/dsl/referenceDocs';
 import { buildLibSource } from '../typescriptLibGen';
 import { type DSLExecutionOptions, executePatchScript } from '../executor';
 
@@ -51,9 +60,9 @@ const EXECUTION_OPTIONS: DSLExecutionOptions = {
 // ─── Example extraction ─────────────────────────────────────────────────────
 
 interface DocExample {
-    /** Where the example came from: a module's docs, an `@example` tag, or
-     *  a ```js fence in hand-written JSDoc. */
-    kind: 'module' | 'tag' | 'fence';
+    /** Where the example came from: a module's or global's docs, an
+     *  `@example` tag, or a ```js fence in hand-written JSDoc. */
+    kind: 'module' | 'global' | 'tag' | 'fence';
     /** Ordinal within the generated source, for stable test labels. */
     ordinal: number;
     /** The example source code. */
@@ -151,37 +160,44 @@ function isTypeLevelExample(code: string): boolean {
 
 // ─── The check ──────────────────────────────────────────────────────────────
 
-/** Every example in the modules' structured docs, sections included. */
-function moduleExamples(): DocExample[] {
-    return schemas.flatMap((module) =>
-        [
-            ...module.docs.examples,
-            ...module.docs.sections.flatMap((s) => s.examples),
-        ].map((e, ordinal) => ({
-            code: e.code,
-            kind: 'module' as const,
-            label: `${module.name}: ${e.title}`,
-            ordinal,
-        })),
-    );
+/** Every example in one entry's structured docs, sections included. */
+function structuredExamples(
+    kind: 'module' | 'global',
+    name: string,
+    docs: DocContent,
+): DocExample[] {
+    return allExamples(docs).map((e, ordinal) => ({
+        code: e.code,
+        kind,
+        label: `${name}: ${e.title}`,
+        ordinal,
+    }));
 }
 
 const generated = buildLibSource(schemas);
-const fromModules = moduleExamples();
-const moduleCode = new Set(fromModules.map((e) => e.code));
-// The generated JSDoc repeats each module's first example; count it once.
-const allExamples = [
-    ...fromModules,
+const fromDocs = [
+    ...schemas.flatMap((m) => structuredExamples('module', m.name, m.docs)),
+    ...GLOBAL_ENTRIES.flatMap((g) =>
+        structuredExamples('global', g.name, g.docs),
+    ),
+    ...dslModules(schemas)
+        .map(functionToReferenceEntry)
+        .flatMap((m) => structuredExamples('module', m.name, m.docs)),
+];
+const docsCode = new Set(fromDocs.map((e) => e.code));
+// The generated JSDoc repeats each entry's first example; count it once.
+const everyExample = [
+    ...fromDocs,
     ...extractDocExamples(generated).filter(
-        (e) => !moduleCode.has(e.code.replace(/^\/\/.*\n/, '')),
+        (e) => !docsCode.has(e.code.replace(/^\/\/.*\n/, '')),
     ),
 ];
-const patchExamples = allExamples.filter((e) => !isTypeLevelExample(e.code));
+const patchExamples = everyExample.filter((e) => !isTypeLevelExample(e.code));
 
 describe('generated DSL example extraction', () => {
     test('finds a substantial number of examples', () => {
         // Guards against the extractor silently matching nothing.
-        expect(allExamples.length).toBeGreaterThan(80);
+        expect(everyExample.length).toBeGreaterThan(80);
         expect(patchExamples.length).toBeGreaterThan(80);
     });
 });

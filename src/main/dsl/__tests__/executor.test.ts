@@ -940,10 +940,62 @@ describe('sequencing', () => {
         ).toThrow(/IntervalValue requires integer scale degrees, got 1\.5/);
         expect(() =>
             execPatch('out: $cycle($("c4").scale("C(major)"))'),
-        ).toThrow(/note names are not allowed under \.scale/);
+        ).toThrow(
+            /note names, chords and scales are not allowed under \.scale/,
+        );
         expect(() =>
             execPatch('out: $cycle($("440hz").scale("C(major)"))'),
         ).toThrow(/Hz atoms are not allowed under \.scale/);
+    });
+
+    test('a chord or scale atom plays in a note pattern and is rejected under .scale', () => {
+        expect(
+            findModules(execPatch('out: $cycle($("c3:M7 eb:m7^1%"))'), '$cycle')
+                .length,
+        ).toBe(1);
+        expect(() =>
+            execPatch('out: $cycle($("c:M").scale("C(major)"))'),
+        ).toThrow(/chords and scales are not allowed under \.scale/);
+        expect(
+            findModules(execPatch('out: $cycle($("d3(dorian) c:m"))'), '$cycle')
+                .length,
+        ).toBe(1);
+        expect(() =>
+            execPatch('out: $cycle($("d(dorian)").scale("C(major)"))'),
+        ).toThrow(/scales are not allowed under \.scale/);
+        expect(() => execPatch('out: $cycle($("c(nope)"))')).toThrow(
+            /unknown scale/,
+        );
+        expect(() => execPatch('out: $cycle($("c:maj7"))')).toThrow(
+            /write `M` for major and `m` for minor/,
+        );
+    });
+
+    test('a chord or scale literal is one lane per note', () => {
+        const semitones = (freq: unknown[]) =>
+            freq.map((v) => (typeof v === 'number' ? Math.round(v * 12) : v));
+        const [saw] = findModules(execPatch('out: $saw("c3:M7")'), '$saw');
+        expect(semitones(saw.params.freq)).toEqual([-12, -8, -5, -1]);
+        const [mixed] = findModules(
+            execPatch('out: $saw(["c2", "eb:m^1"])'),
+            '$saw',
+        );
+        expect(semitones(mixed.params.freq)).toEqual(['c2', 6, 10, 15]);
+        const [scale] = findModules(
+            execPatch('out: $saw("d3(dorian)")'),
+            '$saw',
+        );
+        expect(semitones(scale.params.freq)).toEqual([
+            -10, -8, -7, -5, -3, -1, 0,
+        ]);
+        const [buffer] = findModules(
+            execPatch('const b = $buffer("c3:M7", 1)'),
+            '$buffer',
+        );
+        expect(buffer.params.input).toHaveLength(4);
+        expect(() => execPatch('out: $saw("c3:nope")')).toThrow(
+            /"c3:nope": unknown chord/,
+        );
     });
 
     test('$cycle accepts mixed numeric, note, and hz atoms', () => {
@@ -1177,7 +1229,7 @@ describe('utilities', () => {
 
     test('$super stacks every note of a chord and folds each to one lane', () => {
         const patch = execPatch(
-            "pad: $super($chord('C3[maj]'), (f, { phaseOffset }) => $saw(f, { phaseOffset }), { unison: 3 })",
+            "pad: $super('c3:M', (f, { phaseOffset }) => $saw(f, { phaseOffset }), { unison: 3 })",
         );
         const [unison] = findModules(patch, '$unison');
         expect(unison.params.count).toBe(3);
@@ -1240,19 +1292,15 @@ describe('utilities', () => {
         expect(findModules(patch, '$quantizer').length).toBe(1);
     });
 
-    test('$quantizer string scale becomes a $chord feeding the scale input', () => {
-        const patch = execPatch('out: $quantizer($sine("C4"), "C[maj7]")');
-        const [chord] = findModules(patch, '$chord');
-        expect(chord.params.chord).toBe('C[maj7]');
-        const [quantizer] = findModules(patch, '$quantizer');
-        const scale = quantizer.params.scale as Array<{
-            module: string;
-            port: string;
-        }>;
-        expect(scale).toHaveLength(4);
-        expect(
-            scale.every((c) => c.module === chord.id && c.port === 'pitch'),
-        ).toBe(true);
+    test('$quantizer takes a chord or scale literal as its scale', () => {
+        for (const [scale, notes] of [
+            ['c3:M7', 4],
+            ['d3(dorian)', 7],
+        ] as const) {
+            const patch = execPatch(`out: $quantizer($sine("C4"), "${scale}")`);
+            const [quantizer] = findModules(patch, '$quantizer');
+            expect(quantizer.params.scale).toHaveLength(notes);
+        }
     });
 
     test('$quantizer takes a signal scale and a gate', () => {
@@ -1260,7 +1308,6 @@ describe('utilities', () => {
             'const midi = $midiCV({ lanes: 4 })\n' +
                 'out: $quantizer($sine("1hz"), midi, { gate: midi._gate })',
         );
-        expect(findModules(patch, '$chord').length).toBe(0);
         const [midi] = findModules(patch, '$midiCV');
         const [quantizer] = findModules(patch, '$quantizer');
         const scale = quantizer.params.scale as Array<{
@@ -1288,23 +1335,12 @@ describe('utilities', () => {
         );
     });
 
-    test('$chord', () => {
-        const patch = execPatch('out: $saw($chord("C3[m7 inv1]"))');
-        expect(findModules(patch, '$chord').length).toBe(1);
-    });
-
     test('$inversion', () => {
         const patch = execPatch(
-            "const c = $inversion(['c3', 'e3', 'g3'], 1.5)\nout: $saw(c).amp(c._level)",
+            "const c = $inversion('c3:M', 1.5)\nout: $saw(c).amp(c._level)",
         );
         const [inversion] = findModules(patch, '$inversion');
         expect(inversion.params.amount).toBe(1.5);
-    });
-
-    test('$chord rejects an invalid spec', () => {
-        expect(() => execPatch('out: $saw($chord("C(maj7)"))')).toThrow(
-            /Invalid scale specification/,
-        );
     });
 
     test('$clockDivider', () => {
@@ -2464,7 +2500,7 @@ describe('$delay', () => {
     test('.delay(...).wet crossfades the dry signal against the wet delay', () => {
         const patch = execPatch('out: $sine("C4").delay(0.25).wet(2.5)');
         expect(findModules(patch, '$delayRead').length).toBe(1);
-        expect(findModules(patch, '_crossfade')).toHaveLength(1);
+        expect(findModules(patch, '$crossfade')).toHaveLength(1);
     });
 
     test('sizes the feedback path to the widest polysignal param', () => {
@@ -2758,6 +2794,16 @@ describe('$phase helpers', () => {
             type: 'cable',
             port: 'output',
         });
+    });
+
+    test('a $phase amount spreads a chord literal into its notes', () => {
+        const patch = execWithWavs(
+            'out: $wavetable(0, "/wavs/wt.wav", 0, { phase: $phase.fold("c:M") })',
+        ).patch;
+        const [wt] = findModules(patch, '$wavetable');
+        expect((wt.params.phase as { amount: unknown[] }).amount).toHaveLength(
+            3,
+        );
     });
 
     test('$phase variants use camelCase tags matching Rust deserializer', () => {

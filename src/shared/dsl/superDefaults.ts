@@ -14,7 +14,9 @@ export interface SuperDefaults {
  * `$super`'s defaults, read from the modules it stands in for so the two
  * can never disagree. Null when any of them is missing from the schemas.
  */
-export function superDefaults(schemas: ModuleSchema[]): SuperDefaults | null {
+export function superDefaults(
+    schemas: readonly ModuleSchema[],
+): SuperDefaults | null {
     const find = (name: string) => schemas.find((s) => s.name === name);
     const signalDefault = (module: string, param: string) =>
         find(module)?.signalParams.find((p) => p.name === param)?.defaultValue;

@@ -3,8 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::random::Random,
@@ -96,7 +96,7 @@ const SYNTH_SNARE_DOCS: ModuleDocs = ModuleDocs {
                   909: two coupled oscillators swept down in pitch for the \
                   body, and filtered noise for the snares. Leave `trigger` \
                   unpatched and it drones.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[
         DocExample {

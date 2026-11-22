@@ -12,7 +12,8 @@
  * Differences from krill.pegjs:
  *   - Emits the shared `MiniAST` shape directly (no {type_, source_, options_}
  *     intermediate wrappers).
- *   - Atom kinds reduced to Number, Hz, Note, Rest. No sample-name identifiers,
+ *   - Atom kinds reduced to Number, Hz, Note, Chord, Scale, Rest, plus Altered
+ *     (a number with trailing `+`/`-` semitone marks). No sample-name identifiers,
  *     MIDI shorthand, module-reference atoms, string atoms, or voltage atoms.
  *   - Modifier operands reuse the same AST typing as the Rust parser
  *     (MiniASTF64 for fast/slow factors and degrade probabilities,
@@ -238,7 +239,10 @@ Rest
 Value
   = HzValue
   / TruthyValue
+  / ChordValue
+  / ScaleValue
   / NoteValue
+  / AlteredValue
   / NumberValue
 
 // `x` is the truthy structure marker used by `.struct(...)` boolean patterns
@@ -254,6 +258,16 @@ HzValue
       return { Pure: located({ Hz: n }, location()) };
     }
 
+// A number followed by a run of `+` or `-` marks, each raising or lowering it
+// one semitone (`2+`, `4--`). The run must not be followed by a number, so
+// `2-3` stays the two atoms `2` and `-3`, nor by the other mark, so `2+-` is
+// an error rather than `2+` and a rest.
+AlteredValue
+  = n:Number marks:$("+"+ / "-"+) !("."? [0-9]) ![+-] {
+      const semitones = marks[0] === "+" ? marks.length : -marks.length;
+      return { Pure: located({ Altered: { value: n, semitones } }, location()) };
+    }
+
 NumberValue
   = n:Number {
       return { Pure: located({ Number: n }, location()) };
@@ -264,20 +278,37 @@ NumberValue
 // only '#' or 'b'. The trailing !IdentCont stops a note from matching the
 // start of a longer alphanumeric run, so `cb` is c-flat but `cba` is not a note.
 NoteValue
-  = letter:$[a-gA-G] acc:Accidental? oct:Octave? !IdentCont {
-      return {
-        Pure: located(
-          {
-            Note: {
-              letter: letter.toLowerCase(),
-              accidental: acc,
-              octave: oct,
-            },
-          },
-          location()
-        ),
-      };
+  = note:NoteName !IdentCont {
+      return { Pure: located({ Note: note }, location()) };
     }
+
+// A chord is a note, a colon and a chord symbol: c3:M7, eb:m7^1, g:7b9%.
+// Modifiers follow the symbol, so `c:m*2` repeats the chord.
+ChordValue
+  = note:NoteName ":" chord:$ChordSymbolChar+ {
+      return { Pure: located({ Chord: { ...note, chord } }, location()) };
+    }
+
+// A scale is a note with the scale in parentheses directly after it:
+// d(dorian), c(0 2 4 7 9), a(just). A body holding `,` is a euclidean
+// modifier instead, so `c(3,8)` stays a rhythm.
+ScaleValue
+  = note:NoteName "(" scale:ScaleBody ")" {
+      return { Pure: located({ Scale: { ...note, scale } }, location()) };
+    }
+
+ScaleBody
+  = body:$[^(),\[\]<>]+ &{ return body.trim().length > 0; } {
+      return body.trim();
+    }
+
+NoteName
+  = letter:$[a-gA-G] acc:Accidental? oct:Octave? {
+      return { letter: letter.toLowerCase(), accidental: acc, octave: oct };
+    }
+
+ChordSymbolChar
+  = [a-zA-Z0-9#^%]
 
 Accidental
   = "#" { return "#"; }

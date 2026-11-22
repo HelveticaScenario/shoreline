@@ -17,7 +17,7 @@ Shoreline is an Electron app (React/TypeScript renderer) on a Rust DSP engine. T
     - `dsp_fresh_tests.rs` — every module constructs, validates its params and renders. A module with a required param needs a `minimal_params` case here.
     - `block_<module>.rs` — a block module's Block and Sample paths agree bit for bit and stay allocation-free, using the harness in `tests/block_common`.
     - `bounds.rs` — output bounds stay in lock step with their samples on every read path.
-    - `module_docs.rs`, `input_metadata.rs` — module docs and param metadata have the required shape and order.
+    - `input_metadata.rs` — module param metadata has the required shape and order.
     - `swap_glides.rs`, `connect_alloc_free.rs` — patch updates glide changed params and allocate nothing on the audio thread.
     - `peggy_parser_parity.rs`, `sp_combine_strudel_parity.rs` — the mini-notation parser and pattern combinators match their JS references.
 - Multi-module patches are built with `Patch::from_graph()`, a test-only helper, so no audio thread is needed.
@@ -29,8 +29,9 @@ Shoreline is an Electron app (React/TypeScript renderer) on a Rust DSP engine. T
 - **Config:** `vitest.config.ts`. Tests run in a single forked process because the N-API module cannot load in worker threads.
 - **Location:** `src/**/*.test.ts(x)`, mostly in `__tests__` folders beside the code, and `crates/modular/__test__/napi.test.ts` for the N-API boundary. Notable suites:
     - `src/main/dsl/__tests__/executor.test.ts` — DSL source to `PatchGraph`, without Electron.
-    - `generatedExampleValidity.test.ts` — every module docs example runs as a valid patch.
-    - `referenceDocs.test.ts` — every docs example is formatted as Format Document prints it.
+    - `generatedExampleValidity.test.ts` — every module and global docs example runs as a valid patch.
+    - `referenceDocs.test.ts` — every module's and global's docs have the required shape, and every example is formatted as Format Document prints it.
+    - `globalDocs.test.ts` — each global's and DSL-built module's docs match its declarations, and the generated typings declare every such function as documented.
 - **Fixtures:** `yarn gen:dsl-ranged-fixture` and `yarn gen:parser-parity-fixture` regenerate the fixtures the Rust tests compare against. CI fails if the committed parser-parity fixture differs from a fresh run.
 
 ## Playwright E2E tests

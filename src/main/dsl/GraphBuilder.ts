@@ -34,6 +34,7 @@ import {
 import type { ProcessedModuleSchema } from './paramsSchema';
 import { processSchemas } from './paramsSchema';
 import {
+    carryDrySource,
     createChainInstaller,
     drySourceOf,
     type ChainFunction,
@@ -517,20 +518,33 @@ export class BaseCollection<T extends ModuleOutput> {
     }
 
     /**
-     * Add scope visualization for all outputs in the collection
+     * Add scope visualization for all outputs in the collection. On a
+     * multi-output root it returns a copy of the root, and the scope draws
+     * the output that copy is plugged in as.
      */
     scope(config?: ScopeConfig): this {
-        if (this.items.length > 0) {
-            const loc = captureSourceLocation();
-            const { builder } = this.items[0];
-            const set = outputSetOf(this);
-            if (set) {
-                builder.scopeRoot(set, this.items, config, loc);
-            } else {
-                builder.addScope(this.items, config, loc);
-            }
+        if (this.items.length === 0) {
+            return this;
         }
-        return this;
+        const loc = captureSourceLocation();
+        const { builder } = this.items[0];
+        const set = outputSetOf(this);
+        if (!set) {
+            builder.addScope(this.items, config, loc);
+            return this;
+        }
+        const ctor = this.constructor as new (...args: T[]) => this;
+        const scoped = new ctor(...this.items);
+        carrySignalRoot(scoped, this);
+        carryDrySource(scoped, this);
+        const scopedSet: OutputSet = {
+            outputs: set.outputs,
+            parents: [set],
+            values: set.values,
+        };
+        markRoot(scoped, scopedSet);
+        builder.scopeRoot(scopedSet, this.items, config, loc);
+        return scoped;
     }
 
     /**
@@ -620,7 +634,6 @@ function sliceRoot(
     markRoot(sliced, {
         outputs: set.outputs,
         parents: [set],
-        resolver: set.resolver,
         values,
     });
 }
@@ -654,7 +667,6 @@ function concatRoots(joined: object, a: object, b: object): void {
     markRoot(joined, {
         outputs: set.outputs,
         parents: otherSet ? [set, otherSet] : [set],
-        resolver: set.resolver,
         values,
     });
 }
@@ -805,7 +817,7 @@ export class GraphBuilder implements ChainHost {
     private counters = new Map<string, number>();
     private schemas: ProcessedModuleSchema[] = [];
     private schemaByName = new Map<string, ProcessedModuleSchema>();
-    /** Chain methods backed by a DSL helper rather than a module (`delay`). */
+    /** Chain methods backed by a DSL function rather than a schema's factory (`delay`). */
     private chainHelpers = new Map<string, ChainFunction>();
     private scopes: ScopeWithLocation[] = [];
     /** The roots among the scoped values, which draw the output they are taken as. */
@@ -2237,10 +2249,9 @@ export class GraphBuilder implements ChainHost {
     }
 
     /**
-     * Scope a multi-output root as the output it is first taken as, by an
-     * input or by name, before or after the scope: `$perc($('0').scope())`
-     * draws the trigger `$perc` takes. A root never taken draws the output it
-     * reads as itself.
+     * Scope a multi-output root as the output it is first plugged in as:
+     * `$perc($('0').scope())` draws the trigger `$perc` takes. A root never
+     * plugged in draws the output it reads as itself.
      */
     scopeRoot(
         set: OutputSet,
@@ -2576,7 +2587,7 @@ export class DeferredCollection extends BaseCollection<DeferredModuleOutput> {
 
 /**
  * Crossfade `original` (dry) against `result` (wet) by `mix` (0 = dry, 5 = wet,
- * 2.5 = equal) through `_crossfade`, which cycles the narrower leg across the
+ * 2.5 = equal) through `$crossfade`, which cycles the narrower leg across the
  * wider. Backs `.pipeMix` and `.wet`.
  */
 function crossfadeMix(
@@ -2591,7 +2602,7 @@ function crossfadeMix(
         captureSourceLocation(),
         MIX_SLOT,
     ) as PolySignal;
-    return builder.getFactory('_crossfade')(
+    return builder.getFactory('$crossfade')(
         sumsLanes(builder, result) && original.items.length > 1
             ? builder.getFactory('$mix')(
                   original.items.map((item) => new Collection(item)),

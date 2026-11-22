@@ -3,8 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::ModuleDocs;
+use crate::reference_category::ReferenceCategory;
 use crate::{
     Wav,
     param_errors::ModuleParamErrors,
@@ -110,7 +110,7 @@ const MEDIA_AUDIO_DOCS: ModuleDocs = ModuleDocs {
     summary: "Looping media audio track",
     description: "Loops the audio track of a media file at a fixed speed. Reach it through \
                   `$v.video(...).audio` rather than creating one directly.",
-    categories: &[ModuleCategory::Sampler],
+    categories: &[ReferenceCategory::Sampler],
     sections: &[],
     examples: &[],
 };

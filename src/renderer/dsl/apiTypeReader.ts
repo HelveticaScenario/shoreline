@@ -116,8 +116,8 @@ export class TypeReader {
             };
         });
         // The summary describes an undocumented first parameter unless it
-        // names another parameter or option member, as `$delay`'s names
-        // `feedback`: then its range and default are that one's.
+        // names another parameter or option member: then its range and
+        // default are that one's.
         const [first, ...rest] = params;
         const summary = jsDocText(decl);
         const others = rest.flatMap((p) => [

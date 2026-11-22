@@ -53,6 +53,7 @@ function renderBuffersHook() {
     const hookRef = { current: null as unknown as Hook };
     function Probe() {
         const hook = useEditorBuffers({
+            quotes: 'single',
             refreshFileTree: async () => {},
             workspaceRoot: WORKSPACE,
         });

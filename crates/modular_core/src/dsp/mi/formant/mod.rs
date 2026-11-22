@@ -5,8 +5,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -79,7 +79,7 @@ const FORMANT_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' granular formant oscillator. Every \
                   cycle starts a pair of short sine grains, giving vowel-like, \
                   resonant timbres whose formants stay put as the pitch moves.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[DocExample {
         title: "Sweeping vowel bass",

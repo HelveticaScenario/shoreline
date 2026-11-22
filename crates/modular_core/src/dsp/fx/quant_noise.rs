@@ -10,9 +10,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -92,11 +92,11 @@ const QUANT_NOISE_DOCS: ModuleDocs = ModuleDocs {
     description: "Adds a bright, granular digital fizz on top of the signal. The grit follows \
                   the signal's own level and motion, so it crackles on loud, moving material and \
                   fades with it: a lo-fi edge for pads, drums or bass.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Fizzy lo-fi pad",
-        code: "chord: $saw($chord('A2[m9]')).lpf('a4', 1).quantNoise(2)",
+        code: "chord: $saw('a2:m9').lpf('a4', 1).quantNoise(2)",
     }],
 };
 

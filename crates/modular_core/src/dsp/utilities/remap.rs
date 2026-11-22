@@ -6,9 +6,9 @@ use std::ops::Range;
 use crate::block_input::{self, InputScratch};
 use crate::bounds::Bounds;
 use crate::dsp::utils::map_range;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params(reads_bounds = remap_reads_bounds)]
@@ -86,14 +86,14 @@ const REMAP_DOCS: ModuleDocs = ModuleDocs {
                   shifting or flipping it on the way. It is what `.range()` uses; \
                   reach for it directly to flip a signal or to stretch just part of \
                   its swing over the target.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Pad ducked by an upside-down envelope",
         code: r#"
             const duck = $perc($clock._beatTrigger, { decay: 0.3 })
             kick: $tr808.kick($clock._beatTrigger)
-            chord: $saw($chord('C3[m7]')).amp($remap(duck, 5, 0, 0, 5))
+            chord: $saw('c3:m7').amp($remap(duck, 5, 0, 0, 5))
         "#,
     }],
 };
