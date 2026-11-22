@@ -175,6 +175,8 @@ export interface FunctionDoc {
         members?: Record<string, DocText>;
     };
     docs: DocContent;
+    /** Also a chain method, `sig.name(...)` passing `sig` as the first argument. */
+    chainable?: boolean;
 }
 
 /** `text` as a description and its optional meta. */

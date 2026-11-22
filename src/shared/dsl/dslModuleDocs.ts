@@ -8,13 +8,10 @@ import type { ModuleSchema } from '@modular/core';
 import type { FunctionDoc } from './referenceDocs';
 import { superDefaults } from './superDefaults';
 
-/** `$delay`'s options, shared by its call and chain forms. */
-export const DELAY_OPTIONS =
-    '{ feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | CollectionWithRange; maxTime?: number }';
-
-export const DELAY: FunctionDoc = {
+const DELAY: FunctionDoc = {
+    chainable: true,
     declarations: [
-        `$delay(input: Collection | CollectionWithRange, time: Poly<Signal>, opts?: ${DELAY_OPTIONS}): Collection`,
+        '$delay(input: Collection | CollectionWithRange, time: Poly<Signal>, opts?: { feedback?: Poly<Signal>; feedbackCb?: (mixed: Collection) => Collection | CollectionWithRange; maxTime?: number }): Collection',
     ],
     docs: {
         categories: ['effect'],

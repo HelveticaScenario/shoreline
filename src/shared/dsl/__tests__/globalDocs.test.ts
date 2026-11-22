@@ -6,7 +6,7 @@ import { VIDEO_GLOBALS } from '../../../main/dsl/videoLibGen';
 import { dslModules } from '../dslModuleDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../globalDocs';
 import { functionToReferenceEntry } from '../referenceDocs';
-import { parseDeclaration } from '../tsDeclaration';
+import { chainDeclaration, parseDeclaration } from '../tsDeclaration';
 
 const entry = (name: string) => GLOBAL_ENTRIES.find((e) => e.name === name)!;
 
@@ -32,6 +32,11 @@ describe('the generated lib', () => {
         for (const fn of FUNCTIONS) {
             for (const declaration of fn.declarations) {
                 expect(lib).toContain(`function ${declaration};`);
+                if (fn.chainable) {
+                    expect(lib).toContain(
+                        `  ${chainDeclaration(declaration, 'Plain')};`,
+                    );
+                }
             }
         }
     });
@@ -46,6 +51,15 @@ describe('the generated lib', () => {
         ].map((m) => m[1]);
         expect(declared.filter((name) => !documented.has(name))).toEqual([]);
     });
+});
+
+test('a chain form drops the receiver and keeps the rest as written', () => {
+    expect(
+        chainDeclaration(
+            '$echo<T extends Signal>(input: Collection, time?: T, ...taps: number[]): Collection',
+            'Plain',
+        ),
+    ).toBe('echo<T extends Signal>(time?: T, ...taps: number[]): Plain');
 });
 
 describe('reference entries', () => {

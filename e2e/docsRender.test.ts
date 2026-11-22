@@ -13,7 +13,7 @@ import type { Page } from '@playwright/test';
 import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
 import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
-import { DELAY, dslModules } from '../src/shared/dsl/dslModuleDocs';
+import { dslModules } from '../src/shared/dsl/dslModuleDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../src/shared/dsl/globalDocs';
 import {
     allExamples,
@@ -32,14 +32,17 @@ const SHOTS = process.env.DOCS_RENDER_SHOTS;
 const MODULES = schemas.filter(
     (m) => !m.name.startsWith('_') && m.name !== '$buffer',
 );
+/** The modules the DSL builds from others, listed beside `MODULES`. */
+const DSL_MODULES = dslModules(schemas as never);
 const CHAINABLE = new Set([
     ...processSchemas(schemas as never)
         .filter(qualifiesForChain)
         .map((s) => s.name),
-    functionToReferenceEntry(DELAY).name,
+    ...DSL_MODULES.filter((m) => m.chainable).map(
+        (m) => functionToReferenceEntry(m).name,
+    ),
 ]);
-/** The modules the DSL builds from others, listed beside `MODULES`. */
-const DSL_MODULES = dslModules(schemas as never).map(functionToReferenceEntry);
+const DSL_MODULE_ENTRIES = DSL_MODULES.map(functionToReferenceEntry);
 
 /** Text that means markdown reached the reader unrendered. */
 const LEAKS: [string, RegExp][] = [
@@ -218,7 +221,7 @@ const EDITOR_SPECS: EditorSpec[] = [
             ],
         };
     }),
-    ...[...DSL_MODULES, ...GLOBAL_ENTRIES].map(
+    ...[...DSL_MODULE_ENTRIES, ...GLOBAL_ENTRIES].map(
         (fn): EditorSpec => ({
             anchor: fn.name,
             chainable: CHAINABLE.has(fn.name),
@@ -248,7 +251,7 @@ const TABS: { tab: string; cards: CardSpec[] }[] = [
                 metas: expectedMetas(m),
                 name: m.name,
             })),
-            ...DSL_MODULES.map((m) => ({
+            ...DSL_MODULE_ENTRIES.map((m) => ({
                 docs: m.docs,
                 metas: functionMetas(m),
                 name: m.name,

@@ -14,11 +14,7 @@ import {
     qualifiesForChain,
 } from './paramsSchema';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
-import {
-    DELAY,
-    DELAY_OPTIONS,
-    dslModules,
-} from '../../shared/dsl/dslModuleDocs';
+import { dslModules } from '../../shared/dsl/dslModuleDocs';
 import {
     generateVideoChainMembers,
     generateVideoGlobals,
@@ -47,7 +43,10 @@ import {
 } from '../../shared/dsl/referenceDocs';
 import type { FunctionDoc } from '../../shared/dsl/referenceDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../../shared/dsl/globalDocs';
-import { parseDeclaration } from '../../shared/dsl/tsDeclaration';
+import {
+    chainDeclaration,
+    parseDeclaration,
+} from '../../shared/dsl/tsDeclaration';
 
 const BASE_LIB_SOURCE = `
 /** The **\`console\`** object provides access to the debugging console (e.g., the Web console in Firefox). */
@@ -2097,9 +2096,8 @@ export function generateDSL(schemas: Schemas): string {
         'export function $buffer(input: Signal, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    lines.push(
-        ...renderFunctions(dslModules(schemas as unknown as ModuleSchema[])),
-    );
+    const builtModules = dslModules(schemas as unknown as ModuleSchema[]);
+    lines.push(...renderFunctions(builtModules));
 
     // Chain methods. The qualifying set matches the runtime's exactly: both
     // apply `qualifiesForChain` to the same schemas.
@@ -2187,14 +2185,18 @@ export function generateDSL(schemas: Schemas): string {
             `  readonly ${seg}: ModuleChain${pascal(seg)}<Plain, Ranged>;`,
         );
     }
-    lines.push(
-        ...functionJsDoc(DELAY, DELAY.declarations[0], {
-            from: 1,
-            indent: '  ',
-            lead: chainLead('$delay'),
-        }),
-        `  delay(time: Poly<Signal>, opts?: ${DELAY_OPTIONS}): Plain;`,
-    );
+    for (const fn of builtModules.filter((m) => m.chainable)) {
+        for (const declaration of fn.declarations) {
+            lines.push(
+                ...functionJsDoc(fn, declaration, {
+                    from: 1,
+                    indent: '  ',
+                    lead: chainLead(parseDeclaration(declaration).name),
+                }),
+                `  ${chainDeclaration(declaration, 'Plain')};`,
+            );
+        }
+    }
     lines.push('}');
 
     lines.push('');
