@@ -29643,7 +29643,7 @@
       },
       {
         "name": "level",
-        "description": "each lane's level, full unless a note is fading between octaves",
+        "description": "each lane's level: crossfading as a note changes octave, fading as gates or notes change, 0 for a silent lane",
         "outputType": "cv",
         "polyphonic": true,
         "default": false,

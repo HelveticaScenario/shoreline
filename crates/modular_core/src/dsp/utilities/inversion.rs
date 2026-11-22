@@ -2,6 +2,7 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::SchmittTrigger;
+use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, PORT_MAX_LANES, PolyOutput, PolySignal};
@@ -93,7 +94,7 @@ struct InversionOutputs {
     output: PolyOutput,
     #[output(
         "level",
-        "each lane's level, full unless a note is fading between octaves",
+        "each lane's level: crossfading as a note changes octave, fading as gates or notes change, 0 for a silent lane",
         type = cv,
         range = (0.0, 5.0),
     )]
@@ -138,7 +139,7 @@ const INVERSION_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$inversion", stereo = mono, docs = INVERSION_DOCS, lanes_derive = inversion_derive_lane_count, args(input, amount), experimental)]
+#[module(name = "$inversion", stereo = mono, docs = INVERSION_DOCS, lanes_derive = inversion_derive_lane_count, has_init, patch_update, args(input, amount), experimental)]
 pub struct Inversion {
     outputs: InversionOutputs,
     params: InversionParams,
@@ -151,10 +152,25 @@ struct InversionState {
     amount: Option<f32>,
     /// One per input lane, reading the matching gate lane.
     gate_triggers: [SchmittTrigger; PORT_MAX_LANES],
-    /// The voices last written, which hold while every gate is low. Levels
-    /// are 0–1.
+    /// The voicing last computed, which holds while every gate is low.
+    /// Levels are 0–1.
     pitches: [f32; PORT_MAX_LANES],
     levels: [f32; PORT_MAX_LANES],
+    /// What each lane outputs. `None` until the first sample, which outputs
+    /// its voicing at once, silent if no note is on yet.
+    out: Option<Voices>,
+    level_step: f32,
+}
+
+/// The voices each lane outputs, their levels (0–1) moving at most
+/// `level_step` a sample so a gate switch, a patch edit or a fast sweep never
+/// steps a voice in or out.
+#[derive(Clone, Copy)]
+struct Voices {
+    pitches: [f32; PORT_MAX_LANES],
+    levels: [f32; PORT_MAX_LANES],
+    /// A lane fading out to take another note, which it takes once silent.
+    releasing: [bool; PORT_MAX_LANES],
 }
 
 impl Default for InversionState {
@@ -164,11 +180,17 @@ impl Default for InversionState {
             gate_triggers: [SchmittTrigger::default(); PORT_MAX_LANES],
             pitches: [0.0; PORT_MAX_LANES],
             levels: [0.0; PORT_MAX_LANES],
+            out: None,
+            level_step: 1.0,
         }
     }
 }
 
 impl Inversion {
+    fn init(&mut self, sample_rate: f32) {
+        self.state.level_step = FadeIn::increment(DEFAULT_FADE_IN_SECS, sample_rate);
+    }
+
     fn update(&mut self, _sample_rate: f32) {
         let notes_len = note_count(&self.params);
         let gate = self.params.gate.as_ref();
@@ -205,9 +227,43 @@ impl Inversion {
                 &mut self.state.levels[..active + 1],
             );
         }
+        let state = &mut self.state;
+        let step = state.level_step;
+        let voices = state.out.get_or_insert(Voices {
+            pitches: state.pitches,
+            levels: state.levels,
+            releasing: [false; PORT_MAX_LANES],
+        });
         for lane in 0..notes_len + 1 {
-            self.outputs.output.set(lane, self.state.pitches[lane]);
-            self.outputs.level.set(lane, 5.0 * self.state.levels[lane]);
+            let (pitch, target) = (state.pitches[lane], state.levels[lane]);
+            let level = &mut voices.levels[lane];
+            if voices.releasing[lane] {
+                *level = (*level - step).max(0.0);
+                voices.releasing[lane] = *level > 0.0;
+            } else if (target - *level).abs() <= step {
+                *level = target;
+                voices.pitches[lane] = pitch;
+            } else if target < *level {
+                *level -= step;
+                voices.releasing[lane] = pitch != voices.pitches[lane];
+            } else {
+                *level += step;
+                voices.pitches[lane] = pitch;
+            }
+            self.outputs.output.set(lane, voices.pitches[lane]);
+            self.outputs.level.set(lane, 5.0 * *level);
+        }
+    }
+}
+
+impl crate::types::PatchUpdateHandler for Inversion {
+    /// Silences the lanes past this patch's lane count, so a lane a later
+    /// edit brings back fades in from silence.
+    fn on_patch_update(&mut self) {
+        let lanes = note_count(&self.params) + 1;
+        if let Some(voices) = &mut self.state.out {
+            voices.levels[lanes..].fill(0.0);
+            voices.releasing[lanes..].fill(false);
         }
     }
 }

@@ -36,13 +36,29 @@ fn make_inversion(notes: &[f32], amount: f32) -> Inversion {
     let lanes = inversion_derive_lane_count(&params);
     let mut outputs = InversionOutputs::default();
     outputs.set_all_lanes(lanes);
-    Inversion {
+    let mut inversion = Inversion {
         params,
         outputs,
         state: InversionState::default(),
         _lane_count: lanes,
         _channels: 1,
         _block_index: Default::default(),
+    };
+    inversion.init(SR);
+    inversion
+}
+
+const SR: f32 = 48000.0;
+
+/// Samples a level takes to fade fully in or out, with one to spare for
+/// rounding.
+fn fade_samples() -> usize {
+    (1.0 / FadeIn::increment(DEFAULT_FADE_IN_SECS, SR)).ceil() as usize + 1
+}
+
+fn run(inversion: &mut Inversion, samples: usize) {
+    for _ in 0..samples {
+        inversion.update(SR);
     }
 }
 
@@ -179,7 +195,8 @@ fn non_finite_amount_holds() {
 }
 
 /// Changing the notes while the amount stays put plays the new notes at
-/// that inversion: the state a patch update carries over holds no notes.
+/// that inversion once the levels have faded: the state a patch update
+/// carries over holds no notes.
 #[test]
 fn new_notes_sound_after_a_patch_update() {
     let triad = semis(&[-12.0, -8.0, -5.0]);
@@ -193,7 +210,7 @@ fn new_notes_sound_after_a_patch_update() {
         old.update(48000.0);
         let mut new = make_inversion(&to, 1.0);
         std::mem::swap(&mut new.state, &mut old.state);
-        new.update(48000.0);
+        run(&mut new, fade_samples());
         let mut fresh = make_inversion(&to, 1.0);
         fresh.update(48000.0);
         assert_eq!(read(&new), read(&fresh), "{from:?} → {to:?}");
@@ -327,4 +344,152 @@ fn unsorted_notes_invert_as_sorted() {
     let mut sorted = make_inversion(&[notes[0], notes[1], notes[2]], 1.0);
     sorted.update(48000.0);
     assert_close(&sounding(&read(&gated)), &sounding(&read(&sorted)), "gated");
+}
+
+/// Each level moves by at most one fade step from `before` to `after`.
+fn assert_levels_glide(before: &[(f32, f32)], after: &[(f32, f32)], context: &str) {
+    let step = FadeIn::increment(DEFAULT_FADE_IN_SECS, SR);
+    for (lane, ((_, l0), (_, l1))) in before.iter().zip(after).enumerate() {
+        assert!(
+            (l1 - l0).abs() <= step + 1e-6,
+            "{context}: lane {lane} jumped {l0} → {l1}"
+        );
+    }
+}
+
+/// Switching a gate fades the voices in and out instead of stepping them,
+/// and settles on the voicing of the notes left on.
+#[test]
+fn gate_switches_fade_levels() {
+    let notes = maj7();
+    for (from, to) in [
+        ([5.0, 5.0, 5.0, 5.0], [5.0, 0.0, 5.0, 5.0]),
+        ([5.0, 0.0, 5.0, 5.0], [5.0; 4]),
+    ] {
+        let mut inversion = make_inversion(&notes, 1.0);
+        inversion.params.gate = Some(pitches(&from));
+        inversion.update(SR);
+        inversion.params.gate = Some(pitches(&to));
+        let mut previous = read(&inversion);
+        for _ in 0..fade_samples() {
+            inversion.update(SR);
+            let current = read(&inversion);
+            assert_levels_glide(&previous, &current, &format!("{from:?} → {to:?}"));
+            previous = current;
+        }
+        let mut settled = make_inversion(&notes, 1.0);
+        settled.params.gate = Some(pitches(&to));
+        settled.update(SR);
+        assert_eq!(read(&inversion), read(&settled), "{from:?} → {to:?}");
+    }
+}
+
+/// A voice fading out keeps the note it was playing until it is silent.
+#[test]
+fn a_fading_voice_keeps_its_note() {
+    let notes = maj7();
+    let mut inversion = make_inversion(&notes, 0.0);
+    inversion.update(SR);
+    let before = read(&inversion);
+    inversion.params.gate = Some(pitches(&[0.0, 5.0, 5.0, 5.0]));
+    for _ in 0..fade_samples() {
+        inversion.update(SR);
+        for (lane, ((p0, _), (p1, l1))) in before.iter().zip(read(&inversion)).enumerate() {
+            if l1 > 0.0 && l1 < 1.0 && p1 != *p0 {
+                panic!("lane {lane} changed note {p0} → {p1} at level {l1}");
+            }
+        }
+    }
+}
+
+/// The first gate to go high fades the voices in from silence to the voicing
+/// of the notes it turns on.
+#[test]
+fn first_gate_fades_in() {
+    let mut inversion = make_inversion(&maj7(), 1.0);
+    inversion.params.gate = Some(pitches(&[0.0]));
+    inversion.update(SR);
+    inversion.params.gate = Some(pitches(&[5.0]));
+    let mut previous = read(&inversion);
+    for _ in 0..fade_samples() {
+        inversion.update(SR);
+        let current = read(&inversion);
+        assert_levels_glide(&previous, &current, "onset");
+        previous = current;
+    }
+    let mut settled = make_inversion(&maj7(), 1.0);
+    settled.update(SR);
+    assert_eq!(read(&inversion), read(&settled));
+}
+
+/// Swaps `old`'s state into `new` as a patch update does.
+fn patch_update(old: &mut Inversion, new: &mut Inversion) {
+    std::mem::swap(&mut new.state, &mut old.state);
+    crate::types::PatchUpdateHandler::on_patch_update(new);
+}
+
+/// A patch edit that changes the notes or the amount fades the levels to the
+/// new voicing; a lane taking another note fades out and back in.
+#[test]
+fn patch_updates_fade_levels() {
+    let mut old = make_inversion(&semis(&[-12.0, -8.0, -5.0]), 0.0);
+    old.update(SR);
+    let mut new = make_inversion(&maj7(), 1.5);
+    let before = read(&old);
+    patch_update(&mut old, &mut new);
+    new.update(SR);
+    let mut previous = read(&new);
+    assert_levels_glide(&before, &previous, "edit");
+    for _ in 0..2 * fade_samples() {
+        new.update(SR);
+        let current = read(&new);
+        assert_levels_glide(&previous, &current, "edit");
+        previous = current;
+    }
+    let mut settled = make_inversion(&maj7(), 1.5);
+    settled.update(SR);
+    assert_eq!(read(&new), read(&settled));
+}
+
+/// A lane an edit drops and a later edit brings back fades in from silence.
+#[test]
+fn returning_lanes_fade_in() {
+    let mut wide = make_inversion(&maj7(), 0.0);
+    wide.update(SR);
+    let mut narrow = make_inversion(&maj7()[..2], 0.0);
+    patch_update(&mut wide, &mut narrow);
+    run(&mut narrow, fade_samples());
+    let mut back = make_inversion(&maj7(), 0.0);
+    patch_update(&mut narrow, &mut back);
+    back.update(SR);
+    let silent = vec![(0.0, 0.0); back.lane_count()];
+    assert_levels_glide(&silent[2..], &read(&back)[2..], "returning");
+}
+
+/// However fast the amount sweeps, a voice takes a new note only once it
+/// has faded to silence (to within one fade step).
+#[test]
+fn fast_sweeps_change_notes_only_while_silent() {
+    let notes = maj7();
+    let step = FadeIn::increment(DEFAULT_FADE_IN_SECS, SR);
+    for hz in [20.0_f32, 40.0, 200.0] {
+        let mut inversion = make_inversion(&notes, 2.0);
+        inversion.update(SR);
+        let mut previous = read(&inversion);
+        for i in 1..(SR as usize / 4) {
+            let t = i as f32 / SR;
+            let amount = 2.0 + 2.0 * (std::f32::consts::TAU * hz * t).sin();
+            inversion.params.amount = LaneSum::from_poly(PolySignal::mono(Signal::Volts(amount)));
+            inversion.update(SR);
+            let current = read(&inversion);
+            for (lane, ((p0, l0), (p1, _))) in previous.iter().zip(&current).enumerate() {
+                assert!(
+                    p0 == p1 || *l0 <= step,
+                    "{hz} Hz at {t}: lane {lane} moved {p0} → {p1} at level {l0}"
+                );
+            }
+            assert_levels_glide(&previous, &current, &format!("{hz} Hz"));
+            previous = current;
+        }
+    }
 }
