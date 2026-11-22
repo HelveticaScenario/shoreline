@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use super::cutoff_warp::{WarpPassband, warp_clamped_frequency};
 use super::fastmath::{fastcos, fastsin, fasttanh_clamped, softclip};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Res-warp coefficient slots (Surge `nls_coeffs`).
 const NLS_A1: usize = 0;
@@ -170,7 +170,7 @@ const RES_WARP_LP_DOCS: ModuleDocs = ModuleDocs {
     description: "A resonant lowpass with saturation inside the filter, so loud signals squash \
                   and warp the resonant peak into a thick, rubbery tone, where `cutoffWarpLp` \
                   growls as level pushes its cutoff around. More `stages` cut steeper.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Rubbery resonant bass",
@@ -190,7 +190,7 @@ const RES_WARP_HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonance Warp highpass",
     description: "A resonant highpass with saturation inside the filter: the peak thickens and \
                   warps instead of whistling as it does in `cutoffWarpHp`.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Thick highpass sweep",
@@ -208,7 +208,7 @@ const RES_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonance Warp bandpass",
     description: "A resonant bandpass with saturation inside the filter: a squashed, buzzing \
                   band.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Buzzing band sweep",
@@ -225,7 +225,7 @@ const RES_WARP_BP_DOCS: ModuleDocs = ModuleDocs {
 const RES_WARP_NOTCH_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonance Warp notch",
     description: "A notch with saturation inside the filter, its edges warping with level.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Warped notch sweep",
@@ -243,7 +243,7 @@ const RES_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonance Warp allpass",
     description: "An allpass with saturation inside the filter, for a saturated phase smear; \
                   stack `stages` to deepen it.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Saturated phaser",

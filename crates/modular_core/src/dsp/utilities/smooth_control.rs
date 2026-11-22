@@ -3,10 +3,10 @@ use schemars::JsonSchema;
 
 use crate::bounds::Bounds;
 use crate::dsp::utils::sanitize;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::{ModuleParamErrors, check_declared_range};
 use crate::poly::PolyOutput;
+use crate::reference_category::ReferenceCategory;
 
 /// Seconds the output takes to reach each new value. Longer than the interval
 /// between UI drag events, so consecutive ramps join into one continuous
@@ -60,7 +60,7 @@ const SMOOTH_CONTROL_DOCS: ModuleDocs = ModuleDocs {
     description: "A constant the editor sets directly, ramping to each new value so \
                   dragging a control never zippers. Backs `$slider`, the output gain \
                   and pan faders, and mute and solo.",
-    categories: &[ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Utility],
     sections: &[],
     examples: &[DocExample {
         title: "Filter cutoff on a slider",

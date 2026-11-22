@@ -9,9 +9,9 @@ use std::ops::Range;
 use crate::block_input::{self, InputScratch};
 use crate::block_port::BlockPort;
 use crate::dsp::utils::Sample;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 /// How a module rounds to a whole number.
 trait Rounding {
@@ -130,7 +130,7 @@ const ROUND_DOCS: ModuleDocs = ModuleDocs {
     description: "Rounds a signal to the nearest whole volt, halves away from zero: \
                   on a pitch, the nearest octave. A ranged signal keeps its range, \
                   rounded too.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[
         DocExample {
@@ -158,7 +158,7 @@ const FLOOR_DOCS: ModuleDocs = ModuleDocs {
     summary: "Round down to whole volts",
     description: "Rounds a signal down to a whole volt: on a pitch, the octave at \
                   or below it. A ranged signal keeps its range, rounded down too.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Octaves up from C3",
@@ -172,7 +172,7 @@ const CEIL_DOCS: ModuleDocs = ModuleDocs {
     summary: "Round up to whole volts",
     description: "Rounds a signal up to a whole volt: on a pitch, the octave at or \
                   above it. A ranged signal keeps its range, rounded up too.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Octaves down from C4",

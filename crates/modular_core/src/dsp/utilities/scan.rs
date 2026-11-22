@@ -2,9 +2,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::SchmittTrigger;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -51,7 +51,7 @@ const SCAN_DOCS: ModuleDocs = ModuleDocs {
     description: "Moves a value by a fixed step on each trigger and wraps it around \
                   within a length: a simple way to climb through pitches, positions or \
                   table frames in a loop.",
-    categories: &[ModuleCategory::Sequencer],
+    categories: &[ReferenceCategory::Sequencer],
     sections: &[],
     examples: &[DocExample {
         title: "Circle of fifths folded into one octave",

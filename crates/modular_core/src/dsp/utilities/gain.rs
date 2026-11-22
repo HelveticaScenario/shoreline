@@ -1,14 +1,14 @@
 use super::operator::operator_module;
 use crate::dsp::utils::audio_taper;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 const GAIN_DOCS: ModuleDocs = ModuleDocs {
     summary: "Perceptual gain",
     description: "Scales a signal on a decibel curve: 5 is unity and each step of 1 is \
                   12 dB, so 4.5 is -6 dB and 4 is -12 dB. Near 0 it fades to silence. \
                   Outs apply their gain through it.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Slow swell",

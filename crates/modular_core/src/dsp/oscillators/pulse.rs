@@ -3,8 +3,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio},
@@ -93,7 +93,7 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
     description: "A pulse wave that is hollow and woody as a square and grows \
                   nasal and reedy as the pulse narrows. Sweeping the width with \
                   a slow LFO gives the classic chorused PWM string sound.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

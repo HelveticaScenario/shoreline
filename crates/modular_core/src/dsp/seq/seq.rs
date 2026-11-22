@@ -22,8 +22,8 @@ use crate::{
     poly::{LaneSumExt, PORT_MAX_LANES, PolyOutput},
 };
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 use super::glide::{GlideRamp, GlideTracker, GlideVoice, Playhead};
 use super::groove::{GrooveHold, before_first_step, fill_groove_inputs};
@@ -286,7 +286,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                   chords, and note starts follow the global groove set with `$setGroove`. \
                   A pattern used as a module plays through a `$cycle` of its own; call \
                   `$cycle` to give one other settings.",
-    categories: &[ModuleCategory::Sequencer],
+    categories: &[ReferenceCategory::Sequencer],
     sections: &[
         DocSection {
             title: "Values",

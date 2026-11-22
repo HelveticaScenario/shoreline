@@ -1,9 +1,9 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 // --- Scaling constants ---
 // All four params accept a 0–5 CV value and are mapped linearly to their
@@ -139,7 +139,7 @@ const LORENZ_DOCS: ModuleDocs = ModuleDocs {
     description: "Three voltages that swirl around each other and never repeat, from the \
                   Lorenz attractor: organic modulation for anything that should wander \
                   without looping. Changing a param bends the path rather than restarting it.",
-    categories: &[ModuleCategory::Modulation, ModuleCategory::Random],
+    categories: &[ReferenceCategory::Modulation, ReferenceCategory::Random],
     sections: &[],
     examples: &[
         DocExample {

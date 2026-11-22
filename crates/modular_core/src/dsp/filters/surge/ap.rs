@@ -5,8 +5,8 @@
 use super::biquad::iir12_b;
 use super::coeffs::{bound_freq, note_to_omega, to_normalized_lattice};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Allpass kernel — a single configuration, so `Mode` is `()`.
 #[derive(Clone, Copy, Default)]
@@ -61,7 +61,7 @@ const AP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge allpass filter",
     description: "Leaves the level alone and shifts the phase around the cutoff. Mixed with \
                   the dry sound it carves a moving notch, a simple phaser.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "One-notch phaser",

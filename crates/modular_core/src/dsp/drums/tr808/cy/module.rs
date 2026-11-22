@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -64,7 +64,7 @@ const CY808_DOCS: ModuleDocs = ModuleDocs {
     description: "The 808's cymbal: six detuned square waves filtered into a shimmering \
                   high band over a ringing lower one, for a crash at the top of a phrase \
                   or a washy ride.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Crash on the one",

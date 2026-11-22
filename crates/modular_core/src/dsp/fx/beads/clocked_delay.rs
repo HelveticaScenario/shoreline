@@ -14,8 +14,8 @@ use super::fresh::FreshBuffers;
 use super::resample::Resampler;
 use super::wav_load::silent_buffer;
 use super::{FULL_SCALE_VOLTS, GranularQuality, input_value, unit};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Engine samples over which the playhead's speed is measured.
 const TEMPO_WINDOW: u32 = 256;
@@ -233,7 +233,7 @@ const CLOCKED_DELAY_DOCS: ModuleDocs = ModuleDocs {
                   Changing the time or the tempo crossfades to the new repeats without a pitch \
                   warble. The repeats can also come back as rhythmic slices, or loop what the \
                   delay holds while frozen.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[
         DocExample {

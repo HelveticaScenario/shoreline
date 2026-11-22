@@ -8,8 +8,8 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
 use crate::dsp::utils::adaa::Adaa;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Wavefolding algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -76,7 +76,7 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
     description: "Folds peaks back on themselves, adding harmonics that grow \
                   with level: the west-coast sound when an envelope sweeps the \
                   drive. Modelled on the Surge XT wavefolder shapes.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "West-coast pluck",

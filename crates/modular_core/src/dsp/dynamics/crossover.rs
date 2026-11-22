@@ -6,8 +6,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::filters::resonant_svf::{Response, cutoff_gain},
     dsp::filters::svf_core::{self, SvfCoeffs},
@@ -143,7 +143,7 @@ const XOVER_DOCS: ModuleDocs = ModuleDocs {
     description: "Splits a sound into low, mid and high bands at two crossover points, so each \
                   band can be processed on its own and mixed back together. Its `thru` output \
                   passes the sound through unchanged; tap `._low`, `._mid` and `._high` for the bands.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Tremolo on the mids only",

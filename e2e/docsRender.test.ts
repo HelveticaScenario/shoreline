@@ -1,10 +1,10 @@
 /**
- * Renders every module's docs in the real editor and Reference pane and
- * checks the rendered text: no raw markdown, no `undefined`/`NaN`, every
- * declared range shown, and no horizontal overflow at any panel width.
+ * Renders every module's and global's docs in the real editor and the Docs
+ * panel and checks the rendered text: no raw markdown, no `undefined`/`NaN`,
+ * every declared range shown, and no horizontal overflow at any panel width.
  *
  * Set DOCS_RENDER_SHOTS=<dir> to also save a screenshot of every hover,
- * completion detail, signature help and Reference card.
+ * completion detail, signature help and reference card.
  */
 
 import * as fs from 'fs';
@@ -13,6 +13,12 @@ import type { Page } from '@playwright/test';
 import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
 import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
+import { GLOBAL_ENTRIES, GLOBALS } from '../src/shared/dsl/globalDocs';
+import {
+    allExamples,
+    type DocContent,
+    type ReferenceEntry,
+} from '../src/shared/dsl/referenceDocs';
 import {
     processSchemas,
     qualifiesForChain,
@@ -66,12 +72,12 @@ const safe = (name: string) => name.replace(/[^\w.-]+/g, '_');
 /** Put `code` in the patch editor with the caret at `column` (1-based). */
 async function setCode(page: Page, code: string, column: number) {
     await page.evaluate(
-        ({ code, column }) => {
+        (at) => {
             const ed = window.monaco.editor
                 .getEditors()
                 .find((e) => e.getModel()?.getLanguageId() === 'javascript')!;
-            ed.setValue(code);
-            ed.setPosition({ column, lineNumber: 1 });
+            ed.setValue(at.code);
+            ed.setPosition({ column: at.column, lineNumber: 1 });
             ed.focus();
         },
         { code, column },
@@ -79,11 +85,11 @@ async function setCode(page: Page, code: string, column: number) {
 }
 
 async function trigger(page: Page, action: string) {
-    await page.evaluate((action) => {
+    await page.evaluate((id) => {
         const ed = window.monaco.editor
             .getEditors()
             .find((e) => e.getModel()?.getLanguageId() === 'javascript')!;
-        ed.trigger('e2e', action, {});
+        ed.trigger('e2e', id, {});
     }, action);
 }
 
@@ -158,6 +164,95 @@ function expectedMetas(module: Schema): string[] {
     return metas;
 }
 
+/** Globals with type params, e.g. `$cartesian<A extends unknown[][]>`. */
+const GENERIC = new Set(
+    GLOBAL_ENTRIES.filter((_, i) =>
+        /^[^(]*</.test(GLOBALS[i].declarations[0]),
+    ).map((g) => g.name),
+);
+
+/** Each `meta` among `docs`, as `(meta)`. */
+const metasOf = (docs: { meta?: string }[]): string[] =>
+    docs.flatMap(({ meta }) => (meta ? [`(${meta})`] : []));
+
+/** The ranges and defaults a global's hover shows: its params' and return's. */
+const globalMetas = (global: ReferenceEntry): string[] =>
+    metasOf([...global.params, ...(global.returns ? [global.returns] : [])]);
+
+/** What the editor shows for one module or global. */
+interface EditorSpec {
+    name: string;
+    /** Text the hover and completion details show once loaded. */
+    anchor: string;
+    /** Ranges and defaults the hover shows, each as `(meta)`. */
+    hoverMetas: string[];
+    chainable: boolean;
+    /** Each signature-help stop: the param it names and the range it shows. */
+    signatures: { param: string; meta?: string }[];
+}
+
+const EDITOR_SPECS: EditorSpec[] = [
+    ...MODULES.map((module): EditorSpec => {
+        const main = module.outputs.find((o) => o.default) ?? module.outputs[0];
+        const outMeta = main && formatOutputMeta(main);
+        return {
+            anchor: module.name.split('.').pop()!,
+            chainable: CHAINABLE.has(module.name),
+            hoverMetas: [
+                ...expectedMetas(module),
+                ...(outMeta ? [`(${outMeta})`] : []),
+            ],
+            name: module.name,
+            signatures: [
+                ...module.positionalArgs.map(({ name }) => ({
+                    meta: paramMeta(module, name),
+                    param: name,
+                })),
+                { param: 'config' },
+            ],
+        };
+    }),
+    ...GLOBAL_ENTRIES.map(
+        (global): EditorSpec => ({
+            anchor: global.name,
+            chainable: false,
+            hoverMetas: globalMetas(global),
+            name: global.name,
+            // A rest param typed by a type param infers an empty tuple with
+            // no arguments, so signature help names no param.
+            signatures: global.params
+                .filter((p) => !(p.rest && GENERIC.has(global.name)))
+                .map((p) => ({ meta: p.meta, param: p.name })),
+        }),
+    ),
+];
+
+/** One card a Docs panel tab lists, with the ranges it must show. */
+interface CardSpec {
+    name: string;
+    docs: DocContent;
+    metas: string[];
+}
+
+const TABS: { tab: string; cards: CardSpec[] }[] = [
+    {
+        cards: MODULES.map((m) => ({
+            docs: m.docs,
+            metas: expectedMetas(m),
+            name: m.name,
+        })),
+        tab: 'Modules',
+    },
+    {
+        cards: GLOBAL_ENTRIES.map((g) => ({
+            docs: g.docs,
+            metas: [...globalMetas(g), ...metasOf(g.returns?.members ?? [])],
+            name: g.name,
+        })),
+        tab: 'Globals',
+    },
+];
+
 test.describe('docs render', () => {
     test.setTimeout(60 * 60_000);
 
@@ -179,11 +274,9 @@ test.describe('docs render', () => {
             }
         };
 
-        for (const module of MODULES) {
-            const name = module.name;
+        for (const spec of EDITOR_SPECS) {
+            const { name, anchor } = spec;
             const shotName = safe(name);
-            const metas = expectedMetas(module);
-            const tail = name.split('.').pop()!;
 
             // Hover on the factory.
             await setCode(window, `${name}()`, name.length);
@@ -191,17 +284,11 @@ test.describe('docs render', () => {
             const hover = await captureWidget(
                 window,
                 HOVER,
-                tail,
+                anchor,
                 shotPath('hover', shotName),
             );
             check(`${name} hover`, hover);
-            const main =
-                module.outputs.find((o) => o.default) ?? module.outputs[0];
-            const outMeta = main && formatOutputMeta(main);
-            for (const meta of [
-                ...metas,
-                ...(outMeta ? [`(${outMeta})`] : []),
-            ]) {
+            for (const meta of spec.hoverMetas) {
                 if (!hover.includes(meta)) {
                     failures.push(`${name} hover: missing ${meta}`);
                 }
@@ -209,7 +296,7 @@ test.describe('docs render', () => {
             await window.keyboard.press('Escape');
 
             // Hover on the chain form.
-            if (CHAINABLE.has(name)) {
+            if (spec.chainable) {
                 const code = `$saw('c3').${chainPath(name)}()`;
                 await setCode(window, code, code.length - 2);
                 await triggerUntilVisible(
@@ -243,15 +330,14 @@ test.describe('docs render', () => {
             const details = await captureWidget(
                 window,
                 SUGGEST_DETAILS,
-                tail,
+                anchor,
                 shotPath('completion', shotName),
             );
             check(`${name} completion`, details);
             await window.keyboard.press('Escape');
 
-            // Signature help for each positional, then the config object.
-            const positionals = module.positionalArgs.length;
-            for (let i = 0; i <= positionals; i++) {
+            // Signature help at each param in turn.
+            for (const [i, { param, meta }] of spec.signatures.entries()) {
                 // Placeholder arguments: a run of empty ones stops TS
                 // offering signature help.
                 const code = `${name}(${'0, '.repeat(i)}`;
@@ -261,8 +347,6 @@ test.describe('docs render', () => {
                     'editor.action.triggerParameterHints',
                     SIGNATURE,
                 );
-                const param =
-                    i < positionals ? module.positionalArgs[i].name : 'config';
                 const text = await captureWidget(
                     window,
                     SIGNATURE,
@@ -270,8 +354,6 @@ test.describe('docs render', () => {
                     shotPath('signature', `${shotName}-${i}-${param}`),
                 );
                 check(`${name} signature ${param}`, text);
-                const meta =
-                    i < positionals ? paramMeta(module, param) : undefined;
                 if (meta && !text.includes(`(${meta})`)) {
                     failures.push(
                         `${name} signature ${param}: missing (${meta})`,
@@ -306,7 +388,7 @@ test.describe('docs render', () => {
             wide: false,
         },
     ] as const) {
-        test(`reference cards at ${label} width`, async ({ window }) => {
+        test(`docs cards at ${label} width`, async ({ window }) => {
             await window.evaluate(
                 async ({ location, width }) => {
                     await window.electronAPI.config.write({
@@ -324,121 +406,124 @@ test.describe('docs render', () => {
             await window.waitForLoadState('networkidle');
             await window.getByRole('button', { name: 'Docs' }).click();
             const docs = window.locator('.docs-panel');
-            await docs.getByRole('button', { name: 'Reference' }).click();
             const search = docs.locator('input[type="search"], input').first();
 
             const failures: string[] = [];
-            for (const module of MODULES) {
-                await search.fill('');
-                await search.fill(module.name);
-                const card = docs
-                    .locator('.module-card')
-                    .filter({
-                        has: window.locator('h3 code', {
-                            hasText: `${module.name}(`,
-                        }),
-                    })
-                    .first();
-                // Exact name matches lead the results; bring the list to its
-                // top so the virtualizer mounts that card.
-                await expect(async () => {
-                    await docs.evaluate((el) => {
-                        el.scrollTop = 0;
-                        el.querySelectorAll('*').forEach((n) => {
-                            if (n.scrollTop > 0) n.scrollTop = 0;
+            for (const { tab, cards } of TABS) {
+                await docs.getByRole('button', { name: tab }).click();
+                for (const spec of cards) {
+                    await search.fill('');
+                    await search.fill(spec.name);
+                    const card = docs
+                        .locator('.module-card')
+                        .filter({
+                            has: window.locator('h3 code', {
+                                hasText: `${spec.name}(`,
+                            }),
+                        })
+                        .first();
+                    // Exact name matches lead the results; bring the list to its
+                    // top so the virtualizer mounts that card.
+                    await expect(async () => {
+                        await docs.evaluate((el) => {
+                            el.scrollTop = 0;
+                            el.querySelectorAll('*').forEach((n) => {
+                                if (n.scrollTop > 0) n.scrollTop = 0;
+                            });
                         });
+                        await expect(card).toBeVisible({ timeout: 1_000 });
+                    }).toPass({ timeout: 15_000 });
+                    const text = await card.evaluate((el) => {
+                        const clone = el.cloneNode(true) as HTMLElement;
+                        clone
+                            .querySelectorAll('pre')
+                            .forEach((n) => n.remove());
+                        return clone.innerText;
                     });
-                    await expect(card).toBeVisible({ timeout: 1_000 });
-                }).toPass({ timeout: 15_000 });
-                const text = await card.evaluate((el) => {
-                    const clone = el.cloneNode(true) as HTMLElement;
-                    clone.querySelectorAll('pre').forEach((n) => n.remove());
-                    return clone.innerText;
-                });
-                if (!text.includes(module.docs.summary)) {
-                    failures.push(`${module.name}: summary missing`);
-                }
-                const examples =
-                    module.docs.examples.length +
-                    module.docs.sections.reduce(
-                        (n, s) => n + s.examples.length,
-                        0,
-                    );
-                if ((await card.locator('pre').count()) !== examples) {
-                    failures.push(`${module.name}: examples not all shown`);
-                }
-                // Each example shows its source exactly, in editor colours.
-                const colored = await expect
-                    .poll(() =>
-                        card.evaluate((el) =>
-                            [...el.querySelectorAll('pre')].every((pre) =>
-                                pre.querySelector('[class^="mtk"]'),
+                    if (!text.includes(spec.docs.summary)) {
+                        failures.push(`${spec.name}: summary missing`);
+                    }
+                    const examples = allExamples(spec.docs);
+                    if (
+                        (await card.locator('pre').count()) !== examples.length
+                    ) {
+                        failures.push(`${spec.name}: examples not all shown`);
+                    }
+                    // Each example shows its source exactly, in editor colours.
+                    const colored = await expect
+                        .poll(() =>
+                            card.evaluate((el) =>
+                                [...el.querySelectorAll('pre')].every((pre) =>
+                                    pre.querySelector('[class^="mtk"]'),
+                                ),
                             ),
+                        )
+                        .toBe(true)
+                        .then(
+                            () => true,
+                            () => false,
+                        );
+                    if (!colored) {
+                        failures.push(`${spec.name}: examples not colourized`);
+                    }
+                    const codes = examples.map((e) => e.code);
+                    const texts = await card.evaluate((el) =>
+                        [...el.querySelectorAll('pre')].map((pre) =>
+                            pre.innerText.trimEnd(),
                         ),
-                    )
-                    .toBe(true)
-                    .then(
-                        () => true,
-                        () => false,
                     );
-                if (!colored) {
-                    failures.push(`${module.name}: examples not colourized`);
-                }
-                const codes = [
-                    ...module.docs.examples,
-                    ...module.docs.sections.flatMap((s) => s.examples),
-                ].map((e) => e.code);
-                const texts = await card.evaluate((el) =>
-                    [...el.querySelectorAll('pre')].map((pre) =>
-                        pre.innerText.trimEnd(),
-                    ),
-                );
-                for (const code of codes) {
-                    if (!texts.includes(code)) {
+                    for (const code of codes) {
+                        if (!texts.includes(code)) {
+                            failures.push(
+                                `${spec.name}: example text differs from its source`,
+                            );
+                        }
+                    }
+                    const tables = spec.docs.sections.filter((s) => s.table);
+                    if (
+                        (await card.locator('table.doc-table').count()) !==
+                        tables.length
+                    ) {
+                        failures.push(`${spec.name}: tables not all shown`);
+                    }
+                    if (tables.length > 0) {
+                        // Wide cards show the header row; narrow ones stack rows
+                        // under their keys instead.
+                        const headerShown = await card
+                            .locator('table.doc-table thead')
+                            .first()
+                            .isVisible();
+                        if (headerShown !== wide) {
+                            failures.push(
+                                `${spec.name}: table ${headerShown ? 'not stacked' : 'stacked'} at ${label} width`,
+                            );
+                        }
+                    }
+                    const found = leaks(text);
+                    if (found.length > 0) {
+                        failures.push(`${spec.name}: ${found.join(', ')}`);
+                    }
+                    for (const meta of spec.metas) {
+                        const bare = meta.slice(1, -1);
+                        if (!text.includes(bare)) {
+                            failures.push(`${spec.name}: missing ${bare}`);
+                        }
+                    }
+                    const overflow = await card.evaluate(
+                        (el) => el.scrollWidth - el.clientWidth,
+                    );
+                    if (overflow > 1) {
                         failures.push(
-                            `${module.name}: example text differs from its source`,
+                            `${spec.name}: overflows by ${overflow}px`,
                         );
                     }
-                }
-                const tables = module.docs.sections.filter((s) => s.table);
-                if (
-                    (await card.locator('table.doc-table').count()) !==
-                    tables.length
-                ) {
-                    failures.push(`${module.name}: tables not all shown`);
-                }
-                if (tables.length > 0) {
-                    // Wide cards show the header row; narrow ones stack rows
-                    // under their keys instead.
-                    const headerShown = await card
-                        .locator('table.doc-table thead')
-                        .first()
-                        .isVisible();
-                    if (headerShown !== wide) {
-                        failures.push(
-                            `${module.name}: table ${headerShown ? 'not stacked' : 'stacked'} at ${label} width`,
-                        );
+                    const shot = shotPath(
+                        `${tab.toLowerCase()}-${label}`,
+                        safe(spec.name),
+                    );
+                    if (shot) {
+                        await card.screenshot({ path: shot });
                     }
-                }
-                const found = leaks(text);
-                if (found.length > 0) {
-                    failures.push(`${module.name}: ${found.join(', ')}`);
-                }
-                for (const meta of expectedMetas(module)) {
-                    const bare = meta.slice(1, -1);
-                    if (!text.includes(bare)) {
-                        failures.push(`${module.name}: missing ${bare}`);
-                    }
-                }
-                const overflow = await card.evaluate(
-                    (el) => el.scrollWidth - el.clientWidth,
-                );
-                if (overflow > 1) {
-                    failures.push(`${module.name}: overflows by ${overflow}px`);
-                }
-                const shot = shotPath(`reference-${label}`, safe(module.name));
-                if (shot) {
-                    await card.screenshot({ path: shot });
                 }
             }
             expect(failures, failures.join('\n')).toEqual([]);

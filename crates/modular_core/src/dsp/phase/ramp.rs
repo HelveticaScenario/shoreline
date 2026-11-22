@@ -6,9 +6,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{voct_to_hz, wrap_phase};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -38,7 +38,7 @@ const RAMP_DOCS: ModuleDocs = ModuleDocs {
                   for `$pSine`, `$pSaw`, `$pPulse` and `$pWarp`. Phase \
                   oscillators sharing one ramp stay perfectly in step; at slow \
                   rates it is also a rising-sawtooth LFO.",
-    categories: &[ModuleCategory::Phase, ModuleCategory::Modulation],
+    categories: &[ReferenceCategory::Phase, ReferenceCategory::Modulation],
     sections: &[],
     examples: &[DocExample {
         title: "Locked sine and synced saw",

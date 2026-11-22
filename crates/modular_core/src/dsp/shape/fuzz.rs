@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers::{self, FuzzKind};
 use crate::dsp::utils::dc_blocker::DcBlocker;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Fuzz algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -63,7 +63,7 @@ const FUZZ_DOCS: ModuleDocs = ModuleDocs {
     summary: "Fuzz distortion",
     description: "Gritty, broken-up fuzz for leads and dirty basses. Modelled \
                   on the Surge XT fuzz shapes.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Fuzz lead",

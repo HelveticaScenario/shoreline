@@ -1,4 +1,4 @@
-use modular_core::{dsp::schema, module_category::module_categories};
+use modular_core::{dsp::schema, reference_category::reference_categories};
 
 fn write_json<T: serde::Serialize>(path: &str, value: &T) {
     let json = serde_json::to_string_pretty(value).expect("failed to serialize");
@@ -11,5 +11,5 @@ fn main() {
     let schemas_path = args.next().expect(usage);
     let categories_path = args.next().expect(usage);
     write_json(&schemas_path, &schema());
-    write_json(&categories_path, &module_categories());
+    write_json(&categories_path, &reference_categories());
 }

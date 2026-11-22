@@ -3,8 +3,8 @@ mod oscillator;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -90,7 +90,7 @@ const PHASE_DISTORTION_DOCS: ModuleDocs = ModuleDocs {
                   the spirit of Casio's CZ synths: a sine read through a phase \
                   bent by a second oscillator, for resonant sweeps, buzzy \
                   leads and hollow basses.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

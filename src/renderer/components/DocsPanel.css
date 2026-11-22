@@ -340,13 +340,13 @@
     max-width: none;
 }
 
-.docs-panel .module-reference {
+.docs-panel .reference-browser {
     display: flex;
     flex: 1;
     min-width: 0;
 }
 
-.docs-panel .module-index {
+.docs-panel .reference-index {
     display: flex;
     flex-direction: column;
     position: relative;
@@ -358,24 +358,24 @@
     border-right: 1px solid var(--border-subtle);
 }
 
-.docs-panel .module-index-sash {
+.docs-panel .reference-index-sash {
     right: -1px;
 }
 
-.docs-panel .module-index-sash::after {
+.docs-panel .reference-index-sash::after {
     left: auto;
     right: 0;
 }
 
 /* Narrower than the index's minimum plus the cards' minimum (INDEX_MIN_WIDTH +
-   CARDS_MIN_WIDTH in ModuleReference.tsx), the index sits above the cards.
+   CARDS_MIN_WIDTH in ReferenceBrowser.tsx), the index sits above the cards.
    `!important` overrides the width the sash stores inline. */
 @container (max-width: 359px) {
-    .docs-panel .module-reference {
+    .docs-panel .reference-browser {
         flex-direction: column;
     }
 
-    .docs-panel .module-index {
+    .docs-panel .reference-index {
         width: auto !important;
         max-width: none !important;
         max-height: 30%;
@@ -383,12 +383,12 @@
         border-bottom: 1px solid var(--border-subtle);
     }
 
-    .docs-panel .module-index-sash {
+    .docs-panel .reference-index-sash {
         display: none;
     }
 }
 
-.docs-panel .module-index-list {
+.docs-panel .reference-index-list {
     flex: 1;
     min-height: 0;
     margin: 0;
@@ -402,7 +402,7 @@
     align-content: start;
 }
 
-.docs-panel .module-index-list button {
+.docs-panel .reference-index-list button {
     display: block;
     width: 100%;
     padding: 2px 6px;
@@ -417,16 +417,16 @@
     cursor: pointer;
 }
 
-.docs-panel .module-index-list button:hover {
+.docs-panel .reference-index-list button:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
 }
 
-.docs-panel .module-index-list button.active {
+.docs-panel .reference-index-list button.active {
     color: var(--accent-primary);
 }
 
-.docs-panel .module-reference-main {
+.docs-panel .reference-browser-main {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -434,7 +434,7 @@
     min-height: 0;
 }
 
-.docs-panel .module-categories {
+.docs-panel .reference-categories {
     display: flex;
     flex-wrap: wrap;
     flex-shrink: 0;
@@ -443,7 +443,7 @@
     border-bottom: 1px solid var(--border-subtle);
 }
 
-.docs-panel .module-categories button {
+.docs-panel .reference-categories button {
     padding: 2px 8px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-default);
@@ -454,39 +454,39 @@
     cursor: pointer;
 }
 
-.docs-panel .module-categories button:hover {
+.docs-panel .reference-categories button:hover {
     color: var(--text-primary);
 }
 
-.docs-panel .module-categories button.active {
+.docs-panel .reference-categories button.active {
     border-color: var(--accent-primary);
     color: var(--accent-primary);
 }
 
-.docs-panel .module-cards {
+.docs-panel .reference-cards {
     flex: 1;
     min-height: 0;
     padding: var(--sp-1);
     overflow-y: auto;
 }
 
-.docs-panel .module-reference-empty {
+.docs-panel .reference-browser-empty {
     margin: 0;
     color: var(--text-muted);
 }
 
-.docs-panel .module-list {
+.docs-panel .reference-list {
     position: relative;
 }
 
-.docs-panel .module-list-item {
+.docs-panel .reference-list-item {
     position: absolute;
     top: 0;
     left: 0;
     width: 100%;
 }
 
-.docs-panel .module-list .module-card {
+.docs-panel .reference-list .module-card {
     margin-bottom: 0;
 }
 

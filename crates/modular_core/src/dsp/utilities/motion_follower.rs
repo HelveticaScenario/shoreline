@@ -1,5 +1,5 @@
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         shape::shapers::tanh_driven,
@@ -126,7 +126,7 @@ const MOTION_FOLLOWER_DOCS: ModuleDocs = ModuleDocs {
                   the input either way swells the output, and holding it still lets it \
                   fade. `._pos` and `._neg` follow only rising or only falling movement, \
                   so pushing and pulling a control can steer different things.",
-    categories: &[ModuleCategory::Envelope],
+    categories: &[ReferenceCategory::Envelope],
     sections: &[],
     examples: &[DocExample {
         title: "A swinging LFO bows the filter open",

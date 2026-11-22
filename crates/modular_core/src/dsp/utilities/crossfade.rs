@@ -4,9 +4,9 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -40,7 +40,7 @@ const CROSSFADE_DOCS: ModuleDocs = ModuleDocs {
                   for audio or control voltages alike; the narrower of the two \
                   cycles across the wider. Modulate `mix` to sweep between two \
                   sounds, two LFOs or two melodies.",
-    categories: &[ModuleCategory::Mixer, ModuleCategory::Math],
+    categories: &[ReferenceCategory::Mixer, ReferenceCategory::Math],
     sections: &[],
     examples: &[
         DocExample {

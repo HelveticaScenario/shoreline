@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -70,7 +70,7 @@ const SD909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 snare drum",
     description: "The 909's snare: a drum tone that bends up at the strike under a burst \
                   of noise, which `tone` stretches from a tight crack to a long hiss.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Backbeat doubled on four",

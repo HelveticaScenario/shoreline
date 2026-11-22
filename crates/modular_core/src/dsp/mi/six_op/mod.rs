@@ -9,8 +9,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use super::accent::{Accent, plaits_volts};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{dsp::soft_clip, phase::limit_frequency, random::Random},
@@ -113,7 +113,7 @@ const SIX_OP_DOCS: ModuleDocs = ModuleDocs {
                   32 patches, for electric pianos, basses, bells and brass. \
                   Leave `gate` unpatched for a drone whose `envelope` picks \
                   the moment in the note it holds.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

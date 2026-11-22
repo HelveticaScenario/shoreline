@@ -3,8 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{oscillators::FmMode, utils::rng::seed_base},
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -95,7 +95,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
                   oscillators make a metallic noise, band-passed, then shaped \
                   by a lopsided, saturating envelope and a high-pass. Leave `trigger` \
                   unpatched and it hisses steadily.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[
         DocExample {

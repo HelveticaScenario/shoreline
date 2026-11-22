@@ -4,8 +4,8 @@
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Stateless — the sine shaper carries no history.
 #[derive(Clone, Copy, Default)]
@@ -25,7 +25,7 @@ const SINE_SHAPE_DOCS: ModuleDocs = ModuleDocs {
     description: "Bends the signal through a sine curve for smooth added \
                   harmonics; pushed harder, a pure tone folds into a hollow, \
                   bell-like one.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Sweeping sine harmonics",

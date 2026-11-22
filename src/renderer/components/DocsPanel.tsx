@@ -2,39 +2,54 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { VideoDocs } from './VideoDocs';
 import { BuiltinDocs } from './BuiltinDocs';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
-import { ModuleReference } from './ModuleReference';
+import { ReferenceBrowser } from './ReferenceBrowser';
 import type { DocsTarget } from './docsCommand';
 import electronAPI from '../electronAPI';
-import type {
-    DslTypeName,
-    TypeDocumentation,
-    GlobalFunctionDoc,
-} from '../../shared/dsl/typeDocs';
+import type { DslTypeName, TypeDocumentation } from '../../shared/dsl/typeDocs';
 import {
     TYPE_DOCS,
     DSL_TYPE_NAMES,
     isDslType,
-    GLOBAL_DOCS,
 } from '../../shared/dsl/typeDocs';
-import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
+import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
+import { moduleToReferenceEntry } from '../../shared/dsl/referenceDocs';
+import { GLOBAL_ENTRIES } from '../../shared/dsl/globalDocs';
 import './DocsPanel.css';
 
-type Page = 'types' | 'globals' | 'reference' | 'video' | 'builtins';
+/** The pages that browse reference entries. */
+type BrowserPage = 'modules' | 'globals';
+type Page = BrowserPage | 'types' | 'video' | 'builtins';
 
 const PAGES: { id: Page; label: string }[] = [
-    { id: 'reference', label: 'Reference' },
+    { id: 'modules', label: 'Modules' },
     { id: 'types', label: 'Types' },
     { id: 'globals', label: 'Globals' },
     { id: 'video', label: 'Video' },
     { id: 'builtins', label: 'Built-ins' },
 ];
 
-const MODULE_NAME_ORDER = new Intl.Collator('en', {
+const NAME_ORDER = new Intl.Collator('en', {
     numeric: true,
     sensitivity: 'base',
 });
 
-const NO_MODULES: Schemas = [];
+const byName = (a: ReferenceEntry, b: ReferenceEntry) =>
+    NAME_ORDER.compare(a.name, b.name);
+
+const SORTED_GLOBALS = [...GLOBAL_ENTRIES].sort(byName);
+
+const isBrowserPage = (page: Page): page is BrowserPage =>
+    page === 'modules' || page === 'globals';
+
+interface BrowserFilter {
+    searchQuery: string;
+    category: string | null;
+}
+
+const NO_FILTERS: Record<BrowserPage, BrowserFilter> = {
+    globals: { category: null, searchQuery: '' },
+    modules: { category: null, searchQuery: '' },
+};
 
 interface DocsPanelProps {
     target: DocsTarget | null;
@@ -137,10 +152,9 @@ const TypeCard: React.FC<TypeCardProps> = ({
 );
 
 export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
-    const [activePage, setActivePage] = useState<Page>('reference');
-    const [searchQuery, setSearchQuery] = useState('');
-    const [category, setCategory] = useState<string | null>(null);
-    const [schemas, setSchemas] = useState<Schemas>();
+    const [activePage, setActivePage] = useState<Page>('modules');
+    const [filters, setFilters] = useState(NO_FILTERS);
+    const [moduleEntries, setModuleEntries] = useState<ReferenceEntry[]>([]);
     // A fresh object per reveal, so revealing the same type again scrolls back to it.
     const [revealedType, setRevealedType] = useState<{
         name: DslTypeName;
@@ -154,39 +168,43 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             .getSchemas()
             .then((schemaList) => {
                 // Modules named with a leading `_` are internal; hide them from user-facing docs
-                setSchemas(
+                setModuleEntries(
                     schemaList
                         .filter((e) => !e.name.startsWith('_'))
-                        .sort((a, b) =>
-                            MODULE_NAME_ORDER.compare(a.name, b.name),
-                        ),
+                        .map(moduleToReferenceEntry)
+                        .sort(byName),
                 );
             })
             .catch(console.error);
     }, []);
 
-    useEffect(() => {
-        if (!target) {
-            return;
-        }
-        const { symbolType, name } = target;
-        if (symbolType === 'type' && isDslType(name)) {
-            setActivePage('types');
-            setRevealedType({ name });
-            setExpandedTypes((prev) => new Set(prev).add(name));
-        } else if (symbolType === 'module' || symbolType === 'namespace') {
-            setActivePage('reference');
-            setSearchQuery(name);
-            setCategory(null);
-        }
-    }, [target]);
-
-    // Handle type link clicks - navigate to types page and expand the type
+    // Opens the types page at a type, expanded
     const handleTypeClick = useCallback((typeName: DslTypeName) => {
         setActivePage('types');
         setRevealedType({ name: typeName });
         setExpandedTypes((prev) => new Set(prev).add(typeName));
     }, []);
+
+    // Each new target is revealed in the render that receives it.
+    const [revealedTarget, setRevealedTarget] = useState<DocsTarget | null>(
+        null,
+    );
+    if (target !== revealedTarget) {
+        setRevealedTarget(target);
+        const name = target?.name ?? '';
+        if (target?.symbolType === 'type') {
+            if (isDslType(name)) {
+                handleTypeClick(name);
+            }
+        } else if (target) {
+            const page = target.symbolType === 'global' ? 'globals' : 'modules';
+            setActivePage(page);
+            setFilters((prev) => ({
+                ...prev,
+                [page]: { category: null, searchQuery: name },
+            }));
+        }
+    }
 
     // Toggle type card expansion
     const toggleTypeExpanded = useCallback((typeName: DslTypeName) => {
@@ -222,68 +240,6 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
 
     const renderContent = () => {
         switch (activePage) {
-            case 'globals': {
-                const groups = GLOBAL_DOCS.reduce<
-                    Record<string, GlobalFunctionDoc[]>
-                >((acc, fn) => {
-                    (acc[fn.group] ??= []).push(fn);
-                    return acc;
-                }, {});
-                return (
-                    <div>
-                        <h2>Global Functions</h2>
-                        <p className="types-intro">
-                            These functions are available in every patch without
-                            any imports.
-                        </p>
-                        {Object.entries(groups).map(([group, fns]) => (
-                            <div key={group}>
-                                <h3>{group}</h3>
-                                {fns.map((fn) => (
-                                    <div key={fn.name} className="module-card">
-                                        <h4>
-                                            <code>{fn.signature}</code>
-                                        </h4>
-                                        <p>{fn.description}</p>
-                                        {fn.params && fn.params.length > 0 && (
-                                            <>
-                                                <h5>Parameters</h5>
-                                                <ul>
-                                                    {fn.params.map((p) => (
-                                                        <li key={p.name}>
-                                                            <strong>
-                                                                {p.name}:{' '}
-                                                                <LinkifyTypes
-                                                                    text={
-                                                                        p.type
-                                                                    }
-                                                                    onTypeClick={
-                                                                        handleTypeClick
-                                                                    }
-                                                                />
-                                                            </strong>{' '}
-                                                            &mdash;{' '}
-                                                            {p.description}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </>
-                                        )}
-                                        {fn.examples.length > 0 && (
-                                            <>
-                                                <h5>Example</h5>
-                                                <pre>
-                                                    {fn.examples.join('\n\n')}
-                                                </pre>
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        ))}
-                    </div>
-                );
-            }
             case 'video':
                 return <VideoDocs />;
             case 'builtins':
@@ -319,17 +275,32 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
                         </div>
                     </div>
                 );
-            case 'reference':
+            case 'modules':
+            case 'globals': {
+                const page = activePage;
+                const filter = filters[page];
+                const setFilter = (change: Partial<BrowserFilter>) =>
+                    setFilters((prev) => ({
+                        ...prev,
+                        [page]: { ...prev[page], ...change },
+                    }));
                 return (
-                    <ModuleReference
-                        modules={schemas ?? NO_MODULES}
-                        searchQuery={searchQuery}
-                        onSearchQueryChange={setSearchQuery}
-                        category={category}
-                        onCategoryChange={setCategory}
+                    <ReferenceBrowser
+                        key={page}
+                        entries={
+                            page === 'modules' ? moduleEntries : SORTED_GLOBALS
+                        }
+                        noun={page}
+                        searchQuery={filter.searchQuery}
+                        onSearchQueryChange={(searchQuery) =>
+                            setFilter({ searchQuery })
+                        }
+                        category={filter.category}
+                        onCategoryChange={(category) => setFilter({ category })}
                         onTypeClick={handleTypeClick}
                     />
                 );
+            }
         }
     };
 
@@ -350,7 +321,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             <div
                 ref={contentRef}
                 className={
-                    activePage === 'reference'
+                    isBrowserPage(activePage)
                         ? 'docs-content docs-content-split'
                         : 'docs-content'
                 }

@@ -14,8 +14,8 @@ use super::coeffs::{
     to_coupled_form, to_normalized_lattice,
 };
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Drive character for the bandpass biquad. The legacy variants exist only at the
 /// 12 dB slope (matching Surge XT's menu); at 24 dB they select their modern counterparts.
@@ -166,7 +166,7 @@ const BP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge bandpass filter",
     description: "Surge's resonant bandpass: picks out a band for nasal, vocal tones, \
                   narrowing and ringing as the resonance rises.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Nasal bandpass sweep",

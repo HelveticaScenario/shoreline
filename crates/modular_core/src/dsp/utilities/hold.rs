@@ -1,7 +1,7 @@
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, SchmittTrigger, min_gate_samples};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -47,7 +47,7 @@ const HOLD_DOCS: ModuleDocs = ModuleDocs {
     description: "Turns each trigger into a gate of a fixed length, however long the \
                   input stays high. A new trigger mid-hold restarts it with a brief \
                   drop, so envelopes downstream fire again.",
-    categories: &[ModuleCategory::Gate],
+    categories: &[ReferenceCategory::Gate],
     sections: &[],
     examples: &[DocExample {
         title: "Clock ticks held into notes",
