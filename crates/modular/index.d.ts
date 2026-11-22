@@ -225,6 +225,12 @@ export interface BufferSizeRange {
 }
 
 /**
+ * The V/Oct voltage of each note of a chord signal literal like `c3:M7`,
+ * lowest first.
+ */
+export declare function chordVoltages(literal: string): Array<number>
+
+/**
  * Whether this CPU has every x86 extension the addon was compiled to assume
  * (`target-cpu` in `.cargo/config.toml`). Compiled code may use those
  * instructions anywhere, so the app calls this only from a probe child

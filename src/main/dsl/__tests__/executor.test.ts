@@ -959,6 +959,26 @@ describe('sequencing', () => {
         );
     });
 
+    test('a chord literal is one lane per note', () => {
+        const semitones = (freq: unknown[]) =>
+            freq.map((v) => (typeof v === 'number' ? Math.round(v * 12) : v));
+        const [saw] = findModules(execPatch('out: $saw("c3:M7")'), '$saw');
+        expect(semitones(saw.params.freq)).toEqual([-12, -8, -5, -1]);
+        const [mixed] = findModules(
+            execPatch('out: $saw(["c2", "eb:m^1"])'),
+            '$saw',
+        );
+        expect(semitones(mixed.params.freq)).toEqual(['c2', 6, 10, 15]);
+        const [buffer] = findModules(
+            execPatch('const b = $buffer("c3:M7", 1)'),
+            '$buffer',
+        );
+        expect(buffer.params.input).toHaveLength(4);
+        expect(() => execPatch('out: $saw("c3:nope")')).toThrow(
+            /"c3:nope": unknown chord/,
+        );
+    });
+
     test('$cycle accepts mixed numeric, note, and hz atoms', () => {
         const patch = execPatch('out: $cycle($("0.5 c4 440hz -1"))');
         expect(findModules(patch, '$cycle').length).toBe(1);
@@ -1251,6 +1271,13 @@ describe('utilities', () => {
     test('$quantizer', () => {
         const patch = execPatch('out: $quantizer($sine("C4"), "C(major)")');
         expect(findModules(patch, '$quantizer').length).toBe(1);
+    });
+
+    test('$quantizer takes a chord literal as its scale', () => {
+        const patch = execPatch('out: $quantizer($sine("C4"), "c3:M7")');
+        const [quantizer] = findModules(patch, '$quantizer');
+        expect(quantizer.params.scale).toHaveLength(4);
+        expect(findModules(patch, '$chord').length).toBe(0);
     });
 
     test('$quantizer string scale becomes a $chord feeding the scale input', () => {
@@ -2771,6 +2798,16 @@ describe('$phase helpers', () => {
             type: 'cable',
             port: 'output',
         });
+    });
+
+    test('a $phase amount spreads a chord literal into its notes', () => {
+        const patch = execWithWavs(
+            'out: $wavetable(0, "/wavs/wt.wav", 0, { phase: $phase.fold("c:M") })',
+        ).patch;
+        const [wt] = findModules(patch, '$wavetable');
+        expect((wt.params.phase as { amount: unknown[] }).amount).toHaveLength(
+            3,
+        );
     });
 
     test('$phase variants use camelCase tags matching Rust deserializer', () => {

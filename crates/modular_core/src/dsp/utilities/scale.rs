@@ -215,15 +215,10 @@ impl ScaleSpec {
                 );
             }
         };
-        if !source.ends_with(close) {
-            return Err(format!("missing closing '{close}'"));
-        }
-
-        let root_str = &source[..open];
-        let root = FixedRoot::parse(root_str)
-            .ok_or_else(|| format!("invalid root note \"{root_str}\""))?;
-        let body = &source[open + 1..source.len() - close.len_utf8()];
-
+        let body = source[open + 1..]
+            .strip_suffix(close)
+            .ok_or_else(|| format!("missing closing '{close}'"))?;
+        let root = parse_root(&source[..open])?;
         if is_chord {
             Self::parse_chord(&root, body)
         } else {
@@ -271,6 +266,16 @@ impl ScaleSpec {
         }
         pitch_classes.sort_unstable();
         Self::new(base_midi, tuning, &pitch_classes)
+    }
+
+    /// The chord a signal literal like `c3:M7` names: a note, a colon and a
+    /// chord symbol.
+    pub fn chord_literal(source: &str) -> Result<Self, String> {
+        let (root, symbol) = source
+            .trim()
+            .split_once(':')
+            .ok_or_else(|| "expected note:chord, e.g. \"c3:M7\"".to_string())?;
+        Self::note_chord(parse_root(root)?.base_midi(), symbol)
     }
 
     /// The chord a chord symbol names on the root at MIDI note `root`, as in a
@@ -399,6 +404,10 @@ fn raise_lowest(voicing: &mut ArrayVec<i8, PORT_MAX_LANES>, n: usize) -> Result<
     voicing.sort_unstable();
     voicing.dedup_sorted();
     Ok(())
+}
+
+fn parse_root(root: &str) -> Result<FixedRoot, String> {
+    FixedRoot::parse(root).ok_or_else(|| format!("invalid root note \"{root}\""))
 }
 
 trait DedupSorted {
@@ -558,6 +567,15 @@ mod tests {
             ScaleSpec::parse("c[m7 inv1]").unwrap()
         );
         assert!(ScaleSpec::note_chord(60, "M^3").is_err());
+    }
+
+    #[test]
+    fn chord_literal_reads_a_note_then_its_chord() {
+        let literal = ScaleSpec::chord_literal("eb3:m7^1").unwrap();
+        assert_eq!(literal, ScaleSpec::parse("eb3[m7 inv1]").unwrap());
+        assert!(ScaleSpec::chord_literal("c3:nope").is_err());
+        assert!(ScaleSpec::chord_literal("h:M").is_err());
+        assert!(ScaleSpec::chord_literal("c3M").is_err());
     }
 
     #[test]

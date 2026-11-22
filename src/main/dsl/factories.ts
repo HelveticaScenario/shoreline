@@ -1,5 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
-import { deriveLaneCount } from '@modular/core';
+import { chordVoltages, deriveLaneCount } from '@modular/core';
 import {
     BaseCollection,
     GraphBuilder,
@@ -212,6 +212,24 @@ interface NamespaceTree {
     [key: string]: NamespaceTree | FactoryFunction;
 }
 
+/**
+ * The voltage of each note of a chord literal (`'c3:M7'`), one per lane, or
+ * `undefined` for any other value. No other signal string holds `:`.
+ */
+function chordNotes(value: unknown): number[] | undefined {
+    return typeof value === 'string' && value.includes(':')
+        ? chordVoltages(value)
+        : undefined;
+}
+
+/** `value` with each chord literal in it, alone or in an array, spread into its notes. */
+export function spreadChords(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.flatMap((v) => chordNotes(v) ?? [v]);
+    }
+    return chordNotes(value) ?? value;
+}
+
 function sanitizeIdentifier(name: string): string {
     let id = name.replace(
         /[^a-zA-Z0-9_$]+(.)?/g,
@@ -323,8 +341,9 @@ export class DSLContext {
     /**
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
-     * contents of a `$gN` group, and spread the collections inside an array.
-     * `slot` names the value in resolution records.
+     * contents of a `$gN` group, spread the collections inside an array, and
+     * spread each chord literal into its notes. `slot` names the value in
+     * resolution records.
      */
     private signalParam(
         value: unknown,
@@ -353,13 +372,17 @@ export class DSLContext {
         };
         if (Array.isArray(value)) {
             return value.flatMap((v, i) => {
+                const notes = chordNotes(v);
+                if (notes) {
+                    return notes;
+                }
                 const resolved = resolve(v, elementSlot(slot, i));
                 return resolved instanceof BaseCollection
                     ? resolved.items
                     : [resolved];
             });
         }
-        return resolve(value, slot);
+        return chordNotes(value) ?? resolve(value, slot);
     }
 
     /**
