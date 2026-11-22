@@ -1293,6 +1293,14 @@ describe('utilities', () => {
         expect(findModules(patch, '$chord').length).toBe(1);
     });
 
+    test('$inversion', () => {
+        const patch = execPatch(
+            "const c = $inversion(['c3', 'e3', 'g3'], 1.5)\nout: $saw(c).amp(c._level)",
+        );
+        const [inversion] = findModules(patch, '$inversion');
+        expect(inversion.params.amount).toBe(1.5);
+    });
+
     test('$chord rejects an invalid spec', () => {
         expect(() => execPatch('out: $saw($chord("C(maj7)"))')).toThrow(
             /Invalid scale specification/,
