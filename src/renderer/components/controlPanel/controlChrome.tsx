@@ -18,7 +18,7 @@ function isJumpGesture(e: React.MouseEvent | React.PointerEvent): boolean {
  * the control never sees the gesture; on macOS Ctrl+click also raises a
  * context menu, which is suppressed.
  */
-export function jumpHandlers(offset: number, onJump: (offset: number) => void) {
+export function jumpHandlers<T>(target: T, onJump: (target: T) => void) {
     return {
         onClickCapture: (e: React.MouseEvent) => {
             if (isJumpGesture(e)) {
@@ -41,7 +41,7 @@ export function jumpHandlers(offset: number, onJump: (offset: number) => void) {
             if (isJumpGesture(e)) {
                 e.preventDefault();
                 e.stopPropagation();
-                onJump(offset);
+                onJump(target);
             }
         },
     };

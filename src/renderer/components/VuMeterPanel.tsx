@@ -10,6 +10,11 @@ import { OUT_PAN_RANGE } from '../../shared/dsl/controlRanges';
 import type { VuMeterDef, VuMeterGhost } from '../../shared/dsl/vuMeterTypes';
 import { trackGates } from '../../shared/dsl/trackGates';
 import { METER_PAD_CSS, meterNormToDb } from '../app/vuMeter';
+import {
+    controlTooltip,
+    jumpHandlers,
+    useJumpModifier,
+} from './controlPanel/controlChrome';
 import { Knob, type KnobHandlers, type KnobRange } from './VuKnob';
 import {
     type SendBus,
@@ -62,6 +67,8 @@ interface VuMeterPanelProps extends KnobHandlers {
     unregisterCanvas: (key: string) => void;
     registerReadout: (key: string, el: HTMLElement) => void;
     unregisterReadout: (key: string) => void;
+    /** Ctrl/Cmd-click on a strip's name: move the cursor to its label. */
+    onJump: (key: string) => void;
 }
 
 /**
@@ -117,6 +124,7 @@ interface VuMeterProps extends KnobHandlers {
     unregisterCanvas: (key: string) => void;
     registerReadout: (key: string, el: HTMLElement) => void;
     unregisterReadout: (key: string) => void;
+    onJump: (key: string) => void;
 }
 
 function VuMeter({
@@ -140,6 +148,7 @@ function VuMeter({
     unregisterCanvas,
     registerReadout,
     unregisterReadout,
+    onJump,
     ...knobs
 }: VuMeterProps) {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -259,17 +268,25 @@ function VuMeter({
             ? `ch ${output.baseChannel}–${output.baseChannel + 1}`
             : `ch ${output.baseChannel}`;
 
+    const title = output.main
+        ? 'End of chain'
+        : `${output.key} (${channelBadge})`;
+
     return (
         <div
             className={`vu-meter${suppressed ? ' vu-meter--suppressed' : ''}${
                 output.main ? ' vu-meter--main' : ''
             }`}
             data-vu-key={output.key}
-            title={
-                output.main ? 'End of chain' : `${output.key} (${channelBadge})`
-            }
+            title={title}
         >
-            <div className="vu-meter-header">
+            <div
+                className="vu-meter-header"
+                {...(!output.main && {
+                    ...jumpHandlers(output.key, onJump),
+                    title: controlTooltip(title),
+                })}
+            >
                 {fold && (
                     <button
                         className="vu-group-fold"
@@ -460,7 +477,9 @@ export function VuMeterPanel({
     onKnobCommit,
     registerKnob,
     unregisterKnob,
+    onJump,
 }: VuMeterPanelProps) {
+    const [jumpArmed, setJumpArmed] = useJumpModifier();
     const channelOutputs = outputs.filter((o) => !o.main);
     const trackOutputs = channelOutputs.filter((o) => !o.isBus);
     const busOutputs = channelOutputs.filter((o) => o.isBus);
@@ -541,6 +560,7 @@ export function VuMeterPanel({
         onGainRevert,
         onPeakReset,
         onKnobChange,
+        onJump,
         onKnobCommit,
         onToggleMute,
         onToggleSolo,
@@ -591,7 +611,12 @@ export function VuMeterPanel({
     };
 
     return (
-        <div ref={panelRef} className="vu-meter-panel">
+        <div
+            ref={panelRef}
+            className={`vu-meter-panel${jumpArmed ? ' jump-armed' : ''}`}
+            // Picks up a modifier pressed while another window had focus.
+            onPointerMove={(e) => setJumpArmed(e.ctrlKey || e.metaKey)}
+        >
             <div className="vu-meter-scroll">
                 {channelOutputs.length === 0 ? (
                     <div className="vu-meter-empty">

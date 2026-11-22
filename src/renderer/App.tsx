@@ -745,6 +745,37 @@ function App() {
     );
 
     /**
+     * Offset of the label of the track named `key` in the editor's source, at
+     * its tracked decoration; 0 for the main strip, which has no label. Null
+     * when the editor shows another buffer than the one the mixer's tracks
+     * came from.
+     */
+    const vuLabelOffset = useCallback((key: string): number | null => {
+        const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
+        if (
+            idx === -1 ||
+            vuSourceIdRef.current === null ||
+            visibleBufferIdRef.current !== vuSourceIdRef.current
+        ) {
+            return null;
+        }
+        return vuOutputsRef.current[idx].main
+            ? 0
+            : (vuDecorationsRef.current?.offsetOf(idx) ?? null);
+    }, []);
+
+    /** Ctrl/Cmd-click on a mixer strip's name: move the cursor to its label. */
+    const handleVuJump = useCallback(
+        (key: string) => {
+            const offset = vuLabelOffset(key);
+            if (offset !== null) {
+                handleControlJump(offset);
+            }
+        },
+        [vuLabelOffset, handleControlJump],
+    );
+
+    /**
      * Mirror a mixer control change into the DSL source of the track named
      * `key`, at its label's tracked decoration. Returns whether an edit was
      * written; skipped silently when the editor shows another buffer than the
@@ -761,20 +792,8 @@ function App() {
             ) => TrackSourceEdit | null,
         ): boolean => {
             const model = editorRef.current?.getModel();
-            const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
-            if (
-                !model ||
-                idx === -1 ||
-                vuSourceIdRef.current === null ||
-                visibleBufferIdRef.current !== vuSourceIdRef.current
-            ) {
-                return false;
-            }
-            // The main strip has no label: its edit finds its own place.
-            const anchor = vuOutputsRef.current[idx].main
-                ? 0
-                : vuDecorationsRef.current?.offsetOf(idx);
-            if (anchor == null) {
+            const anchor = vuLabelOffset(key);
+            if (!model || anchor === null) {
                 return false;
             }
             const edit = makeEdit(model.getValue(), anchor, key);
@@ -785,15 +804,15 @@ function App() {
             if (edit.dropsTrack) {
                 // The label's value is its expression again, so later
                 // option edits append a `.track(...)` to it.
-                const next = vuOutputsRef.current.map((o, i) =>
-                    i === idx ? { ...o, fromTrack: false } : o,
+                const next = vuOutputsRef.current.map((o) =>
+                    o.key === key ? { ...o, fromTrack: false } : o,
                 );
                 vuOutputsRef.current = next;
                 setVuOutputs(next);
             }
             return true;
         },
-        [pushVuModelEdit],
+        [pushVuModelEdit, vuLabelOffset],
     );
 
     /**
@@ -2189,6 +2208,12 @@ function App() {
             },
             getAudioHealth: () => electronAPI.synthesizer.getHealth(),
             getEditorValue: () => editorRef.current?.getValue() ?? '',
+            getCursorOffset: () => {
+                const editorInstance = editorRef.current;
+                const model = editorInstance?.getModel();
+                const position = editorInstance?.getPosition();
+                return model && position ? model.getOffsetAt(position) : null;
+            },
             getLastPatchResult: () => lastPatchResultRef.current,
             getScopeData: () => electronAPI.synthesizer.getScopes(),
             getVuMeterData: () => electronAPI.synthesizer.getVuMeters(),
@@ -2709,6 +2734,7 @@ function App() {
                                 onKnobCommit={handleVuKnobCommit}
                                 registerKnob={registerVuKnob}
                                 unregisterKnob={unregisterVuKnob}
+                                onJump={handleVuJump}
                             />
                         }
                     />
