@@ -123,9 +123,7 @@ export function FormatterSettingsTab({
                     onChange={(e) =>
                         updatePrettier({
                             trailingComma: e.target.value as
-                                | 'all'
-                                | 'es5'
-                                | 'none',
+                                'all' | 'es5' | 'none',
                         })
                     }
                 >

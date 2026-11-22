@@ -92,8 +92,7 @@ beforeEach(() => {
 /** Deliver a change event as the main process's file watcher would. */
 function emitFileChange(filePath: string, content: string) {
     const listener = api.filesystem.onFileChanged.mock.lastCall?.[0] as
-        | ((change: { filePath: string; content: string }) => void)
-        | undefined;
+        ((change: { filePath: string; content: string }) => void) | undefined;
     act(() => listener?.({ content, filePath }));
 }
 

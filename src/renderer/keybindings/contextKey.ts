@@ -15,7 +15,7 @@
  *   - fileExplorerFocused    (file explorer tree has focus)
  */
 
-import { parseWhen, type IContextReader, type WhenExpr } from './whenParser';
+import { parseWhen, type IContextReader } from './whenParser';
 
 export type ContextKeyValue = boolean | number | string | null | undefined;
 
@@ -73,5 +73,3 @@ export function evaluateWhen(source: string | undefined | null): boolean {
         return false;
     }
 }
-
-export type { WhenExpr };

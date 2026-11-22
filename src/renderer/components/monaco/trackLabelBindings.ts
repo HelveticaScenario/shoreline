@@ -346,16 +346,14 @@ export function withTrackLabelDiagnostics(
     const atEnd = (appended ? view.endDiagnostics : []).map(
         (d): TS.Diagnostic => ({ ...d, file: sourceFile }),
     );
-    const added = view.analysis.errors.map(
-        (e): TS.Diagnostic => ({
-            category: ts.DiagnosticCategory.Error,
-            code: TRACK_LABEL_CODE,
-            file: sourceFile,
-            length: e.end - e.start,
-            messageText: e.message,
-            start: e.start,
-        }),
-    );
+    const added = view.analysis.errors.map((e): TS.Diagnostic => ({
+        category: ts.DiagnosticCategory.Error,
+        code: TRACK_LABEL_CODE,
+        file: sourceFile,
+        length: e.end - e.start,
+        messageText: e.message,
+        start: e.start,
+    }));
     return [...kept, ...atEnd, ...added].sort(
         (a, b) => (a.start ?? 0) - (b.start ?? 0),
     );

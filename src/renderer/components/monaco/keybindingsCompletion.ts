@@ -23,9 +23,7 @@ import { CONTEXT_KEY_INFO } from '../../keybindings/contextKeyInfo';
 import { authoringId } from '../../keybindings/vscodeKeys';
 
 export type KeybindingCompletion =
-    | { kind: 'command'; word: string }
-    | { kind: 'when'; word: string }
-    | null;
+    { kind: 'command'; word: string } | { kind: 'when'; word: string } | null;
 
 /**
  * Classify the cursor position from the text before it on the current line:

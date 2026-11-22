@@ -11,13 +11,7 @@
  * output reads through one shared `$cycle`, made on first use.
  */
 
-import type {
-    AtomValue,
-    MiniAST,
-    ParsedPattern,
-    SourceSpan,
-    Located,
-} from './ast';
+import type { MiniAST, ParsedPattern, SourceSpan } from './ast';
 import { collectLeafSpans } from './collectLeafSpans';
 import { MiniParseError, parseMini } from './parser';
 import { ALIGNMENT_MODES, type AlignmentMode } from '../alignmentModes';
@@ -845,5 +839,4 @@ function patternHandle<T extends PatternPayload>(
     return handle;
 }
 
-// `Located` is re-exported for tests that hand-construct ASTs.
-export type { AtomValue, Located, SourceSpan };
+export type { SourceSpan };

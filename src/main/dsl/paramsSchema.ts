@@ -48,12 +48,7 @@ export type ParamKind =
     | 'unknown';
 
 export type ParamType =
-    | 'audio'
-    | 'pitch'
-    | 'frequency'
-    | 'gate'
-    | 'trig'
-    | 'control';
+    'audio' | 'pitch' | 'frequency' | 'gate' | 'trig' | 'control';
 
 const PARAM_TYPES = new Set<string>([
     'audio',

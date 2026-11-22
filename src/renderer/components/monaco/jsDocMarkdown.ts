@@ -44,15 +44,23 @@ export function docPartsToMarkdown(
         return '';
     }
     let out = '';
-    let link: { name: string; text: string; target?: JsDocLinkRef['target'] } | null =
-        null;
+    let link: {
+        name: string;
+        text: string;
+        target?: JsDocLinkRef['target'];
+    } | null = null;
     for (const part of parts as readonly LinkPart[]) {
         if (part.kind === 'link') {
             if (link) {
                 // An unresolved link has no `linkName`; its text is the name.
                 const text = link.text.trim();
                 out += link.name
-                    ? renderLink(link.name, text || undefined, link.target, resolve)
+                    ? renderLink(
+                          link.name,
+                          text || undefined,
+                          link.target,
+                          resolve,
+                      )
                     : renderLink(text, undefined, undefined, resolve);
                 link = null;
             } else {

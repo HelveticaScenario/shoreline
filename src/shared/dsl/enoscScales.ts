@@ -14,8 +14,7 @@ export interface EnoscScalePreset {
 export function enoscScalePresets(schemas: ModuleSchema[]): EnoscScalePreset[] {
     const schema = schemas.find((s) => s.name === '$enosc');
     const params = schema?.paramsSchema as
-        | { $defs?: Record<string, { oneOf?: unknown[] }> }
-        | undefined;
+        { $defs?: Record<string, { oneOf?: unknown[] }> } | undefined;
     const variants = params?.$defs?.EnoscScale?.oneOf ?? [];
     return variants.flatMap((variant) => {
         const v = variant as {

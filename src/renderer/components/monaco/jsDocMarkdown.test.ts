@@ -26,13 +26,18 @@ function quickInfo(source: string, name: string) {
     const files: Record<string, string> = { '/lib.ts': source };
     const host: ts.LanguageServiceHost = {
         fileExists: (f) => f in files || ts.sys.fileExists(f),
-        getCompilationSettings: () => ({ lib: ['lib.es2020.d.ts'], noLib: false }),
+        getCompilationSettings: () => ({
+            lib: ['lib.es2020.d.ts'],
+            noLib: false,
+        }),
         getCurrentDirectory: () => '/',
         getDefaultLibFileName: (o) => ts.getDefaultLibFilePath(o),
         getScriptFileNames: () => Object.keys(files),
         getScriptSnapshot: (f) => {
             const text = files[f] ?? ts.sys.readFile(f);
-            return text === undefined ? undefined : ts.ScriptSnapshot.fromString(text);
+            return text === undefined
+                ? undefined
+                : ts.ScriptSnapshot.fromString(text);
         },
         getScriptVersion: () => '1',
         readFile: (f) => files[f] ?? ts.sys.readFile(f),
@@ -41,7 +46,8 @@ function quickInfo(source: string, name: string) {
         .createLanguageService(host)
         .getQuickInfoAtPosition(
             '/lib.ts',
-            source.indexOf(`declare function ${name}`) + 'declare function '.length,
+            source.indexOf(`declare function ${name}`) +
+                'declare function '.length,
         );
     if (!info) {
         throw new Error(`no quick info for ${name}`);
@@ -54,10 +60,16 @@ describe('jsDocToMarkdown', () => {
 
     test('renders each resolved link through the resolver', () => {
         const refs: JsDocLinkRef[] = [];
-        const markdown = jsDocToMarkdown(info.documentation, info.tags, (ref) => {
-            refs.push(ref);
-            return ref.name === 'missing' ? undefined : `command:open?${ref.name}`;
-        });
+        const markdown = jsDocToMarkdown(
+            info.documentation,
+            info.tags,
+            (ref) => {
+                refs.push(ref);
+                return ref.name === 'missing'
+                    ? undefined
+                    : `command:open?${ref.name}`;
+            },
+        );
 
         expect(markdown).toBe(
             [
@@ -73,7 +85,8 @@ describe('jsDocToMarkdown', () => {
         expect(
             LIB.slice(
                 options!.target!.textSpan.start,
-                options!.target!.textSpan.start + options!.target!.textSpan.length,
+                options!.target!.textSpan.start +
+                    options!.target!.textSpan.length,
             ),
         ).toBe('interface Options { gain?: number }');
         expect(refs.find((r) => r.name === 'missing')?.target).toBeUndefined();
@@ -90,8 +103,8 @@ describe('jsDocToMarkdown', () => {
             '/**\n * @example\n * ```js\n * a()\n * ```\n */\ndeclare function a(): void;',
             'a',
         );
-        expect(jsDocToMarkdown(fenced.documentation, fenced.tags, () => undefined)).toBe(
-            '*@example*\n```js\na()\n```',
-        );
+        expect(
+            jsDocToMarkdown(fenced.documentation, fenced.tags, () => undefined),
+        ).toBe('*@example*\n```js\na()\n```');
     });
 });

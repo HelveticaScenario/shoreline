@@ -130,33 +130,31 @@ export const GLOBALS: FunctionDoc[] = [
         params: { arrays: 'Arrays to combine' },
         returns: { description: 'One tuple per combination' },
     },
-    ...[1, 2, 3].map(
-        (n): FunctionDoc => ({
-            declarations: [`$g${n}(signals: Poly<Signal>): SignalGroup`],
-            docs: {
-                categories: ['utility'],
-                description:
-                    n === 1
-                        ? 'Tags a param value into signal group 1 (and `$g2`, `$g3` into groups 2 and 3). Params in different groups multiply, the module playing every combination of their lanes, while params in one group cycle together and untagged ones are group 0. Lower groups vary fastest, at most 64 lanes in all, and `$gN` must wrap the whole param value.'
-                        : `Tags a param value into signal group ${n}; see \`$g1\`.`,
-                examples: [
-                    n === 3
-                        ? {
-                              code: "tone: $saw($g1(['c2', 'c3']), {\n  shape: $g2([0, 2.5]),\n  phaseOffset: $g3([0, 0.5]),\n})",
-                              title: '2 × 2 × 2 = 8 voices',
-                          }
-                        : {
-                              code: "tone: $sine($g1(['c3', 'e3', 'g3']), {\n  phaseOffset: $g2([0, 0.25]),\n})",
-                              title: '3 pitches × 2 phases = 6 voices',
-                          },
-                ],
-                sections: [],
-                summary: `Signal group ${n}`,
-            },
-            params: { signals: 'The whole param value' },
-            returns: { description: 'The value, tagged with its group' },
-        }),
-    ),
+    ...[1, 2, 3].map((n): FunctionDoc => ({
+        declarations: [`$g${n}(signals: Poly<Signal>): SignalGroup`],
+        docs: {
+            categories: ['utility'],
+            description:
+                n === 1
+                    ? 'Tags a param value into signal group 1 (and `$g2`, `$g3` into groups 2 and 3). Params in different groups multiply, the module playing every combination of their lanes, while params in one group cycle together and untagged ones are group 0. Lower groups vary fastest, at most 64 lanes in all, and `$gN` must wrap the whole param value.'
+                    : `Tags a param value into signal group ${n}; see \`$g1\`.`,
+            examples: [
+                n === 3
+                    ? {
+                          code: "tone: $saw($g1(['c2', 'c3']), {\n  shape: $g2([0, 2.5]),\n  phaseOffset: $g3([0, 0.5]),\n})",
+                          title: '2 × 2 × 2 = 8 voices',
+                      }
+                    : {
+                          code: "tone: $sine($g1(['c3', 'e3', 'g3']), {\n  phaseOffset: $g2([0, 0.25]),\n})",
+                          title: '3 pitches × 2 phases = 6 voices',
+                      },
+            ],
+            sections: [],
+            summary: `Signal group ${n}`,
+        },
+        params: { signals: 'The whole param value' },
+        returns: { description: 'The value, tagged with its group' },
+    })),
     {
         declarations: [
             '$cross(count: number, playhead: LaneSum<Signal>, range?: [number, number], interpolationType?: Parameters<typeof $keyframes>[1]["interpolationType"]): Collection',

@@ -97,7 +97,7 @@ export function splitChain(
 ): { receiver: ts.Expression; chain: string | null } {
     let found: { receiver: ts.Expression; chain: string } | undefined;
     const names: string[] = [];
-    for (let e: ts.Expression = callee; ts.isPropertyAccessExpression(e); ) {
+    for (let e: ts.Expression = callee; ts.isPropertyAccessExpression(e);) {
         names.unshift(e.name.text);
         e = e.expression;
         const path = names.join('.');

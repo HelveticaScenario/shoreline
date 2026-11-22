@@ -626,9 +626,11 @@ function sliceRoot(
     for (const [name, value] of Object.entries(set.values)) {
         values[name] =
             value instanceof BaseCollection && value.length === rootLanes
-                ? new (value.constructor as new (
-                      ...args: ModuleOutput[]
-                  ) => AnyCollection)(...indices.map((i) => value.items[i]))
+                ? new (
+                      value.constructor as new (
+                          ...args: ModuleOutput[]
+                      ) => AnyCollection
+                  )(...indices.map((i) => value.items[i]))
                 : value;
     }
     markRoot(sliced, {

@@ -78,8 +78,7 @@ export class EqPanelController implements EqPanelContext {
                     panel,
                     (
                         states[panel.def.moduleId] as
-                            | { eqLive?: LiveValues }
-                            | undefined
+                            { eqLive?: LiveValues } | undefined
                     )?.eqLive ?? null,
                 );
                 if (live || panel.live) {

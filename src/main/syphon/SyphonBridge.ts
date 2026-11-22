@@ -12,11 +12,7 @@ import { app, type BrowserWindow } from 'electron';
  */
 
 export type SyphonStatus =
-    | 'stopped'
-    | 'starting'
-    | 'ready'
-    | 'permission_required'
-    | 'error';
+    'stopped' | 'starting' | 'ready' | 'permission_required' | 'error';
 
 /** Syphon source name advertised to clients (Resolume, VDMX, MadMapper, …). */
 const SERVER_NAME = 'Shoreline';

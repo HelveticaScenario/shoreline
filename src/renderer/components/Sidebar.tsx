@@ -24,11 +24,7 @@ import {
 import './Sidebar.css';
 
 export type SidebarTab =
-    | 'explorer'
-    | 'control'
-    | 'perform'
-    | 'docs'
-    | 'settings';
+    'explorer' | 'control' | 'perform' | 'docs' | 'settings';
 
 const OPEN_SETTINGS_COMMAND = 'shoreline.openSettings';
 

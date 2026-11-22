@@ -9,12 +9,7 @@
 import { parseSliderValue } from '../../shared/dsl/sliderUnits';
 
 export type EqSectionType =
-    | 'peak'
-    | 'lowShelf'
-    | 'highShelf'
-    | 'lowpass'
-    | 'highpass'
-    | 'notch';
+    'peak' | 'lowShelf' | 'highShelf' | 'lowpass' | 'highpass' | 'notch';
 
 export const EQ_SECTION_TYPES: readonly EqSectionType[] = [
     'peak',

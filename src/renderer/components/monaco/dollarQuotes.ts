@@ -130,15 +130,13 @@ export function withDollarQuoteDiagnostics(
             d.start === undefined ||
             !quotes.some((q) => d.start! >= q.start && d.start! < q.end),
     );
-    const added = quotes.map(
-        (q): TS.Diagnostic => ({
-            category: ts.DiagnosticCategory.Error,
-            code: DOLLAR_QUOTE_CODE,
-            file: sourceFile,
-            length: q.end - q.start,
-            messageText: `Patterns use backticks: write $\`${templateBody(q.body)}\`, or call $(${sourceFile.text.slice(q.start + 1, q.end)}).`,
-            start: q.start,
-        }),
-    );
+    const added = quotes.map((q): TS.Diagnostic => ({
+        category: ts.DiagnosticCategory.Error,
+        code: DOLLAR_QUOTE_CODE,
+        file: sourceFile,
+        length: q.end - q.start,
+        messageText: `Patterns use backticks: write $\`${templateBody(q.body)}\`, or call $(${sourceFile.text.slice(q.start + 1, q.end)}).`,
+        start: q.start,
+    }));
     return [...kept, ...added].sort((a, b) => (a.start ?? 0) - (b.start ?? 0));
 }

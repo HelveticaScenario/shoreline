@@ -17,22 +17,18 @@ export function performanceControls(
         runningButtons.filter((b) => b.value).map((b) => b.moduleId),
     );
     return [
-        ...sliders.map(
-            (s): PlacedControl => ({
-                fraction: voltsToPosition(s.value, s) / sliderPositionCount(s),
-                kind: 'slider',
-                offset: s.callStart,
-            }),
-        ),
-        ...buttons.map(
-            (b): PlacedControl => ({
-                kind: 'button',
-                offset: b.callStart,
-                on:
-                    b.mode === 'toggle'
-                        ? b.value
-                        : b.moduleId !== null && held.has(b.moduleId),
-            }),
-        ),
+        ...sliders.map((s): PlacedControl => ({
+            fraction: voltsToPosition(s.value, s) / sliderPositionCount(s),
+            kind: 'slider',
+            offset: s.callStart,
+        })),
+        ...buttons.map((b): PlacedControl => ({
+            kind: 'button',
+            offset: b.callStart,
+            on:
+                b.mode === 'toggle'
+                    ? b.value
+                    : b.moduleId !== null && held.has(b.moduleId),
+        })),
     ].sort((a, b) => a.offset - b.offset);
 }
