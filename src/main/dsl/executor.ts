@@ -575,7 +575,7 @@ export function executePatchScript(
         );
     };
 
-    // `$delay` is a DSL helper, not a module, so it is made a chain method here.
+    // `$delay` is built from other modules and has no schema, so it is made a chain method here.
     builder.registerChainMethod('delay', (self, ...args) =>
         $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
     );

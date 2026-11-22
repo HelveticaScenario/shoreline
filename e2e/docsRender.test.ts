@@ -182,8 +182,8 @@ const metasOf = (docs: { meta?: string }[]): string[] =>
 
 /** The ranges and defaults a DSL function's hover shows: its params' and
  *  return's. */
-const functionMetas = (global: ReferenceEntry): string[] =>
-    metasOf([...global.params, ...(global.returns ? [global.returns] : [])]);
+const functionMetas = (fn: ReferenceEntry): string[] =>
+    metasOf([...fn.params, ...(fn.returns ? [fn.returns] : [])]);
 
 /** What the editor shows for one module or global. */
 interface EditorSpec {
@@ -219,15 +219,15 @@ const EDITOR_SPECS: EditorSpec[] = [
         };
     }),
     ...[...DSL_MODULES, ...GLOBAL_ENTRIES].map(
-        (global): EditorSpec => ({
-            anchor: global.name,
-            chainable: CHAINABLE.has(global.name),
-            hoverMetas: functionMetas(global),
-            name: global.name,
+        (fn): EditorSpec => ({
+            anchor: fn.name,
+            chainable: CHAINABLE.has(fn.name),
+            hoverMetas: functionMetas(fn),
+            name: fn.name,
             // A rest param typed by a type param infers an empty tuple with
             // no arguments, so signature help names no param.
-            signatures: global.params
-                .filter((p) => !(p.rest && GENERIC.has(global.name)))
+            signatures: fn.params
+                .filter((p) => !(p.rest && GENERIC.has(fn.name)))
                 .map((p) => ({ meta: p.meta, param: p.name })),
         }),
     ),
