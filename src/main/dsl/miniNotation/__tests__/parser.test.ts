@@ -297,6 +297,83 @@ describe('altered atoms `+` / `-`', () => {
     });
 });
 
+describe('chords', () => {
+    test('a note, a colon and a chord symbol is a Chord atom', () => {
+        const r = patternPayload($('eb3:m7^1%'));
+        expect(r.ast).toEqual({
+            Pure: {
+                node: {
+                    Chord: {
+                        letter: 'e',
+                        accidental: 'b',
+                        octave: 3,
+                        chord: 'm7^1%',
+                    },
+                },
+                span: { start: 0, end: 9 },
+            },
+        });
+    });
+
+    test('the root octave may be left out', () => {
+        const atom = firstPureAtom(patternPayload($('c:M7 g')).ast);
+        expect(atom).toEqual({
+            Pure: {
+                node: {
+                    Chord: {
+                        letter: 'c',
+                        accidental: null,
+                        octave: null,
+                        chord: 'M7',
+                    },
+                },
+                span: { start: 0, end: 4 },
+            },
+        });
+    });
+
+    test('a chord takes modifiers, euclidean included', () => {
+        const r = patternPayload($('c3:m(3,8)'));
+        if (!('Euclidean' in r.ast)) throw new Error('expected Euclidean');
+        const inner = r.ast.Euclidean.pattern;
+        if (!('Pure' in inner)) throw new Error('expected Pure');
+        expect(inner.Pure.node).toMatchObject({ Chord: { chord: 'm' } });
+        expect('Fast' in patternPayload($('c3:M7*2')).ast).toBe(true);
+    });
+
+    test('a colon with no symbol is a parse error', () => {
+        expect(() => $('c: e')).toThrow(MiniParseError);
+    });
+});
+
+describe('scales', () => {
+    test('a note with a scale in parentheses is a Scale atom', () => {
+        const r = patternPayload($('d3( dorian )'));
+        expect(r.ast).toEqual({
+            Pure: {
+                node: {
+                    Scale: {
+                        letter: 'd',
+                        accidental: null,
+                        octave: 3,
+                        scale: 'dorian',
+                    },
+                },
+                span: { start: 0, end: 12 },
+            },
+        });
+    });
+
+    test('a comma in the parentheses keeps them a euclidean rhythm', () => {
+        expect('Euclidean' in patternPayload($('c(3,8)')).ast).toBe(true);
+        expect('Euclidean' in patternPayload($('c(<3 5>,8)')).ast).toBe(true);
+    });
+
+    test('empty parentheses are a parse error', () => {
+        expect(() => $('c( )')).toThrow(MiniParseError);
+    });
+});
+
 describe('sequences and groupings', () => {
     test('space-separated sequence', () => {
         const r = patternPayload($('0 1 2'));

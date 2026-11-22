@@ -139,7 +139,7 @@ const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Gritty tube chords",
             code: r#"
-                chord: $saw($chord('C3[m7]')).overdrive(2, {
+                chord: $saw('c3:m7').overdrive(2, {
                   mode: 'asym',
                   tone: -2,
                 })

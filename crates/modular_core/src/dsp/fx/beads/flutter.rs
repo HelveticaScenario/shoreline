@@ -104,7 +104,7 @@ const WOW_FLUTTER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Warbly tape chords",
-            code: "chord: $saw($chord('F3[maj9]')).lpf('f5', 1).wowFlutter()",
+            code: "chord: $saw('f3:M9').lpf('f5', 1).wowFlutter()",
         },
         DocExample {
             title: "The full Beads chain",

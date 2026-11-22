@@ -99,7 +99,7 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "PWM chord pad",
             code: r#"
-                chord: $pulse($chord('C3[m]'), {
+                chord: $pulse('c3:m', {
                   pwm: $sine('0.3hz').range(-2, 2),
                 }).lpf('c6')
             "#,
