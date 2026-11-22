@@ -314,6 +314,12 @@ pub enum AtomValue {
     /// Structure atom `x` — an onset marker with no pitch of its own, only
     /// meaningful in boolean (`.struct(...)`) patterns.
     Truthy,
+
+    /// A number with trailing `+`/`-` marks (`2+`, `4--`), each raising or
+    /// lowering it one semitone. Only scale patterns accept it: the semitones
+    /// apply after the degree resolves through the scale, so they reach notes
+    /// outside it.
+    Altered { value: f64, semitones: i32 },
 }
 
 impl AtomValue {
@@ -352,7 +358,10 @@ impl AtomValue {
                 let oct = octave.unwrap_or(4);
                 Some(((oct + 1) * 12 + base + acc_offset) as f64)
             }
-            AtomValue::Chord { .. } | AtomValue::Scale { .. } | AtomValue::Truthy => None,
+            AtomValue::Chord { .. }
+            | AtomValue::Scale { .. }
+            | AtomValue::Truthy
+            | AtomValue::Altered { .. } => None,
         }
     }
 }

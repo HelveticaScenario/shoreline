@@ -25,7 +25,7 @@
 //! Scope:
 //! - Sequences, stacks (`,`), fast subsequences `[...]`, slow subsequences `<...>`
 //! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), chords
-//!   (`c3:M7`), scales (`d(dorian)`), rest (`~`)
+//!   (`c3:M7`), scales (`d(dorian)`), rest (`~`), altered numbers (`2+`, `4--`)
 //! - Note letters 'a'..'g' also parse as a note without octave.
 //! - Modifiers: `*`, `/`, `!`, `?`, `@`, `(k,n,rot?)`
 //! - Random choice: `a|b|c`
@@ -430,12 +430,44 @@ impl<'a> Parser<'a> {
             let end = self.pos;
             return Ok(MiniAST::Pure(Located::new(AtomValue::Hz(n), start, end)));
         }
+        if let Some(semitones) = self.semitone_marks() {
+            return Ok(MiniAST::Pure(Located::new(
+                AtomValue::Altered {
+                    value: n,
+                    semitones,
+                },
+                start,
+                self.pos,
+            )));
+        }
         let end = self.pos;
         Ok(MiniAST::Pure(Located::new(
             AtomValue::Number(n),
             start,
             end,
         )))
+    }
+
+    /// A run of `+` or `-` marks after a number, as a signed semitone count.
+    /// Mirrors the peggy AlteredValue rule: the run must not be followed by a
+    /// number, so `2-3` stays the two atoms `2` and `-3`, nor by the other
+    /// mark.
+    fn semitone_marks(&mut self) -> Option<i32> {
+        let mark = self.peek().filter(|c| *c == b'+' || *c == b'-')?;
+        let mut end = self.pos;
+        while self.input.get(end) == Some(&mark) {
+            end += 1;
+        }
+        let digit_at = |i: usize| self.input.get(i).is_some_and(u8::is_ascii_digit);
+        if digit_at(end)
+            || (self.input.get(end) == Some(&b'.') && digit_at(end + 1))
+            || matches!(self.input.get(end), Some(b'+' | b'-'))
+        {
+            return None;
+        }
+        let count = (end - self.pos) as i32;
+        self.pos = end;
+        Some(if mark == b'+' { count } else { -count })
     }
 
     /// A chord symbol after its root note and `:`, consumed with the colon;
