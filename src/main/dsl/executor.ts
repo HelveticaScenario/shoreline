@@ -656,8 +656,6 @@ export function executePatchScript(
             ]),
             () => {
                 const voices = $unison(freq, unison, detune) as Collection;
-                // Read past the root, so offering the phase does not count as
-                // taking the copies as their phase.
                 const phaseOffset = outputSetOf(voices)?.values
                     .phase as Collection;
                 const voice = builder.outputResolver.withUserCode(() =>

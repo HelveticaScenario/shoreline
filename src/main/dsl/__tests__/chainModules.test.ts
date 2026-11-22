@@ -268,6 +268,15 @@ describe('.wet', () => {
         );
     });
 
+    test('works through a scope on a multi-output module', () => {
+        expect(
+            normalize(execPatch('out: $saw(0).xover().scope().wet(2)')),
+        ).toEqual(normalize(execPatch('out: $saw(0).xover().wet(2)')));
+        expect(
+            normalize(execPatch('out: $saw(0).xover().scope()._low.wet(2)')),
+        ).toEqual(normalize(execPatch('out: $saw(0).xover()._low.wet(2)')));
+    });
+
     test('fades against the receiver of the last chained module only', () => {
         const viaWet = execPatch(
             'out: $saw(0).lpf("100hz").hpf("50hz").wet(2)',

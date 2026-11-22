@@ -28,6 +28,8 @@ import {
     docPartsToMarkdown,
     jsDocToMarkdown,
 } from './jsDocMarkdown';
+import type { QuoteStyle } from '../../../shared/ipcTypes';
+import { requoteMarkdown } from '../../dsl/requote';
 
 function plainText(parts: readonly SymbolDisplayPart[] | undefined): string {
     return parts?.map((p) => p.text).join('') ?? '';
@@ -124,11 +126,13 @@ function openLink(
 /**
  * Hover, completion details and signature help for the JavaScript language
  * with working `{@link}`s. They replace the bundled TypeScript providers,
- * which print a link as its raw `{@link Name}` source text.
+ * which print a link as its raw `{@link Name}` source text. Code examples
+ * in the docs follow `quotes`, read each time one is shown.
  */
 export function registerJsDocLinkProviders(
     monaco: Monaco,
     schemas: readonly ModuleSchema[],
+    quotes: () => QuoteStyle,
 ): IDisposable {
     const ts = monaco.typescript;
     const defaults = ts.javascriptDefaults;
@@ -161,6 +165,10 @@ export function registerJsDocLinkProviders(
     );
     const resolverAt = (from: Uri, position: IPosition) =>
         linkResolver(moduleNames, namespaces, from, position);
+    const docs = (markdown: string) => ({
+        isTrusted: LINK_TRUST,
+        value: requoteMarkdown(markdown, quotes()),
+    });
 
     const worker = async (...uris: Uri[]) =>
         (await ts.getJavaScriptWorker())(...uris);
@@ -186,14 +194,13 @@ export function registerJsDocLinkProviders(
             return {
                 contents: [
                     { value: '```typescript\n' + signature + '\n```\n' },
-                    {
-                        isTrusted: LINK_TRUST,
-                        value: jsDocToMarkdown(
+                    docs(
+                        jsDocToMarkdown(
                             info.documentation,
                             info.tags,
                             resolverAt(resource, position),
                         ),
-                    },
+                    ),
                 ],
                 range: this._textSpanToRange(model, info.textSpan),
             };
@@ -268,14 +275,13 @@ export function registerJsDocLinkProviders(
             return {
                 ...item,
                 detail: plainText(details.displayParts),
-                documentation: {
-                    isTrusted: LINK_TRUST,
-                    value: jsDocToMarkdown(
+                documentation: docs(
+                    jsDocToMarkdown(
                         details.documentation,
                         details.tags,
                         resolverAt(uri, position),
                     ),
-                },
+                ),
                 kind: SuggestAdapter.convertKind(details.kind),
                 label:
                     typeof item.label === 'string' ? details.name : item.label,
@@ -310,10 +316,9 @@ export function registerJsDocLinkProviders(
             const resolve = resolverAt(model.uri, position);
             const signatures = info.items.map((item: SignatureHelpItem) => {
                 const parameters = item.parameters.map((p) => ({
-                    documentation: {
-                        isTrusted: LINK_TRUST,
-                        value: docPartsToMarkdown(p.documentation, resolve),
-                    },
+                    documentation: docs(
+                        docPartsToMarkdown(p.documentation, resolve),
+                    ),
                     label: plainText(p.displayParts),
                 }));
                 const label =
@@ -323,10 +328,9 @@ export function registerJsDocLinkProviders(
                         .join(plainText(item.separatorDisplayParts)) +
                     plainText(item.suffixDisplayParts);
                 return {
-                    documentation: {
-                        isTrusted: LINK_TRUST,
-                        value: docPartsToMarkdown(item.documentation, resolve),
-                    },
+                    documentation: docs(
+                        docPartsToMarkdown(item.documentation, resolve),
+                    ),
                     label,
                     parameters,
                 };
