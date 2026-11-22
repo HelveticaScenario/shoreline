@@ -3,8 +3,8 @@ mod terrain;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -105,7 +105,7 @@ const WAVE_TERRAIN_DOCS: ModuleDocs = ModuleDocs {
                   point circles over a 3D surface once per cycle and the \
                   surface's height is the waveform, so moving the circle or \
                   morphing the surface reshapes the tone.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

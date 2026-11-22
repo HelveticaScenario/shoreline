@@ -6,9 +6,9 @@ use schemars::JsonSchema;
 use crate::dsp::core::pan::pan_pair;
 use crate::dsp::utils::sanitize;
 use crate::dsp::utils::unison_voices::{SlotOrder, centred_position, unison_gain, unison_lane};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PORT_MAX_LANES, PairSignal, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 fn default_voices() -> usize {
@@ -49,7 +49,7 @@ const STEREO_FOLD_DOCS: ModuleDocs = ModuleDocs {
     description: "Mixes each note's `$unison` copies down to one stereo lane, fanning them \
                   across the field the way `$supersaw` spreads its saws, so any oscillator \
                   can make a wide unison stack.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[
         DocExample {

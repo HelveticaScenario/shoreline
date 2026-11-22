@@ -1,9 +1,9 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 use crate::dsp::mi::core::ensemble::{Ensemble, EnsembleRates};
@@ -55,7 +55,7 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
                   and a fast LFO, for the lush shimmer of a string \
                   machine. `$mi.stringMachine` plays Plaits' string machine \
                   through it.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[
         DocExample {

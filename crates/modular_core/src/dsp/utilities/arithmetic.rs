@@ -1,13 +1,13 @@
 //! The arithmetic operator modules: `$add`, `$sub`, `$mul`, `$div` and `$exp`.
 
 use super::operator::operator_module;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 const ADD_DOCS: ModuleDocs = ModuleDocs {
     summary: "Add",
     description: "Adds another signal, or a fixed amount, to a signal, sample by sample.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Vibrato around a note",
@@ -30,7 +30,7 @@ const SUB_DOCS: ModuleDocs = ModuleDocs {
     summary: "Subtract",
     description: "Subtracts another signal, or a fixed amount, from a signal, sample by \
                   sample.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "An octave down",
@@ -54,7 +54,7 @@ const MUL_DOCS: ModuleDocs = ModuleDocs {
     description: "Multiplies a signal by another signal, or a fixed amount, sample by \
                   sample: 2 doubles it. To change a level with a 0–5 V signal such as \
                   `$adsr`, use `$amp` or `$gain`.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Ring modulation",
@@ -77,7 +77,7 @@ const DIV_DOCS: ModuleDocs = ModuleDocs {
     summary: "Divide",
     description: "Divides a signal by another signal, or a fixed amount, sample by \
                   sample. Dividing by 0 gives 0 V.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "An LFO at half depth",
@@ -116,7 +116,7 @@ const EXP_DOCS: ModuleDocs = ModuleDocs {
     description: "Raises a signal to a power, sample by sample, with negative values \
                   mirroring positive ones, so the output only ever rises as the input \
                   does. For a curve that keeps ±5 V at ±5 V, use `$curve`.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "A fade-in that starts slow",

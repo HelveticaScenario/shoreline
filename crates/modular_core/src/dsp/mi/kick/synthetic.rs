@@ -3,8 +3,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::random::Random,
@@ -113,7 +113,7 @@ const SYNTH_KICK_DOCS: ModuleDocs = ModuleDocs {
                   a 909: a sine swept down in pitch, with a click and a burst \
                   of noise on the attack. Leave `trigger` unpatched and its \
                   body drones.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[
         DocExample {

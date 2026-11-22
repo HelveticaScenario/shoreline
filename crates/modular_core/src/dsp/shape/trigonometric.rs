@@ -7,8 +7,8 @@ use schemars::JsonSchema;
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Trigonometric shaping algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -80,7 +80,7 @@ const TRIGONOMETRIC_DOCS: ModuleDocs = ModuleDocs {
                   harmonics that change sharply with level, so a slowly swept \
                   drive makes one oscillator glitter. Modelled on \
                   the Surge XT trigonometric shapes.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Ringing sweep",

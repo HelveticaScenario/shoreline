@@ -7,9 +7,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::{cached::Cached, sanitize};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 // Gain voltage scaling: maps [-5, 5] volts to [-24, 24] dB (4.8 dB per volt)
 const DB_PER_VOLT: f32 = 4.8;
@@ -255,7 +255,7 @@ const COMP_DOCS: ModuleDocs = ModuleDocs {
                   also lift quiet details or gate them away. Patch `sidechain` to duck one \
                   sound under another, or split a sound with `$xover` to compress each band \
                   on its own.",
-    categories: &[ModuleCategory::Dynamics],
+    categories: &[ReferenceCategory::Dynamics],
     sections: &[],
     examples: &[
         DocExample {

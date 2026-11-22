@@ -8,8 +8,8 @@ use schemars::JsonSchema;
 use super::biquad::{FilterSlope, iir12_b, iir24_b};
 use super::coeffs::{bound_freq, note_to_omega, to_normalized_lattice};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Notch width character.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
@@ -92,7 +92,7 @@ const NOTCH_DOCS: ModuleDocs = ModuleDocs {
     summary: "Surge notch filter",
     description: "Cuts a hole at the cutoff and leaves the rest; swept slowly it gives a \
                   hollow, phaser-like motion.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Hollow notch sweep",

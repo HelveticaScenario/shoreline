@@ -1,9 +1,9 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::poly::{LaneSum, PORT_MAX_LANES, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 
 use super::scale::ScaleSpec;
 
@@ -103,7 +103,7 @@ const CHORD_DOCS: ModuleDocs = ModuleDocs {
                   or into `$quantizer` to keep a melody inside it. Patching `inversion` adds \
                   a lane, and the moving note crossfades between two of them: scale each \
                   voice by `level`, or the extra lane sounds too.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[
         DocSection {
             title: "Writing a chord or scale",

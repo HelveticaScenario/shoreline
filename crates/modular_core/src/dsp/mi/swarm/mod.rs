@@ -3,8 +3,8 @@ mod voice;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -122,7 +122,7 @@ const SWARM_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' swarm: eight saw (or sine) \
                   voices that each wander in pitch, from a cloud of short \
                   grains to a mass of slow glissandi around the pitch.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

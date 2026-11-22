@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -41,7 +41,7 @@ const CP808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 hand clap",
     description: "The 808's hand clap: bursts of filtered noise in quick succession, \
                   like several hands clapping at once, over a softer noise tail.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Clap on two and four",

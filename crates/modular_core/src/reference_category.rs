@@ -13,8 +13,8 @@ use strum::{EnumMessage, VariantArray};
 #[serde(rename_all = "camelCase")]
 #[napi(string_enum = "camelCase")]
 // Variant docs must not contain commas: the napi codegen turns them into `|`.
-// They are also the descriptions written to `moduleCategories.json`.
-pub enum ModuleCategory {
+// They are also the descriptions written to `referenceCategories.json`.
+pub enum ReferenceCategory {
     /// Oscillators and other sound sources.
     Oscillator,
     /// Phase ramps and warps plus the oscillators they drive.
@@ -55,26 +55,26 @@ pub enum ModuleCategory {
     Utility,
 }
 
-/// A category and its description, as written to `moduleCategories.json`.
+/// A category and its description, as written to `referenceCategories.json`.
 #[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ModuleCategoryInfo {
-    pub name: ModuleCategory,
+pub struct ReferenceCategoryInfo {
+    pub name: ReferenceCategory,
     pub description: &'static str,
 }
 
-impl ModuleCategory {
+impl ReferenceCategory {
     /// The variant's `///` doc comment.
     pub fn description(self) -> &'static str {
         self.get_documentation()
-            .expect("every ModuleCategory variant has a doc comment")
+            .expect("every ReferenceCategory variant has a doc comment")
     }
 }
 
 /// Every category with its description, in reference order.
-pub fn module_categories() -> Vec<ModuleCategoryInfo> {
-    ModuleCategory::VARIANTS
+pub fn reference_categories() -> Vec<ReferenceCategoryInfo> {
+    ReferenceCategory::VARIANTS
         .iter()
-        .map(|&name| ModuleCategoryInfo {
+        .map(|&name| ReferenceCategoryInfo {
             name,
             description: name.description(),
         })
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn every_category_has_a_one_line_description() {
-        for category in ModuleCategory::VARIANTS {
+        for category in ReferenceCategory::VARIANTS {
             let doc = category.get_documentation();
             assert!(
                 doc.is_some_and(|d| !d.is_empty() && !d.contains(['\n', ','])),
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn categories_json_lists_names_and_descriptions() {
-        let json = serde_json::to_value(module_categories()).unwrap();
+        let json = serde_json::to_value(reference_categories()).unwrap();
         assert_eq!(json[0]["name"], "oscillator");
         assert_eq!(
             json[0]["description"],
@@ -106,7 +106,7 @@ mod tests {
         );
         assert_eq!(
             json.as_array().unwrap().len(),
-            ModuleCategory::VARIANTS.len()
+            ReferenceCategory::VARIANTS.len()
         );
     }
 }

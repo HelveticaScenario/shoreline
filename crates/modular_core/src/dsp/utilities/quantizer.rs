@@ -4,8 +4,8 @@ use arrayvec::ArrayVec;
 use deserr::{DeserializeError, Deserr, IntoValue, ValuePointerRef};
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     Patch,
     dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples},
@@ -211,7 +211,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     description: "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a \
                   random source or a MIDI input plays in key. `._trig` fires on every \
                   note change, ready to retrigger an envelope.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[
         DocExample {

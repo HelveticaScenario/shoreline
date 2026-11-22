@@ -5,9 +5,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::sanitize;
 use crate::dsp::utils::unison_voices::centred_position;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -48,7 +48,7 @@ const PAN_DOCS: ModuleDocs = ModuleDocs {
     description: "Pans each lane, with equal-power gains that keep a centred lane at its level. \
                   A stereo lane moves as a whole: panning right carries its left side \
                   across. Raise `spread` to fan the lanes of a chord out from the centre.",
-    categories: &[ModuleCategory::Mixer],
+    categories: &[ReferenceCategory::Mixer],
     sections: &[],
     examples: &[
         DocExample {

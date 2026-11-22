@@ -9,8 +9,8 @@ use schemars::JsonSchema;
 
 use super::coeffs::note_to_hz;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// OB-Xd 2-pole coefficient slots (Surge `Obxd12dBCoeff`).
 const G12: usize = 0;
@@ -147,7 +147,7 @@ const OBXD2_LP_DOCS: ModuleDocs = ModuleDocs {
     summary: "OB-Xd 2-pole lowpass",
     description: "The Oberheim 2-pole lowpass: a gentle 12 dB slope with a creamy, open sound \
                   for brassy pads and leads. `'pushed'` drive lets it self-oscillate.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Brassy chord stab",
@@ -166,7 +166,7 @@ const OBXD2_BP_DOCS: ModuleDocs = ModuleDocs {
     summary: "OB-Xd 2-pole bandpass",
     description: "The Oberheim 2-pole bandpass: a soft, vocal band that sweeps without getting \
                   harsh.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Vocal band sweep",
@@ -183,7 +183,7 @@ const OBXD2_BP_DOCS: ModuleDocs = ModuleDocs {
 const OBXD2_HP_DOCS: ModuleDocs = ModuleDocs {
     summary: "OB-Xd 2-pole highpass",
     description: "The Oberheim 2-pole highpass: a gentle 12 dB cut for airy, thinned-out pads.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Airy thinned pad",
@@ -201,7 +201,7 @@ const OBXD2_NOTCH_DOCS: ModuleDocs = ModuleDocs {
     summary: "OB-Xd 2-pole notch",
     description: "The Oberheim 2-pole notch: a soft-edged cut that, swept, gives a gentle \
                   hollow motion.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Gentle notch sweep",

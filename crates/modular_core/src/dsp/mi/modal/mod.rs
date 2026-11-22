@@ -4,8 +4,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use super::accent::{Accent, plaits_volts};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -136,7 +136,7 @@ const MODAL_DOCS: ModuleDocs = ModuleDocs {
                   struck by a filtered impulse, for bells, bars, plates, \
                   marimbas and gongs. Leave `trigger` unpatched and grains \
                   bow it into a continuous drone.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

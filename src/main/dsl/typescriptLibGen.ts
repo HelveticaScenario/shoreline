@@ -17,8 +17,10 @@ import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import { superDefaults } from '../../shared/dsl/superDefaults';
 import {
     generateVideoChainMembers,
+    generateVideoGlobals,
     generateVideoNamespace,
 } from './videoLibGen';
+import { jsDocComment } from './jsDoc';
 import {
     BUS_TRACK_OPTIONS,
     TRACK_OPTIONS,
@@ -35,7 +37,10 @@ import {
 } from '../../shared/dsl/paramRange';
 import { chooseOutput } from '../../shared/dsl/outputResolutionRule';
 import { outputName } from './outputNames';
-import { renderDocContentJsDoc } from '../../shared/dsl/referenceDocs';
+import {
+    readDocText,
+    renderDocContentJsDoc,
+} from '../../shared/dsl/referenceDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../../shared/dsl/globalDocs';
 import { parseDeclaration } from '../../shared/dsl/tsDeclaration';
 
@@ -951,38 +956,13 @@ class DeferredCollection extends BaseCollection {
  */
 class TrackTap extends Collection {
   protected constructor();
-  /** 5V while the track is audible, 0V while it is muted or silenced by another track's solo. */
-  readonly active: CollectionWithRange;
-  /**
-   * The track's gain (5 = unity), as the mixer's fader shows it.
-   * Ranged 0 to 10, or the gain signal's own range when it declares one.
-   */
-  readonly level: CollectionWithRange;
-  /**
-   * The track's pan (-5 left to +5 right); 0 for mono tracks. Ranged -5 to 5, or
-   * the pan signal's own range when it declares one.
-   */
-  readonly panning: CollectionWithRange;
+${renderTrackTapMembers()}
 }
 
 
 ${renderGlobalFunctions()}
 
-/**
- * An XY oscilloscope as the patch's picture: shorthand for
- * \`$v.scopeXY(x, y, config).out()\`. Each lane of \`x\` and \`y\` is its own
- * signal, paired off in order with the shorter side cycling, one trace per pair.
- * @param x Horizontal signal(s)
- * @param y Vertical signal(s)
- * @param config See \`$v.scopeXY\`
- * @example $scopeXY($sine($hz(440)), $sine($hz(311)))
- * @example $scopeXY($c($sine('c3'), $sine('e3')), $sine('g3')) // 2 traces, both share the same Y
- */
-function $scopeXY(
-  x: ScopeAxis,
-  y: ScopeAxis,
-  config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | Collection | CollectionWithRange; persistence?: number | Collection | CollectionWithRange; lineWidth?: number | Collection | CollectionWithRange; upsample?: boolean },
-): VideoSignal;
+${generateVideoGlobals()}
 
 
 /**
@@ -1280,16 +1260,15 @@ interface VideoBuffer {
 ${generateVideoNamespace()}
 `;
 
-/** `lines` as a JSDoc comment; no comment for no lines. */
-function jsDocComment(lines: string[], indent = ''): string[] {
-    if (lines.length === 0) {
-        return [];
-    }
-    return [
-        `${indent}/**`,
-        ...lines.map((line) => `${indent} * ${line}`),
-        `${indent} */`,
-    ];
+/** `TrackTap`'s members, documented as what `$trackTap` returns. */
+function renderTrackTapMembers(): string {
+    const trackTap = GLOBAL_ENTRIES.find((e) => e.name === '$trackTap');
+    return (trackTap?.returns?.members ?? [])
+        .flatMap(({ name, description, meta }) => [
+            ...jsDocComment([withMeta(description, meta)], '  '),
+            `  readonly ${name.replace(/^\./, '')}: CollectionWithRange;`,
+        ])
+        .join('\n');
 }
 
 /**
@@ -1297,34 +1276,27 @@ function jsDocComment(lines: string[], indent = ''): string[] {
  * docs (`renderDocContentJsDoc`) and the `@param`s it declares.
  */
 function renderGlobalFunctions(): string {
-    return GLOBALS.flatMap((global, i) => {
-        const entry = GLOBAL_ENTRIES[i];
+    return GLOBALS.flatMap((global) => {
+        const { name } = parseDeclaration(global.declarations[0]);
         const returns =
-            entry.returns &&
-            withMeta(entry.returns.description, entry.returns.meta);
-        return global.declarations.flatMap((declaration) => {
-            const params = parseDeclaration(declaration).params.flatMap(
-                ({ name }) => {
-                    const doc = entry.params.find(
-                        (p) => p.name.replace(/^\.\.\./, '') === name,
-                    );
-                    return doc
-                        ? [
-                              `@param ${name} ${withMeta(doc.description, doc.meta)}`,
-                          ]
-                        : [];
-                },
-            );
-            return [
-                ...jsDocComment([
-                    ...renderDocContentJsDoc(entry.docs, entry.name),
-                    ...params,
-                    ...(returns ? [`@returns ${returns}`] : []),
-                ]),
-                `function ${declaration};`,
-                '',
-            ];
-        });
+            global.returns &&
+            withMeta(global.returns.description, global.returns.meta);
+        return global.declarations.flatMap((declaration) => [
+            ...jsDocComment([
+                ...renderDocContentJsDoc(global.docs, name),
+                ...parseDeclaration(declaration)
+                    .params.filter((p) => p.name in global.params)
+                    .map((p) => {
+                        const { description, meta } = readDocText(
+                            global.params[p.name],
+                        );
+                        return `@param ${p.name} ${withMeta(description, meta)}`;
+                    }),
+                ...(returns ? [`@returns ${returns}`] : []),
+            ]),
+            `function ${declaration};`,
+            '',
+        ]);
     }).join('\n');
 }
 
@@ -1558,17 +1530,15 @@ function generateMultiOutputInterface(
 
     const interfaceName = getMultiOutputInterfaceName(moduleSchema);
 
-    const lines: string[] = [];
-    lines.push(`${indent}/**`);
-    lines.push(`${indent} * Output type for ${moduleSchema.name} module.`);
-    lines.push(
-        `${indent} * Used directly, it stands for the output that fits the input it`,
+    const lines = jsDocComment(
+        [
+            `Output type for ${moduleSchema.name} module.`,
+            'Used directly, it stands for the output that fits the input it',
+            `is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
+            'itself is always that output.',
+        ],
+        indent,
     );
-    lines.push(
-        `${indent} * is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
-    );
-    lines.push(`${indent} * itself is always that output.`);
-    lines.push(`${indent} */`);
     lines.push(
         `${indent}export interface ${interfaceName} extends ${baseType} {`,
     );
@@ -2114,14 +2084,11 @@ export function generateDSL(schemas: Schemas): string {
     ];
     // Render the `$delay` doc at `indent`, prepending optional `header` lines
     // (a chain-form intro) before the shared body.
-    const renderDelayDoc = (indent: string, header: string[]): string[] => {
-        const star = `${indent} *`;
-        const line = (text: string) => (text === '' ? star : `${star} ${text}`);
-        const out = [`${indent}/**`, ...header.map(line)];
-        if (header.length > 0) out.push(star);
-        out.push(...delayBody.map(line), `${indent} */`);
-        return out;
-    };
+    const renderDelayDoc = (indent: string, header: string[]): string[] =>
+        jsDocComment(
+            header.length > 0 ? [...header, '', ...delayBody] : delayBody,
+            indent,
+        );
     const chainDelayHeader = [
         'Chain through `$delay` with this signal as its first argument.',
         'Equivalent to `$delay(this, time, opts)`.',
@@ -2137,27 +2104,27 @@ export function generateDSL(schemas: Schemas): string {
     if (superDefault) {
         const { unison, detune, width } = superDefault;
         lines.push(
-            '/**',
-            ' * A detuned, stereo-spread unison stack of any voice. `cb` builds one',
-            ' * voice from the detuned `$unison` copies of `freq`, and the copies are',
-            ' * folded into one stereo lane per note the way `$supersaw` spreads its',
-            ' * saws. Pass `phaseOffset` on to the oscillator so the copies never all',
-            ' * line up.',
-            " * @param freq The note's pitch",
-            " * @param cb Builds one voice from the copies' pitches",
-            ` * @param options \`unison\`: copies per note (default ${unison}); \`detune\`: semitones between the lowest and highest copy (default ${detune}); \`width\`: how far the copies fan out, 0 centred to 5 hard left and right (default ${width})`,
-            ' * @example',
-            " * lead: $super('c3', (freq, { phaseOffset }) =>",
-            ' *   $saw(freq, { phaseOffset }),',
-            ' * )',
-            ' * @example',
-            ' * pad: $super(',
-            " *   $chord('C3[m9]'),",
-            ' *   (freq, { phaseOffset }) =>',
-            " *     $pulse(freq, { phaseOffset }).lpf('c6'),",
-            ' *   { unison: 3, detune: 0.3 },',
-            ' * )',
-            ' */',
+            ...jsDocComment([
+                'A detuned, stereo-spread unison stack of any voice. `cb` builds one',
+                'voice from the detuned `$unison` copies of `freq`, and the copies are',
+                'folded into one stereo lane per note the way `$supersaw` spreads its',
+                'saws. Pass `phaseOffset` on to the oscillator so the copies never all',
+                'line up.',
+                "@param freq The note's pitch",
+                "@param cb Builds one voice from the copies' pitches",
+                `@param options \`unison\`: copies per note (default ${unison}); \`detune\`: semitones between the lowest and highest copy (default ${detune}); \`width\`: how far the copies fan out, 0 centred to 5 hard left and right (default ${width})`,
+                '@example',
+                "lead: $super('c3', (freq, { phaseOffset }) =>",
+                '  $saw(freq, { phaseOffset }),',
+                ')',
+                '@example',
+                'pad: $super(',
+                "  $chord('C3[m9]'),",
+                '  (freq, { phaseOffset }) =>',
+                "    $pulse(freq, { phaseOffset }).lpf('c6'),",
+                '  { unison: 3, detune: 0.3 },',
+                ')',
+            ]),
             'export function $super(freq: Poly<Signal>, cb: (freq: UnisonOutputs, options: { phaseOffset: CollectionWithRange }) => Collection | CollectionWithRange, options?: { unison?: number; detune?: Poly<Signal>; width?: Poly<Signal> }): Collection;',
             '',
         );
@@ -2232,11 +2199,11 @@ export function generateDSL(schemas: Schemas): string {
 
     lines.push('');
     lines.push(
-        '/**',
-        ' * The chain methods of a collection: every module whose first',
-        ' * argument is a {@link Poly<Signal>}, with the receiver as that argument.',
-        " * @example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
-        ' */',
+        ...jsDocComment([
+            'The chain methods of a collection: every module whose first',
+            'argument is a {@link Poly<Signal>}, with the receiver as that argument.',
+            "@example $sine(0).lpf('100hz')  // ≡ $lpf($sine(0), '100hz')",
+        ]),
     );
     lines.push(
         'interface ModuleChain<Plain = Collection, Ranged = CollectionWithRange> {',

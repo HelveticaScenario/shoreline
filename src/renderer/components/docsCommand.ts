@@ -1,18 +1,18 @@
+const SYMBOL_TYPES = ['type', 'module', 'namespace', 'global'] as const;
+
+type SymbolType = (typeof SYMBOL_TYPES)[number];
+
 /** A symbol to reveal in the Docs panel, such as the target of a JSDoc link. */
 export interface DocsTarget {
-    symbolType: 'type' | 'module' | 'namespace' | 'global';
+    symbolType: SymbolType;
     name: string;
 }
 
 /** Brings the docs forward, revealing a {@link DocsTarget} when given one. */
 export const SHOW_DOCS_COMMAND = 'shoreline.showDocs';
 
-const SYMBOL_TYPES: ReadonlySet<string> = new Set([
-    'type',
-    'module',
-    'namespace',
-    'global',
-]);
+const isSymbolType = (value: unknown): value is SymbolType =>
+    SYMBOL_TYPES.some((t) => t === value);
 
 /** Narrows a command argument, which a user keybinding can set to any value. */
 export function toDocsTarget(value: unknown): DocsTarget | null {
@@ -20,12 +20,8 @@ export function toDocsTarget(value: unknown): DocsTarget | null {
         return null;
     }
     const { name, symbolType } = value as Record<string, unknown>;
-    if (
-        typeof name !== 'string' ||
-        typeof symbolType !== 'string' ||
-        !SYMBOL_TYPES.has(symbolType)
-    ) {
+    if (typeof name !== 'string' || !isSymbolType(symbolType)) {
         return null;
     }
-    return { name, symbolType: symbolType as DocsTarget['symbolType'] };
+    return { name, symbolType };
 }

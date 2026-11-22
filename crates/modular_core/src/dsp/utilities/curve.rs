@@ -4,9 +4,9 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -39,7 +39,7 @@ const CURVE_DOCS: ModuleDocs = ModuleDocs {
     description: "Raises a signal to a power while keeping its sign and its ±5 V \
                   extremes, so straight ramps become curves. Use it to give an \
                   envelope or LFO a snappier or lazier shape.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Snappy filter envelope",

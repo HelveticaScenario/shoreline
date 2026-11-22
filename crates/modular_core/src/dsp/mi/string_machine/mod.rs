@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::{
@@ -97,7 +97,7 @@ const STRING_MACHINE_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' string machine: four-note \
                   chords on divide-down organ voices, low-pass filtered and \
                   spread across a stereo ensemble chorus.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[DocSection {
         title: "Chords",
         body: "`chord` picks one of eleven chords by number.",

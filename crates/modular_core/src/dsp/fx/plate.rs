@@ -12,9 +12,9 @@ use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::one_pole::OnePole;
 use crate::dsp::utils::{map_range, sanitize};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 // ─── Reference sample rate ───────────────────────────────────────────────────
@@ -230,7 +230,7 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
                   behind pads and keys. The input is summed to mono and spread into a stereo \
                   tail. Output is fully wet, so blend it with `.wet(mix)` or send to it \
                   from a bus.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[DocExample {
         title: "Warm pad plate",

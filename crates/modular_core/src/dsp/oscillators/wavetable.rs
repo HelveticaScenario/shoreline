@@ -18,8 +18,8 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{
@@ -312,7 +312,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
                   Sweep `position` with an LFO or envelope, and bend each cycle \
                   further with a `$phase.*` warp. Tables bundled with the app \
                   live under `'builtin/tables/'`.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

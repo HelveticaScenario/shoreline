@@ -12,8 +12,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::fastexp;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 const RES_GAIN: f32 = 1.5;
 const IN_GAIN: f32 = 4.0;
@@ -314,7 +314,7 @@ const TRIPOLE_DOCS: ModuleDocs = ModuleDocs {
     description: "Ian Fritz's Threeler: three saturating stages under global feedback, a wild, \
                   organic filter that self-oscillates readily. Mixing lowpass and highpass \
                   stages gives unusual band shapes.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Wild resonant bass",

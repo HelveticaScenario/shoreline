@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'vitest';
 
+import referenceCategories from '@modular/core/referenceCategories.json';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
 import { formatDsl } from '../../../renderer/components/monaco/formattingProvider';
 import { GLOBAL_ENTRIES } from '../globalDocs';
 import type { DocContent } from '../referenceDocs';
 import {
+    allExamples,
     moduleToReferenceEntry,
     renderDocContentJsDoc,
     tableToCompactMarkdown,
@@ -73,6 +75,89 @@ const ENTRIES = [...schemas.map(moduleToReferenceEntry), ...GLOBAL_ENTRIES];
 /** Internal modules and `$buffer` have no factory in the lib. */
 const inLib = (name: string) => !name.startsWith('_') && name !== '$buffer';
 
+const CATEGORY_NAMES = new Set(referenceCategories.map((c) => c.name));
+
+/** Markdown the editor renders as blocks, which only sections' tables and
+ *  examples may carry. */
+const BLOCK_MARKDOWN: [string, RegExp][] = [
+    ['a code fence', /```/],
+    ['a heading', /^\s*#/m],
+    ['a table row', /^\s*\|/m],
+    ['HTML', /^\s*</m],
+    ['a JSDoc link', /\{@link/],
+];
+
+test('every entry has well-formed docs', () => {
+    const problems: string[] = [];
+    for (const { name, docs } of ENTRIES) {
+        const fail = (what: string) => problems.push(`${name}: ${what}`);
+        const words = docs.summary.split(/\s+/).filter(Boolean).length;
+        if (docs.summary.includes('\n') || words < 1 || words > 6) {
+            fail(`summary must be one line of 1–6 words: ${docs.summary}`);
+        }
+        if (docs.summary.endsWith('.')) {
+            fail('summary ends with a period');
+        }
+        if (!docs.description.trim()) {
+            fail('empty description');
+        }
+        const prose = [
+            ['description', docs.description],
+            ...docs.sections.map((s) => [`section "${s.title}"`, s.body]),
+        ];
+        for (const [where, text] of prose) {
+            for (const [what, re] of BLOCK_MARKDOWN) {
+                if (re.test(text)) {
+                    fail(`${where} contains ${what}`);
+                }
+            }
+        }
+        if (docs.categories.length === 0) {
+            fail('no categories');
+        }
+        if (new Set(docs.categories).size !== docs.categories.length) {
+            fail('duplicate categories');
+        }
+        for (const category of docs.categories) {
+            if (!CATEGORY_NAMES.has(category)) {
+                fail(`unknown category ${category}`);
+            }
+        }
+        const titles = new Set<string>();
+        for (const { title, code } of allExamples(docs)) {
+            if (!title.trim() || !code.trim()) {
+                fail('an example needs a title and code');
+            }
+            if (titles.has(title)) {
+                fail(`duplicate example title ${title}`);
+            }
+            titles.add(title);
+        }
+        for (const { title, body, table, examples } of docs.sections) {
+            if (!title.trim()) {
+                fail('a section needs a title');
+            }
+            if (!body.trim() && !table && examples.length === 0) {
+                fail(`section "${title}" is empty`);
+            }
+            if (table) {
+                if (table.columns.length < 2 || table.rows.length === 0) {
+                    fail(`table in "${title}" needs 2+ columns and a row`);
+                }
+                const ragged = table.rows.some(
+                    (row) =>
+                        row.length !== table.columns.length ||
+                        row.some((cell) => !cell.trim()),
+                );
+                if (ragged) {
+                    fail(`table in "${title}" has a ragged or empty row`);
+                }
+            }
+        }
+    }
+    expect(problems).toEqual([]);
+});
+
 describe('docs in the generated lib and the reference', () => {
     const lib = buildLibSource(schemas);
 
@@ -102,11 +187,7 @@ describe('docs in the generated lib and the reference', () => {
 test('every example is formatted the way Format Document prints it', async () => {
     const unformatted: string[] = [];
     for (const { docs, name } of ENTRIES) {
-        const examples = [
-            ...docs.examples,
-            ...docs.sections.flatMap((s) => s.examples),
-        ];
-        for (const { code, title } of examples) {
+        for (const { code, title } of allExamples(docs)) {
             if ((await formatDsl(code)) !== code) {
                 unformatted.push(`${name} "${title}"`);
             }

@@ -18,7 +18,10 @@ import { describe, expect, test } from 'vitest';
 import { validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
-import type { DocContent } from '../../../shared/dsl/referenceDocs';
+import {
+    allExamples,
+    type DocContent,
+} from '../../../shared/dsl/referenceDocs';
 import { buildLibSource } from '../typescriptLibGen';
 import { type DSLExecutionOptions, executePatchScript } from '../executor';
 
@@ -160,14 +163,12 @@ function structuredExamples(
     name: string,
     docs: DocContent,
 ): DocExample[] {
-    return [...docs.examples, ...docs.sections.flatMap((s) => s.examples)].map(
-        (e, ordinal) => ({
-            code: e.code,
-            kind,
-            label: `${name}: ${e.title}`,
-            ordinal,
-        }),
-    );
+    return allExamples(docs).map((e, ordinal) => ({
+        code: e.code,
+        kind,
+        label: `${name}: ${e.title}`,
+        ordinal,
+    }));
 }
 
 const generated = buildLibSource(schemas);
@@ -179,18 +180,18 @@ const fromDocs = [
 ];
 const docsCode = new Set(fromDocs.map((e) => e.code));
 // The generated JSDoc repeats each entry's first example; count it once.
-const allExamples = [
+const everyExample = [
     ...fromDocs,
     ...extractDocExamples(generated).filter(
         (e) => !docsCode.has(e.code.replace(/^\/\/.*\n/, '')),
     ),
 ];
-const patchExamples = allExamples.filter((e) => !isTypeLevelExample(e.code));
+const patchExamples = everyExample.filter((e) => !isTypeLevelExample(e.code));
 
 describe('generated DSL example extraction', () => {
     test('finds a substantial number of examples', () => {
         // Guards against the extractor silently matching nothing.
-        expect(allExamples.length).toBeGreaterThan(80);
+        expect(everyExample.length).toBeGreaterThan(80);
         expect(patchExamples.length).toBeGreaterThan(80);
     });
 });

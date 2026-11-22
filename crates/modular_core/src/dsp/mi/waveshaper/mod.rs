@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -114,7 +114,7 @@ const WAVESHAPER_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' waveshaping oscillator: a \
                   triangle bent through a morphing shaper curve and a \
                   wavefolder, for hollow, reedy and buzzy West Coast tones.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

@@ -1,11 +1,12 @@
 import React, { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
-import moduleCategories from '@modular/core/moduleCategories.json';
+import referenceCategories from '@modular/core/referenceCategories.json';
 import { ReferenceCard } from './ReferenceCard';
 import { Sash } from './Sash';
 import { useStoredSize } from '../hooks/useStoredSize';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
+import { allExamples } from '../../shared/dsl/referenceDocs';
 
 const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
@@ -44,16 +45,14 @@ function searchRank(entry: ReferenceEntry, query: string): number {
     if (name === query) return 0;
     if (name.startsWith(query)) return 1;
     if (name.includes(query)) return 2;
-    const { summary, description, sections, examples } = entry.docs;
+    const { summary, description, sections } = entry.docs;
     if (`${summary}\n${description}`.toLowerCase().includes(query)) {
         return 3;
     }
     const rest = [
         ...entry.params.flatMap((p) => [p.name, p.description ?? '']),
         ...sections.flatMap((s) => [s.title, s.body]),
-        ...[...examples, ...sections.flatMap((s) => s.examples)].flatMap(
-            (e) => [e.title, e.code],
-        ),
+        ...allExamples(entry.docs).flatMap((e) => [e.title, e.code]),
     ];
     return rest.join('\n').toLowerCase().includes(query) ? 4 : -1;
 }
@@ -79,7 +78,7 @@ export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
 
     const categories = useMemo(() => {
         const used = new Set(entries.flatMap((e) => e.docs.categories));
-        return moduleCategories.filter((c) => used.has(c.name));
+        return referenceCategories.filter((c) => used.has(c.name));
     }, [entries]);
 
     const filteredEntries = useMemo(() => {
@@ -114,7 +113,7 @@ interface ReferenceListProps {
     noun: string;
     hasEntries: boolean;
     filteredEntries: ReferenceEntry[];
-    categories: typeof moduleCategories;
+    categories: typeof referenceCategories;
     searchQuery: string;
     onSearchQueryChange: (query: string) => void;
     category: string | null;

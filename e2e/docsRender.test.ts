@@ -14,10 +14,10 @@ import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
 import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
 import { GLOBAL_ENTRIES, GLOBALS } from '../src/shared/dsl/globalDocs';
-import { parseDeclaration } from '../src/shared/dsl/tsDeclaration';
-import type {
-    DocContent,
-    ReferenceEntry,
+import {
+    allExamples,
+    type DocContent,
+    type ReferenceEntry,
 } from '../src/shared/dsl/referenceDocs';
 import {
     processSchemas,
@@ -166,28 +166,66 @@ function expectedMetas(module: Schema): string[] {
 
 /** Globals with type params, e.g. `$cartesian<A extends unknown[][]>`. */
 const GENERIC = new Set(
-    GLOBALS.filter((g) => /^[^(]*</.test(g.declarations[0])).map(
-        (g) => parseDeclaration(g.declarations[0]).name,
-    ),
+    GLOBAL_ENTRIES.filter((_, i) =>
+        /^[^(]*</.test(GLOBALS[i].declarations[0]),
+    ).map((g) => g.name),
 );
 
+/** Each `meta` among `docs`, as `(meta)`. */
+const metasOf = (docs: { meta?: string }[]): string[] =>
+    docs.flatMap(({ meta }) => (meta ? [`(${meta})`] : []));
+
 /** The ranges and defaults a global's hover shows: its params' and return's. */
-function globalMetas(global: ReferenceEntry): string[] {
-    return [
-        ...global.params,
-        ...(global.returns ? [global.returns] : []),
-    ].flatMap(({ meta }) => (meta ? [`(${meta})`] : []));
+const globalMetas = (global: ReferenceEntry): string[] =>
+    metasOf([...global.params, ...(global.returns ? [global.returns] : [])]);
+
+/** What the editor shows for one module or global. */
+interface EditorSpec {
+    name: string;
+    /** Text the hover and completion details show once loaded. */
+    anchor: string;
+    /** Ranges and defaults the hover shows, each as `(meta)`. */
+    hoverMetas: string[];
+    chainable: boolean;
+    /** Each signature-help stop: the param it names and the range it shows. */
+    signatures: { param: string; meta?: string }[];
 }
 
-/** What its card shows besides: the members of what it returns. */
-function globalCardMetas(global: ReferenceEntry): string[] {
-    return [
-        ...globalMetas(global),
-        ...(global.returns?.members ?? []).flatMap(({ meta }) =>
-            meta ? [`(${meta})`] : [],
-        ),
-    ];
-}
+const EDITOR_SPECS: EditorSpec[] = [
+    ...MODULES.map((module): EditorSpec => {
+        const main = module.outputs.find((o) => o.default) ?? module.outputs[0];
+        const outMeta = main && formatOutputMeta(main);
+        return {
+            anchor: module.name.split('.').pop()!,
+            chainable: CHAINABLE.has(module.name),
+            hoverMetas: [
+                ...expectedMetas(module),
+                ...(outMeta ? [`(${outMeta})`] : []),
+            ],
+            name: module.name,
+            signatures: [
+                ...module.positionalArgs.map(({ name }) => ({
+                    meta: paramMeta(module, name),
+                    param: name,
+                })),
+                { param: 'config' },
+            ],
+        };
+    }),
+    ...GLOBAL_ENTRIES.map(
+        (global): EditorSpec => ({
+            anchor: global.name,
+            chainable: false,
+            hoverMetas: globalMetas(global),
+            name: global.name,
+            // A rest param typed by a type param infers an empty tuple with
+            // no arguments, so signature help names no param.
+            signatures: global.params
+                .filter((p) => !(p.rest && GENERIC.has(global.name)))
+                .map((p) => ({ meta: p.meta, param: p.name })),
+        }),
+    ),
+];
 
 /** One card a Docs panel tab lists, with the ranges it must show. */
 interface CardSpec {
@@ -208,7 +246,7 @@ const TABS: { tab: string; cards: CardSpec[] }[] = [
     {
         cards: GLOBAL_ENTRIES.map((g) => ({
             docs: g.docs,
-            metas: globalCardMetas(g),
+            metas: [...globalMetas(g), ...metasOf(g.returns?.members ?? [])],
             name: g.name,
         })),
         tab: 'Globals',
@@ -236,11 +274,9 @@ test.describe('docs render', () => {
             }
         };
 
-        for (const module of MODULES) {
-            const name = module.name;
+        for (const spec of EDITOR_SPECS) {
+            const { name, anchor } = spec;
             const shotName = safe(name);
-            const metas = expectedMetas(module);
-            const tail = name.split('.').pop()!;
 
             // Hover on the factory.
             await setCode(window, `${name}()`, name.length);
@@ -248,17 +284,11 @@ test.describe('docs render', () => {
             const hover = await captureWidget(
                 window,
                 HOVER,
-                tail,
+                anchor,
                 shotPath('hover', shotName),
             );
             check(`${name} hover`, hover);
-            const main =
-                module.outputs.find((o) => o.default) ?? module.outputs[0];
-            const outMeta = main && formatOutputMeta(main);
-            for (const meta of [
-                ...metas,
-                ...(outMeta ? [`(${outMeta})`] : []),
-            ]) {
+            for (const meta of spec.hoverMetas) {
                 if (!hover.includes(meta)) {
                     failures.push(`${name} hover: missing ${meta}`);
                 }
@@ -266,7 +296,7 @@ test.describe('docs render', () => {
             await window.keyboard.press('Escape');
 
             // Hover on the chain form.
-            if (CHAINABLE.has(name)) {
+            if (spec.chainable) {
                 const code = `$saw('c3').${chainPath(name)}()`;
                 await setCode(window, code, code.length - 2);
                 await triggerUntilVisible(
@@ -300,15 +330,14 @@ test.describe('docs render', () => {
             const details = await captureWidget(
                 window,
                 SUGGEST_DETAILS,
-                tail,
+                anchor,
                 shotPath('completion', shotName),
             );
             check(`${name} completion`, details);
             await window.keyboard.press('Escape');
 
-            // Signature help for each positional, then the config object.
-            const positionals = module.positionalArgs.length;
-            for (let i = 0; i <= positionals; i++) {
+            // Signature help at each param in turn.
+            for (const [i, { param, meta }] of spec.signatures.entries()) {
                 // Placeholder arguments: a run of empty ones stops TS
                 // offering signature help.
                 const code = `${name}(${'0, '.repeat(i)}`;
@@ -318,8 +347,6 @@ test.describe('docs render', () => {
                     'editor.action.triggerParameterHints',
                     SIGNATURE,
                 );
-                const param =
-                    i < positionals ? module.positionalArgs[i].name : 'config';
                 const text = await captureWidget(
                     window,
                     SIGNATURE,
@@ -327,74 +354,9 @@ test.describe('docs render', () => {
                     shotPath('signature', `${shotName}-${i}-${param}`),
                 );
                 check(`${name} signature ${param}`, text);
-                const meta =
-                    i < positionals ? paramMeta(module, param) : undefined;
                 if (meta && !text.includes(`(${meta})`)) {
                     failures.push(
                         `${name} signature ${param}: missing (${meta})`,
-                    );
-                }
-                await window.keyboard.press('Escape');
-            }
-        }
-
-        expect(failures, failures.join('\n')).toEqual([]);
-    });
-
-    test('editor hover and signature help on globals', async ({ window }) => {
-        await openUntitledBuffer(window);
-        const failures: string[] = [];
-        const check = (where: string, text: string) => {
-            const found = leaks(text);
-            if (found.length > 0) {
-                failures.push(`${where}: ${found.join(', ')}`);
-            }
-        };
-
-        for (const global of GLOBAL_ENTRIES) {
-            const { name } = global;
-            const shotName = safe(name);
-
-            await setCode(window, `${name}()`, name.length);
-            await triggerUntilVisible(window, 'editor.action.showHover', HOVER);
-            const hover = await captureWidget(
-                window,
-                HOVER,
-                name,
-                shotPath('hover', shotName),
-            );
-            check(`${name} hover`, hover);
-            for (const meta of globalMetas(global)) {
-                if (!hover.includes(meta)) {
-                    failures.push(`${name} hover: missing ${meta}`);
-                }
-            }
-            await window.keyboard.press('Escape');
-
-            for (const [i, param] of global.params.entries()) {
-                // A rest param typed by a type param infers an empty tuple
-                // with no arguments, so signature help names no param.
-                if (param.name.startsWith('...') && GENERIC.has(name)) {
-                    continue;
-                }
-                const code = `${name}(${'0, '.repeat(i)}`;
-                await setCode(window, code, code.length + 1);
-                await triggerUntilVisible(
-                    window,
-                    'editor.action.triggerParameterHints',
-                    SIGNATURE,
-                );
-                const paramName = param.name.replace(/^\.\.\./, '');
-                const text = await captureWidget(
-                    window,
-                    SIGNATURE,
-                    paramName,
-                    shotPath('signature', `${shotName}-${i}-${paramName}`),
-                );
-                check(`${name} signature ${paramName}`, text);
-                if (param.meta && !text.includes(`(${param.meta})`)) {
-                    failures.push(
-                        `${name} signature ${paramName}: missing (${param.meta})`,
                     );
                 }
                 await window.keyboard.press('Escape');
@@ -481,13 +443,10 @@ test.describe('docs render', () => {
                     if (!text.includes(spec.docs.summary)) {
                         failures.push(`${spec.name}: summary missing`);
                     }
-                    const examples =
-                        spec.docs.examples.length +
-                        spec.docs.sections.reduce(
-                            (n, s) => n + s.examples.length,
-                            0,
-                        );
-                    if ((await card.locator('pre').count()) !== examples) {
+                    const examples = allExamples(spec.docs);
+                    if (
+                        (await card.locator('pre').count()) !== examples.length
+                    ) {
                         failures.push(`${spec.name}: examples not all shown`);
                     }
                     // Each example shows its source exactly, in editor colours.
@@ -507,10 +466,7 @@ test.describe('docs render', () => {
                     if (!colored) {
                         failures.push(`${spec.name}: examples not colourized`);
                     }
-                    const codes = [
-                        ...spec.docs.examples,
-                        ...spec.docs.sections.flatMap((s) => s.examples),
-                    ].map((e) => e.code);
+                    const codes = examples.map((e) => e.code);
                     const texts = await card.evaluate((el) =>
                         [...el.querySelectorAll('pre')].map((pre) =>
                             pre.innerText.trimEnd(),

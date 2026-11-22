@@ -48,21 +48,22 @@ export interface ParamDoc {
     /** Range and default, e.g. `0–5, default 2.5`. */
     meta?: string;
     variants?: EnumVariantInfo[];
+    /** Takes every remaining argument, as `...name`. */
+    rest?: boolean;
 }
 
-export interface OutputDoc {
+/** A value an entry gives: a module's output, or a member of what a global
+ *  returns, such as a track tap's `.level`. */
+export interface ValueDoc {
     name: string;
     description: string;
+    /** Range, e.g. `0–5` or `gate`. */
+    meta?: string;
+}
+
+export interface OutputDoc extends ValueDoc {
     /** The output a bare reference to the entry reads. */
     main: boolean;
-    meta?: string;
-}
-
-/** A member of a returned value, read with a dot, e.g. a track tap's `.level`. */
-export interface ReturnMemberDoc {
-    name: string;
-    description: string;
-    meta?: string;
 }
 
 /** What a global gives back. Modules list outputs instead. */
@@ -71,11 +72,11 @@ export interface ReturnDoc {
     type: string;
     description: string;
     meta?: string;
-    members?: ReturnMemberDoc[];
+    /** Members read with a dot, named with it. */
+    members?: ValueDoc[];
 }
 
 export interface ReferenceEntry {
-    kind: 'module' | 'global';
     name: string;
     /** Call shape with param names only, e.g. `$lpf(input, cutoff, { … })`. */
     signature: string;
@@ -143,7 +144,6 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
     return {
         docs: module.docs,
         experimental: module.experimental,
-        kind: 'module',
         name: module.name,
         outputs: module.outputs.map((o) => ({
             description: o.description,
@@ -157,7 +157,7 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
 }
 
 /** A description, with the range or default it shows beside it. */
-export type ParamText = string | { description: string; meta: string };
+export type DocText = string | { description: string; meta: string };
 
 /** A global function's declarations and docs. */
 export interface GlobalDoc {
@@ -166,17 +166,21 @@ export interface GlobalDoc {
      *  orders its documented params. */
     declarations: string[];
     /** Keyed by the first declaration's param names. */
-    params: Record<string, ParamText>;
+    params: Record<string, DocText>;
     returns?: {
         description: string;
         meta?: string;
         /** Members read with a dot, keyed by name with their leading dot. */
-        members?: Record<string, ParamText>;
+        members?: Record<string, DocText>;
     };
     docs: DocContent;
 }
 
-function paramDoc(text: ParamText): { description: string; meta?: string } {
+/** `text` as a description and its optional meta. */
+export function readDocText(text: DocText): {
+    description: string;
+    meta?: string;
+} {
     return typeof text === 'object' ? text : { description: text };
 }
 
@@ -187,13 +191,14 @@ export function globalToReferenceEntry(global: GlobalDoc): ReferenceEntry {
     const [first] = all;
     const params = first.params.map(
         (param): ParamDoc => ({
-            ...paramDoc(global.params[param.name]),
-            name: param.rest ? `...${param.name}` : param.name,
+            ...readDocText(global.params[param.name]),
+            name: param.name,
+            rest: param.rest || undefined,
             type: unionOf(
                 all.flatMap((d) =>
                     d.params
                         .filter((p) => p.name === param.name)
-                        .map((p) => p.type),
+                        .map((p) => p.types),
                 ),
             ),
         }),
@@ -207,7 +212,7 @@ export function globalToReferenceEntry(global: GlobalDoc): ReferenceEntry {
         description: global.returns.description,
         members: global.returns.members
             ? Object.entries(global.returns.members).map(([name, text]) => ({
-                  ...paramDoc(text),
+                  ...readDocText(text),
                   name,
               }))
             : undefined,
@@ -216,12 +221,16 @@ export function globalToReferenceEntry(global: GlobalDoc): ReferenceEntry {
     };
     return {
         docs: global.docs,
-        kind: 'global',
         name: first.name,
         params,
         returns,
         signature,
     };
+}
+
+/** Every example in `docs`, sections included. */
+export function allExamples(docs: DocContent): DocExample[] {
+    return [...docs.examples, ...docs.sections.flatMap((s) => s.examples)];
 }
 
 /**
