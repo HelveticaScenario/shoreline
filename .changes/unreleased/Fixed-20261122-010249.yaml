@@ -1,0 +1,3 @@
+kind: Fixed
+body: A `.scope()` on a pattern or other multi-output module now shows the output its own result is plugged into, and the module's default output otherwise (a pattern's pitch). `seq.scope()` beside `seq._gate.scope()` used to draw the gate twice; it now draws the pitch and the gate.
+time: 2026-11-22T01:02:49.543327-05:00
