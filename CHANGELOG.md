@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.4.1 — November 22, 2026
+
+### New
+
+- On Linux, Shoreline can play through PipeWire and PulseAudio directly: pick them as the audio host in Audio Settings. With no host chosen it uses JACK when a JACK server is running, then PipeWire, then PulseAudio, then ALSA.
+
+### Improved
+
+- The error banner now shows the line a patch error comes from: syntax errors, errors thrown while the patch runs, and invalid module params, even when the patch has several modules of the same type.
+
+### Fixed
+
+- With JACK as the audio host, the output list no longer offers JACK's input, and the input list no longer offers its output.
+
 ## v0.4.0 — November 22, 2026
 
 ### Breaking
