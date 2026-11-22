@@ -85,7 +85,7 @@ struct QuantizerParams {
     )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
-    #[input("transposition added to the pitch before it snaps", type = pitch)]
+    #[input("transposition added to the pitch before it snaps", type = pitch, default = 0.0)]
     #[deserr(default)]
     offset: Option<PolySignal>,
     #[input(

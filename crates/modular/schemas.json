@@ -1973,6 +1973,7 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": -5.0,
             "maxValue": 5.0,
             "controlMin": -5.0,
@@ -2102,6 +2103,7 @@
         "name": "pan",
         "description": "where each lane sits: -5 left, 0 centre, +5 right",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": -5.0,
         "maxValue": 5.0,
         "controlMin": -5.0,
@@ -10972,7 +10974,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "rootFreq": {
@@ -10986,7 +10989,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "spread": {
@@ -11229,6 +11233,7 @@
         "name": "freq",
         "description": "grain pitch; grains keep the input's pitch when `freq` equals `rootFreq`",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -11238,6 +11243,7 @@
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` plays in tune",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -11405,7 +11411,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "rootFreq": {
@@ -11419,7 +11426,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "spread": {
@@ -11630,6 +11638,7 @@
         "name": "freq",
         "description": "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -11639,6 +11648,7 @@
         "name": "rootFreq",
         "description": "pitch of the file, so `freq` plays in tune",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -12013,7 +12023,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "rootFreq": {
@@ -12027,7 +12038,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "tone": {
@@ -12274,6 +12286,7 @@
         "name": "freq",
         "description": "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -12283,6 +12296,7 @@
         "name": "rootFreq",
         "description": "pitch of the input, so `freq` shifts the repeats in tune",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -30363,7 +30377,8 @@
             }
           ],
           "x-signal": {
-            "paramType": "pitch"
+            "paramType": "pitch",
+            "defaultValue": 0.0
           }
         },
         "gate": {
@@ -30496,6 +30511,7 @@
         "name": "offset",
         "description": "transposition added to the pitch before it snaps",
         "paramType": "pitch",
+        "defaultValue": 0.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

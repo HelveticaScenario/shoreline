@@ -98,10 +98,11 @@ struct ClockedDelayParams {
     #[input(
         "pitch of the repeats; they keep the input's pitch when `freq` equals `rootFreq`",
         type = pitch,
+        default = 0.0,
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    #[input("pitch of the input, so `freq` shifts the repeats in tune", type = pitch)]
+    #[input("pitch of the input, so `freq` shifts the repeats in tune", type = pitch, default = 0.0)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
     #[input(

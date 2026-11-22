@@ -68,10 +68,11 @@ struct GranularSamplerParams {
     #[input(
         "grain pitch; grains keep the file's pitch when `freq` equals `rootFreq`",
         type = pitch,
+        default = 0.0,
     )]
     #[deserr(default)]
     freq: Option<PolySignal>,
-    #[input("pitch of the file, so `freq` plays in tune", type = pitch)]
+    #[input("pitch of the file, so `freq` plays in tune", type = pitch, default = 0.0)]
     #[deserr(default)]
     root_freq: Option<PolySignal>,
     #[input(
