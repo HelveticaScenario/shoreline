@@ -70,6 +70,13 @@ export type ControlSource =
  * single-argument audio sugar methods wrap a utility module's param, whose
  * schema supplies the spec, and label their control with the method name.
  */
+// `$super` passes these straight to `$unison` and `$stereoFold`, called or
+// chained.
+const SUPER_CONTROLS: Record<string, ControlSource> = {
+    detune: { module: '$unison', param: 'spread' },
+    width: { module: '$stereoFold', param: 'width' },
+};
+
 export const API_CONTROLS: Record<
     Family,
     Record<string, Record<string, ControlSource>>
@@ -85,11 +92,8 @@ export const API_CONTROLS: Record<
         '$phase.pwm': { width: { spec: closedControl(0, 5, 2.5) } },
         pipeMix: { mix: { spec: MIX_SPEC } },
         wet: { mix: { spec: MIX_SPEC } },
-        // `$super` passes these straight to `$unison` and `$stereoFold`.
-        $super: {
-            detune: { module: '$unison', param: 'spread' },
-            width: { module: '$stereoFold', param: 'width' },
-        },
+        $super: SUPER_CONTROLS,
+        super: SUPER_CONTROLS,
     },
     video: {
         pipeMix: { mix: { spec: VIDEO_MIX_SPEC } },

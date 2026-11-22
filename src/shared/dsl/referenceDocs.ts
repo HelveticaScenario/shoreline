@@ -52,8 +52,8 @@ export interface ParamDoc {
     rest?: boolean;
 }
 
-/** A value an entry gives: a module's output, or a member of what a global
- *  returns, such as a track tap's `.level`. */
+/** A value an entry gives: a module's output, or a member of what a DSL
+ *  function returns, such as a track tap's `.level`. */
 export interface ValueDoc {
     name: string;
     description: string;
@@ -66,7 +66,7 @@ export interface OutputDoc extends ValueDoc {
     main: boolean;
 }
 
-/** What a global gives back. Modules list outputs instead. */
+/** What a DSL function gives back. Schema modules list outputs instead. */
 export interface ReturnDoc {
     /** TypeScript type, every overload's joined. */
     type: string;
@@ -159,8 +159,9 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
 /** A description, with the range or default it shows beside it. */
 export type DocText = string | { description: string; meta: string };
 
-/** A global function's declarations and docs. */
-export interface GlobalDoc {
+/** A DSL function's declarations and docs: a global, or a module the DSL
+ *  builds from others. */
+export interface FunctionDoc {
     /** TypeScript declarations, one per overload, e.g.
      *  `$note(noteName: string): number`. The first names the function and
      *  orders its documented params. */
@@ -174,6 +175,20 @@ export interface GlobalDoc {
         members?: Record<string, DocText>;
     };
     docs: DocContent;
+    /** Also a chain method, `sig.name(...)` passing `sig` as the first argument. */
+    chainable?: boolean;
+}
+
+/** The name `fn` is called by, as its first declaration gives it. */
+export function functionName(fn: FunctionDoc): string {
+    return parseDeclaration(fn.declarations[0]).name;
+}
+
+/** The chain-method names of `fns`: each chainable one's name without its `$`. */
+export function chainNames(fns: FunctionDoc[]): string[] {
+    return fns
+        .filter((fn) => fn.chainable)
+        .map((fn) => functionName(fn).slice(1));
 }
 
 /** `text` as a description and its optional meta. */
@@ -184,14 +199,14 @@ export function readDocText(text: DocText): {
     return typeof text === 'object' ? text : { description: text };
 }
 
-/** A global as a reference entry. Its params are the first declaration's,
+/** A DSL function as a reference entry. Its params are the first declaration's,
  *  each typed as every overload types it. */
-export function globalToReferenceEntry(global: GlobalDoc): ReferenceEntry {
-    const all = global.declarations.map(parseDeclaration);
+export function functionToReferenceEntry(fn: FunctionDoc): ReferenceEntry {
+    const all = fn.declarations.map(parseDeclaration);
     const [first] = all;
     const params = first.params.map(
         (param): ParamDoc => ({
-            ...readDocText(global.params[param.name]),
+            ...readDocText(fn.params[param.name]),
             name: param.name,
             rest: param.rest || undefined,
             type: unionOf(
@@ -208,19 +223,19 @@ export function globalToReferenceEntry(global: GlobalDoc): ReferenceEntry {
             p.rest ? `...${p.name}` : p.optional ? `${p.name}?` : p.name,
         )
         .join(', ')})`;
-    const returns = global.returns && {
-        description: global.returns.description,
-        members: global.returns.members
-            ? Object.entries(global.returns.members).map(([name, text]) => ({
+    const returns = fn.returns && {
+        description: fn.returns.description,
+        members: fn.returns.members
+            ? Object.entries(fn.returns.members).map(([name, text]) => ({
                   ...readDocText(text),
                   name,
               }))
             : undefined,
-        meta: global.returns.meta,
+        meta: fn.returns.meta,
         type: unionOf(all.map((d) => d.returns)),
     };
     return {
-        docs: global.docs,
+        docs: fn.docs,
         name: first.name,
         params,
         returns,

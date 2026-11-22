@@ -4,10 +4,12 @@ import referenceCategories from '@modular/core/referenceCategories.json';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
 import { formatDsl } from '../../../renderer/components/monaco/formattingProvider';
+import { dslModules } from '../dslModuleDocs';
 import { GLOBAL_ENTRIES } from '../globalDocs';
 import type { DocContent } from '../referenceDocs';
 import {
     allExamples,
+    functionToReferenceEntry,
     moduleToReferenceEntry,
     renderDocContentJsDoc,
     tableToCompactMarkdown,
@@ -70,7 +72,11 @@ describe('renderDocContentJsDoc', () => {
     });
 });
 
-const ENTRIES = [...schemas.map(moduleToReferenceEntry), ...GLOBAL_ENTRIES];
+const ENTRIES = [
+    ...schemas.map(moduleToReferenceEntry),
+    ...dslModules(schemas).map(functionToReferenceEntry),
+    ...GLOBAL_ENTRIES,
+];
 
 /** Internal modules and `$buffer` have no factory in the lib. */
 const inLib = (name: string) => !name.startsWith('_') && name !== '$buffer';

@@ -18,6 +18,9 @@ import {
     ModuleOutput,
 } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
+import { dslModules } from '../../../shared/dsl/dslModuleDocs';
+import { chainNames, functionName } from '../../../shared/dsl/referenceDocs';
+import { buildSignalSiteTables } from '../signalSiteTables';
 import { PATTERN_METHODS } from '../miniNotation';
 import { TrackTap } from '../trackTap';
 import { processModuleSchema, qualifiesForChain } from '../paramsSchema';
@@ -163,6 +166,28 @@ describe('chain modules', () => {
     });
 });
 
+describe('modules the DSL builds', () => {
+    const chained = chainNames(dslModules(schemas));
+
+    test('every chainable one is a chain method of a signal', () => {
+        const probes = chained
+            .map(
+                (name) =>
+                    `if (typeof $sine(0).${name} !== 'function') throw new Error('${name}')`,
+            )
+            .join('\n');
+        expect(() => execPatch(`${probes}\nout: $sine(0)`)).not.toThrow();
+    });
+
+    test('each has a signal site that chains as its docs say', () => {
+        const { modules } = buildSignalSiteTables(schemas as never);
+        for (const fn of dslModules(schemas)) {
+            const name = functionName(fn);
+            expect(modules[name]?.chainable, name).toBe(Boolean(fn.chainable));
+        }
+    });
+});
+
 // ─── reserved names ──────────────────────────────────────────────────────────
 
 describe('reserved names', () => {
@@ -182,7 +207,7 @@ describe('reserved names', () => {
     test('every built-in member of a collection is reserved', () => {
         const chained = new Set([
             ...CHAIN_PATHS.map((path) => path.split('.')[0]),
-            'delay',
+            ...chainNames(dslModules(schemas)),
         ]);
         const membersOf = (classes: { prototype: object }[]) =>
             classes.flatMap((cls) => Object.getOwnPropertyNames(cls.prototype));

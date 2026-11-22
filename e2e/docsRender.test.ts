@@ -13,9 +13,12 @@ import type { Page } from '@playwright/test';
 import schemas from '../crates/modular/schemas.json';
 import { test, expect, openUntitledBuffer } from './fixtures';
 import { formatOutputMeta, paramMeta } from '../src/shared/dsl/paramRange';
+import { dslModules } from '../src/shared/dsl/dslModuleDocs';
 import { GLOBAL_ENTRIES, GLOBALS } from '../src/shared/dsl/globalDocs';
 import {
     allExamples,
+    chainNames,
+    functionToReferenceEntry,
     type DocContent,
     type ReferenceEntry,
 } from '../src/shared/dsl/referenceDocs';
@@ -30,11 +33,15 @@ const SHOTS = process.env.DOCS_RENDER_SHOTS;
 const MODULES = schemas.filter(
     (m) => !m.name.startsWith('_') && m.name !== '$buffer',
 );
-const CHAINABLE = new Set(
-    processSchemas(schemas as never)
+/** The modules the DSL builds from others, listed beside `MODULES`. */
+const DSL_MODULES = dslModules(schemas as never);
+const CHAINABLE = new Set([
+    ...processSchemas(schemas as never)
         .filter(qualifiesForChain)
         .map((s) => s.name),
-);
+    ...chainNames(DSL_MODULES).map((name) => `$${name}`),
+]);
+const DSL_MODULE_ENTRIES = DSL_MODULES.map(functionToReferenceEntry);
 
 /** Text that means markdown reached the reader unrendered. */
 const LEAKS: [string, RegExp][] = [
@@ -175,9 +182,10 @@ const GENERIC = new Set(
 const metasOf = (docs: { meta?: string }[]): string[] =>
     docs.flatMap(({ meta }) => (meta ? [`(${meta})`] : []));
 
-/** The ranges and defaults a global's hover shows: its params' and return's. */
-const globalMetas = (global: ReferenceEntry): string[] =>
-    metasOf([...global.params, ...(global.returns ? [global.returns] : [])]);
+/** The ranges and defaults a DSL function's hover shows: its params' and
+ *  return's. */
+const functionMetas = (fn: ReferenceEntry): string[] =>
+    metasOf([...fn.params, ...(fn.returns ? [fn.returns] : [])]);
 
 /** What the editor shows for one module or global. */
 interface EditorSpec {
@@ -212,16 +220,16 @@ const EDITOR_SPECS: EditorSpec[] = [
             ],
         };
     }),
-    ...GLOBAL_ENTRIES.map(
-        (global): EditorSpec => ({
-            anchor: global.name,
-            chainable: false,
-            hoverMetas: globalMetas(global),
-            name: global.name,
+    ...[...DSL_MODULE_ENTRIES, ...GLOBAL_ENTRIES].map(
+        (fn): EditorSpec => ({
+            anchor: fn.name,
+            chainable: CHAINABLE.has(fn.name),
+            hoverMetas: functionMetas(fn),
+            name: fn.name,
             // A rest param typed by a type param infers an empty tuple with
             // no arguments, so signature help names no param.
-            signatures: global.params
-                .filter((p) => !(p.rest && GENERIC.has(global.name)))
+            signatures: fn.params
+                .filter((p) => !(p.rest && GENERIC.has(fn.name)))
                 .map((p) => ({ meta: p.meta, param: p.name })),
         }),
     ),
@@ -236,17 +244,24 @@ interface CardSpec {
 
 const TABS: { tab: string; cards: CardSpec[] }[] = [
     {
-        cards: MODULES.map((m) => ({
-            docs: m.docs,
-            metas: expectedMetas(m),
-            name: m.name,
-        })),
+        cards: [
+            ...MODULES.map((m) => ({
+                docs: m.docs,
+                metas: expectedMetas(m),
+                name: m.name,
+            })),
+            ...DSL_MODULE_ENTRIES.map((m) => ({
+                docs: m.docs,
+                metas: functionMetas(m),
+                name: m.name,
+            })),
+        ],
         tab: 'Modules',
     },
     {
         cards: GLOBAL_ENTRIES.map((g) => ({
             docs: g.docs,
-            metas: [...globalMetas(g), ...metasOf(g.returns?.members ?? [])],
+            metas: [...functionMetas(g), ...metasOf(g.returns?.members ?? [])],
             name: g.name,
         })),
         tab: 'Globals',

@@ -154,7 +154,7 @@ A module's reference docs are one `const NAME_DOCS: ModuleDocs` beside it (`crat
 - `sections`: titled body, `DocTable` and examples, only for real reference material such as a syntax guide;
 - `examples`: titled patches that run as written, formatted as the editor's Format Document prints them (Prettier with `DEFAULT_PRETTIER_OPTIONS`). A multi-line example is an indented raw string opening on its own line; the schema strips the indent.
 
-Monaco shows the description, sections and first example; the Docs panel's Modules page shows everything. A global's docs take the same shape in its `GLOBALS` entry (`src/shared/dsl/globalDocs.ts`), beside its TypeScript declarations, and the Globals page shows them. `referenceDocs.test.ts` checks every module's and global's docs for this shape and each example's formatting, and `generatedExampleValidity.test.ts` runs every example.
+Monaco shows the description, sections and first example; the Docs panel's Modules page shows everything. A global's docs take the same shape in its `GLOBALS` entry (`src/shared/dsl/globalDocs.ts`), beside its TypeScript declarations, and the Globals page shows them; a module the DSL builds from other modules (`$delay`, `$super`) takes it in `src/shared/dsl/dslModuleDocs.ts`, and the Modules page lists it beside the rest. `referenceDocs.test.ts` checks every module's and global's docs for this shape and each example's formatting, and `generatedExampleValidity.test.ts` runs every example.
 
 ### Experimental Modules
 

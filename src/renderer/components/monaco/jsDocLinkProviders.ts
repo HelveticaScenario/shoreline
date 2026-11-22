@@ -22,6 +22,8 @@ import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
 import { executeCommand } from '../../keybindings/commands';
 import { isDslType } from '../../../shared/dsl/typeDocs';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
+import { dslModules } from '../../../shared/dsl/dslModuleDocs';
+import { functionName } from '../../../shared/dsl/referenceDocs';
 import {
     type JsDocLinkRef,
     type JsDocLinkResolver,
@@ -144,7 +146,10 @@ export function registerJsDocLinkProviders(
         signatureHelp: false,
     });
 
-    const moduleNames = new Set(schemas.map((s) => s.name));
+    const moduleNames = new Set([
+        ...schemas.map((s) => s.name),
+        ...dslModules(schemas).map(functionName),
+    ]);
     const namespaces = new Set(
         schemas.flatMap((s) => {
             const segments = s.name.split('.');

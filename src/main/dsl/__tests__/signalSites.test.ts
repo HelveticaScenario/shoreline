@@ -178,6 +178,21 @@ describe('static resolution', () => {
         ]);
     });
 
+    test('$super resolves its signals as a call and as a chain', () => {
+        expect(
+            hints(
+                `const seq = $('1 2')\n$super(seq, (f) => $saw(f), { width: seq })\nseq.super((f) => $saw(f), { detune: seq })`,
+            ),
+        ).toEqual([
+            '$super(seq‹cv›',
+            'f) => $saw(f‹output›',
+            '{ width: seq‹cv›',
+            'seq‹cv›',
+            'f) => $saw(f‹output›',
+            ' detune: seq‹cv›',
+        ]);
+    });
+
     test('only a chain method reads its receiver', () => {
         expect(
             hints(`const seq = $('c e')\nseq.length\nseq.toString()`),

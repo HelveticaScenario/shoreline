@@ -21,7 +21,13 @@ export interface ParsedDeclaration {
     returns: string[];
 }
 
-export function parseDeclaration(declaration: string): ParsedDeclaration {
+function parse(declaration: string): {
+    file: ts.SourceFile;
+    fn: ts.FunctionDeclaration & {
+        name: ts.Identifier;
+        type: ts.TypeNode;
+    };
+} {
     const file = ts.createSourceFile(
         'declaration.ts',
         `declare function ${declaration};`,
@@ -33,6 +39,14 @@ export function parseDeclaration(declaration: string): ParsedDeclaration {
     if (!fn || !ts.isFunctionDeclaration(fn) || !fn.name || !fn.type) {
         throw new Error(`Not a function declaration: ${declaration}`);
     }
+    return {
+        file,
+        fn: fn as typeof fn & { name: ts.Identifier; type: ts.TypeNode },
+    };
+}
+
+export function parseDeclaration(declaration: string): ParsedDeclaration {
+    const { file, fn } = parse(declaration);
     // A type param shows as its constraint, the type a reader passes.
     const constraints = new Map(
         (fn.typeParameters ?? []).map((p) => [
@@ -57,6 +71,23 @@ export function parseDeclaration(declaration: string): ParsedDeclaration {
         })),
         returns: members(fn.type),
     };
+}
+
+/**
+ * `declaration` as a chain method returning `returns`: `$delay(input: X,
+ * time: Y): Z` is `delay(time: Y): Plain` for `returns` `Plain`, the receiver
+ * standing in for the first param.
+ */
+export function chainDeclaration(declaration: string, returns: string): string {
+    const { file, fn } = parse(declaration);
+    const typeParams = fn.typeParameters
+        ? `<${fn.typeParameters.map((p) => p.getText(file)).join(', ')}>`
+        : '';
+    const params = fn.parameters
+        .slice(1)
+        .map((p) => p.getText(file))
+        .join(', ');
+    return `${fn.name.text.replace(/^\$/, '')}${typeParams}(${params}): ${returns}`;
 }
 
 /** The union of every member of `unions`, each once. */
