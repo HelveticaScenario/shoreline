@@ -940,26 +940,38 @@ describe('sequencing', () => {
         ).toThrow(/IntervalValue requires integer scale degrees, got 1\.5/);
         expect(() =>
             execPatch('out: $cycle($("c4").scale("C(major)"))'),
-        ).toThrow(/note names and chords are not allowed under \.scale/);
+        ).toThrow(
+            /note names, chords and scales are not allowed under \.scale/,
+        );
         expect(() =>
             execPatch('out: $cycle($("440hz").scale("C(major)"))'),
         ).toThrow(/Hz atoms are not allowed under \.scale/);
     });
 
-    test('a chord atom plays in a note pattern and is rejected under .scale', () => {
+    test('a chord or scale atom plays in a note pattern and is rejected under .scale', () => {
         expect(
             findModules(execPatch('out: $cycle($("c3:M7 eb:m7^1%"))'), '$cycle')
                 .length,
         ).toBe(1);
         expect(() =>
             execPatch('out: $cycle($("c:M").scale("C(major)"))'),
-        ).toThrow(/chords are not allowed under \.scale/);
+        ).toThrow(/chords and scales are not allowed under \.scale/);
+        expect(
+            findModules(execPatch('out: $cycle($("d3(dorian) c:m"))'), '$cycle')
+                .length,
+        ).toBe(1);
+        expect(() =>
+            execPatch('out: $cycle($("d(dorian)").scale("C(major)"))'),
+        ).toThrow(/scales are not allowed under \.scale/);
+        expect(() => execPatch('out: $cycle($("c(nope)"))')).toThrow(
+            /unknown scale/,
+        );
         expect(() => execPatch('out: $cycle($("c:maj7"))')).toThrow(
             /write `M` for major and `m` for minor/,
         );
     });
 
-    test('a chord literal is one lane per note', () => {
+    test('a chord or scale literal is one lane per note', () => {
         const semitones = (freq: unknown[]) =>
             freq.map((v) => (typeof v === 'number' ? Math.round(v * 12) : v));
         const [saw] = findModules(execPatch('out: $saw("c3:M7")'), '$saw');
@@ -969,6 +981,13 @@ describe('sequencing', () => {
             '$saw',
         );
         expect(semitones(mixed.params.freq)).toEqual(['c2', 6, 10, 15]);
+        const [scale] = findModules(
+            execPatch('out: $saw("d3(dorian)")'),
+            '$saw',
+        );
+        expect(semitones(scale.params.freq)).toEqual([
+            -10, -8, -7, -5, -3, -1, 0,
+        ]);
         const [buffer] = findModules(
             execPatch('const b = $buffer("c3:M7", 1)'),
             '$buffer',
@@ -1273,11 +1292,16 @@ describe('utilities', () => {
         expect(findModules(patch, '$quantizer').length).toBe(1);
     });
 
-    test('$quantizer takes a chord literal as its scale', () => {
-        const patch = execPatch('out: $quantizer($sine("C4"), "c3:M7")');
-        const [quantizer] = findModules(patch, '$quantizer');
-        expect(quantizer.params.scale).toHaveLength(4);
-        expect(findModules(patch, '$chord').length).toBe(0);
+    test('$quantizer takes a chord or scale literal as its scale', () => {
+        for (const [scale, notes] of [
+            ['c3:M7', 4],
+            ['d3(dorian)', 7],
+        ] as const) {
+            const patch = execPatch(`out: $quantizer($sine("C4"), "${scale}")`);
+            const [quantizer] = findModules(patch, '$quantizer');
+            expect(quantizer.params.scale).toHaveLength(notes);
+            expect(findModules(patch, '$chord').length).toBe(0);
+        }
     });
 
     test('$quantizer string scale becomes a $chord feeding the scale input', () => {

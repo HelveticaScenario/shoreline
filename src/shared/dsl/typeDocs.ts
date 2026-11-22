@@ -35,6 +35,7 @@ export const DSL_TYPE_NAMES = [
     'Note',
     'HZ',
     'Chord',
+    'Scale',
     'Track labels',
     'TrackOptions',
 ] as const;
@@ -164,6 +165,20 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
         name: 'Chord',
         seeAlso: ['Signal', 'Note'],
+    },
+
+    Scale: {
+        definition: '`${Note}(${string})`',
+        description:
+            'A scale string: a note with a scale in parentheses, one lane per note, lowest first. ' +
+            'The parentheses hold a scale name, semitones above the root, a tuning (`just`, `pythag`), or a tuning then semitones, as in a pattern.',
+        examples: [
+            '"d3(dorian)"    // D dorian from D3',
+            '"c(0 2 4 7 9)"  // your own scale, in semitones',
+            '"a(just)"       // all 12 steps in just intonation',
+        ],
+        name: 'Scale',
+        seeAlso: ['Signal', 'Chord', 'Note'],
     },
 
     HZ: {
@@ -329,7 +344,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
 
     Signal: {
         definition:
-            'number | Note | HZ | Chord | Collection | CollectionWithRange',
+            'number | Note | HZ | Chord | Scale | Collection | CollectionWithRange',
         description:
             'An audio signal value. This is the fundamental type for all audio connections in the modular system. ' +
             'Signals follow the 1V/octave convention where 0V corresponds to C4 (~261.63 Hz).',
@@ -338,6 +353,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$sine(440)            // Number - constant voltage',
             '$sine("440hz")        // Hz string - converted to voltage',
             '$saw("c3:M7")         // Chord string - one lane per note',
+            '$saw("d3(dorian)")    // Scale string - one lane per note',
             '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
@@ -348,6 +364,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Note',
             'HZ',
             'Chord',
+            'Scale',
         ],
     },
 

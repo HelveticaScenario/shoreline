@@ -56,6 +56,18 @@ export type AtomValue =
           };
       }
     /**
+     * A scale on a root note (`d(dorian)`). `scale` is the scale between the
+     * parentheses, trimmed.
+     */
+    | {
+          Scale: {
+              letter: string;
+              accidental: string | null;
+              octave: number | null;
+              scale: string;
+          };
+      }
+    /**
      * The `x` structure marker (serde unit variant, so a bare string). Only
      * meaningful in `.struct(...)` boolean patterns.
      */

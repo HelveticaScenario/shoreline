@@ -81,11 +81,11 @@ pub fn get_reserved_member_names() -> Vec<String> {
         .collect()
 }
 
-/// The V/Oct voltage of each note of a chord signal literal like `c3:M7`,
-/// lowest first.
+/// The V/Oct voltage of each note of a chord or scale signal literal like
+/// `c3:M7` or `d(dorian)`, lowest first.
 #[napi]
-pub fn chord_voltages(literal: String) -> Result<Vec<f64>> {
-    modular_core::dsp::utilities::ScaleSpec::chord_literal(&literal)
+pub fn note_voltages(literal: String) -> Result<Vec<f64>> {
+    modular_core::dsp::utilities::ScaleSpec::note_literal(&literal)
         .map(|spec| spec.note_voltages().collect())
         .map_err(|e| napi::Error::from_reason(format!("\"{literal}\": {e}")))
 }

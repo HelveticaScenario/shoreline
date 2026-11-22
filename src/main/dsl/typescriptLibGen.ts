@@ -195,6 +195,14 @@ type HZ = \`\${number}hz\` | \`\${number}Hz\`
  */
 type Chord = \`\${Note}:\${string}\`
 
+/**
+ * A scale: a {@link Note} with a scale in parentheses, one lane per note,
+ * lowest first, written as in a pattern (see {@link $cycle}).
+ * @example $saw("d3(dorian)")       // seven lanes
+ * @example $saw("c(0 2 4 7 9)")     // your own scale, in semitones
+ */
+type Scale = \`\${Note}(\${string})\`
+
 type CaseVariants<T extends string> = 
   | Lowercase<T>
   | Uppercase<T>
@@ -262,6 +270,7 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * - A **{@link Note}** string like \`"C4"\` or \`"A#3"\`
  * - A **{@link HZ}** string like \`"440hz"\`
  * - A **{@link Chord}** string like \`"c3:M7"\`, one lane per note
+ * - A **{@link Scale}** string like \`"d(dorian)"\`, one lane per note
  * - A **{@link Collection}** from another module, one voice per lane
  * 
  * @example $sine("C4")           // Note string
@@ -271,10 +280,10 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * @see {@link Poly<Signal>} - for multi-lane signals
  * @see {@link Collection} - for module connections
  */
-type Signal = number | Note | HZ | Chord | Collection | CollectionWithRange;
+type Signal = number | Note | HZ | Chord | Scale | Collection | CollectionWithRange;
 
-/** A {@link Signal} that holds still: a number, note, frequency or chord. */
-type ConstantSignal = number | Note | HZ | Chord;
+/** A {@link Signal} that holds still: a number, note, frequency, chord or scale. */
+type ConstantSignal = number | Note | HZ | Chord | Scale;
 
 /** A {@link Signal} whose range the engine knows, or a constant it carries along. */
 type RangedSignal = ConstantSignal | CollectionWithRange;
@@ -573,6 +582,7 @@ interface Pattern extends PatternModule {
  * | \`<n>hz\` | Frequency in Hz (converted to V/Oct) | \`440hz\`, \`220hz\` |
  * | Note letter (+ accidental, + octave) | Pitched note | \`c4\`, \`d#3\`, \`eb5\` |
  * | Note + \`:\` + chord symbol | Every note of the chord at once; not allowed under \`.scale\` | \`c3:M7\`, \`eb:m7^1\`, \`g:7alt%\` |
+ * | Note + \`(scale)\` | Every note of the scale at once; not allowed under \`.scale\` | \`d3(dorian)\`, \`c(0 2 4 7 9)\` |
  * | \`~\` or \`-\` | Rest (gate low) | \`'c4 ~ e4'\`, \`'c4 - e4'\` |
  *
  * ### Mini-notation

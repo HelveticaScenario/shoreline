@@ -12,7 +12,7 @@
  * Differences from krill.pegjs:
  *   - Emits the shared `MiniAST` shape directly (no {type_, source_, options_}
  *     intermediate wrappers).
- *   - Atom kinds reduced to Number, Hz, Note, Chord, Rest. No sample-name identifiers,
+ *   - Atom kinds reduced to Number, Hz, Note, Chord, Scale, Rest. No sample-name identifiers,
  *     MIDI shorthand, module-reference atoms, string atoms, or voltage atoms.
  *   - Modifier operands reuse the same AST typing as the Rust parser
  *     (MiniASTF64 for fast/slow factors and degrade probabilities,
@@ -239,6 +239,7 @@ Value
   = HzValue
   / TruthyValue
   / ChordValue
+  / ScaleValue
   / NoteValue
   / NumberValue
 
@@ -274,6 +275,19 @@ NoteValue
 ChordValue
   = note:NoteName ":" chord:$ChordSymbolChar+ {
       return { Pure: located({ Chord: { ...note, chord } }, location()) };
+    }
+
+// A scale is a note with the scale in parentheses directly after it:
+// d(dorian), c(0 2 4 7 9), a(just). A body holding `,` is a euclidean
+// modifier instead, so `c(3,8)` stays a rhythm.
+ScaleValue
+  = note:NoteName "(" scale:ScaleBody ")" {
+      return { Pure: located({ Scale: { ...note, scale } }, location()) };
+    }
+
+ScaleBody
+  = body:$[^(),\[\]<>]+ &{ return body.trim().length > 0; } {
+      return body.trim();
     }
 
 NoteName

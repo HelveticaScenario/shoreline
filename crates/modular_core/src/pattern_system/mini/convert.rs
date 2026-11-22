@@ -37,9 +37,9 @@ pub trait FromMiniAtom: Clone + Send + Sync + 'static {
         }
     }
 
-    /// The values a chord atom plays: by default its single value from
-    /// `from_atom`.
-    fn from_chord(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+    /// The values a chord or scale atom plays: by default its single value
+    /// from `from_atom`.
+    fn from_notes(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
         Ok(vec![Self::from_atom(atom)?])
     }
 
@@ -182,7 +182,8 @@ impl FromMiniAtom for bool {
             AtomValue::Truthy
             | AtomValue::Hz(_)
             | AtomValue::Note { .. }
-            | AtomValue::Chord { .. } => Ok(true),
+            | AtomValue::Chord { .. }
+            | AtomValue::Scale { .. } => Ok(true),
         }
     }
 
@@ -891,10 +892,10 @@ fn eval_u32(ast: &MiniASTU32) -> u32 {
 fn convert_inner<T: FromMiniAtom>(ast: &MiniAST) -> Result<Pattern<T>, ConvertError> {
     match ast {
         MiniAST::Pure(Located {
-            node: atom @ AtomValue::Chord { .. },
+            node: atom @ (AtomValue::Chord { .. } | AtomValue::Scale { .. }),
             span,
         }) => {
-            let notes = T::from_chord(atom)?
+            let notes = T::from_notes(atom)?
                 .into_iter()
                 .map(|value| pure_with_span(value, span.clone()))
                 .collect();
@@ -2239,7 +2240,7 @@ mod tests {
     }
 
     #[test]
-    fn chord_atom_plays_its_notes_together() {
+    fn chord_and_scale_atoms_play_their_notes_together() {
         use crate::dsp::seq::SeqValue;
 
         let pat: Pattern<SeqValue> = convert(&parse("c3:M7^1 d").unwrap()).unwrap();
@@ -2256,6 +2257,15 @@ mod tests {
             .filter_map(|h| h.value.to_voltage())
             .fold(f64::INFINITY, f64::min);
         assert_eq!(lowest, -13.0 / 12.0, "Cb3 is B2, as the note cb3 is");
+
+        let scale: Pattern<SeqValue> = convert(&parse("c3(0 3 7)").unwrap()).unwrap();
+        let haps = scale.query_arc(Fraction::from_integer(0), Fraction::from_integer(1));
+        let mut volts: Vec<f64> = haps.iter().filter_map(|h| h.value.to_voltage()).collect();
+        volts.sort_by(f64::total_cmp);
+        assert_eq!(
+            volts,
+            [0.0, 3.0, 7.0].map(|semitones| semitones / 12.0 - 1.0)
+        );
 
         let structure: Pattern<bool> = convert(&parse("c:M7").unwrap()).unwrap();
         let onsets = structure.query_arc(Fraction::from_integer(0), Fraction::from_integer(1));

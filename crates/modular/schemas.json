@@ -32053,6 +32053,11 @@
                 "`c3:M7`, `eb:m7`"
               ],
               [
+                "note`(`scale`)`",
+                "every note of a scale on that root at once",
+                "`d3(dorian)`, `c(0 2 4 7 9)`"
+              ],
+              [
                 "number",
                 "a pitch voltage, 1 V per octave with 0 at C4",
                 "`0`, `-1`, `0.25`"
@@ -32191,6 +32196,45 @@
             {
               "title": "Chord changes",
               "code": "const seq = $`<c3:M7 a2:m7 d3:m9 g2:7^1>`\nchords: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
+            }
+          ]
+        },
+        {
+          "title": "Scales",
+          "body": "A scale in parentheses right after a note plays all its notes at once, from the root up within one octave, each on a voice of its own. Scale patterns don't take scales.",
+          "table": {
+            "columns": [
+              "Form",
+              "Example",
+              "Gives"
+            ],
+            "rows": [
+              [
+                "a scale name",
+                "`d3(dorian)`",
+                "major, minor, dorian, phrygian, lydian, mixolydian, locrian, harmonic minor, melodic minor, pentatonic major, pentatonic minor, blues, whole tone, chromatic"
+              ],
+              [
+                "semitones",
+                "`c(0 3 7 10)`",
+                "your own scale, within an octave"
+              ],
+              [
+                "a tuning",
+                "`a(just)`, `c(pythag)`",
+                "all 12 steps in that tuning"
+              ],
+              [
+                "a tuning and semitones",
+                "`c(just 0 4 7)`",
+                "your own scale in that tuning"
+              ]
+            ]
+          },
+          "examples": [
+            {
+              "title": "A drone on a scale",
+              "code": "drone: $sine($`d2(minor)`).amp(0.2)"
             }
           ]
         },
@@ -32854,7 +32898,7 @@
           ]
         },
         "AtomValue": {
-          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), `Chord` covers\na note with a chord symbol (`c3:M7`), and `Truthy` covers the\n`x` structure marker. Other atom forms (`m60` midi shorthand,\nsample-name identifiers, `2v` voltage, module references, quoted strings)\nare not part of the grammar and are not representable here.",
+          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), `Chord` covers\na note with a chord symbol (`c3:M7`), `Scale` a note with a scale\nin parentheses (`d(dorian)`), and `Truthy` covers the\n`x` structure marker. Other atom forms (`m60` midi shorthand,\nsample-name identifiers, `2v` voltage, module references, quoted strings)\nare not part of the grammar and are not representable here.",
           "oneOf": [
             {
               "description": "Numeric value. Module-level semantics decide the interpretation:\n`$cycle($(...))` maps a bare `Number` to volts (1V/oct); `.scale(...)`\nmaps it to an integer scale degree.",
@@ -32962,6 +33006,48 @@
               },
               "required": [
                 "Chord"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A scale on a root note (e.g. `d(dorian)`, `c(0 2 4 7 9)`). `scale` is the\nscale between the parentheses, trimmed.",
+              "type": "object",
+              "properties": {
+                "Scale": {
+                  "type": "object",
+                  "properties": {
+                    "letter": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "accidental": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "octave": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "format": "int32"
+                    },
+                    "scale": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "letter",
+                    "scale"
+                  ]
+                }
+              },
+              "required": [
+                "Scale"
               ],
               "additionalProperties": false
             },

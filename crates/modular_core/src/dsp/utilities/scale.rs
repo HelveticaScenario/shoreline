@@ -222,20 +222,20 @@ impl ScaleSpec {
         if is_chord {
             Self::parse_chord(&root, body)
         } else {
-            Self::parse_scale(&root, body)
+            Self::note_scale(root.base_midi(), body)
         }
     }
 
-    /// `root(…)`: named scale, tuning keyword, or `[tuning] intervals…`.
-    fn parse_scale(root: &FixedRoot, body: &str) -> Result<Self, String> {
+    /// The scale `root(body)` names on the root at MIDI note `root`: a named
+    /// scale, a tuning keyword, or `[tuning] intervals…`.
+    pub fn note_scale(root: i32, body: &str) -> Result<Self, String> {
         let body = body.trim();
-        let base_midi = root.base_midi();
 
         if let Some(tuning) = named_tuning(body) {
-            return Self::new(base_midi, tuning, &CHROMATIC);
+            return Self::new(root, tuning, &CHROMATIC);
         }
         if let Some(intervals) = scale_names::lookup(body) {
-            return Self::new(base_midi, et_tuning(), intervals);
+            return Self::new(root, et_tuning(), intervals);
         }
 
         let mut tokens = body.split_whitespace().peekable();
@@ -265,17 +265,22 @@ impl ScaleSpec {
             return Err(format!("scale \"{body}\" has no intervals"));
         }
         pitch_classes.sort_unstable();
-        Self::new(base_midi, tuning, &pitch_classes)
+        Self::new(root, tuning, &pitch_classes)
     }
 
-    /// The chord a signal literal like `c3:M7` names: a note, a colon and a
-    /// chord symbol.
-    pub fn chord_literal(source: &str) -> Result<Self, String> {
-        let (root, symbol) = source
-            .trim()
-            .split_once(':')
-            .ok_or_else(|| "expected note:chord, e.g. \"c3:M7\"".to_string())?;
-        Self::note_chord(parse_root(root)?.base_midi(), symbol)
+    /// The notes a signal literal names: a chord (`c3:M7`) or a scale
+    /// (`d(dorian)`).
+    pub fn note_literal(source: &str) -> Result<Self, String> {
+        let source = source.trim();
+        if let Some((root, symbol)) = source.split_once(':') {
+            return Self::note_chord(parse_root(root)?.base_midi(), symbol);
+        }
+        match source.strip_suffix(')').and_then(|s| s.split_once('(')) {
+            Some((root, body)) => Self::note_scale(parse_root(root)?.base_midi(), body),
+            None => Err(
+                "expected note:chord or note(scale), e.g. \"c3:M7\" or \"d(dorian)\"".to_string(),
+            ),
+        }
     }
 
     /// The chord a chord symbol names on the root at MIDI note `root`, as in a
@@ -570,12 +575,14 @@ mod tests {
     }
 
     #[test]
-    fn chord_literal_reads_a_note_then_its_chord() {
-        let literal = ScaleSpec::chord_literal("eb3:m7^1").unwrap();
-        assert_eq!(literal, ScaleSpec::parse("eb3[m7 inv1]").unwrap());
-        assert!(ScaleSpec::chord_literal("c3:nope").is_err());
-        assert!(ScaleSpec::chord_literal("h:M").is_err());
-        assert!(ScaleSpec::chord_literal("c3M").is_err());
+    fn note_literal_reads_a_chord_or_a_scale() {
+        let chord = ScaleSpec::note_literal("eb3:m7^1").unwrap();
+        assert_eq!(chord, ScaleSpec::parse("eb3[m7 inv1]").unwrap());
+        let scale = ScaleSpec::note_literal("d3(dorian)").unwrap();
+        assert_eq!(scale, ScaleSpec::parse("d3(dorian)").unwrap());
+        for bad in ["c3:nope", "h:M", "c3M", "c(nope)", "c[maj]"] {
+            assert!(ScaleSpec::note_literal(bad).is_err(), "{bad}");
+        }
     }
 
     #[test]

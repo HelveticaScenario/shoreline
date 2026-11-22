@@ -8,7 +8,7 @@ import {
     setDSLWrapperLineOffset,
     captureSourceLocation,
     deriveLaneCountChecked,
-    spreadChords,
+    spreadNoteLiterals,
 } from './factories';
 import type {
     AnyCollection,
@@ -421,7 +421,7 @@ export function executePatchScript(
             sourceLocation,
             (node): BufferOutputRef => {
                 // Resolve the input signal and set params
-                const notes = spreadChords(input);
+                const notes = spreadNoteLiterals(input);
                 node._setParam('input', replaceSignals(notes));
                 builder.setModuleChannels(
                     node.id,
@@ -843,7 +843,7 @@ export function executePatchScript(
         (type: string, field: string) => (value: unknown, next?: unknown) => {
             const t = wrapWarp({
                 type,
-                [field]: replaceSignals(spreadChords(value)),
+                [field]: replaceSignals(spreadNoteLiterals(value)),
             });
             return next !== undefined
                 ? wrapWarp({ type: 'pipe', first: t, second: next })

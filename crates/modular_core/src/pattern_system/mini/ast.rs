@@ -270,7 +270,8 @@ pub enum MiniAST {
 /// The reduced set from strudel's krill grammar: `Number` covers bare
 /// numeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`
 /// covers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), `Chord` covers
-/// a note with a chord symbol (`c3:M7`), and `Truthy` covers the
+/// a note with a chord symbol (`c3:M7`), `Scale` a note with a scale
+/// in parentheses (`d(dorian)`), and `Truthy` covers the
 /// `x` structure marker. Other atom forms (`m60` midi shorthand,
 /// sample-name identifiers, `2v` voltage, module references, quoted strings)
 /// are not part of the grammar and are not representable here.
@@ -299,6 +300,15 @@ pub enum AtomValue {
         accidental: Option<char>,
         octave: Option<i32>,
         chord: String,
+    },
+
+    /// A scale on a root note (e.g. `d(dorian)`, `c(0 2 4 7 9)`). `scale` is the
+    /// scale between the parentheses, trimmed.
+    Scale {
+        letter: char,
+        accidental: Option<char>,
+        octave: Option<i32>,
+        scale: String,
     },
 
     /// Structure atom `x` — an onset marker with no pitch of its own, only
@@ -342,7 +352,7 @@ impl AtomValue {
                 let oct = octave.unwrap_or(4);
                 Some(((oct + 1) * 12 + base + acc_offset) as f64)
             }
-            AtomValue::Chord { .. } | AtomValue::Truthy => None,
+            AtomValue::Chord { .. } | AtomValue::Scale { .. } | AtomValue::Truthy => None,
         }
     }
 }

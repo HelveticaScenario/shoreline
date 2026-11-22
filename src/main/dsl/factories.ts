@@ -1,5 +1,5 @@
 import type { ModuleSchema } from '@modular/core';
-import { chordVoltages, deriveLaneCount } from '@modular/core';
+import { deriveLaneCount, noteVoltages } from '@modular/core';
 import {
     BaseCollection,
     GraphBuilder,
@@ -213,21 +213,22 @@ interface NamespaceTree {
 }
 
 /**
- * The voltage of each note of a chord literal (`'c3:M7'`), one per lane, or
- * `undefined` for any other value. No other signal string holds `:`.
+ * The voltage of each note of a chord or scale literal (`'c3:M7'`,
+ * `'d(dorian)'`), one per lane, or `undefined` for any other value. No other
+ * signal string holds `:` or `(`.
  */
-function chordNotes(value: unknown): number[] | undefined {
-    return typeof value === 'string' && value.includes(':')
-        ? chordVoltages(value)
+function literalNotes(value: unknown): number[] | undefined {
+    return typeof value === 'string' && /[:(]/.test(value)
+        ? noteVoltages(value)
         : undefined;
 }
 
-/** `value` with each chord literal in it, alone or in an array, spread into its notes. */
-export function spreadChords(value: unknown): unknown {
+/** `value` with each chord or scale literal in it, alone or in an array, spread into its notes. */
+export function spreadNoteLiterals(value: unknown): unknown {
     if (Array.isArray(value)) {
-        return value.flatMap((v) => chordNotes(v) ?? [v]);
+        return value.flatMap((v) => literalNotes(v) ?? [v]);
     }
-    return chordNotes(value) ?? value;
+    return literalNotes(value) ?? value;
 }
 
 function sanitizeIdentifier(name: string): string {
@@ -342,7 +343,7 @@ export class DSLContext {
      * Prepare a signal param's value for an input of class `inputClass`:
      * resolve every module root in the value itself, array elements, and the
      * contents of a `$gN` group, spread the collections inside an array, and
-     * spread each chord literal into its notes. `slot` names the value in
+     * spread each chord or scale literal into its notes. `slot` names the value in
      * resolution records.
      */
     private signalParam(
@@ -372,7 +373,7 @@ export class DSLContext {
         };
         if (Array.isArray(value)) {
             return value.flatMap((v, i) => {
-                const notes = chordNotes(v);
+                const notes = literalNotes(v);
                 if (notes) {
                     return notes;
                 }
@@ -382,7 +383,7 @@ export class DSLContext {
                     : [resolved];
             });
         }
-        return chordNotes(value) ?? resolve(value, slot);
+        return literalNotes(value) ?? resolve(value, slot);
     }
 
     /**

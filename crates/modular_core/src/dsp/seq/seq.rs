@@ -305,6 +305,11 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                         "`c3:M7`, `eb:m7`",
                     ],
                     &[
+                        "note`(`scale`)`",
+                        "every note of a scale on that root at once",
+                        "`d3(dorian)`, `c(0 2 4 7 9)`",
+                    ],
+                    &[
                         "number",
                         "a pitch voltage, 1 V per octave with 0 at C4",
                         "`0`, `-1`, `0.25`",
@@ -403,6 +408,43 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 code: r#"
                     const seq = $`<c3:M7 a2:m7 d3:m9 g2:7^1>`
                     chords: $saw(seq).lpf('c5', 1).amp($adsr(seq))
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Scales",
+            body: "A scale in parentheses right after a note plays all its notes at once, from \
+                   the root up within one octave, each on a voice of its own. Scale patterns don't \
+                   take scales.",
+            table: Some(DocTable {
+                columns: &["Form", "Example", "Gives"],
+                rows: &[
+                    &[
+                        "a scale name",
+                        "`d3(dorian)`",
+                        "major, minor, dorian, phrygian, lydian, mixolydian, locrian, harmonic minor, melodic minor, pentatonic major, pentatonic minor, blues, whole tone, chromatic",
+                    ],
+                    &[
+                        "semitones",
+                        "`c(0 3 7 10)`",
+                        "your own scale, within an octave",
+                    ],
+                    &[
+                        "a tuning",
+                        "`a(just)`, `c(pythag)`",
+                        "all 12 steps in that tuning",
+                    ],
+                    &[
+                        "a tuning and semitones",
+                        "`c(just 0 4 7)`",
+                        "your own scale in that tuning",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "A drone on a scale",
+                code: r#"
+                    drone: $sine($`d2(minor)`).amp(0.2)
                 "#,
             }],
         },

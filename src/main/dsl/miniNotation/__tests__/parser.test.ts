@@ -254,6 +254,34 @@ describe('chords', () => {
     });
 });
 
+describe('scales', () => {
+    test('a note with a scale in parentheses is a Scale atom', () => {
+        const r = patternPayload($('d3( dorian )'));
+        expect(r.ast).toEqual({
+            Pure: {
+                node: {
+                    Scale: {
+                        letter: 'd',
+                        accidental: null,
+                        octave: 3,
+                        scale: 'dorian',
+                    },
+                },
+                span: { start: 0, end: 12 },
+            },
+        });
+    });
+
+    test('a comma in the parentheses keeps them a euclidean rhythm', () => {
+        expect('Euclidean' in patternPayload($('c(3,8)')).ast).toBe(true);
+        expect('Euclidean' in patternPayload($('c(<3 5>,8)')).ast).toBe(true);
+    });
+
+    test('empty parentheses are a parse error', () => {
+        expect(() => $('c( )')).toThrow(MiniParseError);
+    });
+});
+
 describe('sequences and groupings', () => {
     test('space-separated sequence', () => {
         const r = patternPayload($('0 1 2'));

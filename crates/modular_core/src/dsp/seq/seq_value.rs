@@ -219,8 +219,9 @@ impl FromMiniAtom for SeqValue {
                     )))
                 }
             }
-            AtomValue::Chord { .. } => Err(ConvertError::InvalidAtom(
-                "a chord plays several notes, so it cannot stand for a single value".to_string(),
+            AtomValue::Chord { .. } | AtomValue::Scale { .. } => Err(ConvertError::InvalidAtom(
+                "a chord or scale plays several notes, so it cannot stand for a single value"
+                    .to_string(),
             )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() \
@@ -230,20 +231,31 @@ impl FromMiniAtom for SeqValue {
         }
     }
 
-    fn from_chord(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
-        let AtomValue::Chord {
-            letter,
-            accidental,
-            octave,
-            chord,
-        } = atom
-        else {
-            return Ok(vec![Self::from_atom(atom)?]);
+    fn from_notes(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+        let root = |letter: &char, accidental: &Option<char>, octave: &Option<i32>| {
+            note_to_midi(*letter, *accidental, *octave)
+                .ok_or_else(|| ConvertError::InvalidAtom(format!("invalid root note {letter}")))
         };
-        let root = note_to_midi(*letter, *accidental, *octave)
-            .ok_or_else(|| ConvertError::InvalidAtom(format!("invalid chord root {letter}")))?;
-        let spec = ScaleSpec::note_chord(root, chord).map_err(ConvertError::InvalidAtom)?;
-        Ok(spec.note_voltages().map(SeqValue::voltage).collect())
+        let spec = match atom {
+            AtomValue::Chord {
+                letter,
+                accidental,
+                octave,
+                chord,
+            } => ScaleSpec::note_chord(root(letter, accidental, octave)?, chord),
+            AtomValue::Scale {
+                letter,
+                accidental,
+                octave,
+                scale,
+            } => ScaleSpec::note_scale(root(letter, accidental, octave)?, scale),
+            _ => return Ok(vec![Self::from_atom(atom)?]),
+        };
+        Ok(spec
+            .map_err(ConvertError::InvalidAtom)?
+            .note_voltages()
+            .map(SeqValue::voltage)
+            .collect())
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {
