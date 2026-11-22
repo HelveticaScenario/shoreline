@@ -29494,6 +29494,211 @@
     "stereo": "lift"
   },
   {
+    "name": "$inversion",
+    "docs": {
+      "summary": "Glide notes through inversions",
+      "description": "Glides a chord through its inversions, crossfading each moving note between its two octaves so nothing clicks. It outputs one lane more than its input: scale each voice by `level`, or the extra lane sounds too.",
+      "categories": [
+        "pitch"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Second inversion",
+          "code": "const c = $inversion(['c3', 'e3', 'g3'], 2)\nchord: $saw(c).amp(c._level)"
+        },
+        {
+          "title": "Gliding through the inversions",
+          "code": "const c = $inversion(\n  ['c3', 'e3', 'g3', 'b3'],\n  $sine('0.05hz').range(0, 4),\n)\nchord: $saw(c).amp(c._level)"
+        },
+        {
+          "title": "Inverting the keys you hold",
+          "code": "const midi = $midiCV({ lanes: 4 })\nconst c = $inversion(midi, $sine('0.05hz').range(0, 4), {\n  gate: midi._gate,\n})\nchord: $saw(c).amp(c._level)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "InversionParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the notes to invert, one per lane, in any order",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "amount": {
+          "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+          "$ref": "#/$defs/LaneSum",
+          "x-signal": {
+            "paramType": "control",
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "gate": {
+          "description": "turns notes on and off: input lane N is inverted only while gate lane N is high; with every gate low the output holds",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "gate"
+          }
+        }
+      },
+      "required": [
+        "input",
+        "amount"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "LaneSum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "pitch",
+        "description": "the inverted notes, one lane more than the input, the notes rotating across them",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "level",
+        "description": "each lane's level, full unless a note is fading between octaves",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the notes to invert, one per lane, in any order",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "amount",
+        "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+        "paramType": "control",
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "gate",
+        "description": "turns notes on and off: input lane N is inverted only while gate lane N is high; with every gate low the output holds",
+        "paramType": "gate",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "amount"
+      }
+    ],
+    "experimental": true,
+    "stereo": "mono"
+  },
+  {
     "name": "$remap",
     "docs": {
       "summary": "Rescale between ranges",

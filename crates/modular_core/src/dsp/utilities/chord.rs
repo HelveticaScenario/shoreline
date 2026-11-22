@@ -5,6 +5,7 @@ use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::poly::{LaneSum, PORT_MAX_LANES, PolyOutput};
 
+use super::inversion::invert;
 use super::scale::ScaleSpec;
 
 #[params]
@@ -34,46 +35,6 @@ pub fn chord_derive_lane_count(params: &ChordParams) -> usize {
         (notes + 1).min(PORT_MAX_LANES)
     } else {
         notes
-    }
-}
-
-/// Plaits' `ChordBank::ComputeChordInversion` for any number of notes: the
-/// pitch and level (0–1) of each of `notes.len() + 1` voices with
-/// `inversion` notes raised an octave (lowered, when negative). The whole
-/// part rotates the notes across the voices; the fraction crossfades the note
-/// in motion from its voice to the next, an octave up. As the inversion moves
-/// continuously, a voice changes pitch only while silent, so nothing it drives
-/// glides or clicks.
-fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]) {
-    let n = notes.len() as i32;
-    let voices = n + 1;
-    let span = (n * voices) as f32;
-    let inversion = inversion.clamp(-span, span);
-    let integral = inversion.floor();
-    let fractional = inversion - integral;
-    let integral = integral as i32;
-    let rotations = integral.div_euclid(n);
-    let rotated = integral.rem_euclid(n);
-    for (i, &note) in notes.iter().enumerate() {
-        let i = i as i32;
-        let octaves = (n - 1 + integral - i).div_euclid(n);
-        let pitch = note + octaves as f32;
-        let target = (i - rotations).rem_euclid(voices) as usize;
-        let previous = (i - rotations - 1).rem_euclid(voices) as usize;
-        if i == rotated {
-            pitches[target] = pitch;
-            levels[target] = 1.0 - fractional;
-            // As the next whole inversion computes it, so the pitch holds
-            // exactly when the note arrives.
-            pitches[previous] = note + (octaves + 1) as f32;
-            levels[previous] = fractional;
-        } else if i < rotated {
-            pitches[previous] = pitch;
-            levels[previous] = 1.0;
-        } else {
-            pitches[target] = pitch;
-            levels[target] = 1.0;
-        }
     }
 }
 
@@ -366,62 +327,6 @@ mod tests {
         }
     }
 
-    /// A negative inversion drops the highest notes an octave.
-    #[test]
-    fn negative_inversions_drop_the_highest_notes() {
-        let notes = ScaleSpec::parse("C3[maj7]").unwrap().voltages().to_vec();
-        let actual = sounding(&voices("C3[maj7]", -1.0));
-        let mut expected = vec![notes[3] - 1.0, notes[0], notes[1], notes[2]];
-        expected.sort_by(f32::total_cmp);
-        assert_eq!(actual, expected);
-    }
-
-    /// Between whole inversions the moving note crossfades between its two
-    /// octaves, and the levels always sum to the number of notes.
-    #[test]
-    fn fractions_crossfade_the_moving_note() {
-        let notes = ScaleSpec::parse("C3[maj7]").unwrap().voltages().to_vec();
-        let v = voices("C3[maj7]", 1.25);
-        let total: f32 = v.iter().map(|(_, level)| level).sum();
-        assert!((total - 4.0).abs() < 1e-6, "{v:?}");
-        let low = v.iter().find(|(p, _)| (p - notes[1]).abs() < 1e-6).unwrap();
-        let high = v
-            .iter()
-            .find(|(p, _)| (p - (notes[1] + 1.0)).abs() < 1e-6)
-            .unwrap();
-        assert!(
-            (low.1 - 0.75).abs() < 1e-6 && (high.1 - 0.25).abs() < 1e-6,
-            "{v:?}"
-        );
-    }
-
-    /// Swept across its whole span, each voice changes pitch only while it is
-    /// silent (to within the sweep's step), so an oscillator it drives never
-    /// glides or clicks audibly.
-    #[test]
-    fn voices_move_only_while_silent() {
-        for spec in ["C3[maj7]", "A2[m]", "C(major)"] {
-            let notes = ScaleSpec::parse(spec).unwrap().voltages().len() as f32;
-            let span = notes * (notes + 1.0);
-            let step = 0.01;
-            let mut previous = voices(spec, -span);
-            let mut x = -span;
-            while x < span {
-                x += step;
-                let current = voices(spec, x);
-                for (lane, ((p0, l0), (p1, l1))) in previous.iter().zip(&current).enumerate() {
-                    if p0 != p1 {
-                        assert!(
-                            *l0 <= 2.0 * step && *l1 <= 2.0 * step,
-                            "{spec} at {x}: lane {lane} moved {p0} → {p1} at levels {l0}, {l1}"
-                        );
-                    }
-                }
-                previous = current;
-            }
-        }
-    }
-
     fn read(chord: &Chord) -> Vec<(f32, f32)> {
         (0..chord.lane_count())
             .map(|lane| {
@@ -471,51 +376,6 @@ mod tests {
                 "{from} → {to}"
             );
         }
-    }
-
-    /// A whole rotation, `inversion` at the number of notes, is the chord an
-    /// octave up; its negative, an octave down.
-    #[test]
-    fn whole_rotations_transpose_by_octaves() {
-        for spec in ["C3[maj7]", "A2[m]", "C(major)"] {
-            let notes = ScaleSpec::parse(spec).unwrap().voltages().to_vec();
-            let n = notes.len() as f32;
-            for (inversion, octaves) in [(n, 1.0), (-n, -1.0), (2.0 * n, 2.0)] {
-                let mut expected: Vec<f32> = notes.iter().map(|v| v + octaves).collect();
-                expected.sort_by(f32::total_cmp);
-                let actual = sounding(&voices(spec, inversion));
-                assert_eq!(actual.len(), notes.len(), "{spec} at {inversion}");
-                for (a, e) in actual.iter().zip(&expected) {
-                    assert!(
-                        (a - e).abs() < 1e-5,
-                        "{spec} at {inversion}: {actual:?} vs {expected:?}"
-                    );
-                }
-            }
-        }
-    }
-
-    /// Past ±notes × (notes + 1) the inversion holds the voicing at its end.
-    #[test]
-    fn inversion_holds_past_its_span() {
-        let span = 4.0 * 5.0;
-        assert_eq!(voices("C3[maj7]", span), voices("C3[maj7]", span + 7.3));
-        assert_eq!(voices("C3[maj7]", -span), voices("C3[maj7]", -1e30));
-    }
-
-    /// One- and two-note chords invert too.
-    #[test]
-    fn small_chords_invert() {
-        let single = voices("C[0]", 0.5);
-        assert_eq!(single.len(), 2);
-        assert_eq!(sounding(&voices("C[0]", 1.0)), vec![1.0]);
-        let fifth = voices("C[0 7]", 1.0);
-        assert_eq!(fifth.len(), 3);
-        let sounding = sounding(&fifth);
-        assert!(
-            (sounding[0] - 7.0 / 12.0).abs() < 1e-6 && (sounding[1] - 1.0).abs() < 1e-6,
-            "{sounding:?}"
-        );
     }
 
     /// Patching `inversion` adds one lane, up to the port's limit.
