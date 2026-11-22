@@ -110,7 +110,7 @@ drums: $group().track({ sends: [verb, 2] })
     test.each([
         [
             `kick$bass: $sine('c1')\nbass: $saw('c2')`,
-            /bass, which is not a group/,
+            /bass, which is not a group.*\(line 1\)/,
         ],
         [`kick$drums: $sine('c1')`, /no track named drums/],
         [`a$a: $group()`, /plays back into a/],

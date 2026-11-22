@@ -1,0 +1,3 @@
+kind: Improved
+body: 'The error banner now shows the line a patch error comes from: syntax errors, errors thrown while the patch runs, and invalid module params, even when the patch has several modules of the same type.'
+time: 2026-11-22T11:24:04.048176-05:00

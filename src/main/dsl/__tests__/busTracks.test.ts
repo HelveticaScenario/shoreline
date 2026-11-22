@@ -112,7 +112,7 @@ describe('$bus tracks', () => {
             run(`const b = $bus()
                  fx: $lpf(b, 'c5')
                  dry: $saw('c3').track({ sends: fx })`),
-        ).toThrow(/sends cannot reach fx, which is not a bus/);
+        ).toThrow(/sends cannot reach fx, which is not a bus \(line 3\)\./);
     });
 
     test('a ranged chain result is still rooted at its bus', () => {
@@ -142,7 +142,10 @@ describe('$bus tracks', () => {
             run(`verb: $bus().plate()
                  lead: $sine('c4')
                  dry: $saw('c3').track({ sends: [verb, lead] })`),
-        ).toThrow(/sends cannot reach lead, which is not a bus/);
+        ).toThrow(/sends cannot reach lead, which is not a bus \(line 3\)\./);
+        expect(() => run(`\nout: $sine('c4').track({ sends: 2 })`)).toThrow(
+            /sends takes a bus track's name, a \[name, level\] pair, or an array of them \(line 2\)$/,
+        );
         expect(() =>
             run(`verb: $bus().plate()
                  lead: $sine('c4')

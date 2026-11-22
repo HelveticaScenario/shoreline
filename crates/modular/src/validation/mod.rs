@@ -18,13 +18,15 @@ pub struct ValidationError {
     pub expected_type: Option<String>,
     /// JSON snippet of the actual value that failed
     pub actual_value: Option<String>,
+    /// Id of the module the error belongs to, which the renderer maps to its source line
+    pub module_id: Option<String>,
 }
 
 /// Format module location for error messages.
 ///
 /// For explicitly named modules, returns the user's ID (e.g., "myOscillator").
-/// For auto-generated IDs, returns None so the error can be tied to source line instead.
-fn format_module_location(module: &ModuleSpec) -> String {
+/// For auto-generated IDs, returns the module type, since the id means nothing to the user.
+pub(crate) fn format_module_location(module: &ModuleSpec) -> String {
     if module.id_is_explicit == Some(true) {
         // User explicitly set this ID, show it
         format!("'{}'", module.id)
@@ -117,6 +119,7 @@ pub fn validate_patch(
                 location: Some(location_str.clone()),
                 expected_type: None,
                 actual_value: None,
+                module_id: Some(module.id.clone()),
             });
             continue;
         };
@@ -136,6 +139,7 @@ pub fn validate_patch(
                     location: Some(location_str.clone()),
                     expected_type: Some("an object with parameter values".to_string()),
                     actual_value: Some(truncate_json(&module.params)),
+                    module_id: Some(module.id.clone()),
                 });
             }
             continue;
@@ -146,6 +150,7 @@ pub fn validate_patch(
         // Note: Param-level validation (unknown fields, type checking) is handled
         // by deserr. This loop only validates graph-level concerns: that Cable
         // references point to existing modules and valid output ports.
+        let first_cable_error = errors.len();
         for (param_name, param_value) in param_obj {
             // Skip internal metadata fields used for editor features (argument spans tracking).
             if param_name == ARGUMENT_SPANS_KEY {
@@ -173,6 +178,9 @@ pub fn validate_patch(
                 &mut errors,
             );
         }
+        for error in &mut errors[first_cable_error..] {
+            error.module_id = Some(module.id.clone());
+        }
     }
 
     // === Scope validation ===
@@ -184,6 +192,7 @@ pub fn validate_patch(
                 location: None,
                 expected_type: None,
                 actual_value: None,
+                module_id: None,
             });
             continue;
         }
@@ -197,6 +206,7 @@ pub fn validate_patch(
                     location: None,
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
                 continue;
             };
@@ -212,6 +222,7 @@ pub fn validate_patch(
                     location: None,
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
                 continue;
             };
@@ -227,6 +238,7 @@ pub fn validate_patch(
                     location: None,
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
             }
         }
@@ -248,6 +260,7 @@ pub fn validate_patch(
                             location: None,
                             expected_type: None,
                             actual_value: None,
+                            module_id: None,
                         });
                     }
                 }
@@ -261,6 +274,7 @@ pub fn validate_patch(
                         location: None,
                         expected_type: None,
                         actual_value: None,
+                        module_id: None,
                     });
                 }
             }
@@ -274,6 +288,7 @@ pub fn validate_patch(
                 location: None,
                 expected_type: None,
                 actual_value: None,
+                module_id: None,
             });
         }
 
@@ -291,6 +306,7 @@ pub fn validate_patch(
                         location: None,
                         expected_type: None,
                         actual_value: None,
+                        module_id: None,
                     });
                 }
                 Some(_) => {}
@@ -304,6 +320,7 @@ pub fn validate_patch(
                         location: None,
                         expected_type: None,
                         actual_value: None,
+                        module_id: None,
                     });
                 }
             }
@@ -322,6 +339,7 @@ pub fn validate_patch(
                     location: None,
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
                 continue;
             };
@@ -337,6 +355,7 @@ pub fn validate_patch(
                     location: None,
                     expected_type: None,
                     actual_value: None,
+                    module_id: None,
                 });
             }
         }
@@ -351,6 +370,7 @@ pub fn validate_patch(
                 location: None,
                 expected_type: None,
                 actual_value: None,
+                module_id: None,
             });
         }
     }
