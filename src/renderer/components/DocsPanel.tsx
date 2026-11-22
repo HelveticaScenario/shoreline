@@ -3,6 +3,7 @@ import { VideoDocs } from './VideoDocs';
 import { BuiltinDocs } from './BuiltinDocs';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
 import { ReferenceBrowser } from './ReferenceBrowser';
+import { useQuoteExample } from '../hooks/useQuoteExample';
 import type { DocsTarget } from './docsCommand';
 import electronAPI from '../electronAPI';
 import type { DslTypeName, TypeDocumentation } from '../../shared/dsl/typeDocs';
@@ -75,85 +76,88 @@ const TypeCard: React.FC<TypeCardProps> = ({
     isExpanded,
     onToggle,
     onTypeClick,
-}) => (
-    <div className={`type-card ${isExpanded ? 'expanded' : ''}`}>
-        <div className="type-card-header" onClick={onToggle}>
-            <h3>{typeDoc.name}</h3>
-            <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
-        </div>
+}) => {
+    const quote = useQuoteExample();
+    return (
+        <div className={`type-card ${isExpanded ? 'expanded' : ''}`}>
+            <div className="type-card-header" onClick={onToggle}>
+                <h3>{typeDoc.name}</h3>
+                <span className="expand-icon">{isExpanded ? '▼' : '▶'}</span>
+            </div>
 
-        <p className="type-description">
-            <LinkifyTypes
-                text={typeDoc.description}
-                onTypeClick={onTypeClick}
-            />
-        </p>
+            <p className="type-description">
+                <LinkifyTypes
+                    text={typeDoc.description}
+                    onTypeClick={onTypeClick}
+                />
+            </p>
 
-        {isExpanded && (
-            <div className="type-details">
-                {typeDoc.definition && (
-                    <div className="type-definition">
-                        <h4>Definition</h4>
-                        <code>{typeDoc.definition}</code>
-                    </div>
-                )}
+            {isExpanded && (
+                <div className="type-details">
+                    {typeDoc.definition && (
+                        <div className="type-definition">
+                            <h4>Definition</h4>
+                            <code>{typeDoc.definition}</code>
+                        </div>
+                    )}
 
-                {typeDoc.examples.length > 0 && (
-                    <div className="type-examples">
-                        <h4>Examples</h4>
-                        <pre>{typeDoc.examples.join('\n')}</pre>
-                    </div>
-                )}
+                    {typeDoc.examples.length > 0 && (
+                        <div className="type-examples">
+                            <h4>Examples</h4>
+                            <pre>{typeDoc.examples.map(quote).join('\n')}</pre>
+                        </div>
+                    )}
 
-                {typeDoc.methods && typeDoc.methods.length > 0 && (
-                    <div className="type-methods">
-                        <h4>Methods</h4>
-                        {typeDoc.methods.map((method) => (
-                            <div key={method.name} className="method-card">
-                                <code className="method-signature">
-                                    <LinkifyTypes
-                                        text={method.signature}
-                                        onTypeClick={onTypeClick}
-                                    />
-                                </code>
-                                <p>
-                                    <LinkifyTypes
-                                        text={method.description}
-                                        onTypeClick={onTypeClick}
-                                    />
-                                </p>
-                                {method.example && (
-                                    <pre className="method-example">
-                                        {method.example}
-                                    </pre>
+                    {typeDoc.methods && typeDoc.methods.length > 0 && (
+                        <div className="type-methods">
+                            <h4>Methods</h4>
+                            {typeDoc.methods.map((method) => (
+                                <div key={method.name} className="method-card">
+                                    <code className="method-signature">
+                                        <LinkifyTypes
+                                            text={method.signature}
+                                            onTypeClick={onTypeClick}
+                                        />
+                                    </code>
+                                    <p>
+                                        <LinkifyTypes
+                                            text={method.description}
+                                            onTypeClick={onTypeClick}
+                                        />
+                                    </p>
+                                    {method.example && (
+                                        <pre className="method-example">
+                                            {quote(method.example)}
+                                        </pre>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {typeDoc.seeAlso.length > 0 && (
+                        <div className="type-see-also">
+                            <h4>See Also</h4>
+                            <div className="see-also-links">
+                                {typeDoc.seeAlso.map((typeName) =>
+                                    isDslType(typeName) ? (
+                                        <TypeLink
+                                            key={typeName}
+                                            typeName={typeName}
+                                            onTypeClick={onTypeClick}
+                                        />
+                                    ) : (
+                                        <span key={typeName}>{typeName}</span>
+                                    ),
                                 )}
                             </div>
-                        ))}
-                    </div>
-                )}
-
-                {typeDoc.seeAlso.length > 0 && (
-                    <div className="type-see-also">
-                        <h4>See Also</h4>
-                        <div className="see-also-links">
-                            {typeDoc.seeAlso.map((typeName) =>
-                                isDslType(typeName) ? (
-                                    <TypeLink
-                                        key={typeName}
-                                        typeName={typeName}
-                                        onTypeClick={onTypeClick}
-                                    />
-                                ) : (
-                                    <span key={typeName}>{typeName}</span>
-                                ),
-                            )}
                         </div>
-                    </div>
-                )}
-            </div>
-        )}
-    </div>
-);
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
     const [activePage, setActivePage] = useState<Page>('modules');

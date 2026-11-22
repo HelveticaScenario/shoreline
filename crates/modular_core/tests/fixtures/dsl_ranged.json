@@ -1461,11 +1461,11 @@
             }
         },
         {
-            "id": "_crossfade-1",
+            "id": "$crossfade-1",
             "idIsExplicit": false,
-            "moduleType": "_crossfade",
+            "moduleType": "$crossfade",
             "params": {
-                "dry": [
+                "a": [
                     {
                         "lane": 0,
                         "module": "$remap-31",
@@ -1473,7 +1473,7 @@
                         "type": "cable"
                     }
                 ],
-                "wet": [
+                "b": [
                     {
                         "lane": 0,
                         "module": "$slew-2",
@@ -1527,11 +1527,11 @@
             }
         },
         {
-            "id": "_crossfade-2",
+            "id": "$crossfade-2",
             "idIsExplicit": false,
-            "moduleType": "_crossfade",
+            "moduleType": "$crossfade",
             "params": {
-                "dry": [
+                "a": [
                     {
                         "lane": 0,
                         "module": "$remap-32",
@@ -1539,7 +1539,7 @@
                         "type": "cable"
                     }
                 ],
-                "wet": [
+                "b": [
                     {
                         "lane": 0,
                         "module": "$slew-3",
@@ -2670,7 +2670,7 @@
             "outputs": [
                 {
                     "lane": 0,
-                    "module": "_crossfade-1",
+                    "module": "$crossfade-1",
                     "port": "output"
                 }
             ]
@@ -2680,7 +2680,7 @@
             "outputs": [
                 {
                     "lane": 0,
-                    "module": "_crossfade-2",
+                    "module": "$crossfade-2",
                     "port": "output"
                 }
             ]

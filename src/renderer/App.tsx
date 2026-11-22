@@ -195,6 +195,7 @@ function App() {
         refreshFileTree,
         workspaceRoot,
         onFileSaved: handleFileSaved,
+        quotes: resolvePrettierOptions(prettierConfig).quotes,
     });
 
     // Audio state

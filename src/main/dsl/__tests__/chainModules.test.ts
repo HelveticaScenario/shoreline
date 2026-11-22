@@ -264,11 +264,11 @@ describe('.wet', () => {
         );
     });
 
-    test('crossfade emits one _crossfade', () => {
+    test('crossfade emits one $crossfade', () => {
         const types = moduleTypes(
             execPatch('out: $saw(0).lpf("100hz").wet(2.5)'),
         );
-        expect(types.filter((t) => t === '_crossfade')).toHaveLength(1);
+        expect(types.filter((t) => t === '$crossfade')).toHaveLength(1);
     });
 
     test('fades a collection against its chained result', () => {
@@ -292,6 +292,15 @@ describe('.wet', () => {
                 execPatch('out: $saw(0).pipeMix((s) => $xover(s)._low, 2)'),
             ),
         );
+    });
+
+    test('works through a scope on a multi-output module', () => {
+        expect(
+            normalize(execPatch('out: $saw(0).xover().scope().wet(2)')),
+        ).toEqual(normalize(execPatch('out: $saw(0).xover().wet(2)')));
+        expect(
+            normalize(execPatch('out: $saw(0).xover().scope()._low.wet(2)')),
+        ).toEqual(normalize(execPatch('out: $saw(0).xover()._low.wet(2)')));
     });
 
     test('fades against the receiver of the last chained module only', () => {
@@ -319,7 +328,7 @@ describe('.wet', () => {
     test('blends a rounding against the signal it rounds', () => {
         const patch = execPatch('out: $saw(0).lpf("100hz").round().wet(2)');
         const crossfade = patch.modules.find(
-            (m) => m.moduleType === '_crossfade',
+            (m) => m.moduleType === '$crossfade',
         )!;
         const round = patch.modules.find((m) => m.moduleType === '$round')!;
         const lpf = patch.modules.find((m) => m.moduleType === '$lpf')!;
@@ -343,21 +352,21 @@ describe('.wet', () => {
         expect(inputs).toHaveLength(4);
         expect(inputs.every((cable) => cable.module === saw.id)).toBe(true);
         const crossfade = patch.modules.find(
-            (m) => m.moduleType === '_crossfade',
+            (m) => m.moduleType === '$crossfade',
         )!;
-        expect(crossfade.params.dry).toEqual([
+        expect(crossfade.params.a).toEqual([
             { lane: 0, module: voices.id, port: 'output', type: 'cable' },
         ]);
-        expect(JSON.stringify(crossfade.params.wet)).toContain(plate.id);
+        expect(JSON.stringify(crossfade.params.b)).toContain(plate.id);
     });
 
     test('fades one voice against a stereo effect as it is', () => {
         const patch = execPatch("out: $saw('c3').plate().wet(2)");
         const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
         const crossfade = patch.modules.find(
-            (m) => m.moduleType === '_crossfade',
+            (m) => m.moduleType === '$crossfade',
         )!;
-        expect(crossfade.params.dry).toEqual([
+        expect(crossfade.params.a).toEqual([
             { lane: 0, module: saw.id, port: 'output', type: 'cable' },
         ]);
     });
@@ -366,9 +375,9 @@ describe('.wet', () => {
         const patch = execPatch("out: $saw('c3:m7').lpf('800hz').wet(2)");
         const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
         const crossfade = patch.modules.find(
-            (m) => m.moduleType === '_crossfade',
+            (m) => m.moduleType === '$crossfade',
         )!;
-        expect(JSON.stringify(crossfade.params.dry)).toContain(saw.id);
+        expect(JSON.stringify(crossfade.params.a)).toContain(saw.id);
     });
 
     test('throws on a signal that was not chained', () => {
@@ -403,7 +412,7 @@ describe('$delay as a chain method', () => {
             execPatch('out: $sine(0).delay(0.25).wet(2.5)'),
         );
         expect(types).toContain('$delayRead'); // wet delay tap
-        expect(types).toContain('_crossfade');
+        expect(types).toContain('$crossfade');
     });
 });
 
@@ -441,14 +450,14 @@ describe('namespaced chain modules', () => {
             ),
         );
         expect(types).toContain('$unstable.shape.saturate');
-        expect(types).toContain('_crossfade');
+        expect(types).toContain('$crossfade');
     });
 });
 
 // ─── pipeMix crossfades dry against wet ──────────────────────────────────────
 
 describe('pipeMix', () => {
-    test('produces a _crossfade, not a bare 2-input $mix', () => {
+    test('produces a $crossfade, not a bare 2-input $mix', () => {
         const out = new Collection(
             new ModuleOutput(builder, 'src-1', 'out', 0),
         );
@@ -456,7 +465,7 @@ describe('pipeMix', () => {
             (s) => builder.getFactory('$lpf')(s, '100hz') as Collection,
         );
         const types = builder.toPatch().modules.map((m) => m.moduleType);
-        expect(types).toContain('_crossfade');
+        expect(types).toContain('$crossfade');
         expect(types).not.toContain('$mix');
     });
 });

@@ -560,7 +560,6 @@ export class DSLContext {
                     }
                     markRoot(root!, {
                         outputs: rootOutputs,
-                        resolver: this.builder.outputResolver,
                         values: named,
                     });
                     return root! as MultiOutput;

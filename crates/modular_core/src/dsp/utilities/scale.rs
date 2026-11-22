@@ -379,13 +379,15 @@ impl ScaleSpec {
             .map(|&n| self.interval_voltage(n as i32))
     }
 
-    /// V/Oct voltage of a signed degree. Degrees index the voicing and wrap by
-    /// `period_semitones` (one octave for scales) in both directions.
-    pub fn degree_voltage(&self, degree: i32) -> f64 {
+    /// V/Oct voltage of a signed degree raised by `semitones` chromatic steps.
+    /// Degrees index the voicing and wrap by `period_semitones` (one octave for
+    /// scales) in both directions; the chromatic steps follow the tuning, so a
+    /// just scale's altered note is the just-tuned one beside it.
+    pub fn degree_voltage(&self, degree: i32, semitones: i32) -> f64 {
         let len = self.voicing.len() as i32;
         let period = degree.div_euclid(len);
         let note = self.voicing[degree.rem_euclid(len) as usize] as i32;
-        self.interval_voltage(note) + (period * self.period_semitones / 12) as f64
+        self.interval_voltage(note + period * self.period_semitones + semitones)
     }
 }
 
@@ -582,18 +584,34 @@ mod tests {
     #[test]
     fn degree_voltage_wraps_by_period() {
         let major = ScaleSpec::parse("C(major)").unwrap();
-        assert!((major.degree_voltage(7) - 1.0).abs() < 1e-9);
-        assert!((major.degree_voltage(-1) - (-1.0 / 12.0)).abs() < 1e-9);
-        assert!((major.degree_voltage(-7) - (-1.0)).abs() < 1e-9);
+        assert!((major.degree_voltage(7, 0) - 1.0).abs() < 1e-9);
+        assert!((major.degree_voltage(-1, 0) - (-1.0 / 12.0)).abs() < 1e-9);
+        assert!((major.degree_voltage(-7, 0) - (-1.0)).abs() < 1e-9);
 
         // A 9th chord spans more than an octave, so it repeats every two.
         let ninth = ScaleSpec::parse("C[9]").unwrap();
-        assert!((ninth.degree_voltage(4) - 14.0 / 12.0).abs() < 1e-9);
-        assert!((ninth.degree_voltage(5) - 2.0).abs() < 1e-9);
-        assert!((ninth.degree_voltage(-1) - (14.0 / 12.0 - 2.0)).abs() < 1e-9);
+        assert!((ninth.degree_voltage(4, 0) - 14.0 / 12.0).abs() < 1e-9);
+        assert!((ninth.degree_voltage(5, 0) - 2.0).abs() < 1e-9);
+        assert!((ninth.degree_voltage(-1, 0) - (14.0 / 12.0 - 2.0)).abs() < 1e-9);
 
         // An inverted triad repeats every octave from its lowest note.
         let inv = ScaleSpec::parse("C[maj inv1]").unwrap();
-        assert!((inv.degree_voltage(3) - 16.0 / 12.0).abs() < 1e-9);
+        assert!((inv.degree_voltage(3, 0) - 16.0 / 12.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn degree_voltage_alters_by_chromatic_steps_of_the_tuning() {
+        let major = ScaleSpec::parse("C(major)").unwrap();
+        // E raised to F, E lowered three steps to C#.
+        assert!((major.degree_voltage(2, 1) - 5.0 / 12.0).abs() < 1e-9);
+        assert!((major.degree_voltage(2, -3) - 1.0 / 12.0).abs() < 1e-9);
+        // B raised past the octave to C5, C lowered below it to B3.
+        assert!((major.degree_voltage(6, 1) - 1.0).abs() < 1e-9);
+        assert!((major.degree_voltage(-7, -1) - (-13.0 / 12.0)).abs() < 1e-9);
+
+        // In just intonation the altered note keeps the just tuning: the
+        // major third lowered is the just minor third.
+        let just = ScaleSpec::parse("C(just 0 2 4 5 7 9 11)").unwrap();
+        assert!((just.degree_voltage(2, -1) - 1.2_f64.log2()).abs() < 1e-9);
     }
 }
