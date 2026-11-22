@@ -4,8 +4,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 use serde::Serialize;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{phase::limit_frequency, sine::sine},
@@ -95,7 +95,7 @@ const ADDITIVE_DOCS: ModuleDocs = ModuleDocs {
                   narrow and ripple, from hollow organ tones to glassy, \
                   vocal sweeps. The spectrum glides to new settings over \
                   about a twentieth of a second.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

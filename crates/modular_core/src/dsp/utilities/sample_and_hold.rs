@@ -1,8 +1,8 @@
 use crate::bounds::Bounds;
 use crate::dsp::utils::{SchmittState, SchmittTrigger};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -37,7 +37,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
     description: "Grabs its input's value on each trigger and holds it until the next: \
                   the classic way to turn noise into stepped random melodies and \
                   modulation.",
-    categories: &[ModuleCategory::Gate],
+    categories: &[ReferenceCategory::Gate],
     sections: &[],
     examples: &[
         DocExample {
@@ -153,7 +153,7 @@ const TAH_DOCS: ModuleDocs = ModuleDocs {
     description: "Follows its input while the gate is low and freezes it while the \
                   gate is high: the counterpart of `$sah`, for catching a moving value \
                   and holding it.",
-    categories: &[ModuleCategory::Gate],
+    categories: &[ReferenceCategory::Gate],
     sections: &[],
     examples: &[DocExample {
         title: "Glide that freezes in steps",

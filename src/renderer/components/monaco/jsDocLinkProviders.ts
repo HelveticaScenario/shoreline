@@ -21,6 +21,7 @@ import type { Monaco } from '../../hooks/useCustomMonaco';
 import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
 import { executeCommand } from '../../keybindings/commands';
 import { isDslType } from '../../../shared/dsl/typeDocs';
+import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
 import {
     type JsDocLinkRef,
     type JsDocLinkResolver,
@@ -35,6 +36,10 @@ function plainText(parts: readonly SymbolDisplayPart[] | undefined): string {
 }
 
 const OPEN_LINK_COMMAND = 'shoreline.openJsDocLink';
+
+const GLOBAL_NAMES: ReadonlySet<string> = new Set(
+    GLOBAL_ENTRIES.map((e) => e.name),
+);
 
 /** `isTrusted` scoped to the link command, so doc text cannot run others. */
 const LINK_TRUST = { enabledCommands: [OPEN_LINK_COMMAND] };
@@ -51,8 +56,9 @@ type LinkAction =
       };
 
 /**
- * Resolves links shown at `position` in `model`: DSL types and modules open
- * in the Docs panel, any other declaration opens in a peek at `position`.
+ * Resolves links shown at `position` in `model`: DSL types, modules and
+ * globals open in the Docs panel, any other declaration opens in a peek at
+ * `position`.
  */
 function linkResolver(
     moduleNames: ReadonlySet<string>,
@@ -68,6 +74,8 @@ function linkResolver(
             action = { kind: 'docs', name, symbolType: 'module' };
         } else if (namespaces.has(name)) {
             action = { kind: 'docs', name, symbolType: 'namespace' };
+        } else if (GLOBAL_NAMES.has(name)) {
+            action = { kind: 'docs', name, symbolType: 'global' };
         } else if (target) {
             action = {
                 file: target.fileName,

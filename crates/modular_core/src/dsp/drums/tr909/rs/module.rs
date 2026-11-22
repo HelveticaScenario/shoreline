@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use super::*;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// The inputs every lane of the rim shot reads.
 struct RsInputs<I> {
@@ -62,7 +62,7 @@ const RS909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 rim shot",
     description: "The 909's rim shot: a short, sharp, metallic click, for ticking \
                   syncopation over a kick.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Ticking rim shots",

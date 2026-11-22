@@ -12,10 +12,10 @@ use crate::dsp::seq::FRESH_WINDOW_SECS;
 use crate::dsp::seq::groove::{GrooveHold, before_first_step, fill_groove_inputs};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, TempGate, TempGateState, min_gate_samples};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::param_errors::ModuleParamErrors;
 use crate::poly::{LaneSumExt, PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::ClockMessages;
 use crate::types::PatchUpdateHandler;
 
@@ -229,7 +229,7 @@ const DRUM_MAP_DOCS: ModuleDocs = ModuleDocs {
                   modelled on Mutable Instruments Grids. Move `x` and `y` to morph between \
                   grooves, turn up each part's density for busier fills, and add `chaos` for \
                   variation; strong hits also fire the matching accent output.",
-    categories: &[ModuleCategory::Sequencer, ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Sequencer, ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Morphing drum loop",

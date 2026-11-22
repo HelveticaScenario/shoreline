@@ -3,9 +3,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE, SchmittTrigger};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -71,7 +71,7 @@ const COIN_FLIP_DOCS: ModuleDocs = ModuleDocs {
                   probability: thin a steady clock into a loose rhythm, or split one \
                   stream between two sounds. The module itself is the heads output; \
                   `._tails` carries the rest.",
-    categories: &[ModuleCategory::Gate, ModuleCategory::Random],
+    categories: &[ReferenceCategory::Gate, ReferenceCategory::Random],
     sections: &[],
     examples: &[DocExample {
         title: "Kick or snare, 75/25",

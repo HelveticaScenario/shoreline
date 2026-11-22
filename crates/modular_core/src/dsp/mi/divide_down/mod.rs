@@ -3,8 +3,8 @@ pub mod oscillator;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::oscillators::{FmMode, apply_fm},
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -74,7 +74,7 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
                   square and organ registrations like a string machine's \
                   footages. `$mi.stringMachine` plays chords on it through \
                   a low-pass and `$mi.chorus`.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {
@@ -87,7 +87,7 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "String chord",
             code: r#"
-                const notes = $chord('C3[m7]')
+                const notes = 'c3:m7'
                 chord: $mi.divideDown(notes, { registration: 1 })
             "#,
         },

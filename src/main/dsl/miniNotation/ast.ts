@@ -44,6 +44,30 @@ export type AtomValue =
           };
       }
     /**
+     * A chord on a root note (`c3:M7`). `chord` is the chord symbol after the
+     * colon.
+     */
+    | {
+          Chord: {
+              letter: string;
+              accidental: string | null;
+              octave: number | null;
+              chord: string;
+          };
+      }
+    /**
+     * A scale on a root note (`d(dorian)`). `scale` is the scale between the
+     * parentheses, trimmed.
+     */
+    | {
+          Scale: {
+              letter: string;
+              accidental: string | null;
+              octave: number | null;
+              scale: string;
+          };
+      }
+    /**
      * The `x` structure marker (serde unit variant, so a bare string). Only
      * meaningful in `.struct(...)` boolean patterns.
      */

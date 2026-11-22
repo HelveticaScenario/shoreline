@@ -39,7 +39,7 @@ describe('experimental module docs', () => {
         expect(doc).not.toContain('@experimental');
     });
 
-    test('the Reference pane entry carries the flag', () => {
+    test('the reference entry carries the flag', () => {
         const entry = (name: string) =>
             moduleToReferenceEntry(
                 schemas.find((s) => s.name === name) as Schema,

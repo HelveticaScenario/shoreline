@@ -4,8 +4,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         core::pan::pan_pair,
@@ -105,13 +105,13 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
     description: "A stack of detuned sawtooths for huge trance leads, pads and \
                   chords. Each note is one stereo lane, its saws spread from left to \
                   right.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {
             title: "Trance chord",
             code: r#"
-                chord: $supersaw($chord('A2[m]'), {
+                chord: $supersaw('a2:m', {
                   unison: 7,
                   detune: 0.3,
                 }).lpf('c6', 1)

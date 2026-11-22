@@ -5,9 +5,9 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::bounds::Bounds;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 #[params(declares_range = (min, max))]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -47,7 +47,7 @@ const CLAMP_DOCS: ModuleDocs = ModuleDocs {
                   past either edge. Give only one bound to clamp one side: handy for \
                   keeping modulation from pushing a cutoff or pitch somewhere \
                   unpleasant.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[
         DocExample {

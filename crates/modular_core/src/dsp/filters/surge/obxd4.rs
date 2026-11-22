@@ -10,8 +10,8 @@ use schemars::JsonSchema;
 
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 use super::obxd2::obxd_cutoff;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// OB-Xd 4-pole coefficient slots (Surge `Obxd24dBCoeff`, minus the morph mixes).
 const G24: usize = 0;
@@ -229,13 +229,13 @@ const OBXD4_DOCS: ModuleDocs = ModuleDocs {
     summary: "OB-Xd 4-pole lowpass",
     description: "The Oberheim 4-pole lowpass: darker and steeper than its 2-pole sibling, \
                   with a resonance that stays smooth rather than piercing.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Dark brass swell",
         code: r#"
             chord: $unstable.filter.obxd4(
-              $saw($chord('F2[maj7]')),
+              $saw('f2:M7'),
               $sine('0.1hz').range('c3', 'c6'),
               2.5,
             )
@@ -260,7 +260,7 @@ const XPANDER_DOCS: ModuleDocs = ModuleDocs {
     description: "The Oberheim Xpander's trick: one 4-pole core mixed into fifteen responses, \
                   from lowpasses and highpasses to bandpass, notch and phaser shapes, all with \
                   the same character.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "4-pole bandpass sweep",

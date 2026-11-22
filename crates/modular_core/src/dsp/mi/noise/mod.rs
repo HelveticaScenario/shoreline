@@ -3,8 +3,8 @@ mod clocked;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -123,7 +123,7 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' filtered noise: white noise, \
                   held between ticks of a clock, through a resonant filter, \
                   for wind, surf and whistles or stepped, digital hiss.",
-    categories: &[ModuleCategory::Oscillator, ModuleCategory::Random],
+    categories: &[ReferenceCategory::Oscillator, ReferenceCategory::Random],
     sections: &[],
     examples: &[
         DocExample {

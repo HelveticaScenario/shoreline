@@ -4,9 +4,9 @@ use schemars::JsonSchema;
 use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -39,7 +39,7 @@ const CROSSFADE_DOCS: ModuleDocs = ModuleDocs {
     description: "Fades linearly from one signal to another, lane by lane; \
                   the narrower of the two cycles across the wider. Backs the \
                   `.wet()` and `.pipeMix()` signal methods.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Half-wet filter",

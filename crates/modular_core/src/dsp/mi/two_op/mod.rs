@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -99,7 +99,7 @@ const TWO_OP_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' two-operator FM: one sine \
                   phase-modulating another, 4× oversampled, for bells, \
                   electric pianos, metallic basses and clangorous leads.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

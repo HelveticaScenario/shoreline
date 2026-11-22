@@ -1,5 +1,5 @@
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::sanitize,
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -52,7 +52,7 @@ const SLEW_DOCS: ModuleDocs = ModuleDocs {
                   portamento on a pitch, softened steps on stepped modulation, or a \
                   gate rounded into a rise and fall. Rising and falling can glide at \
                   different rates.",
-    categories: &[ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Utility],
     sections: &[],
     examples: &[
         DocExample {

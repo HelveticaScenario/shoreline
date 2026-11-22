@@ -6,6 +6,7 @@ import {
     type VideoChainDoc,
     type VideoDocParam,
 } from '../../shared/dsl/videoDocs';
+import { jsDocComment } from './jsDoc';
 
 const WRAP_WIDTH = 76;
 
@@ -43,13 +44,7 @@ function jsdoc(
     for (const example of examples) {
         lines.push(...`@example ${example}`.split('\n'));
     }
-    return [
-        `${indent}/**`,
-        ...lines.map((line) =>
-            line === '' ? `${indent} *` : `${indent} * ${line}`,
-        ),
-        `${indent} */`,
-    ].join('\n');
+    return jsDocComment(lines, indent).join('\n');
 }
 
 /** The `declare const $v` block with JSDoc, generated from {@link VIDEO_DOCS}. */
@@ -76,6 +71,24 @@ export function generateVideoNamespace(): string {
         ...members,
         '};',
     ].join('\n');
+}
+
+/** The `$v` members that are also globals, as `$scopeXY` for `$v.scopeXY`. */
+export const VIDEO_GLOBALS = ['scopeXY'];
+
+/**
+ * The global form of each of {@link VIDEO_GLOBALS}, with its `$v` member's
+ * docs and declarations.
+ */
+export function generateVideoGlobals(): string {
+    return VIDEO_DOCS.filter((doc) => VIDEO_GLOBALS.includes(doc.name))
+        .map((doc) =>
+            [
+                jsdoc('', doc.description, doc.params, doc.examples),
+                ...doc.declarations.map((d) => `function $${d}`),
+            ].join('\n'),
+        )
+        .join('\n\n');
 }
 
 function renderMembers(entries: VideoChainDoc[]): string {

@@ -4,8 +4,8 @@
 
 use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Stateless — quantization carries no history.
 #[derive(Clone, Copy, Default)]
@@ -24,11 +24,11 @@ const DIGITAL_DOCS: ModuleDocs = ModuleDocs {
     summary: "Bit-crusher",
     description: "Steps the signal down to coarse levels for a lo-fi, digital \
                   crunch; raise `drive` for coarser steps.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Crunchy chord",
-        code: "chord: $saw($chord('C3[m7]')).unstable.shape.digital(2)",
+        code: "chord: $saw('c3:m7').unstable.shape.digital(2)",
     }],
 };
 

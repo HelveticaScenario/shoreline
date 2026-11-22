@@ -16,9 +16,9 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 // ─── Topology ────────────────────────────────────────────────────────────────
@@ -289,7 +289,7 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
                   a real hall where the highs die first. Keeps a stereo source's left and right \
                   apart in the tail. Output is fully wet, so blend it with \
                   `.wet(mix)` or send to it from a bus.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[DocExample {
         title: "Dark, long-tailed plucks",

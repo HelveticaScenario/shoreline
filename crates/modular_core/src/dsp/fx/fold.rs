@@ -9,9 +9,9 @@ use schemars::JsonSchema;
 use crate::dsp::fx::enosc_tables::{self, aa_fold, fold_amount, lookup_fold};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::voct_to_hz;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -68,7 +68,7 @@ const FOLD_DOCS: ModuleDocs = ModuleDocs {
     description: "Folds the signal back on itself as it grows, turning a plain sine or triangle \
                   into dense, metallic west-coast tones. Sweep or envelope it for that classic \
                   animated timbre.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[
         DocExample {

@@ -11,8 +11,8 @@ use super::coeffs::note_to_hz;
 use super::fastmath::softclip;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
 use super::sinc::{self, FIRIPOL_N, FIROFFSET};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Delay-line length (Surge `MAX_FB_COMB` with the default ×2 extension factor —
 /// Surge XT's longer-ringing combs). Must be a power of two.
@@ -155,7 +155,7 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
     description: "A short feedback delay tuned to the cutoff that rings at that pitch and its \
                   harmonics, for metallic, plucked-string and flanging tones. `'neg'` polarity \
                   rings an octave lower and hollower.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Plucked strings from noise bursts",

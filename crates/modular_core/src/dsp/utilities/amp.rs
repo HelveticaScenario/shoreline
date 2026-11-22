@@ -1,12 +1,12 @@
 use super::operator::operator_module;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 const AMP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Linear gain",
     description: "Multiplies a signal by a gain where 5 V is unity, sample by \
                   sample.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Tremolo",

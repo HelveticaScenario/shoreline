@@ -1,7 +1,7 @@
 use crate::dsp::utils::SchmittTrigger;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -192,7 +192,7 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
                   when the gate closes. Its ramps are curved by default for a natural, \
                   punchy feel. Setting `decay` without `sustain` drops the sustain to \
                   0, for a plucky attack-decay shape.",
-    categories: &[ModuleCategory::Envelope],
+    categories: &[ReferenceCategory::Envelope],
     sections: &[],
     examples: &[
         DocExample {
@@ -208,7 +208,7 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Slow pad swell",
             code: r#"
-                chord: $saw($chord('C3[maj9]')).amp(
+                chord: $saw('c3:M9').amp(
                   $adsr($pulse('0.25hz'), { attack: 1.5, release: 2 }),
                 )
             "#,

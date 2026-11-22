@@ -1,5 +1,5 @@
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::{TempGate, TempGateState, min_gate_samples},
     poly::{PolyOutput, PolySignal},
@@ -69,7 +69,7 @@ const RISING_DOCS: ModuleDocs = ModuleDocs {
     description: "Goes high whenever its input rises, so ramps, envelopes, LFOs and \
                   melodies can trigger events. Each upward step of a stepped signal \
                   gives one trigger.",
-    categories: &[ModuleCategory::Gate],
+    categories: &[ReferenceCategory::Gate],
     sections: &[],
     examples: &[DocExample {
         title: "Only the upward steps sound",
@@ -117,7 +117,7 @@ const FALLING_DOCS: ModuleDocs = ModuleDocs {
     description: "Goes high whenever its input falls, so the downward side of a ramp, \
                   LFO or melody can trigger events. Each downward step of a stepped \
                   signal gives one trigger.",
-    categories: &[ModuleCategory::Gate],
+    categories: &[ReferenceCategory::Gate],
     sections: &[],
     examples: &[DocExample {
         title: "Only the downward steps sound",

@@ -5,7 +5,8 @@ import type { ModuleSchema } from '@modular/core';
 import type { QuoteStyle } from '../../../shared/ipcTypes';
 import { formatDsl } from '../../components/monaco/formattingProvider';
 import { DEFAULT_PATCH } from '../../app/buffers';
-import { GLOBAL_DOCS, TYPE_DOCS } from '../../../shared/dsl/typeDocs';
+import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
+import { TYPE_DOCS } from '../../../shared/dsl/typeDocs';
 import {
     VIDEO_CHAIN_EXAMPLES,
     VIDEO_DOCS,
@@ -113,7 +114,12 @@ describe('requote', () => {
                     m.example ? [m.example] : [],
                 ),
             ]),
-            ...GLOBAL_DOCS.flatMap((g) => g.examples),
+            ...GLOBAL_ENTRIES.flatMap((g) =>
+                [
+                    ...g.docs.examples,
+                    ...g.docs.sections.flatMap((section) => section.examples),
+                ].map((e) => e.code),
+            ),
             ...VIDEO_INTRO.examples,
             ...VIDEO_CHAIN_EXAMPLES,
             ...VIDEO_DOCS.flatMap((d) => d.examples),

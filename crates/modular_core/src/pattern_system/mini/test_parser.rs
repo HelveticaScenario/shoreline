@@ -24,7 +24,8 @@
 //!
 //! Scope:
 //! - Sequences, stacks (`,`), fast subsequences `[...]`, slow subsequences `<...>`
-//! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), rest (`~`)
+//! - Atoms: numbers, hz (`440hz`), notes (`c4`, `d#4`, `cb3`), chords
+//!   (`c3:M7`), scales (`d(dorian)`), rest (`~`)
 //! - Note letters 'a'..'g' also parse as a note without octave.
 //! - Modifiers: `*`, `/`, `!`, `?`, `@`, `(k,n,rot?)`
 //! - Random choice: `a|b|c`
@@ -382,6 +383,30 @@ impl<'a> Parser<'a> {
                 };
                 // Optional octave
                 let octave = self.maybe_integer_i32()?;
+                if let Some(chord) = self.chord_body() {
+                    return Ok(MiniAST::Pure(Located::new(
+                        AtomValue::Chord {
+                            letter: letter as char,
+                            accidental,
+                            octave,
+                            chord,
+                        },
+                        start,
+                        self.pos,
+                    )));
+                }
+                if let Some(scale) = self.scale_body() {
+                    return Ok(MiniAST::Pure(Located::new(
+                        AtomValue::Scale {
+                            letter: letter as char,
+                            accidental,
+                            octave,
+                            scale,
+                        },
+                        start,
+                        self.pos,
+                    )));
+                }
                 let end = self.pos;
                 return Ok(MiniAST::Pure(Located::new(
                     AtomValue::Note {
@@ -411,6 +436,49 @@ impl<'a> Parser<'a> {
             start,
             end,
         )))
+    }
+
+    /// A chord symbol after its root note and `:`, consumed with the colon;
+    /// the characters match the peggy grammar's `ChordSymbolChar`.
+    fn chord_body(&mut self) -> Option<String> {
+        if self.peek() != Some(b':') {
+            return None;
+        }
+        let start = self.pos + 1;
+        let len = self.input[start..]
+            .iter()
+            .take_while(|&&b| b.is_ascii_alphanumeric() || matches!(b, b'#' | b'^' | b'%'))
+            .count();
+        if len == 0 {
+            return None;
+        }
+        self.pos = start + len;
+        std::str::from_utf8(&self.input[start..self.pos])
+            .ok()
+            .map(str::to_string)
+    }
+
+    /// A scale's `(…)` directly after its root note, consumed with its
+    /// parentheses. A body holding `,` is a euclidean modifier instead, as in
+    /// the peggy grammar's `ScaleBody`.
+    fn scale_body(&mut self) -> Option<String> {
+        if self.peek() != Some(b'(') {
+            return None;
+        }
+        let start = self.pos + 1;
+        let len = self.input[start..]
+            .iter()
+            .position(|&b| matches!(b, b')' | b'(' | b',' | b'[' | b']' | b'<' | b'>'))?;
+        let end = start + len;
+        if self.input[end] != b')' {
+            return None;
+        }
+        let body = std::str::from_utf8(&self.input[start..end]).ok()?.trim();
+        if body.is_empty() {
+            return None;
+        }
+        self.pos = end + 1;
+        Some(body.to_string())
     }
 
     fn matches_keyword_ci(&mut self, kw: &str) -> bool {

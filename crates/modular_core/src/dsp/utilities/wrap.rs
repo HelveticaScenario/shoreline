@@ -2,8 +2,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::bounds::Bounds;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::{Sample, wrap},
     poly::{PolyOutput, PolySignal},
@@ -39,7 +39,7 @@ const WRAP_DOCS: ModuleDocs = ModuleDocs {
                   way a phase wraps around. In octave mode it moves notes by whole \
                   octaves instead, keeping a melody's notes but folding it into one \
                   register.",
-    categories: &[ModuleCategory::Math],
+    categories: &[ReferenceCategory::Math],
     sections: &[],
     examples: &[DocExample {
         title: "Wide melody folded into one octave",

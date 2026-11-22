@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{Buffer, PolySignal, poly::PolyOutput};
 
 fn delay_read_derive_lane_count(params: &DelayReadParams) -> usize {
@@ -39,7 +39,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
                   tap of a delay line. Several taps on one buffer make multi-tap \
                   echoes, and a modulated time gives chorus and flanging. `$delay` \
                   builds a complete feedback delay from these parts.",
-    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Effect, ReferenceCategory::Utility],
     sections: &[],
     examples: &[
         DocExample {
@@ -57,7 +57,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Chorused chord",
             code: r#"
-                const voice = $saw($chord('C3[m7]'))
+                const voice = $saw('c3:m7')
                 chord: voice
                 chord2: $delayRead(
                   $buffer(voice, 0.1),
