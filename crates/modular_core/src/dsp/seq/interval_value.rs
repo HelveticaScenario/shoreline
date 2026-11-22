@@ -40,8 +40,8 @@ impl crate::pattern_system::mini::convert::FromMiniAtom for IntervalValue {
             AtomValue::Hz(_) => Err(ConvertError::InvalidAtom(
                 "a scale pattern reads its atoms as scale-degree integers, so Hz atoms are not allowed under .scale(...)".into(),
             )),
-            AtomValue::Note { .. } => Err(ConvertError::InvalidAtom(
-                "a scale pattern reads its atoms as scale-degree integers, so note names are not allowed under .scale(...)".into(),
+            AtomValue::Note { .. } | AtomValue::Chord { .. } | AtomValue::Scale { .. } => Err(ConvertError::InvalidAtom(
+                "a scale pattern reads its atoms as scale-degree integers, so note names, chords and scales are not allowed under .scale(...)".into(),
             )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() boolean patterns".into(),

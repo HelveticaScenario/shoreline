@@ -57,7 +57,7 @@ const DELAY_READ_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Chorused chord",
             code: r#"
-                const voice = $saw($chord('C3[m7]'))
+                const voice = $saw('c3:m7')
                 chord: voice
                 chord2: $delayRead(
                   $buffer(voice, 0.1),

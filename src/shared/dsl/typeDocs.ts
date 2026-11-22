@@ -34,6 +34,8 @@ export const DSL_TYPE_NAMES = [
     'CollectionWithRange',
     'Note',
     'HZ',
+    'Chord',
+    'Scale',
     'Track labels',
     'TrackOptions',
 ] as const;
@@ -149,6 +151,34 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         ],
         name: 'CollectionWithRange',
         seeAlso: ['Collection'],
+    },
+
+    Chord: {
+        definition: '`${Note}:${string}`',
+        description:
+            'A chord string: a note, a colon and a chord symbol, one lane per note, lowest first. ' +
+            "The symbol is the one patterns use; see $cycle's Chords section.",
+        examples: [
+            '"c3:M7"        // C3, E3, G3, B3',
+            '"eb:m7^1"      // Eb minor 7, first inversion',
+            '"g2:7b9b13sus" // an altered sus dominant',
+        ],
+        name: 'Chord',
+        seeAlso: ['Signal', 'Note'],
+    },
+
+    Scale: {
+        definition: '`${Note}(${string})`',
+        description:
+            'A scale string: a note with a scale in parentheses, one lane per note, lowest first. ' +
+            'The parentheses hold a scale name, semitones above the root, a tuning (`just`, `pythag`), or a tuning then semitones, as in a pattern.',
+        examples: [
+            '"d3(dorian)"    // D dorian from D3',
+            '"c(0 2 4 7 9)"  // your own scale, in semitones',
+            '"a(just)"       // all 12 steps in just intonation',
+        ],
+        name: 'Scale',
+        seeAlso: ['Signal', 'Chord', 'Note'],
     },
 
     HZ: {
@@ -313,7 +343,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
     },
 
     Signal: {
-        definition: 'number | Note | HZ | Collection | CollectionWithRange',
+        definition:
+            'number | Note | HZ | Chord | Scale | Collection | CollectionWithRange',
         description:
             'An audio signal value. This is the fundamental type for all audio connections in the modular system. ' +
             'Signals follow the 1V/octave convention where 0V corresponds to C4 (~261.63 Hz).',
@@ -321,6 +352,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             '$sine("C4")           // Note string - converted to 1V/oct',
             '$sine(440)            // Number - constant voltage',
             '$sine("440hz")        // Hz string - converted to voltage',
+            '$saw("c3:M7")         // Chord string - one lane per note',
+            '$saw("d3(dorian)")    // Scale string - one lane per note',
             '$sine(lfo)            // Collection from another module',
         ],
         name: 'Signal',
@@ -330,6 +363,8 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Collection',
             'Note',
             'HZ',
+            'Chord',
+            'Scale',
         ],
     },
 
@@ -344,7 +379,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
             'Names are unique, and any other label is an error. An unlabelled statement is not heard.',
         examples: [
             "lead: $saw('c3')                 // Stereo on channels 0 and 1",
-            "_pad$2: $sine($chord('C4[maj7]'))  // Muted, on channels 2 and 3",
+            "_pad$2: $sine('c4:M7')  // Muted, on channels 2 and 3",
             'S_click$4m: $noise()             // Soloed, mono on channel 4',
             'kick$drums: $tr808.kick($`c ~ c ~`)\nhats$drums: $tr808.hiHat($`c*8`)\ndrums: $group().comp()  // Both drums through one compressor',
             "kick: $tr808.kick($`c ~ c ~`)\nbass: $saw('c2').amp($motionFollower(kick).range(5, 0))  // Ducks under the kick",
@@ -361,7 +396,7 @@ export const TYPE_DOCS: Record<DslTypeName, TypeDocumentation> = {
         examples: [
             "tone: $sine('c').track({ gain: 2.5 })           // 50% gain",
             "tone: $sine('c').track({ pan: -2.5 })           // Pan left",
-            "chord: $saw($chord('C3[m7]')).track({ spread: 5 })  // Lanes fanned edge to edge",
+            "chord: $saw('c3:m7').track({ spread: 5 })  // Lanes fanned edge to edge",
             "tone: $sine('c').track({ gain: $perc($pulse('8hz')), pan: $sine('1hz') })  // Modulated",
             "tone: $sine('c').track({ sends: [verb, [echo, 2]] })  // Also feed two buses",
         ],

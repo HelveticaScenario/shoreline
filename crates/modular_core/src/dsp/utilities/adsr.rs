@@ -208,7 +208,7 @@ const ADSR_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Slow pad swell",
             code: r#"
-                chord: $saw($chord('C3[maj9]')).amp(
+                chord: $saw('c3:M9').amp(
                   $adsr($pulse('0.25hz'), { attack: 1.5, release: 2 }),
                 )
             "#,

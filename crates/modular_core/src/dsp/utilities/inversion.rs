@@ -49,7 +49,7 @@ pub fn inversion_derive_lane_count(params: &InversionParams) -> usize {
 /// in motion from its voice to the next, an octave up. As the inversion moves
 /// continuously, a voice changes pitch only while silent, so nothing it drives
 /// glides or clicks.
-pub(super) fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]) {
+fn invert(notes: &[f32], inversion: f32, pitches: &mut [f32], levels: &mut [f32]) {
     let n = notes.len() as i32;
     let voices = n + 1;
     let span = (n * voices) as f32;
@@ -112,17 +112,14 @@ const INVERSION_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Second inversion",
             code: r#"
-                const c = $inversion(['c3', 'e3', 'g3'], 2)
+                const c = $inversion('c3:M', 2)
                 chord: $saw(c).amp(c._level)
             "#,
         },
         DocExample {
             title: "Gliding through the inversions",
             code: r#"
-                const c = $inversion(
-                  ['c3', 'e3', 'g3', 'b3'],
-                  $sine('0.05hz').range(0, 4),
-                )
+                const c = $inversion('c3:M7', $sine('0.05hz').range(0, 4))
                 chord: $saw(c).amp(c._level)
             "#,
         },

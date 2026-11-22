@@ -187,6 +187,22 @@ type Note = \`\${NoteNames}\${Accidental}\${number | ''}\`
 
 type HZ = \`\${number}hz\` | \`\${number}Hz\`
 
+/**
+ * A chord: a {@link Note}, a colon and a chord symbol, one lane per note,
+ * lowest first. The symbol is the one patterns use (see {@link $cycle}).
+ * @example $saw("c3:M7")        // four lanes: C3, E3, G3, B3
+ * @example $saw("eb:m7^1%")     // first inversion, just intonation
+ */
+type Chord = \`\${Note}:\${string}\`
+
+/**
+ * A scale: a {@link Note} with a scale in parentheses, one lane per note,
+ * lowest first, written as in a pattern (see {@link $cycle}).
+ * @example $saw("d3(dorian)")       // seven lanes
+ * @example $saw("c(0 2 4 7 9)")     // your own scale, in semitones
+ */
+type Scale = \`\${Note}(\${string})\`
+
 type CaseVariants<T extends string> = 
   | Lowercase<T>
   | Uppercase<T>
@@ -207,9 +223,9 @@ type ModeString =
     >;
 
 /**
- * A scale or chord spec: a root note (optional octave, default 4) followed by
- * a scale in \`()\` or a chord in \`[]\`. Used by {@link $chord} and accepted
- * by {@link $quantizer}'s \`scale\` (where it is shorthand for \`$chord(spec)\`).
+ * A scale or chord spec for a pattern's \`.scale(...)\`: a root note
+ * (optional octave, default 4) followed by a scale in \`()\` or a chord in
+ * \`[]\`.
  *
  * | Form | Example | Meaning |
  * |------|---------|---------|
@@ -253,6 +269,8 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * - A **number** (constant voltage)
  * - A **{@link Note}** string like \`"C4"\` or \`"A#3"\`
  * - A **{@link HZ}** string like \`"440hz"\`
+ * - A **{@link Chord}** string like \`"c3:M7"\`, one lane per note
+ * - A **{@link Scale}** string like \`"d(dorian)"\`, one lane per note
  * - A **{@link Collection}** from another module, one voice per lane
  * 
  * @example $sine("C4")           // Note string
@@ -262,10 +280,10 @@ type ElementsOf<T extends unknown[][]> = { [K in keyof T]: T[K] extends (infer E
  * @see {@link Poly<Signal>} - for multi-lane signals
  * @see {@link Collection} - for module connections
  */
-type Signal = number | Note | HZ | Collection | CollectionWithRange;
+type Signal = number | Note | HZ | Chord | Scale | Collection | CollectionWithRange;
 
-/** A {@link Signal} that holds still: a number, note or frequency. */
-type ConstantSignal = number | Note | HZ;
+/** A {@link Signal} that holds still: a number, note, frequency, chord or scale. */
+type ConstantSignal = number | Note | HZ | Chord | Scale;
 
 /** A {@link Signal} whose range the engine knows, or a constant it carries along. */
 type RangedSignal = ConstantSignal | CollectionWithRange;
@@ -563,6 +581,8 @@ interface Pattern extends PatternModule {
  * | Bare number | Direct V/Oct voltage (1 V/oct CV) | \`0\`, \`1.5\`, \`-0.25\` |
  * | \`<n>hz\` | Frequency in Hz (converted to V/Oct) | \`440hz\`, \`220hz\` |
  * | Note letter (+ accidental, + octave) | Pitched note | \`c4\`, \`d#3\`, \`eb5\` |
+ * | Note + \`:\` + chord symbol | Every note of the chord at once; not allowed under \`.scale\` | \`c3:M7\`, \`eb:m7^1\`, \`g:7alt%\` |
+ * | Note + \`(scale)\` | Every note of the scale at once; not allowed under \`.scale\` | \`d3(dorian)\`, \`c(0 2 4 7 9)\` |
  * | \`~\` or \`-\` | Rest (gate low) | \`'c4 ~ e4'\`, \`'c4 - e4'\` |
  *
  * ### Mini-notation
@@ -2607,7 +2627,7 @@ export function generateDSL(schemas: Schemas): string {
             ' * )',
             ' * @example',
             ' * pad: $super(',
-            " *   $chord('C3[m9]'),",
+            " *   'c3:m9',",
             ' *   (freq, { phaseOffset }) =>',
             " *     $pulse(freq, { phaseOffset }).lpf('c6'),",
             ' *   { unison: 3, detune: 0.3 },',
