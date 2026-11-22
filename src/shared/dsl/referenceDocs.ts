@@ -1,13 +1,13 @@
 /**
- * The shape every reference entry's docs take — modules today; globals,
- * collection methods (`.range`, `.out`) and video modules as they join one
- * reference — and the two renderings of it: compact JSDoc for Monaco's hover
- * and completion, and a `ReferenceEntry` the Reference pane lays out in
- * full. Type docs (`TYPE_DOCS`) keep their own shape.
+ * The shape every reference entry's docs take — modules and globals — and
+ * the two renderings of it: compact JSDoc for Monaco's hover and completion,
+ * and a `ReferenceEntry` the Docs panel lays out in full. Type docs
+ * (`TYPE_DOCS`) keep their own shape.
  */
 import { formatOutputMeta, paramMeta } from './paramRange';
 import type { EnumVariantInfo, Schema } from './schemaTypeResolver';
 import { getEnumVariants, schemaToTypeExpr } from './schemaTypeResolver';
+import { parseDeclaration, unionOf } from './tsDeclaration';
 
 export interface DocExample {
     /** What you hear, e.g. "Acid bass sweep". */
@@ -58,15 +58,30 @@ export interface OutputDoc {
     meta?: string;
 }
 
-export interface ReferenceEntry {
-    kind: 'module' | 'global' | 'method' | 'video';
+/** A member of a returned value, read with a dot, e.g. a track tap's `.level`. */
+export interface ReturnMemberDoc {
     name: string;
-    /** For methods: the DSL types that carry it. */
-    owners?: string[];
+    description: string;
+    meta?: string;
+}
+
+/** What a global gives back. Modules list outputs instead. */
+export interface ReturnDoc {
+    /** TypeScript type, every overload's joined. */
+    type: string;
+    description: string;
+    meta?: string;
+    members?: ReturnMemberDoc[];
+}
+
+export interface ReferenceEntry {
+    kind: 'module' | 'global';
+    name: string;
     /** Call shape with param names only, e.g. `$lpf(input, cutoff, { … })`. */
     signature: string;
     params: ParamDoc[];
     outputs?: OutputDoc[];
+    returns?: ReturnDoc;
     docs: DocContent;
     /** The module's sound and params may still change between releases. */
     experimental?: boolean;
@@ -141,6 +156,74 @@ export function moduleToReferenceEntry(module: Schema): ReferenceEntry {
     };
 }
 
+/** A description, with the range or default it shows beside it. */
+export type ParamText = string | { description: string; meta: string };
+
+/** A global function's declarations and docs. */
+export interface GlobalDoc {
+    /** TypeScript declarations, one per overload, e.g.
+     *  `$note(noteName: string): number`. The first names the function and
+     *  orders its documented params. */
+    declarations: string[];
+    /** Keyed by the first declaration's param names. */
+    params: Record<string, ParamText>;
+    returns?: {
+        description: string;
+        meta?: string;
+        /** Members read with a dot, keyed by name with their leading dot. */
+        members?: Record<string, ParamText>;
+    };
+    docs: DocContent;
+}
+
+function paramDoc(text: ParamText): { description: string; meta?: string } {
+    return typeof text === 'object' ? text : { description: text };
+}
+
+/** A global as a reference entry. Its params are the first declaration's,
+ *  each typed as every overload types it. */
+export function globalToReferenceEntry(global: GlobalDoc): ReferenceEntry {
+    const all = global.declarations.map(parseDeclaration);
+    const [first] = all;
+    const params = first.params.map(
+        (param): ParamDoc => ({
+            ...paramDoc(global.params[param.name]),
+            name: param.rest ? `...${param.name}` : param.name,
+            type: unionOf(
+                all.flatMap((d) =>
+                    d.params
+                        .filter((p) => p.name === param.name)
+                        .map((p) => p.type),
+                ),
+            ),
+        }),
+    );
+    const signature = `${first.name}(${first.params
+        .map((p) =>
+            p.rest ? `...${p.name}` : p.optional ? `${p.name}?` : p.name,
+        )
+        .join(', ')})`;
+    const returns = global.returns && {
+        description: global.returns.description,
+        members: global.returns.members
+            ? Object.entries(global.returns.members).map(([name, text]) => ({
+                  ...paramDoc(text),
+                  name,
+              }))
+            : undefined,
+        meta: global.returns.meta,
+        type: unionOf(all.map((d) => d.returns)),
+    };
+    return {
+        docs: global.docs,
+        kind: 'global',
+        name: first.name,
+        params,
+        returns,
+        signature,
+    };
+}
+
 /**
  * A table as one bullet per row, which stays readable in Monaco's narrow
  * hover: `- key — second` with later columns as ` · *column:* cell`.
@@ -157,8 +240,8 @@ export function tableToCompactMarkdown(table: DocTable): string[] {
 
 /**
  * The concise in-editor view of `docs` as JSDoc body lines: the description,
- * each section's text and table, and the first example. When the Reference
- * pane holds more (further examples, section examples), a closing link opens
+ * each section's text and table, and the first example. When the Docs
+ * panel holds more (further examples, section examples), a closing link opens
  * it at `name`.
  */
 export function renderDocContentJsDoc(
@@ -188,7 +271,7 @@ export function renderDocContentJsDoc(
     const omitted =
         more.length > 0 || docs.sections.some((s) => s.examples.length > 0);
     if (omitted) {
-        lines.push('', `More in the reference: {@link ${name}}`);
+        lines.push('', `More in the docs: {@link ${name}}`);
     }
     return lines;
 }

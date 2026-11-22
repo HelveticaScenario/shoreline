@@ -1,11 +1,12 @@
-//! Reference categories for modules.
+//! Reference categories for modules and globals.
 
 use napi_derive::napi;
 use serde::{Deserialize, Serialize};
 use strum::{EnumMessage, VariantArray};
 
-/// A grouping for the module reference. Every module lists at least one in
-/// its `ModuleDocs`, and may belong to several.
+/// A grouping for the reference. Every module lists at least one in its
+/// `ModuleDocs`, and every global one in its docs; either may belong to
+/// several.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, EnumMessage, VariantArray,
 )]
@@ -48,6 +49,8 @@ pub enum ModuleCategory {
     Math,
     /// MIDI input.
     Midi,
+    /// Sliders and buttons in the Control panel.
+    Control,
     /// General signal plumbing such as routing and smoothing.
     Utility,
 }

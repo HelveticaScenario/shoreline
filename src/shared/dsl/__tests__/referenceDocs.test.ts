@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../../../main/dsl/typescriptLibGen';
 import { formatDsl } from '../../../renderer/components/monaco/formattingProvider';
+import { GLOBAL_ENTRIES } from '../globalDocs';
 import type { DocContent } from '../referenceDocs';
 import {
     moduleToReferenceEntry,
@@ -57,7 +58,7 @@ describe('renderDocContentJsDoc', () => {
             "out: $saw($chord('C3[maj7]'))",
             '```',
             '',
-            'More in the reference: {@link $chord}',
+            'More in the docs: {@link $chord}',
         ]);
     });
 
@@ -67,19 +68,21 @@ describe('renderDocContentJsDoc', () => {
     });
 });
 
-describe('module docs in the generated lib and the reference', () => {
+const ENTRIES = [...schemas.map(moduleToReferenceEntry), ...GLOBAL_ENTRIES];
+
+/** Internal modules and `$buffer` have no factory in the lib. */
+const inLib = (name: string) => !name.startsWith('_') && name !== '$buffer';
+
+describe('docs in the generated lib and the reference', () => {
     const lib = buildLibSource(schemas);
 
-    test('every public module carries its description and first example', () => {
-        for (const module of schemas) {
-            if (module.name.startsWith('_') || module.name === '$buffer') {
-                continue;
-            }
-            const firstLine = module.docs.description.split('\n')[0];
-            expect(lib, module.name).toContain(firstLine);
-            const first = module.docs.examples[0];
+    test('every entry carries its description and first example', () => {
+        for (const { docs, name } of ENTRIES.filter((e) => inLib(e.name))) {
+            const firstLine = docs.description.split('\n')[0];
+            expect(lib, name).toContain(firstLine);
+            const first = docs.examples[0];
             if (first) {
-                expect(lib, module.name).toContain(`// ${first.title}`);
+                expect(lib, name).toContain(`// ${first.title}`);
             }
         }
     });
@@ -96,16 +99,16 @@ describe('module docs in the generated lib and the reference', () => {
     });
 });
 
-test('every module example is formatted the way Format Document prints it', async () => {
+test('every example is formatted the way Format Document prints it', async () => {
     const unformatted: string[] = [];
-    for (const module of schemas) {
+    for (const { docs, name } of ENTRIES) {
         const examples = [
-            ...module.docs.examples,
-            ...module.docs.sections.flatMap((s) => s.examples),
+            ...docs.examples,
+            ...docs.sections.flatMap((s) => s.examples),
         ];
         for (const { code, title } of examples) {
             if ((await formatDsl(code)) !== code) {
-                unformatted.push(`${module.name} "${title}"`);
+                unformatted.push(`${name} "${title}"`);
             }
         }
     }

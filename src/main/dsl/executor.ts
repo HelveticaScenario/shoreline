@@ -674,13 +674,6 @@ export function executePatchScript(
         );
     }
 
-    /**
-     * @example
-     * // crossfade 3 voices by a slow LFO
-     * const osc = $sine(['c', 'e', 'g'])
-     * const weights = $cross(osc.length, $sine('0.25hz').range(0, 1));
-     * chord: osc.amp(weights);
-     */
     const $cross = (
         count: number,
         playhead: PolySignal,

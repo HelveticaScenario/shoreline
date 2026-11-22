@@ -191,6 +191,41 @@ export const ReferenceCard = memo<ReferenceCardProps>(
                         </ul>
                     </>
                 )}
+                {entry.returns && (
+                    <>
+                        <h4>Returns</h4>
+                        <p>
+                            <strong>
+                                <LinkifyTypes
+                                    text={entry.returns.type}
+                                    onTypeClick={onTypeClick}
+                                />
+                            </strong>{' '}
+                            &mdash;{' '}
+                            <InlineDoc text={entry.returns.description} />
+                            {entry.returns.meta && (
+                                <span className="param-meta">
+                                    {entry.returns.meta}
+                                </span>
+                            )}
+                        </p>
+                        {entry.returns.members && (
+                            <ul>
+                                {entry.returns.members.map((member) => (
+                                    <li key={member.name}>
+                                        <strong>{member.name}</strong>:{' '}
+                                        <InlineDoc text={member.description} />
+                                        {member.meta && (
+                                            <span className="param-meta">
+                                                {member.meta}
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </>
+                )}
                 {docs.sections.map((section) => (
                     <section key={section.title} className="doc-section">
                         <h4>{section.title}</h4>

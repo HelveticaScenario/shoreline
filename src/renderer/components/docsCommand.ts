@@ -1,6 +1,6 @@
 /** A symbol to reveal in the Docs panel, such as the target of a JSDoc link. */
 export interface DocsTarget {
-    symbolType: 'type' | 'module' | 'namespace';
+    symbolType: 'type' | 'module' | 'namespace' | 'global';
     name: string;
 }
 
@@ -11,6 +11,7 @@ const SYMBOL_TYPES: ReadonlySet<string> = new Set([
     'type',
     'module',
     'namespace',
+    'global',
 ]);
 
 /** Narrows a command argument, which a user keybinding can set to any value. */

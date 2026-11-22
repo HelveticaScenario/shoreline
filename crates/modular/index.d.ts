@@ -601,8 +601,9 @@ export interface DocTableSchema {
 }
 
 /**
- * A grouping for the module reference. Every module lists at least one in
- * its `ModuleDocs`, and may belong to several.
+ * A grouping for the reference. Every module lists at least one in its
+ * `ModuleDocs`, and every global one in its docs; either may belong to
+ * several.
  */
 export type ModuleCategory = /** Oscillators and other sound sources. */
 'oscillator'|
@@ -638,6 +639,8 @@ export type ModuleCategory = /** Oscillators and other sound sources. */
 'math'|
 /** MIDI input. */
 'midi'|
+/** Sliders and buttons in the Control panel. */
+'control'|
 /** General signal plumbing such as routing and smoothing. */
 'utility';
 

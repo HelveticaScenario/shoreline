@@ -1,19 +1,19 @@
 /**
- * E2E tests for the module reference page of the docs.
+ * E2E tests for the docs' reference browser.
  */
 
 import { test, expect } from '../fixtures';
 
-test.describe('module reference', () => {
-    test('the module index width survives a reload', async ({ window }) => {
+test.describe('reference browser', () => {
+    test('the index width survives a reload', async ({ window }) => {
         await window.getByRole('button', { name: 'Docs' }).click();
-        const index = window.locator('#docs-module-index');
+        const index = window.locator('#docs-reference-index');
         await expect(index).toBeVisible({ timeout: 15_000 });
         const measure = async () =>
             Math.round((await index.boundingBox())!.width);
         const before = await measure();
         await window
-            .getByRole('separator', { name: 'Resize module index' })
+            .getByRole('separator', { name: 'Resize modules index' })
             .focus();
         await window.keyboard.press('ArrowRight');
         await window.keyboard.press('ArrowRight');

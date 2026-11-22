@@ -5,14 +5,12 @@ import { ReferenceCard } from './ReferenceCard';
 import { Sash } from './Sash';
 import { useStoredSize } from '../hooks/useStoredSize';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
-import type { Schema } from '../../shared/dsl/schemaTypeResolver';
 import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
-import { moduleToReferenceEntry } from '../../shared/dsl/referenceDocs';
 
 const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
 
-const INDEX_ID = 'docs-module-index';
+const INDEX_ID = 'docs-reference-index';
 const INDEX_WIDTH_STORAGE_KEY = 'modular_docs_index_width';
 const INDEX_MIN_WIDTH = 120;
 /** Room kept for the cards when the index grows. */
@@ -26,12 +24,14 @@ function indexMaxWidth(): number {
 
 const clampIndexWidth = (width: number) => Math.max(width, INDEX_MIN_WIDTH);
 
-interface ModuleReferenceProps {
+interface ReferenceBrowserProps {
     /** Already sorted in display order. */
-    modules: Schema[];
+    entries: ReferenceEntry[];
+    /** What the entries are, in the plural: `modules`, `globals`. */
+    noun: string;
     searchQuery: string;
     onSearchQueryChange: (query: string) => void;
-    /** Only modules in this category are listed; `null` lists every category. */
+    /** Only entries in this category are listed; `null` lists every category. */
     category: string | null;
     onCategoryChange: (category: string | null) => void;
     onTypeClick: (typeName: DslTypeName) => void;
@@ -59,12 +59,13 @@ function searchRank(entry: ReferenceEntry, query: string): number {
 }
 
 /**
- * A searchable name index beside the module cards. The index and the cards
- * show the same filtered entries; the cards render through a virtualizer so
- * only those near the viewport are mounted.
+ * A searchable name index beside the reference cards. The index and the
+ * cards show the same filtered entries; the cards render through a
+ * virtualizer so only those near the viewport are mounted.
  */
-export const ModuleReference: React.FC<ModuleReferenceProps> = ({
-    modules,
+export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
+    entries,
+    noun,
     searchQuery,
     onSearchQueryChange,
     category,
@@ -76,17 +77,12 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
         clampIndexWidth,
     );
 
-    const entries = useMemo(
-        () => modules.map(moduleToReferenceEntry),
-        [modules],
-    );
-
     const categories = useMemo(() => {
         const used = new Set(entries.flatMap((e) => e.docs.categories));
         return moduleCategories.filter((c) => used.has(c.name));
     }, [entries]);
 
-    const filteredModules = useMemo(() => {
+    const filteredEntries = useMemo(() => {
         const query = searchQuery.toLowerCase();
         // Each rank keeps the display order.
         return entries
@@ -98,9 +94,10 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     }, [entries, searchQuery, category]);
 
     return (
-        <ModuleBrowser
-            hasModules={modules.length > 0}
-            filteredModules={filteredModules}
+        <ReferenceList
+            noun={noun}
+            hasEntries={entries.length > 0}
+            filteredEntries={filteredEntries}
             categories={categories}
             searchQuery={searchQuery}
             onSearchQueryChange={onSearchQueryChange}
@@ -113,9 +110,10 @@ export const ModuleReference: React.FC<ModuleReferenceProps> = ({
     );
 };
 
-interface ModuleBrowserProps {
-    hasModules: boolean;
-    filteredModules: ReferenceEntry[];
+interface ReferenceListProps {
+    noun: string;
+    hasEntries: boolean;
+    filteredEntries: ReferenceEntry[];
     categories: typeof moduleCategories;
     searchQuery: string;
     onSearchQueryChange: (query: string) => void;
@@ -131,9 +129,10 @@ interface ModuleBrowserProps {
  * instance whose methods read fresh state on every render, so React Compiler
  * must not memoize anything derived from it.
  */
-const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
-    hasModules,
-    filteredModules,
+const ReferenceList: React.FC<ReferenceListProps> = ({
+    noun,
+    hasEntries,
+    filteredEntries,
     categories,
     searchQuery,
     onSearchQueryChange,
@@ -148,13 +147,13 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
     const indexRef = useRef<HTMLUListElement>(null);
 
     const getItemKey = useCallback(
-        (index: number) => filteredModules[index].name,
-        [filteredModules],
+        (index: number) => filteredEntries[index].name,
+        [filteredEntries],
     );
 
     // oxlint-disable-next-line react-hooks-js/incompatible-library
     const virtualizer = useVirtualizer({
-        count: filteredModules.length,
+        count: filteredEntries.length,
         estimateSize: () => ESTIMATED_CARD_HEIGHT_PX,
         gap: CARD_GAP_PX,
         getItemKey,
@@ -190,7 +189,7 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
     const topItem = virtualItems.find(
         (item) => item.end + CARD_GAP_PX - 1 > scrollOffset,
     );
-    const topName = topItem && filteredModules[topItem.index]?.name;
+    const topName = topItem && filteredEntries[topItem.index]?.name;
 
     // Scrolls the index alone; the panes around it must not move.
     useLayoutEffect(() => {
@@ -209,13 +208,13 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
         } else if (bottom > list.scrollTop + list.clientHeight) {
             list.scrollTop = bottom - list.clientHeight;
         }
-    }, [topName, filteredModules]);
+    }, [topName, filteredEntries]);
 
     return (
-        <div className="module-reference">
+        <div className="reference-browser">
             <div
                 id={INDEX_ID}
-                className="module-index"
+                className="reference-index"
                 style={{
                     width: indexWidth ?? undefined,
                     maxWidth: `calc(100% - ${CARDS_MIN_WIDTH}px)`,
@@ -227,24 +226,24 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
                     grow={1}
                     min={INDEX_MIN_WIDTH}
                     max={indexMaxWidth}
-                    label="Resize module index"
-                    className="module-index-sash"
+                    label={`Resize ${noun} index`}
+                    className="reference-index-sash"
                     onSizeChange={onIndexWidthChange}
                 />
                 <input
                     type="text"
-                    placeholder="Search modules..."
-                    aria-label="Search modules"
+                    placeholder={`Search ${noun}...`}
+                    aria-label={`Search ${noun}`}
                     value={searchQuery}
                     onChange={(e) => onSearchQueryChange(e.target.value)}
                     className="search-input"
                 />
                 <ul
                     ref={indexRef}
-                    className="module-index-list"
-                    aria-label="Modules"
+                    className="reference-index-list"
+                    aria-label={noun}
                 >
-                    {filteredModules.map((entry, index) => (
+                    {filteredEntries.map((entry, index) => (
                         <li key={entry.name}>
                             <button
                                 className={
@@ -264,10 +263,10 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
                     ))}
                 </ul>
             </div>
-            <div className="module-reference-main">
+            <div className="reference-browser-main">
                 {categories.length > 0 && (
                     <div
-                        className="module-categories"
+                        className="reference-categories"
                         role="group"
                         aria-label="Categories"
                     >
@@ -288,15 +287,15 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
                         ))}
                     </div>
                 )}
-                <div ref={cardsRef} className="module-cards">
-                    {filteredModules.length === 0 && hasModules && (
-                        <p className="module-reference-empty">
-                            No modules match
+                <div ref={cardsRef} className="reference-cards">
+                    {filteredEntries.length === 0 && hasEntries && (
+                        <p className="reference-browser-empty">
+                            No {noun} match
                             {category ? ` in ${category}` : ''}.
                         </p>
                     )}
                     <div
-                        className="module-list"
+                        className="reference-list"
                         style={{ height: virtualizer.getTotalSize() }}
                     >
                         {virtualItems.map((item) => (
@@ -304,13 +303,13 @@ const ModuleBrowser: React.FC<ModuleBrowserProps> = ({
                                 key={item.key}
                                 ref={virtualizer.measureElement}
                                 data-index={item.index}
-                                className="module-list-item"
+                                className="reference-list-item"
                                 style={{
                                     transform: `translateY(${item.start}px)`,
                                 }}
                             >
                                 <ReferenceCard
-                                    entry={filteredModules[item.index]}
+                                    entry={filteredEntries[item.index]}
                                     onTypeClick={onTypeClick}
                                 />
                             </div>

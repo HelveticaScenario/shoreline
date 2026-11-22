@@ -9,6 +9,13 @@ describe('toDocsTarget', () => {
         });
     });
 
+    it('accepts a global', () => {
+        expect(toDocsTarget({ name: '$hz', symbolType: 'global' })).toEqual({
+            name: '$hz',
+            symbolType: 'global',
+        });
+    });
+
     it('rejects values a keybinding could pass that are not targets', () => {
         expect(toDocsTarget(undefined)).toBeNull();
         expect(toDocsTarget('Signal')).toBeNull();
