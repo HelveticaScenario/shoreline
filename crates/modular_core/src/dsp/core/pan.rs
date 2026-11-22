@@ -20,6 +20,7 @@ struct PanParams {
     #[input(
         "where each lane sits: -5 left, 0 centre, +5 right",
         type = control,
+        default = 0.0,
         range = (-5.0, 5.0),
         fold,
     )]
