@@ -23,8 +23,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::rng::seed_base,
     poly::{PolyOutput, PolySignal},
@@ -113,7 +113,7 @@ const MULTIMODE_DOCS: ModuleDocs = ModuleDocs {
                   morphs from lowpass through bandpass to highpass, after a drive stage that \
                   soft-clips or wavefolds. It self-oscillates into a sine, takes audio-rate \
                   cutoff modulation for FM, and is DC-coupled, so it can shape CV too.",
-    categories: &[ModuleCategory::Filter, ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Filter, ReferenceCategory::Distortion],
     sections: &[],
     examples: &[
         DocExample {

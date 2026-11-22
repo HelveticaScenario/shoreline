@@ -2500,7 +2500,7 @@ describe('$delay', () => {
     test('.delay(...).wet crossfades the dry signal against the wet delay', () => {
         const patch = execPatch('out: $sine("C4").delay(0.25).wet(2.5)');
         expect(findModules(patch, '$delayRead').length).toBe(1);
-        expect(findModules(patch, '_crossfade')).toHaveLength(1);
+        expect(findModules(patch, '$crossfade')).toHaveLength(1);
     });
 
     test('sizes the feedback path to the widest polysignal param', () => {

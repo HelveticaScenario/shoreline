@@ -4,8 +4,8 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use super::accent::{Accent, plaits_volts};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -139,7 +139,7 @@ const STRING_DOCS: ModuleDocs = ModuleDocs {
                   for guitars, sitars, harps and piano wire. Each pluck takes \
                   the next of three strings so notes overlap; leave `trigger` \
                   unpatched and grains bow it into a drone.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

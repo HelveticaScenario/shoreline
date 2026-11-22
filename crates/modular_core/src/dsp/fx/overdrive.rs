@@ -12,9 +12,9 @@ use std::f32::consts::PI;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::halfband::{Halfband2xDown, Halfband2xUp};
 use crate::dsp::utils::one_pole::OnePole;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 /// Saturation algorithm.
@@ -125,7 +125,7 @@ const OVERDRIVE_DOCS: ModuleDocs = ModuleDocs {
     description: "Pushes a signal into saturation, from warm rounding to hard clipping or \
                   tube-style grit. `tone` chooses whether the lows or the highs break up first \
                   without changing the overall brightness.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[
         DocExample {

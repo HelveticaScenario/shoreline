@@ -3,8 +3,8 @@ use std::f32::consts::PI;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     Wav,
     dsp::utils::{
@@ -231,7 +231,7 @@ const GRAINS_DOCS: ModuleDocs = ModuleDocs {
                   time-stretched textures, frozen moments and shimmering clouds. Pitch and \
                   position are independent, so a sample can be played slowly without dropping \
                   in pitch.",
-    categories: &[ModuleCategory::Sampler],
+    categories: &[ReferenceCategory::Sampler],
     sections: &[],
     examples: &[
         DocExample {

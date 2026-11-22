@@ -1,4 +1,4 @@
-//! `_crossfade` through the block-input resolution paths and the per-sample
+//! `$crossfade` through the block-input resolution paths and the per-sample
 //! `update` path, pinned to its formula.
 
 mod block_common;
@@ -10,13 +10,13 @@ use serde_json::json;
 #[global_allocator]
 static GLOBAL: CountingAllocator = CountingAllocator;
 
-fn expected(dry: &[f32], wet: &[f32], mix: &[f32]) -> Vec<f32> {
-    dry.iter()
-        .zip(wet)
+fn expected(a: &[f32], b: &[f32], mix: &[f32]) -> Vec<f32> {
+    a.iter()
+        .zip(b)
         .zip(mix)
-        .map(|((dry, wet), mix)| {
+        .map(|((a, b), mix)| {
             let t = (mix / 5.0).clamp(0.0, 1.0);
-            dry * (1.0 - t) + wet * t
+            a * (1.0 - t) + b * t
         })
         .collect()
 }
@@ -24,8 +24,8 @@ fn expected(dry: &[f32], wet: &[f32], mix: &[f32]) -> Vec<f32> {
 #[test]
 fn constant_mix() {
     check_module(
-        "_crossfade",
-        json!({ "dry": poly_cable("src", LANES), "wet": poly_cable("lfo", LANES), "mix": 1.5 }),
+        "$crossfade",
+        json!({ "a": poly_cable("src", LANES), "b": poly_cable("lfo", LANES), "mix": 1.5 }),
         |src, lfo| expected(src, lfo, &constant(1.5)),
     );
 }
@@ -34,10 +34,10 @@ fn constant_mix() {
 fn modulated_mix_holds_past_its_ends() {
     // The lfo swings ±5 V, so its scaled copy runs past both ends of the mix.
     check_module(
-        "_crossfade",
+        "$crossfade",
         json!({
-            "dry": poly_cable("src", LANES),
-            "wet": 1.0,
+            "a": poly_cable("src", LANES),
+            "b": 1.0,
             "mix": poly_cable("lfo", LANES),
         }),
         |src, lfo| expected(src, &constant(1.0), lfo),
@@ -47,11 +47,11 @@ fn modulated_mix_holds_past_its_ends() {
 #[test]
 fn narrower_leg_cycles_across_the_wider() {
     check_module(
-        "_crossfade",
-        json!({ "dry": cable("src", 2), "wet": poly_cable("lfo", LANES), "mix": 2.5 }),
+        "$crossfade",
+        json!({ "a": cable("src", 2), "b": poly_cable("lfo", LANES), "mix": 2.5 }),
         |src, lfo| {
-            let dry: Vec<f32> = (0..src.len()).map(|k| src[k / LANES * LANES + 2]).collect();
-            expected(&dry, lfo, &constant(2.5))
+            let a: Vec<f32> = (0..src.len()).map(|k| src[k / LANES * LANES + 2]).collect();
+            expected(&a, lfo, &constant(2.5))
         },
     );
 }
@@ -59,8 +59,8 @@ fn narrower_leg_cycles_across_the_wider() {
 #[test]
 fn mix_wider_than_both_legs() {
     check_module(
-        "_crossfade",
-        json!({ "dry": cable("src", 0), "wet": cable("lfo", 1), "mix": [0.0, 1.25, 2.5, 5.0] }),
+        "$crossfade",
+        json!({ "a": cable("src", 0), "b": cable("lfo", 1), "mix": [0.0, 1.25, 2.5, 5.0] }),
         |src, lfo| {
             let leg = |values: &[f32], lane: usize| -> Vec<f32> {
                 (0..values.len())
@@ -78,8 +78,8 @@ fn mix_wider_than_both_legs() {
 #[test]
 fn paths_agree() {
     check_paths_agree(
-        "_crossfade",
-        json!({ "dry": poly_cable("src", LANES), "wet": poly_cable("lfo", LANES), "mix": cable("lfo", 1) }),
+        "$crossfade",
+        json!({ "a": poly_cable("src", LANES), "b": poly_cable("lfo", LANES), "mix": cable("lfo", 1) }),
     );
 }
 
@@ -87,21 +87,21 @@ fn paths_agree() {
 fn swap_agrees_through_a_mix_glide() {
     let legs = (poly_cable("src", LANES), poly_cable("lfo", LANES));
     check_swap_agrees(
-        "_crossfade",
-        json!({ "dry": legs.0.clone(), "wet": legs.1.clone(), "mix": 1.0 }),
-        json!({ "dry": legs.0, "wet": legs.1, "mix": [4.0, 0.5] }),
+        "$crossfade",
+        json!({ "a": legs.0.clone(), "b": legs.1.clone(), "mix": 1.0 }),
+        json!({ "a": legs.0, "b": legs.1, "mix": [4.0, 0.5] }),
     );
 }
 
 #[test]
 fn an_edit_from_past_an_end_moves_at_once() {
-    // A mix of 10 holds fully wet; editing it to 0 starts fading back to dry
+    // A mix of 10 holds fully at `b`; editing it to 0 starts fading back to `a`
     // from the glide's first step instead of waiting for it to pass 5.
-    let params = |mix: f32| json!({ "dry": 0.0, "wet": vec![1.0; LANES], "mix": mix });
+    let params = |mix: f32| json!({ "a": 0.0, "b": vec![1.0; LANES], "mix": mix });
     let old = build(
         ProcessingMode::Block,
         ProcessingMode::Sample,
-        "_crossfade",
+        "$crossfade",
         params(10.0),
     );
     let (before, _, _) = render(&old, &[BLOCK_SIZE]);
@@ -109,7 +109,7 @@ fn an_edit_from_past_an_end_moves_at_once() {
     let new = build(
         ProcessingMode::Block,
         ProcessingMode::Sample,
-        "_crossfade",
+        "$crossfade",
         params(0.0),
     );
     for (id, module) in &new.sampleables {
@@ -125,22 +125,21 @@ fn an_edit_from_past_an_end_moves_at_once() {
 }
 
 #[test]
-fn a_glide_onto_a_moving_mix_stays_between_dry_and_wet() {
+fn a_glide_onto_a_moving_mix_stays_between_a_and_b() {
     // Swapping a held mix for an audio-rate saw starts a glide whose offset
-    // rides on the moving position; the blend still never passes either leg.
-    let params =
-        |mix: serde_json::Value| json!({ "dry": 0.0, "wet": vec![1.0; LANES], "mix": mix });
+    // rides on the moving position; the blend still never passes either input.
+    let params = |mix: serde_json::Value| json!({ "a": 0.0, "b": vec![1.0; LANES], "mix": mix });
     let old = build(
         ProcessingMode::Block,
         ProcessingMode::Sample,
-        "_crossfade",
+        "$crossfade",
         params(json!(5.0)),
     );
     render(&old, &[BLOCK_SIZE]);
     let new = build(
         ProcessingMode::Block,
         ProcessingMode::Sample,
-        "_crossfade",
+        "$crossfade",
         params(poly_cable("src", LANES)),
     );
     for (id, module) in &new.sampleables {
@@ -156,18 +155,18 @@ fn a_glide_onto_a_moving_mix_stays_between_dry_and_wet() {
 #[test]
 fn allocation_free() {
     for params in [
-        json!({ "dry": poly_cable("src", LANES), "wet": 0.0, "mix": 2.5 }),
-        json!({ "dry": cable("src", 1), "wet": poly_cable("src", LANES), "mix": [cable("src", 0), 2.0] }),
+        json!({ "a": poly_cable("src", LANES), "b": 0.0, "mix": 2.5 }),
+        json!({ "a": cable("src", 1), "b": poly_cable("src", LANES), "mix": [cable("src", 0), 2.0] }),
     ] {
-        assert_eq!(allocations_while_rendering("_crossfade", params), 0);
+        assert_eq!(allocations_while_rendering("$crossfade", params), 0);
     }
 }
 
 #[test]
 fn bounds_span_both_legs() {
     let bounds = check_bounds_agree(
-        "_crossfade",
-        json!({ "dry": poly_cable("src", LANES), "wet": 8.0, "mix": poly_cable("lfo", LANES) }),
+        "$crossfade",
+        json!({ "a": poly_cable("src", LANES), "b": 8.0, "mix": poly_cable("lfo", LANES) }),
     );
     assert!(bounds.iter().all(|&b| b == Bounds::new(-5.0, 8.0)));
 }

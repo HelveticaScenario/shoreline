@@ -656,8 +656,6 @@ export function executePatchScript(
             ]),
             () => {
                 const voices = $unison(freq, unison, detune) as Collection;
-                // Read past the root, so offering the phase does not count as
-                // taking the copies as their phase.
                 const phaseOffset = outputSetOf(voices)?.values
                     .phase as Collection;
                 const voice = builder.outputResolver.withUserCode(() =>
@@ -675,13 +673,6 @@ export function executePatchScript(
         );
     }
 
-    /**
-     * @example
-     * // crossfade 3 voices by a slow LFO
-     * const osc = $sine(['c', 'e', 'g'])
-     * const weights = $cross(osc.length, $sine('0.25hz').range(0, 1));
-     * chord: osc.amp(weights);
-     */
     const $cross = (
         count: number,
         playhead: PolySignal,

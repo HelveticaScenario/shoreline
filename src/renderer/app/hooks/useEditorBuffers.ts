@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { v4 } from 'uuid';
 import electronAPI from '../../electronAPI';
 import type { EditorBuffer } from '../../types/editor';
-import type { FSWriteResult } from '../../../shared/ipcTypes';
+import type { FSWriteResult, QuoteStyle } from '../../../shared/ipcTypes';
 import { PATCH_EXTENSION } from '../../../shared/patchFiles';
 import {
     DEFAULT_PATCH,
@@ -18,6 +18,7 @@ import {
     withSavedContent,
 } from '../buffers';
 import { createEditorViewStates } from '../editorViewStates';
+import { requote } from '../../dsl/requote';
 
 const writeErrorMessage = (result: FSWriteResult) =>
     ('error' in result && result.error) || 'Failed to save file';
@@ -27,13 +28,17 @@ interface UseEditorBuffersParams {
     refreshFileTree: () => Promise<void>;
     /** Called with the absolute path after a buffer is successfully saved. */
     onFileSaved?: (filePath: string) => void;
+    /** The quote style a new untitled buffer's patch is written in. */
+    quotes: QuoteStyle;
 }
 
 export function useEditorBuffers({
     workspaceRoot,
     refreshFileTree,
     onFileSaved,
+    quotes,
 }: UseEditorBuffersParams) {
+    const defaultPatch = requote(DEFAULT_PATCH, quotes);
     const [restoredBuffers] = useState(readUnsavedBuffers);
     const [buffers, setBuffers] = useState(restoredBuffers);
 
@@ -58,7 +63,7 @@ export function useEditorBuffers({
     );
 
     const activeBuffer = buffers.find((b) => getBufferId(b) === activeBufferId);
-    const patchCode = activeBuffer?.content ?? DEFAULT_PATCH;
+    const patchCode = activeBuffer?.content ?? defaultPatch;
 
     useEffect(() => {
         saveUnsavedBuffers(buffers);
@@ -252,7 +257,7 @@ export function useEditorBuffers({
 
             const nextId = `untitled-${nextIdNum}`;
             const newBuffer: EditorBuffer = {
-                content: DEFAULT_PATCH,
+                content: defaultPatch,
                 dirty: false,
                 id: nextId,
                 kind: 'untitled',
@@ -261,7 +266,7 @@ export function useEditorBuffers({
             setActiveBufferId(nextId);
             return [...prev, newBuffer];
         });
-    }, []);
+    }, [defaultPatch]);
 
     /**
      * Save a buffer to disk. Returns the buffer's id after the save (the

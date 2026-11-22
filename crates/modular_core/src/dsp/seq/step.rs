@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     LaneSum,
     dsp::utils::SchmittTrigger,
@@ -55,7 +55,7 @@ const STEP_DOCS: ModuleDocs = ModuleDocs {
     description: "Holds one value from a list and moves to the next on each `next` trigger, \
                   wrapping after the last. The steps can be notes, voltages or live signals, \
                   so it doubles as a clocked switch between sources.",
-    categories: &[ModuleCategory::Sequencer],
+    categories: &[ReferenceCategory::Sequencer],
     sections: &[],
     examples: &[
         DocExample {

@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -79,7 +79,7 @@ const SD808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 snare drum",
     description: "The 808's snare: two drum tones under a burst of bright noise, which \
                   `snappy` takes from a dull thump to a crisp, rattling snap.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Electro backbeat",

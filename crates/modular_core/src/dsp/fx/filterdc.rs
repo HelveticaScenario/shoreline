@@ -4,9 +4,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -42,7 +42,7 @@ const FILTER_DC_DOCS: ModuleDocs = ModuleDocs {
                   about 20 Hz, leaving everything audible untouched. Put it after asymmetric \
                   distortion or offset modulation so the signal sits centred and keeps its \
                   headroom.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Recentring tube-style drive",

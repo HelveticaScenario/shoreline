@@ -3,8 +3,8 @@ use std::ops::Range;
 use super::*;
 use crate::dsp::drums::input::{Held, Input, Live, each_slot};
 use crate::dsp::drums::voice::rails;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Seeds each lane's noise from the module's [`seed_base`].
 fn seed(base: u64, lanes: &mut [Lane]) {
@@ -223,7 +223,7 @@ const LT808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 low tom",
     description: "The 808's low tom: a round, low ring that starts sharp and settles in \
                   pitch, over a soft puff of noise.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Booming tom groove",
@@ -245,7 +245,7 @@ const MT808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 mid tom",
     description: "The 808's mid tom: a round ring that starts sharp and settles in \
                   pitch, over a soft puff of noise.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Tom fill",
@@ -271,7 +271,7 @@ const HT808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 high tom",
     description: "The 808's high tom: a round, high ring that starts sharp and settles \
                   in pitch, over a soft puff of noise.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Tuned tom melody",
@@ -296,7 +296,7 @@ const LC808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 low conga",
     description: "The 808's low conga, the lowest of the three: a warm, hollow ring that \
                   starts sharp and settles in pitch.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Two-conga pattern",
@@ -321,7 +321,7 @@ const MC808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 mid conga",
     description: "The 808's mid conga, the middle of the three: a hollow, woody ring that \
                   starts sharp and settles in pitch.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Congas and claves",
@@ -346,7 +346,7 @@ const HC808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 high conga",
     description: "The 808's high conga, the highest of the three: a bright, hollow ring \
                   that starts sharp and settles in pitch.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Three-conga groove",

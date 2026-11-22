@@ -11,8 +11,8 @@ use crate::dsp::mi::core::{
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::FmMode,
@@ -237,7 +237,7 @@ const LPC_VOWEL_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' LPC vowels: the five vowels \
                   of a speak-and-spell's LPC-10 voice, sung at the pitch, \
                   with a short consonant on `trigger`.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[DocExample {
         title: "Robot syllables",

@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::filters::resonant_svf::{CutoffResonance, hand_over, params_mono},
     dsp::utils::{changed, sanitize, voct_to_hz},
@@ -66,7 +66,7 @@ const JUP6F_DOCS: ModuleDocs = ModuleDocs {
     description: "A warm, saturating 4-pole lowpass modelled on the Roland Jupiter-6, with \
                   extra outputs for a 12 dB lowpass, a bandpass and a highpass from the same core. Turned up, \
                   the resonance self-oscillates into a clean sine at the cutoff.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
         DocExample {

@@ -2,9 +2,9 @@ use deserr::Deserr;
 use schemars::JsonSchema;
 use simple_easing;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSumExt, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::InterpolationType;
 use crate::{LaneSum, PolyOutput};
 
@@ -51,7 +51,7 @@ const KEYFRAMES_DOCS: ModuleDocs = ModuleDocs {
     description: "Draws a curve through `[value, position]` keyframes and plays it along the \
                   bar, for automation that rises and falls at set points: a filter that opens \
                   over the bar, a swell into the downbeat.",
-    categories: &[ModuleCategory::Sequencer, ModuleCategory::Modulation],
+    categories: &[ReferenceCategory::Sequencer, ReferenceCategory::Modulation],
     sections: &[],
     examples: &[DocExample {
         title: "Filter that opens and closes each bar",

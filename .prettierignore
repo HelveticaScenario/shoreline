@@ -7,7 +7,7 @@ crates/modular/wasi-worker-browser.mjs
 crates/modular/wasi-worker.mjs
 crates/modular/.yarnrc.yml
 crates/modular/schemas.json
-crates/modular/moduleCategories.json
+crates/modular/referenceCategories.json
 crates/modular/index.d.ts
 **/*.dSYM/**/*
 node_modules

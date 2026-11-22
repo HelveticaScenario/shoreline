@@ -3,8 +3,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_ratio},
@@ -108,7 +108,7 @@ const SAW_DOCS: ModuleDocs = ModuleDocs {
                   ramp: the workhorse for basses, leads and pads under a \
                   filter. Moving the shape slowly gives a breathing, \
                   filter-like sweep on its own.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

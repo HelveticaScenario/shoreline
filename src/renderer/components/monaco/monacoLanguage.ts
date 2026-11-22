@@ -5,10 +5,13 @@ import { registerJsDocLinkProviders } from './jsDocLinkProviders';
 import { registerRenameProvider } from './renameProvider';
 import { registerOutputResolutionHints } from './outputResolutionHints';
 import type { ModuleSchema } from '@modular/core';
+import type { QuoteStyle } from '../../../shared/ipcTypes';
 
 export interface MonacoSetupOptions {
     /** Module schemas for building symbol sets */
     schemas?: ModuleSchema[];
+    /** The quote style code examples in hovers and completions follow. */
+    quotes: () => QuoteStyle;
 }
 
 /**
@@ -57,7 +60,7 @@ function configureJavascriptPairs(monaco: Monaco) {
 export function setupMonacoJavascript(
     monaco: Monaco,
     libSource: string,
-    options: MonacoSetupOptions = {},
+    options: MonacoSetupOptions,
 ) {
     const ts = monaco.typescript;
     console.log('Monaco TS version:', ts);
@@ -88,6 +91,7 @@ export function setupMonacoJavascript(
     const jsDocLinks = registerJsDocLinkProviders(
         monaco,
         options.schemas ?? [],
+        options.quotes,
     );
     const rename = registerRenameProvider(monaco);
     const outputHints = registerOutputResolutionHints(monaco);

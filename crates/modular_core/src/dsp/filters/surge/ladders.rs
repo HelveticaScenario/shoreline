@@ -11,8 +11,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fasttan, softclip8};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Ladder slope — which of the four cascaded pole outputs is tapped.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
@@ -100,7 +100,7 @@ const LEGACY_LADDER_DOCS: ModuleDocs = ModuleDocs {
     description: "The classic 4-pole transistor-ladder lowpass, fat and round, with 6 to 24 dB \
                   slopes. Lighter and cleaner than `vintageLadder`'s circuit models, it rings and \
                   self-oscillates as the resonance nears the top.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Fat ladder bass",
@@ -314,7 +314,7 @@ const DIODE_LADDER_DOCS: ModuleDocs = ModuleDocs {
     summary: "EMS-style diode ladder",
     description: "A diode-ladder lowpass in the EMS style: thinner and more acidic than a \
                   transistor ladder, and it screams at high resonance.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Screaming acid line",

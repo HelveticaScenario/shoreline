@@ -5,8 +5,8 @@ use crate::dsp::drums::input::{Cached, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr808::circuit::PULSE_SECS;
 use crate::dsp::drums::tr808::levels;
 use crate::dsp::drums::voice::{Timing, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -55,7 +55,7 @@ const RS808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 rim shot",
     description: "The 808's rim shot: a bright, woody crack, over in about 10 ms, for \
                   clicky syncopation on top of a groove.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Syncopated rim clicks",
@@ -288,7 +288,7 @@ const CL808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 claves",
     description: "The 808's claves: a short, pure wooden click ringing high, cutting \
                   through a mix for Latin patterns and bright accents.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Son clave",

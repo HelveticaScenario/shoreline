@@ -12,8 +12,8 @@ use schemars::JsonSchema;
 use super::coeffs::note_to_hz;
 use super::fastmath::{fastexp, fasttanh_clamped};
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Ladder simulation model.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, JsonSchema, Connect)]
@@ -328,7 +328,7 @@ const VINTAGE_LADDER_DOCS: ModuleDocs = ModuleDocs {
                   faithful circuit model to grittier and cleaner variants, richer and heavier \
                   than `legacyLadder`. Turn on `compensated` to \
                   keep the bass full at high resonance.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Resonant ladder pad",

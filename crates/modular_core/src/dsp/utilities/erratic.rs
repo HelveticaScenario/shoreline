@@ -7,9 +7,9 @@ use crate::block_input::{self, InputScratch};
 use crate::bounds::{Bounds, Settled};
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::dsp::utils::{CatmullRom, SchmittState, SchmittTrigger};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::BoundsInputs;
 
 /// Top of the speed curve, in Hz. `speed = 5` itself draws a fresh point every
@@ -331,7 +331,7 @@ const ERRATIC_DOCS: ModuleDocs = ModuleDocs {
                   pulling it toward random values within its range, for movement that \
                   never quite repeats. Clamped or blended, a signal with a range keeps \
                   it, and one without stays within -5 to 5.",
-    categories: &[ModuleCategory::Random, ModuleCategory::Modulation],
+    categories: &[ReferenceCategory::Random, ReferenceCategory::Modulation],
     sections: &[],
     examples: &[
         DocExample {

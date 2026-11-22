@@ -5,9 +5,9 @@ use std::ops::Range;
 
 use crate::block_input;
 use crate::dsp::utils::hz_to_voct;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 /// Lowest frequency converted, keeping `hz_to_voct` away from log2(≤0).
 const MIN_HZ: f32 = 1e-4;
@@ -39,7 +39,7 @@ const HZ_DOCS: ModuleDocs = ModuleDocs {
     summary: "Hz to V/Oct",
     description: "Converts a frequency in Hz to a V/Oct pitch. Backs `$hz()` when its \
                   argument is a signal.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[DocExample {
         title: "Sweep set in Hz",

@@ -7,8 +7,8 @@ use std::ops::Range;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::utils::{C4_HZ_F32, rng::seed_base},
     param_errors::ModuleParamErrors,
@@ -96,7 +96,7 @@ const APF_DOCS: ModuleDocs = ModuleDocs {
     description: "Up to 50 allpass stages that smear transients into chirps around the cutoff. \
                   Resonance and feedback make the smear ring at a pitch, and mixed with the dry \
                   signal it notches like a phaser.",
-    categories: &[ModuleCategory::Filter, ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Filter, ReferenceCategory::Effect],
     sections: &[],
     examples: &[
         DocExample {

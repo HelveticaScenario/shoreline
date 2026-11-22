@@ -9,9 +9,9 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::DcBlocker;
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 // ─── Dattorro delay lengths (reference sample rate: 29761 Hz) ────────────────
@@ -217,7 +217,7 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
     description: "The classic Dattorro plate: a bright, smooth stereo tail that suits vocals, \
                   plucks and drums. Output is fully wet, so blend it with `.wet(mix)` or \
                   send to it from a bus.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[DocExample {
         title: "Plucks in a big plate",

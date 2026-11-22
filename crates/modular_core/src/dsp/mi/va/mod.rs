@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -105,7 +105,7 @@ const VIRTUAL_ANALOG_DOCS: ModuleDocs = ModuleDocs {
                   square and a saw, each with a morphing shape, tuned an \
                   interval apart, and a second output of two hard-synced \
                   oscillators for tearing sync leads.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

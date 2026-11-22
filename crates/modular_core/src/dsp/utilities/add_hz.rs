@@ -5,9 +5,9 @@ use std::ops::Range;
 
 use crate::block_input::{self, InputScratch};
 use crate::dsp::utils::{hz_to_voct, voct_to_hz};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 /// Lower bound for the post-offset frequency, keeping `hz_to_voct` away from log2(≤0).
@@ -40,7 +40,7 @@ const ADD_HZ_DOCS: ModuleDocs = ModuleDocs {
     description: "Shifts a pitch by a fixed number of Hz rather than by cents, so a \
                   detuned copy beats at the same steady rate whatever note plays. \
                   Layer it against the original for slow, even chorusing.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[DocExample {
         title: "Slow, even beating",

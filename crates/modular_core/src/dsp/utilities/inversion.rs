@@ -3,9 +3,9 @@ use schemars::JsonSchema;
 
 use crate::dsp::utils::SchmittTrigger;
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, PORT_MAX_LANES, PolyOutput, PolySignal};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
@@ -106,7 +106,7 @@ const INVERSION_DOCS: ModuleDocs = ModuleDocs {
     description: "Glides a chord through its inversions, crossfading each moving note \
                   between its two octaves so nothing clicks. It outputs one lane more than \
                   its input: scale each voice by `level`, or the extra lane sounds too.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[
         DocExample {
