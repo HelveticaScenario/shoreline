@@ -4,7 +4,7 @@ import {
     MI_TABLES_INTRO,
 } from '../../shared/builtinAssets';
 import { ColorizedCode } from './ColorizedCode';
-import { useQuoteExample } from '../hooks/useQuoteStyle';
+import { useQuoteExample } from '../hooks/useQuoteExample';
 
 /** The Docs panel's Built-ins page: every file bundled with the app. */
 export const BuiltinDocs: React.FC = () => {

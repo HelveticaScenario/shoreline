@@ -8,7 +8,7 @@ import {
     VIDEO_INTRO,
 } from '../../shared/dsl/videoDocs';
 import type { VideoDocParam } from '../../shared/dsl/videoDocs';
-import { useQuoteExample } from '../hooks/useQuoteStyle';
+import { useQuoteExample } from '../hooks/useQuoteExample';
 
 /** Splits docs text into paragraphs and renders `code` spans. */
 const Prose: React.FC<{ text: string }> = ({ text }) => (

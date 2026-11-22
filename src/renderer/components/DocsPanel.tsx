@@ -3,7 +3,7 @@ import { VideoDocs } from './VideoDocs';
 import { BuiltinDocs } from './BuiltinDocs';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
 import { ModuleReference } from './ModuleReference';
-import { useQuoteExample } from '../hooks/useQuoteStyle';
+import { useQuoteExample } from '../hooks/useQuoteExample';
 import type { DocsTarget } from './docsCommand';
 import electronAPI from '../electronAPI';
 import type {

@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import Markdown from 'react-markdown';
 import { LinkifyTypes } from './DocsTypeLinks';
 import { ColorizedCode } from './ColorizedCode';
-import { useQuoteExample } from '../hooks/useQuoteStyle';
+import { useQuoteExample } from '../hooks/useQuoteExample';
 import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { EnumVariantInfo } from '../../shared/dsl/schemaTypeResolver';
