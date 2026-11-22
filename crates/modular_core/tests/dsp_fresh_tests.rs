@@ -381,9 +381,9 @@ fn crossfade_blends_and_holds_past_its_ends() {
         (9.0, 4.0),
     ] {
         let fade = make_module(
-            "_crossfade",
+            "$crossfade",
             "fade-1",
-            json!({ "dry": 1.0, "wet": 4.0, "mix": mix }),
+            json!({ "a": 1.0, "b": 4.0, "mix": mix }),
         );
         let sample = settle_and_read(fade.as_ref(), 500);
         assert!(
@@ -499,7 +499,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$signal" => json!({ "value": 0.0 }),
         "$amp" => json!({ "input": 0.0, "factor": 5.0 }),
         "$gain" => json!({ "input": 0.0, "level": 5.0 }),
-        "_crossfade" => json!({ "dry": 0.0, "wet": 0.0, "mix": 2.5 }),
+        "$crossfade" => json!({ "a": 0.0, "b": 0.0, "mix": 2.5 }),
         "$chord" => json!({ "chord": "C[maj]" }),
         "$cheby" | "$fold" | "$segment" | "$inversion" => json!({ "input": 0.0, "amount": 0.0 }),
         "$overdrive" => json!({ "input": 0.0, "drive": 0.0 }),

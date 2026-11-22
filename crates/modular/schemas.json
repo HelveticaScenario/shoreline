@@ -30916,18 +30916,23 @@
     "stereo": "lift"
   },
   {
-    "name": "_crossfade",
+    "name": "$crossfade",
     "docs": {
-      "summary": "Dry/wet crossfade",
-      "description": "Fades linearly from one signal to another, lane by lane; the narrower of the two cycles across the wider. Backs the `.wet()` and `.pipeMix()` signal methods.",
+      "summary": "Linear crossfade",
+      "description": "Fades linearly from `a` to `b` as `mix` rises, lane by lane, for audio or control voltages alike; the narrower of the two cycles across the wider. Modulate `mix` to sweep between two sounds, two LFOs or two melodies.",
       "categories": [
+        "mixer",
         "math"
       ],
       "sections": [],
       "examples": [
         {
-          "title": "Half-wet filter",
-          "code": "bass: $saw('c2').lpf('400hz').wet(2.5)"
+          "title": "Morph between two oscillators",
+          "code": "lead: $crossfade(\n  $saw('c3'),\n  $pulse('c3'),\n  $sine('0.2hz').range(0, 5),\n)"
+        },
+        {
+          "title": "Blend two LFOs on a filter sweep",
+          "code": "bass: $saw('c2').bpf(\n  $sine('0.5hz')\n    .crossfade($saw('3hz'), 1)\n    .range('c4', 'c6'),\n  3,\n)"
         }
       ]
     },
@@ -30936,14 +30941,14 @@
       "title": "CrossfadeParams",
       "type": "object",
       "properties": {
-        "dry": {
+        "a": {
           "description": "signal heard at a mix of 0",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "audio"
           }
         },
-        "wet": {
+        "b": {
           "description": "signal heard at a mix of 5",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
@@ -30951,7 +30956,7 @@
           }
         },
         "mix": {
-          "description": "balance from dry to wet",
+          "description": "position between `a` and `b`",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "control",
@@ -30964,8 +30969,8 @@
         }
       },
       "required": [
-        "dry",
-        "wet",
+        "a",
+        "b",
         "mix"
       ],
       "$defs": {
@@ -31031,7 +31036,7 @@
     "outputs": [
       {
         "name": "output",
-        "description": "the blend of dry and wet",
+        "description": "`a` faded into `b` by `mix`",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
@@ -31043,7 +31048,7 @@
     "bufferOutputs": [],
     "signalParams": [
       {
-        "name": "dry",
+        "name": "a",
         "description": "signal heard at a mix of 0",
         "paramType": "audio",
         "carriesBounds": true,
@@ -31052,7 +31057,7 @@
         "readsSides": false
       },
       {
-        "name": "wet",
+        "name": "b",
         "description": "signal heard at a mix of 5",
         "paramType": "audio",
         "carriesBounds": true,
@@ -31062,7 +31067,7 @@
       },
       {
         "name": "mix",
-        "description": "balance from dry to wet",
+        "description": "position between `a` and `b`",
         "paramType": "control",
         "defaultValue": 2.5,
         "minValue": 0.0,
@@ -31078,10 +31083,10 @@
     "nestedFolds": [],
     "positionalArgs": [
       {
-        "name": "dry"
+        "name": "a"
       },
       {
-        "name": "wet"
+        "name": "b"
       },
       {
         "name": "mix"
