@@ -66,8 +66,7 @@ export function resolveRef(
     | 'Wav'
     | 'PhaseWarp'
     | 'EnoscScale'
-    | 'Pattern'
-    | 'ScaleSpec' {
+    | 'Pattern' {
     if (ref === 'Signal') {
         return 'Signal';
     }
@@ -106,11 +105,6 @@ export function resolveRef(
     }
     if (defName === 'EnoscScale') {
         return 'EnoscScale';
-    }
-    // A scale/chord spec string ("C(major)", "C3[maj7]"); the DSL exposes it
-    // as the named `ScaleSpec` template-literal type.
-    if (defName === 'ScaleSpec') {
-        return 'ScaleSpec';
     }
     // The wire payload of a pattern, which recurses; the DSL exposes it as
     // the `Pattern` type.
@@ -330,9 +324,6 @@ export function schemaToTypeExpr(
         }
         if (resolved === 'Pattern') {
             return 'Pattern';
-        }
-        if (resolved === 'ScaleSpec') {
-            return 'ScaleSpec';
         }
         return schemaToTypeExpr(resolved, rootSchema);
     }

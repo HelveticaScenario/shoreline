@@ -305,7 +305,7 @@ describe('.wet', () => {
     test('sums the dry voices once against a stereo effect', () => {
         // The effect hears every voice in its one stereo lane, so the dry
         // joins it as one lane: the wet is heard once, not once per voice.
-        const patch = execPatch("out: $saw($chord('C3[m7]')).plate().wet(2)");
+        const patch = execPatch("out: $saw('c3:m7').plate().wet(2)");
         const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
         const plate = patch.modules.find((m) => m.moduleType === '$plate')!;
         const voices = patch.modules.find(
@@ -337,9 +337,7 @@ describe('.wet', () => {
     });
 
     test('keeps each voice against an effect with a lane per voice', () => {
-        const patch = execPatch(
-            "out: $saw($chord('C3[m7]')).lpf('800hz').wet(2)",
-        );
+        const patch = execPatch("out: $saw('c3:m7').lpf('800hz').wet(2)");
         const saw = patch.modules.find((m) => m.moduleType === '$saw')!;
         const crossfade = patch.modules.find(
             (m) => m.moduleType === '$crossfade',

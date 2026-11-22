@@ -123,7 +123,7 @@ const NOISE_DOCS: ModuleDocs = ModuleDocs {
                 melody: $sine(
                   $quantizer(
                     $noise('white', { rate: '4hz' }).range('c3', 'c5'),
-                    $chord('C(minor)'),
+                    'c(minor)',
                   ),
                 )
             "#,

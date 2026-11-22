@@ -111,7 +111,7 @@ const SUPERSAW_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Trance chord",
             code: r#"
-                chord: $supersaw($chord('A2[m]'), {
+                chord: $supersaw('a2:m', {
                   unison: 7,
                   detune: 0.3,
                 }).lpf('c6', 1)

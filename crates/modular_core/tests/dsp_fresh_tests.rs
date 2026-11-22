@@ -500,7 +500,6 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$amp" => json!({ "input": 0.0, "factor": 5.0 }),
         "$gain" => json!({ "input": 0.0, "level": 5.0 }),
         "$crossfade" => json!({ "a": 0.0, "b": 0.0, "mix": 2.5 }),
-        "$chord" => json!({ "chord": "C[maj]" }),
         "$cheby" | "$fold" | "$segment" | "$inversion" => json!({ "input": 0.0, "amount": 0.0 }),
         "$overdrive" => json!({ "input": 0.0, "drive": 0.0 }),
         // Shape modules: `input` + required `mode` (drive is optional). digital
@@ -946,16 +945,6 @@ fn from_graph_process_frame_advances_all_modules() {
 // ─── Step sequencer ──────────────────────────────────────────────────────────
 
 #[test]
-fn chord_outputs_spec_voltages() {
-    let module = make_module("$chord", "chord", json!({ "chord": "C3[maj7]" }));
-    let slot = Stepper::new().tick(module.as_ref());
-    for (lane, semis) in [-12.0_f32, -8.0, -5.0, -1.0].iter().enumerate() {
-        let v = module.get_value_at("pitch", lane, slot);
-        assert!(approx_eq(v, semis / 12.0, 1e-5), "lane {lane}: {v}");
-    }
-}
-
-#[test]
 fn inversion_adds_a_lane_and_raises_the_lowest_note() {
     let notes = [-1.0_f32, -8.0 / 12.0, -5.0 / 12.0];
     let module = make_module(
@@ -973,29 +962,6 @@ fn inversion_adds_a_lane_and_raises_the_lowest_note() {
     assert_eq!(sounding.len(), 3, "{sounding:?}");
     for (v, e) in sounding.iter().zip(expected) {
         assert!(approx_eq(*v, e, 1e-5), "{sounding:?}");
-    }
-}
-
-#[test]
-fn chord_rejects_invalid_specs() {
-    let deserializers = get_params_deserializers();
-    let deserializer = deserializers
-        .get("$chord")
-        .expect("no deserializer for $chord");
-    for spec in ["", "C(maj7)", "C[maj8]", "C[maj inv3]"] {
-        match deserializer(json!({ "chord": spec })) {
-            Ok(_) => panic!("{spec:?} should be rejected"),
-            Err(err) => {
-                let errors = err.into_errors();
-                assert!(
-                    errors
-                        .iter()
-                        .any(|e| e.message.contains("Invalid scale specification")),
-                    "{spec:?}: unexpected errors {:?}",
-                    errors.iter().map(|e| &e.message).collect::<Vec<_>>()
-                );
-            }
-        }
     }
 }
 
