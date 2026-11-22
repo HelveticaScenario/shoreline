@@ -71,8 +71,8 @@ function contentType(file: string): string | undefined {
 
 /**
  * The real path of the workspace file `file`, or null when it is not a media
- * file inside the workspace folder. Links are followed before the containment
- * check, so a link inside the workspace cannot reach a file outside it.
+ * file. Links are followed wherever they point, so a link in the workspace
+ * can bring in media kept elsewhere.
  */
 function servableFile(
     workspaceRoot: string | null,
@@ -81,10 +81,7 @@ function servableFile(
     if (file === null || workspaceRoot === null) return null;
     try {
         const real = fs.realpathSync(file);
-        const root = fs.realpathSync(workspaceRoot);
-        return real.startsWith(root + path.sep) &&
-            contentType(real) !== undefined &&
-            fs.statSync(real).isFile()
+        return contentType(real) !== undefined && fs.statSync(real).isFile()
             ? real
             : null;
     } catch {

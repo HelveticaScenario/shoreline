@@ -21,7 +21,6 @@ import schemas from '@modular/core/schemas.json';
 import { parse as parseJsonc, type ParseError } from 'jsonc-parser';
 import type {
     IPCHandlers,
-    FileTreeEntry,
     ContextMenuOptions,
     EditorContextMenuOptions,
     AudioDeviceNotice,
@@ -81,8 +80,8 @@ import {
 import { PERFORMANCE_WINDOW_NAME } from '../shared/video/performanceWindowName';
 import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
+import { readWorkspaceTree } from './workspaceTree';
 import { builtinAssetsDir } from './builtinAssetsDir';
-import { assetKind } from '../shared/assetFiles';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
 import { requestCameraAccess, screenSource } from './liveSources';
@@ -771,15 +770,14 @@ function validatePathInWorkspace(filePath: string): string | null {
     return resolveWorkspacePath(currentWorkspaceRoot, filePath);
 }
 
-/** The explorer's file type for a patch or an asset a patch can load, or undefined for any other file. */
-function explorerFileType(filename: string): FileTreeEntry['fileType'] {
-    if (isPatchPath(filename)) {
-        return 'patch';
-    }
-    return assetKind(filename);
-}
-
 let workspaceWatcher: fs.FSWatcher | null = null;
+/** Watchers on the linked folders outside the workspace folder, by real
+ *  path; the workspace folder's own watcher does not follow links. */
+const linkedFolderWatchers = new Map<string, fs.FSWatcher>();
+/** The current workspace's linked folders outside it, from its last listing:
+ *  real target path to the workspace-relative path of its link. */
+let workspaceLinkedFolders = new Map<string, string>();
+let workspaceChangeTimer: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Tells the renderer when files in the workspace folder change, so its
@@ -787,97 +785,90 @@ let workspaceWatcher: fs.FSWatcher | null = null;
  * coalesced into one notice; hidden files and `node_modules` are ignored, as
  * the explorer does.
  */
-function watchWorkspace(root: string | null): void {
-    workspaceWatcher?.close();
-    workspaceWatcher = null;
-    if (!root) return;
-    let timer: ReturnType<typeof setTimeout> | null = null;
+function onWorkspaceChange(filename: string | null): void {
+    if (
+        filename
+            ?.split(/[\\/]/)
+            .some((p) => p.startsWith('.') || p === 'node_modules')
+    ) {
+        return;
+    }
+    if (workspaceChangeTimer) clearTimeout(workspaceChangeTimer);
+    workspaceChangeTimer = setTimeout(() => {
+        workspaceChangeTimer = null;
+        if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send(IPC_CHANNELS.FS_TREE_ON_CHANGE);
+        }
+    }, 150);
+}
+
+/** A recursive watcher on `folder` feeding `onWorkspaceChange`, or null when
+ *  the folder cannot be watched. */
+function watchFolder(folder: string, onError: () => void): fs.FSWatcher | null {
     try {
-        workspaceWatcher = fs.watch(
-            root,
-            { recursive: true },
-            (_event, filename) => {
-                if (
-                    filename
-                        ?.split(/[\\/]/)
-                        .some((p) => p.startsWith('.') || p === 'node_modules')
-                ) {
-                    return;
-                }
-                if (timer) clearTimeout(timer);
-                timer = setTimeout(() => {
-                    timer = null;
-                    if (mainWindow && !mainWindow.isDestroyed()) {
-                        mainWindow.webContents.send(
-                            IPC_CHANNELS.FS_TREE_ON_CHANGE,
-                        );
-                    }
-                }, 150);
-            },
+        const watcher = fs.watch(folder, { recursive: true }, (_event, name) =>
+            onWorkspaceChange(name),
         );
-        workspaceWatcher.on('error', (error) => {
-            console.warn('Stopped watching the workspace folder:', error);
-            watchWorkspace(null);
+        watcher.on('error', (error) => {
+            console.warn('Stopped watching', folder, error);
+            onError();
         });
+        return watcher;
     } catch {
-        console.warn('Failed to watch the workspace folder');
+        console.warn('Failed to watch', folder);
+        return null;
     }
 }
 
-/** The workspace's patches and loadable assets, folder by folder. */
-function buildFileTree(
-    dirPath: string,
-    relativePath: string = '',
-): FileTreeEntry[] {
-    const entries: FileTreeEntry[] = [];
+function watchWorkspace(root: string | null): void {
+    workspaceWatcher?.close();
+    workspaceWatcher = null;
+    workspaceLinkedFolders = new Map();
+    watchLinkedFolders([]);
+    if (!root) return;
+    workspaceWatcher = watchFolder(root, () => watchWorkspace(null));
+}
 
-    try {
-        const items = fs.readdirSync(dirPath, { withFileTypes: true });
-
-        for (const item of items) {
-            // Skip hidden files and node_modules
-            if (item.name.startsWith('.') || item.name === 'node_modules') {
-                continue;
-            }
-
-            const itemRelativePath = relativePath
-                ? `${relativePath}/${item.name}`
-                : item.name;
-            const itemAbsolutePath = path.join(dirPath, item.name);
-
-            if (item.isDirectory()) {
-                const children = buildFileTree(
-                    itemAbsolutePath,
-                    itemRelativePath,
-                );
-                if (children.length > 0) {
-                    entries.push({
-                        children,
-                        name: item.name,
-                        path: itemRelativePath,
-                        type: 'directory',
-                    });
-                }
-            } else if (item.isFile() && explorerFileType(item.name)) {
-                entries.push({
-                    fileType: explorerFileType(item.name),
-                    name: item.name,
-                    path: itemRelativePath,
-                    type: 'file',
-                });
-            }
+/** Watch exactly `folders`, the real paths of the workspace's linked folders
+ *  outside it. */
+function watchLinkedFolders(folders: Iterable<string>): void {
+    const wanted = new Set(folders);
+    for (const [folder, watcher] of linkedFolderWatchers) {
+        if (!wanted.has(folder)) {
+            watcher.close();
+            linkedFolderWatchers.delete(folder);
         }
-    } catch (error) {
-        console.error('Error reading directory:', dirPath, error);
     }
+    for (const folder of wanted) {
+        if (linkedFolderWatchers.has(folder)) continue;
+        const watcher = watchFolder(folder, () => {
+            linkedFolderWatchers.get(folder)?.close();
+            linkedFolderWatchers.delete(folder);
+        });
+        if (watcher) linkedFolderWatchers.set(folder, watcher);
+    }
+}
 
-    // Sort: directories first, then files, alphabetically
-    return entries.sort((a, b) => {
-        if (a.type !== b.type) {
-            return a.type === 'directory' ? -1 : 1;
+/**
+ * Move a file or folder. A linked folder can sit on another drive, where a
+ * rename cannot reach, so the move falls back to a copy and a delete there.
+ */
+function moveEntry(from: string, to: string): void {
+    try {
+        fs.renameSync(from, to);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EXDEV') {
+            throw error;
         }
-        return a.name.localeCompare(b.name);
-    });
+        fs.cpSync(from, to, {
+            errorOnExist: true,
+            force: false,
+            preserveTimestamps: true,
+            recursive: true,
+            verbatimSymlinks: true,
+        });
+        fs.rmSync(from, { recursive: true });
+    }
 }
 
 /**
@@ -1551,7 +1542,10 @@ registerIPCHandler('FS_LIST_FILES', () => {
     if (!currentWorkspaceRoot) {
         return [];
     }
-    return buildFileTree(currentWorkspaceRoot);
+    const tree = readWorkspaceTree(currentWorkspaceRoot);
+    workspaceLinkedFolders = tree.linkedFolders;
+    watchLinkedFolders(tree.linkedFolders.keys());
+    return tree.entries;
 });
 
 // Patch files carry an invisible version-stamp block at the top; strip it so
@@ -1719,7 +1713,7 @@ registerIPCHandler('FS_RENAME_FILE', (oldPath, newPath) => {
             }
         }
 
-        fs.renameSync(oldAbsolutePath, newAbsolutePath);
+        moveEntry(oldAbsolutePath, newAbsolutePath);
         return { success: true };
     } catch (error) {
         console.error('Error renaming file:', error);
@@ -1763,7 +1757,7 @@ registerIPCHandler('FS_MOVE_FILE', (sourcePath, destPath) => {
             fs.mkdirSync(dir, { recursive: true });
         }
 
-        fs.renameSync(sourceAbsolutePath, destAbsolutePath);
+        moveEntry(sourceAbsolutePath, destAbsolutePath);
         return { success: true };
     } catch (error) {
         console.error('Error moving file:', error);
@@ -1824,6 +1818,7 @@ registerIPCHandler('FS_SHOW_SAVE_DIALOG', async (defaultPath?: string) => {
         const contained = resolveWorkspacePath(
             currentWorkspaceRoot,
             result.filePath,
+            workspaceLinkedFolders,
         );
         if (contained) {
             return path.relative(currentWorkspaceRoot, contained);
