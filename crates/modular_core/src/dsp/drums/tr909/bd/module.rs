@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::{TRIG_SECS, tapered_pot};
 use crate::dsp::drums::voice::{Timing, knob, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -79,7 +79,7 @@ const BD909_DOCS: ModuleDocs = ModuleDocs {
     description: "The 909's punchy kick: a rounded tone that sweeps down to a settled pitch, \
                   with a click and a puff of noise at the attack. The backbone of house \
                   and techno.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Four on the floor",

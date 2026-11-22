@@ -10,9 +10,9 @@ use crate::dsp::fx::enosc_tables::{aa_cheby, interpolate_cheby};
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::fade::{DEFAULT_FADE_IN_SECS, FadeIn};
 use crate::dsp::utils::voct_to_hz;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 #[params]
@@ -79,7 +79,7 @@ const CHEBY_DOCS: ModuleDocs = ModuleDocs {
     summary: "Harmonic waveshaper",
     description: "Adds overtones to a signal, from a clean pass at 0 to a bright, buzzy stack of \
                   upper harmonics at full. Sounds smoothest on sines and triangles.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Bass that brightens and darkens",

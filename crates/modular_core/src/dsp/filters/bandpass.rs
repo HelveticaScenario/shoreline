@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
     poly::{PolyOutput, PolySignal},
@@ -44,7 +44,7 @@ const BPF_DOCS: ModuleDocs = ModuleDocs {
     description: "Passes a band around the centre frequency and cuts both sides. Narrow it \
                   with resonance for vocal, wah-like tones, or sweep it over noise for wind \
                   and whooshes.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
         DocExample {

@@ -4,8 +4,8 @@ use super::*;
 use crate::dsp::drums::input::{Cached, Held, Hold, Input, Live, each_slot};
 use crate::dsp::drums::tr909::circuit::TRIG_SECS;
 use crate::dsp::drums::voice::{Timing, knob, rails};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 fn noise_network(dt: f32) -> Mna<NOISE_UNKNOWNS, NOISE_CAPS, 0, 1> {
     let mut b = MnaBuilder::<NOISE_UNKNOWNS>::default();
@@ -287,7 +287,7 @@ const LT909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 low tom",
     description: "The 909's low tom: a deep tone that bends down from the strike and \
                   grows gritty as it fades, over a puff of noise.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Tom fill",
@@ -313,7 +313,7 @@ const MT909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 mid tom",
     description: "The 909's mid tom: a tone that bends down from the strike and grows \
                   gritty as it fades, pitched between the low and high toms.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Rolling tom groove",
@@ -337,7 +337,7 @@ const HT909_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-909 high tom",
     description: "The 909's high tom: a tone that bends down from the strike and grows \
                   gritty as it fades, the highest and shortest of the three.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[DocExample {
         title: "Tuned tom melody",

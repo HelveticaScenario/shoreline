@@ -1,8 +1,8 @@
 use std::ops::Range;
 
 use super::*;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount, BlockInputs)]
@@ -51,7 +51,7 @@ const CB808_DOCS: ModuleDocs = ModuleDocs {
     summary: "TR-808 cowbell",
     description: "The 808's cowbell: two square waves through a band-pass filter, for \
                   its clanking, slightly sour tone.",
-    categories: &[ModuleCategory::Drum],
+    categories: &[ReferenceCategory::Drum],
     sections: &[],
     examples: &[
         DocExample {

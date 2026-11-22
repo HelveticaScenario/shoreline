@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
     poly::{PolyOutput, PolySignal},
@@ -46,7 +46,7 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
                   oscillators and for envelope-swept basses and pads. Resonance adds a ringing \
                   peak at the cutoff but never self-oscillates; reach for `$jup6f` when you \
                   want the filter to sing.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
         DocExample {
@@ -62,7 +62,7 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Slow pad sweep",
             code: r#"
-                chord: $saw($chord('C3[m7]')).lpf(
+                chord: $saw('c3:m7').lpf(
                   $sine('0.05hz').range('c4', 'c7'),
                   1,
                 )

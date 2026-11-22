@@ -5,8 +5,8 @@ mod super_square;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::{
@@ -152,7 +152,7 @@ const MI_CHIPTUNE_DOCS: ModuleDocs = ModuleDocs {
                   square waves over a stepped triangle bass, or, with \
                   `trigger` patched, an arpeggio through the chord, a note \
                   per trigger.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[
         DocSection {
             title: "Chords",

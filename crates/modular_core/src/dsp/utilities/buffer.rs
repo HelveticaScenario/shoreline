@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     Buffer, BufferData, LaneSum,
     poly::{PolyOutput, PolySignal},
@@ -236,7 +236,7 @@ const BUFFER_DOCS: ModuleDocs = ModuleDocs {
     description: "Continuously records a signal into a loop the given number of \
                   seconds long, for `$delayRead` and `$bufRead` to play back. On its \
                   own it makes no sound.",
-    categories: &[ModuleCategory::Effect, ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Effect, ReferenceCategory::Utility],
     sections: &[],
     examples: &[DocExample {
         title: "Echo tap",
@@ -379,7 +379,7 @@ const BUF_READ_DOCS: ModuleDocs = ModuleDocs {
     description: "Plays a `$buffer` from a position you choose rather than a fixed \
                   time behind the recording. Sweep the position to scrub through what \
                   was recorded, like moving a tape by hand.",
-    categories: &[ModuleCategory::Utility],
+    categories: &[ReferenceCategory::Utility],
     sections: &[],
     examples: &[DocExample {
         title: "Scrubbing a recorded phrase",

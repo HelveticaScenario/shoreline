@@ -12,9 +12,9 @@ use schemars::JsonSchema;
 use crate::dsp::utils::dc_blocker::{DEFAULT_DC_BLOCK_FC_HZ, DcBlocker};
 use crate::dsp::utils::delay_line::DelayLine;
 use crate::dsp::utils::{map_range, sanitize};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 use crate::types::SwapGlide;
 
 // ─── Topology ────────────────────────────────────────────────────────────────
@@ -261,12 +261,12 @@ const REVERB_DOCS: ModuleDocs = ModuleDocs {
     description: "A dense, natural-sounding reverb for anything from small rooms to long halls, \
                   keeping a stereo source's left and right apart in the tail. Output is fully \
                   wet, so blend it with `.wet(mix)` or send to it from a bus.",
-    categories: &[ModuleCategory::Effect],
+    categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[DocExample {
         title: "Pad in a wide hall",
         code: r#"
-            chord: $saw($chord('D3[m7]'))
+            chord: $saw('d3:m7')
               .lpf('d5', 1)
               .unstable.reverb({ decay: 3, size: 2 })
               .wet(2.5)

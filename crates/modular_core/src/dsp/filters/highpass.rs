@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
     poly::{PolyOutput, PolySignal},
@@ -43,13 +43,13 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonant highpass filter",
     description: "Removes the lows below the cutoff: clears rumble, thins a part so it sits \
                   in a mix, or builds a rising sweep. Resonance adds a ringing peak at the cutoff.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
         DocExample {
             title: "Pad thinning out and back",
             code: r#"
-                chord: $saw($chord('C3[maj7]')).hpf(
+                chord: $saw('c3:M7').hpf(
                   $sine('0.1hz').range('c3', 'c6'),
                   2,
                 )

@@ -8,9 +8,9 @@ use schemars::JsonSchema;
 use crate::block_input::{BlockInput, InputScratch};
 use crate::dsp::filters::svf_core;
 use crate::dsp::utils::sanitize;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, ModuleDocs};
 use crate::poly::{LaneSum, PolyOutput};
+use crate::reference_category::ReferenceCategory;
 
 mod live;
 mod params;
@@ -81,7 +81,7 @@ const EQ_DOCS: ModuleDocs = ModuleDocs {
     description: "Shapes tone with up to 8 bands of peaks, shelves, cuts and notches, any of \
                   which can be modulated. Give `sections` one list of bands per lane to EQ \
                   left and right differently, or set `ui: true` to shape it by hand.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[DocSection {
         title: "Editing in the EQ editor",
         body: "Drag a band's dot to move it, scroll over it or drag its handles to change `q`, \

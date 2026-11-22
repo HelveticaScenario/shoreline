@@ -12,7 +12,7 @@
  * Differences from krill.pegjs:
  *   - Emits the shared `MiniAST` shape directly (no {type_, source_, options_}
  *     intermediate wrappers).
- *   - Atom kinds reduced to Number, Hz, Note, Rest. No sample-name identifiers,
+ *   - Atom kinds reduced to Number, Hz, Note, Chord, Scale, Rest. No sample-name identifiers,
  *     MIDI shorthand, module-reference atoms, string atoms, or voltage atoms.
  *   - Modifier operands reuse the same AST typing as the Rust parser
  *     (MiniASTF64 for fast/slow factors and degrade probabilities,
@@ -238,6 +238,8 @@ Rest
 Value
   = HzValue
   / TruthyValue
+  / ChordValue
+  / ScaleValue
   / NoteValue
   / NumberValue
 
@@ -264,20 +266,37 @@ NumberValue
 // only '#' or 'b'. The trailing !IdentCont stops a note from matching the
 // start of a longer alphanumeric run, so `cb` is c-flat but `cba` is not a note.
 NoteValue
-  = letter:$[a-gA-G] acc:Accidental? oct:Octave? !IdentCont {
-      return {
-        Pure: located(
-          {
-            Note: {
-              letter: letter.toLowerCase(),
-              accidental: acc,
-              octave: oct,
-            },
-          },
-          location()
-        ),
-      };
+  = note:NoteName !IdentCont {
+      return { Pure: located({ Note: note }, location()) };
     }
+
+// A chord is a note, a colon and a chord symbol: c3:M7, eb:m7^1, g:7b9%.
+// Modifiers follow the symbol, so `c:m*2` repeats the chord.
+ChordValue
+  = note:NoteName ":" chord:$ChordSymbolChar+ {
+      return { Pure: located({ Chord: { ...note, chord } }, location()) };
+    }
+
+// A scale is a note with the scale in parentheses directly after it:
+// d(dorian), c(0 2 4 7 9), a(just). A body holding `,` is a euclidean
+// modifier instead, so `c(3,8)` stays a rhythm.
+ScaleValue
+  = note:NoteName "(" scale:ScaleBody ")" {
+      return { Pure: located({ Scale: { ...note, scale } }, location()) };
+    }
+
+ScaleBody
+  = body:$[^(),\[\]<>]+ &{ return body.trim().length > 0; } {
+      return body.trim();
+    }
+
+NoteName
+  = letter:$[a-gA-G] acc:Accidental? oct:Octave? {
+      return { letter: letter.toLowerCase(), accidental: acc, octave: oct };
+    }
+
+ChordSymbolChar
+  = [a-zA-Z0-9#^%]
 
 Accidental
   = "#" { return "#"; }

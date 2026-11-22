@@ -14,8 +14,8 @@ pub use template::{GrooveTemplate, fill_groove_inputs};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{LaneSum, param_errors::ModuleParamErrors};
 
 #[params]
@@ -70,7 +70,7 @@ const GROOVE_DOCS: ModuleDocs = ModuleDocs {
                   and shuffle on a single sequencer. Every sequencer follows the global groove \
                   from `$setGroove` by default; pass this module and its `velocity` to a \
                   sequencer's `groove` and `velocity` to give it a feel of its own. Notes keep their written lengths.",
-    categories: &[ModuleCategory::Sequencer],
+    categories: &[ReferenceCategory::Sequencer],
     sections: &[DocSection {
         title: "Templates",
         body: "The template is an object; only `timing` is required.",

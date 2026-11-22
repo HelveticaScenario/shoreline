@@ -414,6 +414,12 @@ export interface ModuleProfileSample {
   mode: string
 }
 
+/**
+ * The V/Oct voltage of each note of a chord or scale signal literal like
+ * `c3:M7` or `d(dorian)`, lowest first.
+ */
+export declare function noteVoltages(literal: string): Array<number>
+
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {
   errors: Array<ApplyPatchError>
@@ -600,47 +606,6 @@ export interface DocTableSchema {
   rows: Array<Array<string>>
 }
 
-/**
- * A grouping for the module reference. Every module lists at least one in
- * its `ModuleDocs`, and may belong to several.
- */
-export type ModuleCategory = /** Oscillators and other sound sources. */
-'oscillator'|
-/** Phase ramps and warps plus the oscillators they drive. */
-'phase'|
-/** Filters and EQs that shape a signal's spectrum. */
-'filter'|
-/** Waveshapers and saturators. */
-'distortion'|
-/** Audio effects such as reverb and delay. */
-'effect'|
-/** Compressors and other level control. */
-'dynamics'|
-/** Envelope generators and followers. */
-'envelope'|
-/** Slowly moving control sources. */
-'modulation'|
-/** Random and chaotic sources. */
-'random'|
-/** Patterns and clocks for transport-synced sequencing. */
-'sequencer'|
-/** Gate and trigger processing. */
-'gate'|
-/** V/Oct pitch conversion plus scales and chords. */
-'pitch'|
-/** Drum voices and drum pattern generators. */
-'drum'|
-/** Playback of recorded audio and media files. */
-'sampler'|
-/** Combining and panning lanes. */
-'mixer'|
-/** Arithmetic and range transforms on signals. */
-'math'|
-/** MIDI input. */
-'midi'|
-/** General signal plumbing such as routing and smoothing. */
-'utility';
-
 export interface ModuleDocsSchema {
   summary: string
   description: string
@@ -785,6 +750,50 @@ export interface PatchGraph {
 export interface PositionalArg {
   name: string
 }
+
+/**
+ * A grouping for the reference. Every module lists at least one in its
+ * `ModuleDocs`, and every global one in its docs; either may belong to
+ * several.
+ */
+export type ReferenceCategory = /** Oscillators and other sound sources. */
+'oscillator'|
+/** Phase ramps and warps plus the oscillators they drive. */
+'phase'|
+/** Filters and EQs that shape a signal's spectrum. */
+'filter'|
+/** Waveshapers and saturators. */
+'distortion'|
+/** Audio effects such as reverb and delay. */
+'effect'|
+/** Compressors and other level control. */
+'dynamics'|
+/** Envelope generators and followers. */
+'envelope'|
+/** Slowly moving control sources. */
+'modulation'|
+/** Random and chaotic sources. */
+'random'|
+/** Patterns and clocks for transport-synced sequencing. */
+'sequencer'|
+/** Gate and trigger processing. */
+'gate'|
+/** V/Oct pitch conversion plus scales and chords. */
+'pitch'|
+/** Drum voices and drum pattern generators. */
+'drum'|
+/** Playback of recorded audio and media files. */
+'sampler'|
+/** Combining and panning lanes. */
+'mixer'|
+/** Arithmetic and range transforms on signals. */
+'math'|
+/** MIDI input. */
+'midi'|
+/** Sliders and buttons in the Control panel. */
+'control'|
+/** General signal plumbing such as routing and smoothing. */
+'utility';
 
 export interface Scope {
   lanes: Array<ScopeLane>

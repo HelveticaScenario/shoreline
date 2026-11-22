@@ -22,8 +22,8 @@ use crate::{
     poly::{LaneSumExt, PORT_MAX_LANES, PolyOutput},
 };
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 use super::glide::{GlideRamp, GlideTracker, GlideVoice, Playhead};
 use super::groove::{GrooveHold, before_first_step, fill_groove_inputs};
@@ -286,7 +286,7 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                   chords, and note starts follow the global groove set with `$setGroove`. \
                   A pattern used as a module plays through a `$cycle` of its own; call \
                   `$cycle` to give one other settings.",
-    categories: &[ModuleCategory::Sequencer],
+    categories: &[ReferenceCategory::Sequencer],
     sections: &[
         DocSection {
             title: "Values",
@@ -298,6 +298,16 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                         "note name",
                         "that note; octave 4 when left out",
                         "`c4`, `a#3`, `eb`",
+                    ],
+                    &[
+                        "note`:`chord",
+                        "every note of a chord on that root at once",
+                        "`c3:M7`, `eb:m7`",
+                    ],
+                    &[
+                        "note`(`scale`)`",
+                        "every note of a scale on that root at once",
+                        "`d3(dorian)`, `c(0 2 4 7 9)`",
                     ],
                     &[
                         "number",
@@ -351,6 +361,90 @@ const CYCLE_DOCS: ModuleDocs = ModuleDocs {
                 code: r#"
                     const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`
                     melody: $saw(seq).lpf('c5', 1).amp($adsr(seq))
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Chords",
+            body: "A note, a colon and a chord symbol play every note of the chord at once, \
+                   each on a voice of its own. Build the symbol from the parts below, in \
+                   order: `c:m7`, `g:7b9b13sus`, `f:mM7^1%`. Scale patterns don't take chords.",
+            table: Some(DocTable {
+                columns: &["Part", "Means", "Example"],
+                rows: &[
+                    &["nothing, `M`", "major", "`c:M`, `c:6`"],
+                    &["`m`", "minor", "`c:m`, `c:m7`"],
+                    &["`dim`", "diminished", "`c:dim`, `c:dim7`"],
+                    &["`h`", "half-diminished seventh", "`c:h`, `c:h9`"],
+                    &["`aug`", "augmented", "`c:aug`, `c:aug7`"],
+                    &["`M` before a number", "major seventh", "`c:M7`, `c:mM7`"],
+                    &[
+                        "`5` `6` `69` `7` `9` `11` `13`",
+                        "`7` adds the 7th, and `9`, `11` and `13` bring the extensions under them too (`c:9` is C E G B♭ D), though major and dominant `11` drops the 3rd and `13` the 11th; `5` is root and fifth, `6` adds the 6th, `69` the 6th and 9th",
+                        "`c:9`, `c:m11`, `c:5`",
+                    ],
+                    &["`sus` `sus2` `sus4`", "suspends the third", "`c:7sus`"],
+                    &[
+                        "`add` and a number",
+                        "adds that note",
+                        "`c:add9`, `c:madd2`",
+                    ],
+                    &[
+                        "`b` or `#` and a number",
+                        "flattens or sharpens it",
+                        "`c:7#11`, `c:m7b5`",
+                    ],
+                    &["`alt`", "altered dominant", "`c:7alt`"],
+                    &[
+                        "`^` and a number",
+                        "raises the lowest N notes an octave",
+                        "`c:M7^2`",
+                    ],
+                    &["`%` at the end", "just intonation", "`c:M%`"],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "Chord changes",
+                code: r#"
+                    const seq = $`<c3:M7 a2:m7 d3:m9 g2:7^1>`
+                    chords: $saw(seq).lpf('c5', 1).amp($adsr(seq))
+                "#,
+            }],
+        },
+        DocSection {
+            title: "Scales",
+            body: "A scale in parentheses right after a note plays all its notes at once, from \
+                   the root up within one octave, each on a voice of its own. Scale patterns don't \
+                   take scales.",
+            table: Some(DocTable {
+                columns: &["Form", "Example", "Gives"],
+                rows: &[
+                    &[
+                        "a scale name",
+                        "`d3(dorian)`",
+                        "major, minor, dorian, phrygian, lydian, mixolydian, locrian, harmonic minor, melodic minor, pentatonic major, pentatonic minor, blues, whole tone, chromatic",
+                    ],
+                    &[
+                        "semitones",
+                        "`c(0 3 7 10)`",
+                        "your own scale, within an octave",
+                    ],
+                    &[
+                        "a tuning",
+                        "`a(just)`, `c(pythag)`",
+                        "all 12 steps in that tuning",
+                    ],
+                    &[
+                        "a tuning and semitones",
+                        "`c(just 0 4 7)`",
+                        "your own scale in that tuning",
+                    ],
+                ],
+            }),
+            examples: &[DocExample {
+                title: "A drone on a scale",
+                code: r#"
+                    drone: $sine($`d2(minor)`).amp(0.2)
                 "#,
             }],
         },

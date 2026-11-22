@@ -1,6 +1,6 @@
 /**
  * Compact range/default text for module params and outputs, shared by the
- * Monaco JSDoc generator and the Reference pane so both show the same
+ * Monaco JSDoc generator and the Docs panel so both show the same
  * metadata next to a description.
  */
 import { voltsToHz, voltsToNoteName } from './sliderUnits';

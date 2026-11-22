@@ -31,7 +31,7 @@ test.describe('DSL editor interaction', () => {
         await expect(stopBtn).toBeVisible();
     });
 
-    test('Docs tab shows the type and module reference', async ({ window }) => {
+    test('Docs tab shows the modules and types', async ({ window }) => {
         await window.getByRole('button', { name: 'Docs' }).click();
         const docs = window.locator('.docs-panel');
         await expect(docs.locator('.module-card').first()).toBeVisible({

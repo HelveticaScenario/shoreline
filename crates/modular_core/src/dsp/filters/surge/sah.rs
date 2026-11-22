@@ -7,8 +7,8 @@
 use super::coeffs::{bound_freq, note_to_hz};
 use super::fastmath::softclip;
 use super::filter_core::{Filter, N_COEFFS, N_REGISTERS};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Sample & Hold kernel. Surge runs it at the oversampled voice rate, so it runs 2×
 /// here too (the sample clock in the coefficients tracks the run rate).
@@ -58,7 +58,7 @@ const SAH_DOCS: ModuleDocs = ModuleDocs {
     summary: "Sample-and-hold decimator",
     description: "Samples the sound at the cutoff frequency and holds each value: pitched, \
                   lo-fi decimation. Resonance feeds the held value back for a harsher edge.",
-    categories: &[ModuleCategory::Filter],
+    categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[DocExample {
         title: "Crunchy downsampling sweep",

@@ -4,8 +4,8 @@ use arrayvec::ArrayVec;
 use deserr::{DeserializeError, Deserr, IntoValue, ValuePointerRef};
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     Patch,
     dsp::utils::{SchmittTrigger, TempGate, TempGateState, min_gate_samples},
@@ -13,19 +13,15 @@ use crate::{
     types::Connect,
 };
 
-use super::scale::ScaleSpec;
-
 /// Hysteresis amount in V/Oct (~10 cents).
 /// Once a note is selected, the input must overshoot the snap boundary by this
 /// amount before the quantizer will transition to a new note. Prevents rapid
 /// toggling when the input hovers near a boundary.
 const HYSTERESIS_VOCT: f64 = 10.0 / 1200.0;
 
-/// The pitches a quantizer snaps to: one V/Oct note per lane.
-///
-/// The engine only accepts a signal here. The DSL rewrites a spec string
-/// (`"C(major)"`, `"C[maj7]"`) into a `$chord` module feeding this param, so
-/// the schema advertises both forms to the editor.
+/// The pitches a quantizer snaps to: one V/Oct note per lane. The lanes form
+/// one shared set of notes, not voices, and the schema names this type so the
+/// DSL keeps them out of the module's lane count.
 #[derive(Clone)]
 pub struct ScaleSignal(PolySignal);
 
@@ -64,14 +60,7 @@ impl JsonSchema for ScaleSignal {
     }
 
     fn json_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
-        #[derive(JsonSchema)]
-        #[serde(untagged)]
-        #[allow(dead_code, clippy::large_enum_variant)]
-        enum ScaleSignalSchema {
-            Spec(ScaleSpec),
-            Signal(PolySignal),
-        }
-        ScaleSignalSchema::json_schema(generator)
+        PolySignal::json_schema(generator)
     }
 }
 
@@ -92,7 +81,7 @@ struct QuantizerParams {
     #[input("pitch to quantize", type = pitch)]
     input: PolySignal,
     #[input(
-        "notes to snap to, one pitch per lane in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out"
+        "notes to snap to, one pitch per lane in any octave, such as a scale \"c(major)\" or a chord \"c:M7\"; snaps to semitones when left out"
     )]
     #[deserr(default)]
     scale: Option<ScaleSignal>,
@@ -211,7 +200,7 @@ const QUANTIZER_DOCS: ModuleDocs = ModuleDocs {
     description: "Snaps a pitch to the nearest note of a scale or chord, so an LFO, a \
                   random source or a MIDI input plays in key. `._trig` fires on every \
                   note change, ready to retrigger an envelope.",
-    categories: &[ModuleCategory::Pitch],
+    categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[
         DocExample {
@@ -342,6 +331,7 @@ message_handlers!(impl Quantizer {});
 
 #[cfg(test)]
 mod tests {
+    use crate::dsp::utilities::scale::ScaleSpec;
     use crate::dsp::utils::{GATE_HIGH_VOLTAGE, GATE_LOW_VOLTAGE};
     use crate::types::{OutputStruct, Signal};
 

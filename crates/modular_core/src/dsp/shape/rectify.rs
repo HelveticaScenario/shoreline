@@ -9,8 +9,8 @@ use crate::dsp::shape::shape_core::Shaper;
 use crate::dsp::shape::shapers;
 use crate::dsp::utils::adaa::Adaa;
 use crate::dsp::utils::dc_blocker::DcBlocker;
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 /// Rectification algorithm.
 #[derive(Clone, Copy, Debug, Default, Deserr, JsonSchema, PartialEq, Eq, Connect)]
@@ -77,7 +77,7 @@ const RECTIFY_DOCS: ModuleDocs = ModuleDocs {
     description: "Flips or cuts off half the waveform for a harder, buzzier \
                   tone; full-wave rectifying a sine lifts it an octave. \
                   Modelled on the Surge XT rectifier shapes.",
-    categories: &[ModuleCategory::Distortion],
+    categories: &[ReferenceCategory::Distortion],
     sections: &[],
     examples: &[DocExample {
         title: "Octave-up buzz",

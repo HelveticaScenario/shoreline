@@ -1,8 +1,8 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
@@ -109,7 +109,7 @@ const VCF_DOCS: ModuleDocs = ModuleDocs {
     description: "Mutable Instruments Plaits' virtual analog VCF voice: a \
                   saw, square or narrow pulse, with a sub-octave square to \
                   mix in, through a resonant filter that follows the note.",
-    categories: &[ModuleCategory::Oscillator],
+    categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
         DocExample {

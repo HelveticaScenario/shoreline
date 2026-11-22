@@ -1,9 +1,9 @@
 use std::ops::Range;
 
 use crate::dsp::utils::{SchmittTrigger, sanitize};
-use crate::module_category::ModuleCategory;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{PolyOutput, PolySignal, PolySignalExt};
+use crate::reference_category::ReferenceCategory;
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -41,7 +41,7 @@ const PERC_DOCS: ModuleDocs = ModuleDocs {
     summary: "Percussive decay envelope",
     description: "Jumps to full level on each trigger and dies away: the quickest way \
                   to make plucks, hits and hats.",
-    categories: &[ModuleCategory::Envelope],
+    categories: &[ReferenceCategory::Envelope],
     sections: &[],
     examples: &[
         DocExample {
