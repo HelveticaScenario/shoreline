@@ -65,7 +65,7 @@ export const GLOBALS: GlobalDoc[] = [
         docs: {
             categories: ['utility'],
             description:
-                'Gathers the lanes of every argument, in order, into one collection, which takes chain methods, indexing and spreading. Bare numbers and note or Hz strings become `$signal`s, so they mix in beside module outputs.',
+                'Gathers the lanes of every argument, in order, into one collection, which takes chain methods, indexing and spreading. Bare numbers and note, Hz, chord or scale strings become `$signal`s, so they mix in beside module outputs.',
             examples: [
                 {
                     code: "keys: $c($sine('c3'), $sine('e3')).amp(0.5)",
