@@ -753,6 +753,10 @@ pub struct Synthesizer {
     chosen_buffer_size: Option<u32>,
     chosen_input_device_id: Option<String>,
     device_cache: AudioDeviceCache,
+    /// The host the poll reads the system default output from, by host id.
+    /// It lives across polls, since a PulseAudio host is a client connection
+    /// to the sound server.
+    default_poll_host: Option<(String, cpal::Host)>,
     fallback_warning: Option<String>,
     next_update_id: u64,
     wav_cache: WavCache,
@@ -812,6 +816,7 @@ impl Synthesizer {
             chosen_buffer_size: config.buffer_size,
             chosen_input_device_id: chosen_input(config.input_device_id),
             device_cache,
+            default_poll_host: None,
             fallback_warning,
             next_update_id: 0,
             wav_cache: WavCache::new(PathBuf::new()),

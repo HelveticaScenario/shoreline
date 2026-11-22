@@ -103,6 +103,7 @@ fn every_output_plays(host: &str) {
             "{host} lists more than one default"
         );
         let mut ids: Vec<_> = devices.iter().map(|d| &d.id).collect();
+        ids.sort();
         ids.dedup();
         assert_eq!(ids.len(), devices.len(), "{host} lists a device twice");
         assert!(
@@ -236,6 +237,16 @@ fn pulseaudio_every_output_plays() {
 #[ignore = "needs a PulseAudio server with two sinks; changes the default sink"]
 fn pulseaudio_system_default_follows_the_default_sink() {
     let mut synth = open(Some("PulseAudio"));
+    assert!(synth.poll_devices().is_none());
+    let clients = short_list("clients").len();
+    for _ in 0..3 {
+        assert!(synth.poll_devices().is_none());
+    }
+    assert_eq!(
+        short_list("clients").len(),
+        clients,
+        "polling connects new clients"
+    );
     let next = move_default_sink();
     let report = synth
         .poll_devices()
