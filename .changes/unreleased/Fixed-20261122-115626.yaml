@@ -1,0 +1,3 @@
+kind: Fixed
+body: With JACK as the audio host, the output list no longer offers JACK's input, and the input list no longer offers its output.
+time: 2026-11-22T11:56:26.611542-05:00

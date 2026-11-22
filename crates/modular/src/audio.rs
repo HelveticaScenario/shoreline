@@ -144,6 +144,10 @@ pub struct AudioDeviceInfo {
     pub output_channels: u16,
     /// Whether this is the default device for this host
     pub is_default: bool,
+    /// The system default itself rather than a device that is the default
+    /// now: its stream moves to whatever device becomes the default. Shown
+    /// only as System Default.
+    pub follows_default: bool,
     /// Default sample rate in Hz
     pub sample_rate: u32,
     /// Supported sample rates (common rates that the device supports)
@@ -216,11 +220,11 @@ impl AudioDeviceCache {
         self.hosts.clear();
 
         for host_id in cpal::available_hosts() {
-            let host_id_str = format!("{:?}", host_id);
+            let host_id_str = host_key(host_id);
 
             self.hosts.push(HostInfo {
                 id: host_id_str.clone(),
-                name: host_id_str.clone(),
+                name: host_id.name().to_owned(),
             });
 
             if host_id_str == JACK_HOST_ID
@@ -261,13 +265,14 @@ impl AudioDeviceCache {
             }
 
             if let Ok(host) = cpal::host_from_id(host_id) {
-                // Get output devices for this host
-                let output_devices = enumerate_output_devices(&host, &host_id_str);
+                let mut output_devices = enumerate_devices(&host, &host_id_str, Direction::Output);
+                let mut input_devices = enumerate_devices(&host, &host_id_str, Direction::Input);
+                if host_id_str == PIPEWIRE_HOST_ID {
+                    mark_pipewire_defaults(&mut output_devices);
+                    mark_pipewire_defaults(&mut input_devices);
+                }
                 self.output_devices
                     .insert(host_id_str.clone(), output_devices);
-
-                // Get input devices for this host
-                let input_devices = enumerate_input_devices(&host, &host_id_str);
                 self.input_devices.insert(host_id_str, input_devices);
             }
         }
@@ -318,16 +323,43 @@ impl AudioDeviceCache {
     }
 }
 
-/// `HostId` debug names of cpal's hosts, as used for host ids in the cache.
+/// The id the device cache and saved settings give a host: its `HostId`
+/// variant name.
+pub(crate) fn host_key(host_id: HostId) -> String {
+    format!("{host_id:?}")
+}
+
+/// The host a cache id names, if this build has it. cpal reads host names
+/// ignoring case, and every variant name is its host's name in some case.
+pub(crate) fn parse_host_key(key: &str) -> Option<HostId> {
+    key.parse().ok()
+}
+
+/// `host_key` of cpal's hosts that the engine treats specially.
 pub(crate) const JACK_HOST_ID: &str = "Jack";
 const ALSA_HOST_ID: &str = "Alsa";
+const PIPEWIRE_HOST_ID: &str = "PipeWire";
 
 /// Whether a host's default output can become another device while a stream
-/// is open on it. ALSA's default is a PCM the sound server routes, and JACK
-/// opens a client to answer, so neither is polled.
+/// is open on it. ALSA's default is a PCM the sound server routes and
+/// PipeWire's a node that follows the default sink itself, so their streams
+/// move without the engine; JACK opens a client to answer. None is polled.
 pub(crate) fn host_default_output_can_change(host_id: &str) -> bool {
-    host_id != JACK_HOST_ID && host_id != ALSA_HOST_ID
+    ![JACK_HOST_ID, ALSA_HOST_ID, PIPEWIRE_HOST_ID].contains(&host_id)
 }
+
+/// cpal's PipeWire host lists the default sink and source as devices of
+/// their own that follow the defaults, and the default sink once more as a
+/// duplex alias. The alias goes, and the followers show as System Default.
+fn mark_pipewire_defaults(devices: &mut Vec<AudioDeviceInfo>) {
+    devices.retain(|d| d.id != PIPEWIRE_DEFAULT_SINK_ALIAS);
+    for device in devices.iter_mut().filter(|d| d.is_default) {
+        device.follows_default = true;
+        device.name = "System Default".to_owned();
+    }
+}
+
+const PIPEWIRE_DEFAULT_SINK_ALIAS: &str = "pipewire:sink_default";
 
 /// Put `id`'s previous ALSA entry back into `devices` if the new listing lacks
 /// it. The restored entry is never the default; the new listing decides that.
@@ -440,30 +472,80 @@ fn get_device_capabilities(
     (rates, buffer_range)
 }
 
-/// Enumerate output devices for a specific host
-fn enumerate_output_devices(host: &Host, host_id: &str) -> Vec<AudioDeviceInfo> {
-    let default_device_id = host.default_output_device().and_then(|d| d.id().ok());
+/// Which way a device streams.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Direction {
+    Output,
+    Input,
+}
+
+impl Direction {
+    /// The default config of device `id` this way, if it streams this way.
+    /// JACK answers configs both ways for each of its devices, so there its
+    /// description decides; elsewhere the description is not read, as
+    /// CoreAudio takes long to give one.
+    fn default_config(
+        self,
+        device: &cpal::Device,
+        id: &cpal::DeviceId,
+    ) -> Option<cpal::SupportedStreamConfig> {
+        let other = match self {
+            Direction::Output => cpal::DeviceDirection::Input,
+            Direction::Input => cpal::DeviceDirection::Output,
+        };
+        if id.host() == HostId::Jack && device.description().is_ok_and(|d| d.direction() == other) {
+            return None;
+        }
+        match self {
+            Direction::Output => device.default_output_config(),
+            Direction::Input => device.default_input_config(),
+        }
+        .ok()
+    }
+
+    fn capabilities(self, device: &cpal::Device) -> (Vec<u32>, Option<BufferSizeRange>) {
+        match self {
+            Direction::Output => device
+                .supported_output_configs()
+                .map(get_device_capabilities),
+            Direction::Input => device
+                .supported_input_configs()
+                .map(get_device_capabilities),
+        }
+        .unwrap_or_default()
+    }
+
+    fn host_default(self, host: &Host) -> Option<cpal::Device> {
+        match self {
+            Direction::Output => host.default_output_device(),
+            Direction::Input => host.default_input_device(),
+        }
+    }
+}
+
+/// The devices of `host` that stream `direction`.
+fn enumerate_devices(host: &Host, host_id: &str, direction: Direction) -> Vec<AudioDeviceInfo> {
+    let default_device_id = direction.host_default(host).and_then(|d| d.id().ok());
 
     host.devices()
         .map(|devices| {
             devices
                 .filter_map(|device| {
                     let id = device.id().ok()?;
-                    let config = device.default_output_config().ok()?;
-
-                    // Get supported configurations
-                    let (supported_sample_rates, buffer_size_range) = device
-                        .supported_output_configs()
-                        .map(get_device_capabilities)
-                        .unwrap_or_default();
+                    let config = direction.default_config(&device, &id)?;
+                    let (supported_sample_rates, buffer_size_range) =
+                        direction.capabilities(&device);
+                    let channels = config.channels();
+                    let output = direction == Direction::Output;
 
                     Some(AudioDeviceInfo {
+                        follows_default: false,
                         is_default: default_device_id.as_ref() == Some(&id),
                         id: id.to_string(),
                         host_id: host_id.to_string(),
                         name: device.description().ok()?.name().to_owned(),
-                        input_channels: 0,
-                        output_channels: config.channels(),
+                        input_channels: if output { 0 } else { channels },
+                        output_channels: if output { channels } else { 0 },
                         sample_rate: config.sample_rate(),
                         supported_sample_rates,
                         buffer_size_range,
@@ -474,61 +556,23 @@ fn enumerate_output_devices(host: &Host, host_id: &str) -> Vec<AudioDeviceInfo> 
         .unwrap_or_default()
 }
 
-/// Enumerate input devices for a specific host
-fn enumerate_input_devices(host: &Host, host_id: &str) -> Vec<AudioDeviceInfo> {
-    let default_device_id = host.default_input_device().and_then(|d| d.id().ok());
-
-    host.input_devices()
-        .map(|devices| {
-            devices
-                .filter_map(|device| {
-                    let id = device.id().ok()?;
-                    let config = device.default_input_config().ok()?;
-
-                    // Get supported configurations
-                    let (supported_sample_rates, buffer_size_range) = device
-                        .supported_input_configs()
-                        .map(get_device_capabilities)
-                        .unwrap_or_default();
-
-                    Some(AudioDeviceInfo {
-                        is_default: default_device_id.as_ref() == Some(&id),
-                        id: id.to_string(),
-                        host_id: host_id.to_string(),
-                        name: device.description().ok()?.name().to_owned(),
-                        input_channels: config.channels(),
-                        output_channels: 0,
-                        sample_rate: config.sample_rate(),
-                        supported_sample_rates,
-                        buffer_size_range,
-                    })
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// Find a device by id in a specific host, ignoring direction.
-fn find_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
+/// Find a device of `host` by id that streams `direction`. Only the matching
+/// device is asked: `host.output_devices()` probes every device's configs,
+/// which costs tens of milliseconds per device on CoreAudio.
+fn find_device_in_host(host: &Host, id: &str, direction: Direction) -> Option<cpal::Device> {
     let target = cpal::DeviceId::from_str(id).ok()?;
     host.devices()
         .ok()?
         .find(|d| d.id().ok().as_ref() == Some(&target))
+        .filter(|d| direction.default_config(d, &target).is_some())
 }
 
-/// Find an output device by id in a specific host. Only the matching device is
-/// asked whether it can output: `host.output_devices()` probes every device's
-/// configs, which costs tens of milliseconds per device on CoreAudio.
 pub fn find_output_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
-    let device = find_device_in_host(host, id)?;
-    device.default_output_config().is_ok().then_some(device)
+    find_device_in_host(host, id, Direction::Output)
 }
 
-/// Find an input device by id in a specific host. See
-/// `find_output_device_in_host`.
 pub fn find_input_device_in_host(host: &Host, id: &str) -> Option<cpal::Device> {
-    let device = find_device_in_host(host, id)?;
-    device.default_input_config().is_ok().then_some(device)
+    find_device_in_host(host, id, Direction::Input)
 }
 
 // ============================================================================
@@ -1051,8 +1095,62 @@ impl VuMeterState {
 
 #[cfg(test)]
 mod device_cache_tests {
-    use super::{AudioDeviceInfo, restore_missing};
+    use super::{
+        ALSA_HOST_ID, AudioDeviceInfo, JACK_HOST_ID, PIPEWIRE_HOST_ID,
+        host_default_output_can_change, host_key, mark_pipewire_defaults, parse_host_key,
+        restore_missing,
+    };
     use std::collections::HashMap;
+
+    #[test]
+    fn every_host_key_names_its_host() {
+        for &host in cpal::ALL_HOSTS {
+            assert_eq!(parse_host_key(&host_key(host)), Some(host), "{host:?}");
+            assert_eq!(parse_host_key(host.name()), Some(host), "{host:?}");
+        }
+        assert_eq!(parse_host_key("NoSuchHost"), None);
+    }
+
+    #[test]
+    fn pipewire_defaults_show_as_system_default() {
+        let mut follower = device("pipewire:output_default", PIPEWIRE_HOST_ID);
+        follower.is_default = true;
+        let mut devices = vec![
+            device("pipewire:sink_default", PIPEWIRE_HOST_ID),
+            follower,
+            device("pipewire:sink_a", PIPEWIRE_HOST_ID),
+        ];
+
+        mark_pipewire_defaults(&mut devices);
+
+        let shown: Vec<_> = devices
+            .iter()
+            .map(|d| (d.id.as_str(), d.name.as_str(), d.follows_default))
+            .collect();
+        assert_eq!(
+            shown,
+            [
+                ("pipewire:output_default", "System Default", true),
+                ("pipewire:sink_a", "pipewire:sink_a", false),
+            ]
+        );
+    }
+
+    #[test]
+    fn named_host_keys_match_their_hosts() {
+        #[cfg(target_os = "linux")]
+        {
+            assert_eq!(host_key(cpal::HostId::Alsa), ALSA_HOST_ID);
+            assert_eq!(host_key(cpal::HostId::PipeWire), PIPEWIRE_HOST_ID);
+            assert!(host_default_output_can_change(&host_key(
+                cpal::HostId::PulseAudio
+            )));
+        }
+        assert_eq!(host_key(cpal::HostId::Jack), JACK_HOST_ID);
+        for id in [JACK_HOST_ID, ALSA_HOST_ID, PIPEWIRE_HOST_ID] {
+            assert!(!host_default_output_can_change(id), "{id}");
+        }
+    }
 
     fn device(id: &str, host_id: &str) -> AudioDeviceInfo {
         AudioDeviceInfo {
@@ -1061,6 +1159,7 @@ mod device_cache_tests {
             name: id.to_string(),
             input_channels: 0,
             output_channels: 2,
+            follows_default: false,
             is_default: false,
             sample_rate: 48_000,
             supported_sample_rates: vec![48_000],
@@ -3312,47 +3411,20 @@ where
     Ok(stream)
 }
 
+/// The host a synthesizer opens on when none is asked for: JACK where a
+/// server answers on Linux, so a session's patchbay sees Shoreline, and
+/// otherwise cpal's default (PipeWire, then PulseAudio, then ALSA on Linux).
 pub fn get_host_by_preference() -> Host {
-    #[cfg(target_os = "windows")]
-    {
-        // if let Ok(asio_host) = cpal::host_from_id(HostId::Asio) {
-        //   println!("Using ASIO");
-        //   return asio_host;
-        // }
-
-        // Fall back to WASAPI
-        if let Ok(wasapi) = cpal::host_from_id(HostId::Wasapi) {
-            println!("Using WASAPI");
-            return wasapi;
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        // Try CoreAudio on macOS
-        if let Ok(coreaudio_host) = cpal::host_from_id(HostId::CoreAudio) {
-            println!("Using CoreAudio");
-            return coreaudio_host;
-        }
-    }
-
     #[cfg(target_os = "linux")]
+    if let Ok(jack_host) = cpal::host_from_id(HostId::Jack)
+        && jack_host.default_output_device().is_some()
     {
-        if let Ok(jack_host) = cpal::host_from_id(HostId::Jack) {
-            println!("Using JACK");
-            return jack_host;
-        }
-
-        // Try ALSA on Linux
-        if let Ok(alsa_host) = cpal::host_from_id(HostId::Alsa) {
-            println!("Using ALSA");
-            return alsa_host;
-        }
+        println!("Using JACK");
+        return jack_host;
     }
 
-    // Fallback to the default host
     let default_host = cpal::default_host();
-    println!("Using default host: {:?}", default_host.id());
+    println!("Using {}", default_host.id().name());
     default_host
 }
 

@@ -586,7 +586,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                         >
                             <option value="">
                                 System Default
-                                {outputDeviceFollowDevice
+                                {outputDeviceFollowDevice &&
+                                !outputDeviceFollowDevice.followsDefault
                                     ? ` (${outputDeviceFollowDevice.name})`
                                     : ''}
                             </option>
@@ -599,11 +600,13 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                                         (not connected)
                                     </option>
                                 )}
-                                {outputDevicesForHost.map((d) => (
-                                    <option key={d.id} value={d.id}>
-                                        {d.name} ({d.outputChannels} ch)
-                                    </option>
-                                ))}
+                                {outputDevicesForHost
+                                    .filter((d) => !d.followsDefault)
+                                    .map((d) => (
+                                        <option key={d.id} value={d.id}>
+                                            {d.name} ({d.outputChannels} ch)
+                                        </option>
+                                    ))}
                             </optgroup>
                         </select>
                         {selectedOutputDevice && (
@@ -630,7 +633,9 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                             {inputDevicesForHost.map((d) => (
                                 <option key={d.id} value={d.id}>
                                     {d.name} ({d.inputChannels} ch)
-                                    {d.isDefault ? ' (Default)' : ''}
+                                    {d.isDefault && !d.followsDefault
+                                        ? ' (Default)'
+                                        : ''}
                                 </option>
                             ))}
                         </select>

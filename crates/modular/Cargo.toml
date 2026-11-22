@@ -88,6 +88,12 @@ objc2-core-audio-types = { version = "0.3", default-features = false, features =
 ] }
 objc2-core-foundation = "0.3"
 
+# PipeWire links libpipewire-0.3, which the Linux packages require
+# (forge.config.ts); PulseAudio speaks the protocol natively.
+[target.'cfg(target_os = "linux")'.dependencies.cpal]
+features = ["jack", "pipewire", "pulseaudio"]
+version  = "0.18.2"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.62", features = [
   "Win32_Devices_FunctionDiscovery",

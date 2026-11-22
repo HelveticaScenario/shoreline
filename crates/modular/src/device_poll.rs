@@ -118,8 +118,9 @@ fn follow_system_default(synth: &mut Synthesizer) -> Option<DeviceReport> {
     if !audio::host_default_output_can_change(&synth.streams.host_id) {
         return None;
     }
+    synth.output_choice.seen_default()?;
+    let default_output = polled_default_output(synth)?;
     let seen_default = synth.output_choice.seen_default()?;
-    let default_output = system_default_output_id(&host_for_id(&synth.streams.host_id)?)?;
     if seen_default.as_ref() == Some(&default_output) {
         return None;
     }
@@ -133,6 +134,25 @@ fn follow_system_default(synth: &mut Synthesizer) -> Option<DeviceReport> {
         }
     }
     Some(report)
+}
+
+/// The id of the system default output of the streams' host. A host that
+/// cannot tell is built afresh at the next poll, which reconnects to a sound
+/// server that restarted.
+fn polled_default_output(synth: &mut Synthesizer) -> Option<String> {
+    let host_id = &synth.streams.host_id;
+    if synth
+        .default_poll_host
+        .as_ref()
+        .is_none_or(|(id, _)| id != host_id)
+    {
+        synth.default_poll_host = Some((host_id.clone(), host_for_id(host_id)?));
+    }
+    let default_output = system_default_output_id(&synth.default_poll_host.as_ref()?.1);
+    if default_output.is_none() {
+        synth.default_poll_host = None;
+    }
+    default_output
 }
 
 /// Reopen the output once its stream has stopped. A device that changed its
