@@ -333,7 +333,7 @@ const VINTAGE_LADDER_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Resonant ladder pad",
         code: r#"
-            const pad = $saw($chord('C2[m7]'))
+            const pad = $saw('c2:m7')
             const sweep = $sine('0.1hz').range('c3', 'c6')
             chord: $unstable.filter.vintageLadder(pad, sweep, 3.5, {
               compensated: true,

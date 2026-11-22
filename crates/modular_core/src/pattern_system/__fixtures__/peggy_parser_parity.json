@@ -926,6 +926,296 @@
     }
   },
   {
+    "label": "chord on a note",
+    "input": "c3:M7",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Chord": {
+            "letter": "c",
+            "accidental": null,
+            "octave": 3,
+            "chord": "M7"
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 5
+        }
+      }
+    }
+  },
+  {
+    "label": "chord with accidental, inversion, just",
+    "input": "eb:m7^1%",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Chord": {
+            "letter": "e",
+            "accidental": "b",
+            "octave": null,
+            "chord": "m7^1%"
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 8
+        }
+      }
+    }
+  },
+  {
+    "label": "chord then euclidean",
+    "input": "c:m(3,8)",
+    "peggy_ast": {
+      "Euclidean": {
+        "pattern": {
+          "Pure": {
+            "node": {
+              "Chord": {
+                "letter": "c",
+                "accidental": null,
+                "octave": null,
+                "chord": "m"
+              }
+            },
+            "span": {
+              "start": 0,
+              "end": 3
+            }
+          }
+        },
+        "pulses": {
+          "Pure": {
+            "node": 3,
+            "span": {
+              "start": 4,
+              "end": 5
+            }
+          }
+        },
+        "steps": {
+          "Pure": {
+            "node": 8,
+            "span": {
+              "start": 6,
+              "end": 7
+            }
+          }
+        },
+        "rotation": null
+      }
+    }
+  },
+  {
+    "label": "chord beside notes",
+    "input": "c2 g:7b9b13sus*2 e",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Pure": {
+              "node": {
+                "Note": {
+                  "letter": "c",
+                  "accidental": null,
+                  "octave": 2
+                }
+              },
+              "span": {
+                "start": 0,
+                "end": 2
+              }
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Fast": [
+              {
+                "Pure": {
+                  "node": {
+                    "Chord": {
+                      "letter": "g",
+                      "accidental": null,
+                      "octave": null,
+                      "chord": "7b9b13sus"
+                    }
+                  },
+                  "span": {
+                    "start": 3,
+                    "end": 14
+                  }
+                }
+              },
+              {
+                "Pure": {
+                  "node": 2,
+                  "span": {
+                    "start": 15,
+                    "end": 16
+                  }
+                }
+              }
+            ]
+          },
+          null
+        ],
+        [
+          {
+            "Pure": {
+              "node": {
+                "Note": {
+                  "letter": "e",
+                  "accidental": null,
+                  "octave": null
+                }
+              },
+              "span": {
+                "start": 17,
+                "end": 18
+              }
+            }
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
+    "label": "scale on a note",
+    "input": "d3(dorian)",
+    "peggy_ast": {
+      "Pure": {
+        "node": {
+          "Scale": {
+            "letter": "d",
+            "accidental": null,
+            "octave": 3,
+            "scale": "dorian"
+          }
+        },
+        "span": {
+          "start": 0,
+          "end": 10
+        }
+      }
+    }
+  },
+  {
+    "label": "scale of intervals then euclidean",
+    "input": "c(0 3 7)(3,8)",
+    "peggy_ast": {
+      "Euclidean": {
+        "pattern": {
+          "Pure": {
+            "node": {
+              "Scale": {
+                "letter": "c",
+                "accidental": null,
+                "octave": null,
+                "scale": "0 3 7"
+              }
+            },
+            "span": {
+              "start": 0,
+              "end": 8
+            }
+          }
+        },
+        "pulses": {
+          "Pure": {
+            "node": 3,
+            "span": {
+              "start": 9,
+              "end": 10
+            }
+          }
+        },
+        "steps": {
+          "Pure": {
+            "node": 8,
+            "span": {
+              "start": 11,
+              "end": 12
+            }
+          }
+        },
+        "rotation": null
+      }
+    }
+  },
+  {
+    "label": "note euclidean beside a scale",
+    "input": "c(3,8) a(just)",
+    "peggy_ast": {
+      "Sequence": [
+        [
+          {
+            "Euclidean": {
+              "pattern": {
+                "Pure": {
+                  "node": {
+                    "Note": {
+                      "letter": "c",
+                      "accidental": null,
+                      "octave": null
+                    }
+                  },
+                  "span": {
+                    "start": 0,
+                    "end": 1
+                  }
+                }
+              },
+              "pulses": {
+                "Pure": {
+                  "node": 3,
+                  "span": {
+                    "start": 2,
+                    "end": 3
+                  }
+                }
+              },
+              "steps": {
+                "Pure": {
+                  "node": 8,
+                  "span": {
+                    "start": 4,
+                    "end": 5
+                  }
+                }
+              },
+              "rotation": null
+            }
+          },
+          null
+        ],
+        [
+          {
+            "Pure": {
+              "node": {
+                "Scale": {
+                  "letter": "a",
+                  "accidental": null,
+                  "octave": null,
+                  "scale": "just"
+                }
+              },
+              "span": {
+                "start": 7,
+                "end": 14
+              }
+            }
+          },
+          null
+        ]
+      ]
+    }
+  },
+  {
     "label": "fast factor as subsequence",
     "input": "c*[1 2]",
     "peggy_ast": {

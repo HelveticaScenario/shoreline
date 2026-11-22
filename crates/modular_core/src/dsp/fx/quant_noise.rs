@@ -96,7 +96,7 @@ const QUANT_NOISE_DOCS: ModuleDocs = ModuleDocs {
     sections: &[],
     examples: &[DocExample {
         title: "Fizzy lo-fi pad",
-        code: "chord: $saw($chord('A2[m9]')).lpf('a4', 1).quantNoise(2)",
+        code: "chord: $saw('a2:m9').lpf('a4', 1).quantNoise(2)",
     }],
 };
 

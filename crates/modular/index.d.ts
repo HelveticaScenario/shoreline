@@ -414,6 +414,12 @@ export interface ModuleProfileSample {
   mode: string
 }
 
+/**
+ * The V/Oct voltage of each note of a chord or scale signal literal like
+ * `c3:M7` or `d(dorian)`, lowest first.
+ */
+export declare function noteVoltages(literal: string): Array<number>
+
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {
   errors: Array<ApplyPatchError>

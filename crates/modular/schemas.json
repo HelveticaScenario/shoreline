@@ -1941,7 +1941,7 @@
       "examples": [
         {
           "title": "Chord fanned across the stereo field",
-          "code": "chord: $pan($saw($chord('C3[m9]')), 0, { spread: 4 })"
+          "code": "chord: $pan($saw('c3:m9'), 0, { spread: 4 })"
         },
         {
           "title": "An autopanned bass",
@@ -2154,7 +2154,7 @@
         },
         {
           "title": "Chord whose width breathes",
-          "code": "pad: $sine($unison($chord('C3[m9]'), 4, 2)).stereoFold(\n  4,\n  $sine('0.1hz').range(1, 5),\n)"
+          "code": "pad: $sine($unison('c3:m9', 4, 2)).stereoFold(\n  4,\n  $sine('0.1hz').range(1, 5),\n)"
         }
       ]
     },
@@ -7506,7 +7506,7 @@
       "examples": [
         {
           "title": "Pad pumping to the beat",
-          "code": "chord: $saw($chord('C3[m9]'))\n  .lpf('c5')\n  .comp({\n    sidechain: $perc($clock._beatTrigger, { decay: 0.2 }),\n    threshold: 1,\n    ratio: 8,\n    attack: 0.005,\n    release: 0.2,\n  })"
+          "code": "chord: $saw('c3:m9')\n  .lpf('c5')\n  .comp({\n    sidechain: $perc($clock._beatTrigger, { decay: 0.2 }),\n    threshold: 1,\n    ratio: 8,\n    attack: 0.005,\n    release: 0.2,\n  })"
         },
         {
           "title": "Multiband squash",
@@ -8897,7 +8897,7 @@
         },
         {
           "title": "Gritty tube chords",
-          "code": "chord: $saw($chord('C3[m7]')).overdrive(2, {\n  mode: 'asym',\n  tone: -2,\n})"
+          "code": "chord: $saw('c3:m7').overdrive(2, {\n  mode: 'asym',\n  tone: -2,\n})"
         }
       ]
     },
@@ -9242,7 +9242,7 @@
       "examples": [
         {
           "title": "Warm pad plate",
-          "code": "chord: $saw($chord('F3[maj9]'))\n  .lpf('f5', 1)\n  .plate({ decay: 2, damping: 1 })\n  .wet(2)"
+          "code": "chord: $saw('f3:M9')\n  .lpf('f5', 1)\n  .plate({ decay: 2, damping: 1 })\n  .wet(2)"
         }
       ]
     },
@@ -9509,7 +9509,7 @@
       "examples": [
         {
           "title": "Fizzy lo-fi pad",
-          "code": "chord: $saw($chord('A2[m9]')).lpf('a4', 1).quantNoise(2)"
+          "code": "chord: $saw('a2:m9').lpf('a4', 1).quantNoise(2)"
         }
       ]
     },
@@ -9726,7 +9726,7 @@
       "examples": [
         {
           "title": "Pad in a wide hall",
-          "code": "chord: $saw($chord('D3[m7]'))\n  .lpf('d5', 1)\n  .unstable.reverb({ decay: 3, size: 2 })\n  .wet(2.5)"
+          "code": "chord: $saw('d3:m7')\n  .lpf('d5', 1)\n  .unstable.reverb({ decay: 3, size: 2 })\n  .wet(2.5)"
         }
       ]
     },
@@ -11683,7 +11683,7 @@
       "examples": [
         {
           "title": "Warbly tape chords",
-          "code": "chord: $saw($chord('F3[maj9]')).lpf('f5', 1).wowFlutter()"
+          "code": "chord: $saw('f3:M9').lpf('f5', 1).wowFlutter()"
         },
         {
           "title": "The full Beads chain",
@@ -12403,9 +12403,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -12563,9 +12564,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -12690,9 +12692,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -12869,9 +12872,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -12922,7 +12926,7 @@
       "examples": [
         {
           "title": "PWM chord pad",
-          "code": "chord: $pulse($chord('C3[m]'), {\n  pwm: $sine('0.3hz').range(-2, 2),\n}).lpf('c6')"
+          "code": "chord: $pulse('c3:m', {\n  pwm: $sine('0.3hz').range(-2, 2),\n}).lpf('c6')"
         },
         {
           "title": "Plucked square bass",
@@ -13011,9 +13015,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -13199,9 +13204,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -13752,7 +13758,7 @@
         },
         {
           "title": "Random melody in key",
-          "code": "melody: $sine(\n  $quantizer(\n    $noise('white', { rate: '4hz' }).range('c3', 'c5'),\n    $chord('C(minor)'),\n  ),\n)"
+          "code": "melody: $sine(\n  $quantizer(\n    $noise('white', { rate: '4hz' }).range('c3', 'c5'),\n    'c(minor)',\n  ),\n)"
         },
         {
           "title": "Raindrop blips on random triggers",
@@ -13988,7 +13994,7 @@
       "examples": [
         {
           "title": "Trance chord",
-          "code": "chord: $supersaw($chord('A2[m]'), {\n  unison: 7,\n  detune: 0.3,\n}).lpf('c6', 1)"
+          "code": "chord: $supersaw('a2:m', {\n  unison: 7,\n  detune: 0.3,\n}).lpf('c6', 1)"
         },
         {
           "title": "Sync sweep",
@@ -14069,9 +14075,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -14226,9 +14233,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -15275,7 +15283,7 @@
       "examples": [
         {
           "title": "Scanning pad",
-          "code": "chord: $wavetable(\n  $chord('C3[m9]'),\n  'builtin/tables/mi/formants.wav',\n  $sine('0.1hz').range(0, 5),\n)"
+          "code": "chord: $wavetable(\n  'c3:m9',\n  'builtin/tables/mi/formants.wav',\n  $sine('0.1hz').range(0, 5),\n)"
         },
         {
           "title": "Plucked table sweep",
@@ -15349,9 +15357,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
           }
         },
         "restart": {
@@ -15723,9 +15732,10 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -15786,7 +15796,7 @@
         },
         {
           "title": "Slow pad sweep",
-          "code": "chord: $saw($chord('C3[m7]')).lpf(\n  $sine('0.05hz').range('c4', 'c7'),\n  1,\n)"
+          "code": "chord: $saw('c3:m7').lpf(\n  $sine('0.05hz').range('c4', 'c7'),\n  1,\n)"
         }
       ]
     },
@@ -16232,7 +16242,7 @@
       "examples": [
         {
           "title": "Pad thinning out and back",
-          "code": "chord: $saw($chord('C3[maj7]')).hpf(\n  $sine('0.1hz').range('c3', 'c6'),\n  2,\n)"
+          "code": "chord: $saw('c3:M7').hpf(\n  $sine('0.1hz').range('c3', 'c6'),\n  2,\n)"
         },
         {
           "title": "Riser across each bar",
@@ -16602,7 +16612,7 @@
       "examples": [
         {
           "title": "Breathing analog pad",
-          "code": "chord: $saw($chord('C3[maj9]')).jup6f(\n  $sine('0.1hz').range('c4', 'c7'),\n  2.5,\n)"
+          "code": "chord: $saw('c3:M9').jup6f(\n  $sine('0.1hz').range('c4', 'c7'),\n  2.5,\n)"
         },
         {
           "title": "Squelchy bandpass bass",
@@ -19242,7 +19252,7 @@
       "examples": [
         {
           "title": "Resonant ladder pad",
-          "code": "const pad = $saw($chord('C2[m7]'))\nconst sweep = $sine('0.1hz').range('c3', 'c6')\nchord: $unstable.filter.vintageLadder(pad, sweep, 3.5, {\n  compensated: true,\n})"
+          "code": "const pad = $saw('c2:m7')\nconst sweep = $sine('0.1hz').range('c3', 'c6')\nchord: $unstable.filter.vintageLadder(pad, sweep, 3.5, {\n  compensated: true,\n})"
         }
       ]
     },
@@ -20307,7 +20317,7 @@
       "examples": [
         {
           "title": "Airy thinned pad",
-          "code": "chord: $unstable.filter.obxd2Hp(\n  $saw($chord('C3[maj9]')),\n  $sine('0.1hz').range('c3', 'c5'),\n  2,\n)"
+          "code": "chord: $unstable.filter.obxd2Hp(\n  $saw('c3:M9'),\n  $sine('0.1hz').range('c3', 'c5'),\n  2,\n)"
         }
       ]
     },
@@ -20717,7 +20727,7 @@
       "examples": [
         {
           "title": "Dark brass swell",
-          "code": "chord: $unstable.filter.obxd4(\n  $saw($chord('F2[maj7]')),\n  $sine('0.1hz').range('c3', 'c6'),\n  2.5,\n)"
+          "code": "chord: $unstable.filter.obxd4(\n  $saw('f2:M7'),\n  $sine('0.1hz').range('c3', 'c6'),\n  2.5,\n)"
         }
       ]
     },
@@ -24864,7 +24874,7 @@
         },
         {
           "title": "Slow pad swell",
-          "code": "chord: $saw($chord('C3[maj9]')).amp(\n  $adsr($pulse('0.25hz'), { attack: 1.5, release: 2 }),\n)"
+          "code": "chord: $saw('c3:M9').amp(\n  $adsr($pulse('0.25hz'), { attack: 1.5, release: 2 }),\n)"
         }
       ]
     },
@@ -26594,247 +26604,6 @@
     "stereo": "lift"
   },
   {
-    "name": "$chord",
-    "docs": {
-      "summary": "Notes of a chord or scale",
-      "description": "Outputs every note of a chord or scale as pitch voltages, one lane per note, lowest first. Patch it into an oscillator to hear the whole chord, or into `$quantizer` to keep a melody inside it. Patching `inversion` adds a lane, and the moving note crossfades between two of them: scale each voice by `level`, or the extra lane sounds too.",
-      "categories": [
-        "pitch"
-      ],
-      "sections": [
-        {
-          "title": "Writing a chord or scale",
-          "body": "A root note (octave optional, 4 if left out), then a scale in `()` or a chord in `[]`.",
-          "table": {
-            "columns": [
-              "Form",
-              "Example",
-              "Gives"
-            ],
-            "rows": [
-              [
-                "`root(scale)`",
-                "`'D3(dorian)'`",
-                "one octave of a named scale"
-              ],
-              [
-                "`root(intervals)`",
-                "`'C(0 3 7 10)'`",
-                "semitones above the root, within an octave"
-              ],
-              [
-                "`root(tuning)`",
-                "`'A(just)'`",
-                "all 12 steps in another tuning"
-              ],
-              [
-                "`root[chord]`",
-                "`'F#2[m9]'`",
-                "the chord's notes; extensions stay up high"
-              ],
-              [
-                "`root[intervals]`",
-                "`'C[0 7 16]'`",
-                "your own voicing, intervals kept as written"
-              ],
-              [
-                "`root[tuning chord]`",
-                "`'C[just maj]'`",
-                "a chord in `just` or `pythag` tuning"
-              ],
-              [
-                "`root[chord invN]`",
-                "`'C[maj7 inv1]'`",
-                "the lowest N notes raised an octave"
-              ],
-              [
-                "`chromatic`",
-                "`'chromatic'`",
-                "all 12 notes from C4"
-              ]
-            ]
-          },
-          "examples": []
-        },
-        {
-          "title": "Names",
-          "body": "",
-          "table": {
-            "columns": [
-              "Kind",
-              "Names"
-            ],
-            "rows": [
-              [
-                "Scales",
-                "major, minor, dorian, phrygian, lydian, mixolydian, locrian, harmonic minor, melodic minor, pentatonic major, pentatonic minor, blues, whole tone, chromatic"
-              ],
-              [
-                "Chords",
-                "maj / M, min / m, dim, aug, sus2, sus4, 5, 6, m6, 69, 7, maj7, m7, mMaj7, dim7, m7b5, aug7, maj7#5, 7sus4, 7sus2, 7b5, 9, maj9, m9, 11, maj11, m11, 13, maj13, m13, 7b9, 7#9, 7#11, add9, madd9, add11"
-              ]
-            ]
-          },
-          "examples": []
-        }
-      ],
-      "examples": [
-        {
-          "title": "Warm maj7 pad",
-          "code": "chord: $saw($chord('C3[maj7]')).lpf('c5', 1)"
-        },
-        {
-          "title": "Gliding through the inversions",
-          "code": "const inv = $sine('0.05hz').range(0, 4)\nconst c = $chord('C3[maj7]', { inversion: inv })\nchord: $saw(c).amp(c._level)"
-        },
-        {
-          "title": "A drifting melody that stays in key",
-          "code": "melody: $sine(\n  $quantizer(\n    $sine('0.1hz').range('a3', 'a5'),\n    $chord('A(minor)'),\n  ),\n)"
-        }
-      ]
-    },
-    "paramsSchema": {
-      "$schema": "https://json-schema.org/draft/2020-12/schema",
-      "title": "ChordParams",
-      "type": "object",
-      "properties": {
-        "chord": {
-          "description": "scale or chord spec, e.g. \"C(major)\", \"Eb3[m7]\", \"C[just maj7 inv1]\"",
-          "$ref": "#/$defs/ScaleSpec"
-        },
-        "inversion": {
-          "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/LaneSum"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "controlMin": -5.0,
-            "controlMax": 5.0
-          }
-        }
-      },
-      "required": [
-        "chord"
-      ],
-      "$defs": {
-        "ScaleSpec": {
-          "type": "string"
-        },
-        "LaneSum": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/Signal"
-            },
-            {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/Signal"
-              }
-            }
-          ]
-        },
-        "Signal": {
-          "anyOf": [
-            {
-              "type": "number",
-              "format": "double"
-            },
-            {
-              "type": "string"
-            },
-            {
-              "$ref": "#/$defs/SignalTaggedSchema"
-            }
-          ]
-        },
-        "SignalTaggedSchema": {
-          "oneOf": [
-            {
-              "type": "object",
-              "properties": {
-                "module": {
-                  "type": "string"
-                },
-                "port": {
-                  "type": "string"
-                },
-                "lane": {
-                  "type": "integer",
-                  "format": "uint",
-                  "minimum": 0,
-                  "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
-                }
-              },
-              "required": [
-                "type",
-                "module",
-                "port"
-              ]
-            }
-          ]
-        }
-      }
-    },
-    "outputs": [
-      {
-        "name": "pitch",
-        "description": "one pitch per note, lowest first; with `inversion` patched, one more lane, the notes rotating across them",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": true,
-        "mono": false,
-        "precision": "f32",
-        "bounds": "unbounded"
-      },
-      {
-        "name": "level",
-        "description": "each lane's level, full (5) unless `inversion` is fading a note between octaves",
-        "outputType": "cv",
-        "polyphonic": true,
-        "default": false,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "mono": false,
-        "precision": "f32",
-        "bounds": "fixed"
-      }
-    ],
-    "bufferOutputs": [],
-    "signalParams": [
-      {
-        "name": "inversion",
-        "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "controlMin": -5.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": true,
-        "readsSides": false
-      }
-    ],
-    "nestedFolds": [],
-    "positionalArgs": [
-      {
-        "name": "chord"
-      }
-    ],
-    "experimental": false,
-    "stereo": "mono"
-  },
-  {
     "name": "$clamp",
     "docs": {
       "summary": "Limit a signal to a range",
@@ -27733,7 +27502,7 @@
         },
         {
           "title": "Chorused chord",
-          "code": "const voice = $saw($chord('C3[m7]'))\nchord: voice\nchord2: $delayRead(\n  $buffer(voice, 0.1),\n  $sine('0.3hz').range(0.01, 0.02),\n)"
+          "code": "const voice = $saw('c3:m7')\nchord: voice\nchord2: $delayRead(\n  $buffer(voice, 0.1),\n  $sine('0.3hz').range(0.01, 0.02),\n)"
         }
       ]
     },
@@ -29637,6 +29406,211 @@
     "stereo": "lift"
   },
   {
+    "name": "$inversion",
+    "docs": {
+      "summary": "Glide notes through inversions",
+      "description": "Glides a chord through its inversions, crossfading each moving note between its two octaves so nothing clicks. It outputs one lane more than its input: scale each voice by `level`, or the extra lane sounds too.",
+      "categories": [
+        "pitch"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Second inversion",
+          "code": "const c = $inversion('c3:M', 2)\nchord: $saw(c).amp(c._level)"
+        },
+        {
+          "title": "Gliding through the inversions",
+          "code": "const c = $inversion('c3:M7', $sine('0.05hz').range(0, 4))\nchord: $saw(c).amp(c._level)"
+        },
+        {
+          "title": "Inverting the keys you hold",
+          "code": "const midi = $midiCV({ lanes: 4 })\nconst c = $inversion(midi, $sine('0.05hz').range(0, 4), {\n  gate: midi._gate,\n})\nchord: $saw(c).amp(c._level)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "InversionParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the notes to invert, one per lane, in any order",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "amount": {
+          "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+          "$ref": "#/$defs/LaneSum",
+          "x-signal": {
+            "paramType": "control",
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "gate": {
+          "description": "turns notes on and off: input lane N is inverted only while gate lane N is high; with every gate low the output holds",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "gate"
+          }
+        }
+      },
+      "required": [
+        "input",
+        "amount"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "LaneSum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "pitch",
+        "description": "the inverted notes, one lane more than the input, the notes rotating across them",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "level",
+        "description": "each lane's level: crossfading as a note changes octave, fading as gates or notes change, 0 for a silent lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the notes to invert, one per lane, in any order",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "amount",
+        "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+        "paramType": "control",
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "gate",
+        "description": "turns notes on and off: input lane N is inverted only while gate lane N is high; with every gate low the output holds",
+        "paramType": "gate",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "amount"
+      }
+    ],
+    "experimental": true,
+    "stereo": "mono"
+  },
+  {
     "name": "$remap",
     "docs": {
       "summary": "Rescale between ranges",
@@ -29648,7 +29622,7 @@
       "examples": [
         {
           "title": "Pad ducked by an upside-down envelope",
-          "code": "const duck = $perc($clock._beatTrigger, { decay: 0.3 })\nkick: $tr808.kick($clock._beatTrigger)\nchord: $saw($chord('C3[m7]')).amp($remap(duck, 5, 0, 0, 5))"
+          "code": "const duck = $perc($clock._beatTrigger, { decay: 0.3 })\nkick: $tr808.kick($clock._beatTrigger)\nchord: $saw('c3:m7').amp($remap(duck, 5, 0, 0, 5))"
         }
       ]
     },
@@ -30368,7 +30342,7 @@
           }
         },
         "scale": {
-          "description": "notes to snap to, one pitch per lane in any octave, or a spec like \"C(major)\" or \"C[maj7]\"; snaps to semitones when left out",
+          "description": "notes to snap to, one pitch per lane in any octave, such as a scale \"c(major)\" or a chord \"c:M7\"; snaps to semitones when left out",
           "anyOf": [
             {
               "$ref": "#/$defs/ScaleSignal"
@@ -30471,15 +30445,15 @@
         "ScaleSignal": {
           "anyOf": [
             {
-              "$ref": "#/$defs/ScaleSpec"
+              "$ref": "#/$defs/Signal"
             },
             {
-              "$ref": "#/$defs/PolySignal"
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
             }
           ]
-        },
-        "ScaleSpec": {
-          "type": "string"
         }
       }
     },
@@ -31320,7 +31294,7 @@
         },
         {
           "title": "Chord with breathing detune",
-          "code": "melody: $saw(\n  $unison(\n    $chord('C3[m9]'),\n    3,\n    $sine('0.1hz').range(0, 0.5),\n  ),\n)"
+          "code": "melody: $saw(\n  $unison('c3:m9', 3, $sine('0.1hz').range(0, 0.5)),\n)"
         }
       ]
     },
@@ -31833,6 +31807,16 @@
                 "`c4`, `a#3`, `eb`"
               ],
               [
+                "note`:`chord",
+                "every note of a chord on that root at once",
+                "`c3:M7`, `eb:m7`"
+              ],
+              [
+                "note`(`scale`)`",
+                "every note of a scale on that root at once",
+                "`d3(dorian)`, `c(0 2 4 7 9)`"
+              ],
+              [
                 "number",
                 "a pitch voltage, 1 V per octave with 0 at C4",
                 "`0`, `-1`, `0.25`"
@@ -31887,6 +31871,129 @@
             {
               "title": "Bass that changes every bar",
               "code": "const seq = $`<c2 ab1 f1 g1> [~ c3] ~ c2`\nmelody: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
+            }
+          ]
+        },
+        {
+          "title": "Chords",
+          "body": "A note, a colon and a chord symbol play every note of the chord at once, each on a voice of its own. Build the symbol from the parts below, in order: `c:m7`, `g:7b9b13sus`, `f:mM7^1%`. Scale patterns don't take chords.",
+          "table": {
+            "columns": [
+              "Part",
+              "Means",
+              "Example"
+            ],
+            "rows": [
+              [
+                "nothing, `M`",
+                "major",
+                "`c:M`, `c:6`"
+              ],
+              [
+                "`m`",
+                "minor",
+                "`c:m`, `c:m7`"
+              ],
+              [
+                "`dim`",
+                "diminished",
+                "`c:dim`, `c:dim7`"
+              ],
+              [
+                "`h`",
+                "half-diminished seventh",
+                "`c:h`, `c:h9`"
+              ],
+              [
+                "`aug`",
+                "augmented",
+                "`c:aug`, `c:aug7`"
+              ],
+              [
+                "`M` before a number",
+                "major seventh",
+                "`c:M7`, `c:mM7`"
+              ],
+              [
+                "`5` `6` `69` `7` `9` `11` `13`",
+                "`7` adds the 7th, and `9`, `11` and `13` bring the extensions under them too (`c:9` is C E G B♭ D), though major and dominant `11` drops the 3rd and `13` the 11th; `5` is root and fifth, `6` adds the 6th, `69` the 6th and 9th",
+                "`c:9`, `c:m11`, `c:5`"
+              ],
+              [
+                "`sus` `sus2` `sus4`",
+                "suspends the third",
+                "`c:7sus`"
+              ],
+              [
+                "`add` and a number",
+                "adds that note",
+                "`c:add9`, `c:madd2`"
+              ],
+              [
+                "`b` or `#` and a number",
+                "flattens or sharpens it",
+                "`c:7#11`, `c:m7b5`"
+              ],
+              [
+                "`alt`",
+                "altered dominant",
+                "`c:7alt`"
+              ],
+              [
+                "`^` and a number",
+                "raises the lowest N notes an octave",
+                "`c:M7^2`"
+              ],
+              [
+                "`%` at the end",
+                "just intonation",
+                "`c:M%`"
+              ]
+            ]
+          },
+          "examples": [
+            {
+              "title": "Chord changes",
+              "code": "const seq = $`<c3:M7 a2:m7 d3:m9 g2:7^1>`\nchords: $saw(seq).lpf('c5', 1).amp($adsr(seq))"
+            }
+          ]
+        },
+        {
+          "title": "Scales",
+          "body": "A scale in parentheses right after a note plays all its notes at once, from the root up within one octave, each on a voice of its own. Scale patterns don't take scales.",
+          "table": {
+            "columns": [
+              "Form",
+              "Example",
+              "Gives"
+            ],
+            "rows": [
+              [
+                "a scale name",
+                "`d3(dorian)`",
+                "major, minor, dorian, phrygian, lydian, mixolydian, locrian, harmonic minor, melodic minor, pentatonic major, pentatonic minor, blues, whole tone, chromatic"
+              ],
+              [
+                "semitones",
+                "`c(0 3 7 10)`",
+                "your own scale, within an octave"
+              ],
+              [
+                "a tuning",
+                "`a(just)`, `c(pythag)`",
+                "all 12 steps in that tuning"
+              ],
+              [
+                "a tuning and semitones",
+                "`c(just 0 4 7)`",
+                "your own scale in that tuning"
+              ]
+            ]
+          },
+          "examples": [
+            {
+              "title": "A drone on a scale",
+              "code": "drone: $sine($`d2(minor)`).amp(0.2)"
             }
           ]
         },
@@ -32550,7 +32657,7 @@
           ]
         },
         "AtomValue": {
-          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), and `Truthy`\ncovers the `x` structure marker. Every other atom form (`m60` midi\nshorthand, sample-name identifiers, `2v` voltage, module references,\nquoted strings) has been removed from the grammar and is not\nrepresentable here.",
+          "description": "Atomic value types produced by the `$()` DSL parser.\n\nThe reduced set from strudel's krill grammar: `Number` covers bare\nnumeric atoms, `Hz` covers frequency-tagged numbers (`440hz`), `Note`\ncovers pitched letter-octave atoms (`c4`, `d#3`, `eb5`), `Chord` covers\na note with a chord symbol (`c3:M7`), `Scale` a note with a scale\nin parentheses (`d(dorian)`), and `Truthy` covers the\n`x` structure marker. Other atom forms (`m60` midi shorthand,\nsample-name identifiers, `2v` voltage, module references, quoted strings)\nare not part of the grammar and are not representable here.",
           "oneOf": [
             {
               "description": "Numeric value. Module-level semantics decide the interpretation:\n`$cycle($(...))` maps a bare `Number` to volts (1V/oct); `.scale(...)`\nmaps it to an integer scale degree.",
@@ -32616,6 +32723,90 @@
               },
               "required": [
                 "Note"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A chord on a root note (e.g. `c3:M7`, `eb:m7^1`). `chord` is the chord\nsymbol after the colon.",
+              "type": "object",
+              "properties": {
+                "Chord": {
+                  "type": "object",
+                  "properties": {
+                    "letter": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "accidental": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "octave": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "format": "int32"
+                    },
+                    "chord": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "letter",
+                    "chord"
+                  ]
+                }
+              },
+              "required": [
+                "Chord"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "description": "A scale on a root note (e.g. `d(dorian)`, `c(0 2 4 7 9)`). `scale` is the\nscale between the parentheses, trimmed.",
+              "type": "object",
+              "properties": {
+                "Scale": {
+                  "type": "object",
+                  "properties": {
+                    "letter": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "accidental": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "minLength": 1,
+                      "maxLength": 1
+                    },
+                    "octave": {
+                      "type": [
+                        "integer",
+                        "null"
+                      ],
+                      "format": "int32"
+                    },
+                    "scale": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "letter",
+                    "scale"
+                  ]
+                }
+              },
+              "required": [
+                "Scale"
               ],
               "additionalProperties": false
             },
@@ -36971,7 +37162,7 @@
       "examples": [
         {
           "title": "String machine",
-          "code": "const strings = $mi\n  .divideDown($chord('C3[m7]'), { registration: 1 })\n  .lpf('c6', 1)\nchord: $mi.chorus(strings, { amount: 4 })"
+          "code": "const strings = $mi\n  .divideDown('c3:m7', { registration: 1 })\n  .lpf('c6', 1)\nchord: $mi.chorus(strings, { amount: 4 })"
         },
         {
           "title": "Wide pad",
@@ -37184,7 +37375,7 @@
         },
         {
           "title": "String chord",
-          "code": "const notes = $chord('C3[m7]')\nchord: $mi.divideDown(notes, { registration: 1 })"
+          "code": "const notes = 'c3:m7'\nchord: $mi.divideDown(notes, { registration: 1 })"
         }
       ]
     },
@@ -48091,7 +48282,7 @@
       "examples": [
         {
           "title": "Crunchy chord",
-          "code": "chord: $saw($chord('C3[m7]')).unstable.shape.digital(2)"
+          "code": "chord: $saw('c3:m7').unstable.shape.digital(2)"
         }
       ]
     },

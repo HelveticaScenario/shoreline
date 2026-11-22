@@ -59,7 +59,7 @@ const STEREO_FOLD_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Chord whose width breathes",
             code: r#"
-                pad: $sine($unison($chord('C3[m9]'), 4, 2)).stereoFold(
+                pad: $sine($unison('c3:m9', 4, 2)).stereoFold(
                   4,
                   $sine('0.1hz').range(1, 5),
                 )

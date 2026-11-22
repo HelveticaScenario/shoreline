@@ -48,8 +48,9 @@ struct PulseOscillatorParams {
     #[input(
         "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -98,7 +99,7 @@ const PULSE_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "PWM chord pad",
             code: r#"
-                chord: $pulse($chord('C3[m]'), {
+                chord: $pulse('c3:m', {
                   pwm: $sine('0.3hz').range(-2, 2),
                 }).lpf('c6')
             "#,
@@ -204,14 +205,14 @@ impl PulseLaneState {
             self.blep_carry = carry;
             // The restarted cycle's own edges before the next sample, which
             // that sample leaves to the carry.
-            let cycle_start = reset.cycle_start();
+            let frac = reset.frac();
             for (edge, rise) in [(0.0, 2.0), (pulse_width, -2.0)] {
                 let (ahead, jump) = if phase_increment < 0.0 {
                     ((read_offset - edge).rem_euclid(1.0), -rise)
                 } else {
                     ((edge - read_offset).rem_euclid(1.0), rise)
                 };
-                let at = cycle_start + ahead / abs_phase_inc;
+                let at = frac + ahead / abs_phase_inc;
                 if ahead > 0.0 && at < 1.0 {
                     let (n, carry) = sync_blep(jump, at);
                     now += n;
@@ -433,26 +434,32 @@ mod tests {
     }
 
     #[test]
-    fn restart_starts_the_cycle_over() {
+    fn restart_starts_the_cycle_where_the_trigger_crosses() {
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the sample, so the next sample stands four fifths of a step
+        // into the new cycle.
         let mut osc = make_pulse(-2.0, None, Some(PolySignal::mono(Signal::Volts(0.0))));
         render(&mut osc, 700);
         osc.params.restart = Some(PolySignal::mono(Signal::Volts(5.0)));
         osc.update(48_000.0);
-        assert_eq!(osc.lane_state[0].phase, 0.0);
+        osc.update(48_000.0);
+        let step = crate::dsp::utils::voct_to_hz(-2.0) / 48_000.0;
+        let phase = osc.lane_state[0].phase;
+        assert!((phase - 0.8 * step).abs() < 1e-6, "{phase}");
     }
 
     #[test]
     fn a_restarted_cycle_band_limits_the_edges_it_crosses_at_once() {
-        // Restarted a step short of its rising edge, the square crosses it
-        // half a step later: the samples either side share its band-limiting,
-        // and neither overshoots.
+        // Restarted a fifth of the way into a step, half a step short of its
+        // rising edge, the square crosses it at 0.7 of the step: the samples
+        // either side share its band-limiting, and neither overshoots.
         let mut lane = PulseLaneState {
             phase: 0.3,
             ..Default::default()
         };
         let first = lane.step(0.01, 2.5, 0.995, Some(5.0), None);
         let second = lane.step(0.01, 2.5, 0.995, Some(5.0), None);
-        assert!((first - 3.05).abs() < 1e-4, "{first}");
-        assert!((second - 3.95).abs() < 1e-4, "{second}");
+        assert!((first - 2.25).abs() < 1e-4, "{first}");
+        assert!((second - 2.75).abs() < 1e-4, "{second}");
     }
 }

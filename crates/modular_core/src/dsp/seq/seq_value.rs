@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Patch,
-    dsp::utils::midi_to_voct_f64,
+    dsp::{utilities::ScaleSpec, utils::midi_to_voct_f64},
     pattern_system::{
         Pattern,
         mini::{
@@ -165,7 +165,7 @@ impl SeqValue {
 }
 
 /// Convert a note letter, accidental, and octave to MIDI note number.
-fn note_to_midi(letter: char, accidental: Option<char>, octave: Option<i32>) -> Option<f64> {
+fn note_to_midi(letter: char, accidental: Option<char>, octave: Option<i32>) -> Option<i32> {
     let base = match letter.to_ascii_lowercase() {
         'c' => 0,
         'd' => 2,
@@ -185,7 +185,7 @@ fn note_to_midi(letter: char, accidental: Option<char>, octave: Option<i32>) -> 
 
     // Default octave to 4 if not specified
     let oct = octave.unwrap_or(4);
-    Some(((oct + 1) * 12 + base + acc_offset) as f64)
+    Some((oct + 1) * 12 + base + acc_offset)
 }
 
 impl FromMiniAtom for SeqValue {
@@ -206,7 +206,7 @@ impl FromMiniAtom for SeqValue {
                 octave,
             } => {
                 if let Some(midi) = note_to_midi(*letter, *accidental, *octave) {
-                    Ok(SeqValue::voltage(midi_to_voct_f64(midi)))
+                    Ok(SeqValue::voltage(midi_to_voct_f64(f64::from(midi))))
                 } else {
                     Err(ConvertError::InvalidAtom(format!(
                         "Invalid note: {}{}{}",
@@ -219,12 +219,43 @@ impl FromMiniAtom for SeqValue {
                     )))
                 }
             }
+            AtomValue::Chord { .. } | AtomValue::Scale { .. } => Err(ConvertError::InvalidAtom(
+                "a chord or scale plays several notes, so it cannot stand for a single value"
+                    .to_string(),
+            )),
             AtomValue::Truthy => Err(ConvertError::InvalidAtom(
                 "'x' is a structure marker with no pitch; it is only valid inside .struct() \
                  boolean patterns"
                     .to_string(),
             )),
         }
+    }
+
+    fn from_notes(atom: &AtomValue) -> Result<Vec<Self>, ConvertError> {
+        let root = |letter: &char, accidental: &Option<char>, octave: &Option<i32>| {
+            note_to_midi(*letter, *accidental, *octave)
+                .ok_or_else(|| ConvertError::InvalidAtom(format!("invalid root note {letter}")))
+        };
+        let spec = match atom {
+            AtomValue::Chord {
+                letter,
+                accidental,
+                octave,
+                chord,
+            } => ScaleSpec::note_chord(root(letter, accidental, octave)?, chord),
+            AtomValue::Scale {
+                letter,
+                accidental,
+                octave,
+                scale,
+            } => ScaleSpec::note_scale(root(letter, accidental, octave)?, scale),
+            _ => return Ok(vec![Self::from_atom(atom)?]),
+        };
+        Ok(spec
+            .map_err(ConvertError::InvalidAtom)?
+            .note_voltages()
+            .map(SeqValue::voltage)
+            .collect())
     }
 
     fn from_list(atoms: &[AtomValue]) -> Result<Self, ConvertError> {
@@ -2160,15 +2191,15 @@ mod tests {
     #[test]
     fn test_note_to_midi_helper() {
         // C4 = MIDI 60
-        assert_eq!(note_to_midi('c', None, Some(4)), Some(60.0));
+        assert_eq!(note_to_midi('c', None, Some(4)), Some(60));
         // C (default octave 4) = MIDI 60
-        assert_eq!(note_to_midi('c', None, None), Some(60.0));
+        assert_eq!(note_to_midi('c', None, None), Some(60));
         // C#4 = MIDI 61
-        assert_eq!(note_to_midi('c', Some('#'), Some(4)), Some(61.0));
+        assert_eq!(note_to_midi('c', Some('#'), Some(4)), Some(61));
         // A0 = MIDI 21
-        assert_eq!(note_to_midi('a', None, Some(0)), Some(21.0));
+        assert_eq!(note_to_midi('a', None, Some(0)), Some(21));
         // A1 = MIDI 33 (our 0V reference)
-        assert_eq!(note_to_midi('a', None, Some(1)), Some(33.0));
+        assert_eq!(note_to_midi('a', None, Some(1)), Some(33));
     }
 
     #[test]

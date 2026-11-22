@@ -180,6 +180,7 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
         const titles = addTitles(fixes);
         expect(titles).toContain(`Add slider for 'width'`);
         expect(titles).toContain(`Add slider for 'pwm'`);
+        expect(titles).toContain(`Add slider for 'sync'`);
         expect(titles).toContain(`Add button for 'restart'`);
         expect(titles).toContain(`Add slider for 'phaseOffset'`);
         expect(titles).not.toContain(`Add note slider for 'freq'`);

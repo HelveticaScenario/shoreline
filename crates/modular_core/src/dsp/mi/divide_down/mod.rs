@@ -87,7 +87,7 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "String chord",
             code: r#"
-                const notes = $chord('C3[m7]')
+                const notes = 'c3:m7'
                 chord: $mi.divideDown(notes, { registration: 1 })
             "#,
         },

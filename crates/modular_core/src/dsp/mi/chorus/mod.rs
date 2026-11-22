@@ -62,7 +62,7 @@ const CHORUS_DOCS: ModuleDocs = ModuleDocs {
             title: "String machine",
             code: r#"
                 const strings = $mi
-                  .divideDown($chord('C3[m7]'), { registration: 1 })
+                  .divideDown('c3:m7', { registration: 1 })
                   .lpf('c6', 1)
                 chord: $mi.chorus(strings, { amount: 4 })
             "#,

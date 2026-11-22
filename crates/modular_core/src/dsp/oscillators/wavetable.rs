@@ -15,6 +15,7 @@
 use deserr::Deserr;
 use schemars::JsonSchema;
 use std::collections::HashMap;
+use std::f32::consts::PI;
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -23,7 +24,7 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, Landing, Reset, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio,
+            FmMode, Landing, Resets, SyncRatios, apply_fm, sync_corner, sync_ratio,
             wavetable_prep::{MipmapRead, PreparedWavetable},
         },
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
@@ -64,8 +65,9 @@ pub(crate) struct WavetableOscParams {
     #[input(
         "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
         type = control,
+        default = 0.0,
         range = (0.0, ..),
-        control_range = (0.0, 4.0),
+        control_range = (0.0, 3.0),
     )]
     #[deserr(default)]
     #[block_input(optional)]
@@ -242,11 +244,9 @@ impl LaneState {
             next = 0.0;
         }
 
-        // A reset restarts the table's cycle, `frac` into the upcoming
-        // interval: a restart so the next sample reads from the cycle's
-        // start, a sync reset so it reads as far past the start as the
-        // cycle ran since. A PolyBLEP at the subsample point band-limits the
-        // resulting step.
+        // A reset restarts the table's cycle `frac` into this step, from
+        // where the old cycle reaches it, with a PolyBLEP for the jump and a
+        // PolyBLAMP for the change of slope at that point.
         if let Some(reset) = reset {
             let read_at = |phase: f32| {
                 let warped = match warp {
@@ -258,23 +258,29 @@ impl LaneState {
                 };
                 prepared.read(self.mip, frame_f, warped)
             };
-            // At the cycle's start the accumulator is 0, so the effective
-            // read phase is the offset itself. A sync reset jumps from where
-            // the table's cycle stands when it lands.
-            let after = read_at(read_offset);
-            let before = match reset {
-                Reset::Restart(_) => before,
-                Reset::Sync(frac) => {
-                    read_at((raw_phase as f64 + increment * frac as f64).rem_euclid(1.0) as f32)
-                }
+            // The slope in output units per sample, from a difference across
+            // a small part of the cycle on the side the wave travels, so it
+            // never spans a warp's jump at the cycle's start. A band-limited
+            // wave slopes at most π a sample, so a steeper difference is a
+            // jump inside the span, held to that.
+            let span = SLOPE_SPAN.copysign(increment as f32);
+            let slope = |from: f32, to: f32| {
+                let rise = read_at(to.rem_euclid(1.0)) - read_at(from.rem_euclid(1.0));
+                (rise / span * increment as f32).clamp(-PI, PI)
             };
-            let (now, carry) = sync_blep(after - before, reset.frac());
+            // At the cycle's start the accumulator is 0, so the effective
+            // read phase is the offset itself.
+            let frac = reset.frac();
+            let reached = (raw_phase as f64 + increment * frac as f64).rem_euclid(1.0) as f32;
+            let (now, carry) = sync_corner(
+                read_at(read_offset) - read_at(reached),
+                slope(read_offset, read_offset + span) - slope(reached - span, reached),
+                frac,
+                increment as f32,
+            );
             sample += now;
             self.blep_carry = carry;
-            next = match reset {
-                Reset::Restart(_) => 0.0,
-                Reset::Sync(frac) => (increment * (1.0 - frac as f64)).rem_euclid(1.0),
-            };
+            next = (increment * (1.0 - frac as f64)).rem_euclid(1.0);
         }
 
         self.phase = next;
@@ -283,6 +289,10 @@ impl LaneState {
         sample * 5.0
     }
 }
+
+/// The span, in cycles, of the difference a reset measures the table's slope
+/// across.
+const SLOPE_SPAN: f32 = 1.0 / 4096.0;
 
 /// Derive the lane count from the maximum of `pitch` and (optional)
 /// `position`. Clamped to `[1, PORT_MAX_LANES]`.
@@ -319,7 +329,7 @@ const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
             title: "Scanning pad",
             code: r#"
                 chord: $wavetable(
-                  $chord('C3[m9]'),
+                  'c3:m9',
                   'builtin/tables/mi/formants.wav',
                   $sine('0.1hz').range(0, 5),
                 )
@@ -750,5 +760,81 @@ mod tests {
         let state = osc.lane_state[0];
         let prepared = osc.params.prepared.as_ref().unwrap();
         assert_eq!(state.mip, prepared.mipmap_for_freq(state.freq * 4.0));
+    }
+
+    #[test]
+    fn restart_starts_the_cycle_where_the_trigger_crosses() {
+        // A trigger from 0 to 5 V crosses its threshold a fifth of the way
+        // through the step the restart lands in, so the next read stands
+        // four fifths of a step into the new cycle.
+        let mut osc = prepared(None);
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(0.0)));
+        for _ in 0..700 {
+            osc.update(48000.0);
+        }
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(5.0)));
+        osc.update(48000.0);
+        let state = osc.lane_state[0];
+        let step = state.freq as f64 / 48000.0;
+        assert!((state.phase - 0.8 * step).abs() < 1e-6, "{}", state.phase);
+    }
+
+    #[test]
+    fn a_restart_rounds_the_corner_it_makes() {
+        // Restarted halfway through a step as its sine table falls through
+        // zero, the wave turns sharply upward from the cycle's start: the
+        // samples either side of the corner rise by the same PolyBLAMP share.
+        let mut osc = prepared(None);
+        osc.params.pitch = PolySignal::mono(Signal::Volts(0.0));
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(0.0)));
+        osc.update(48000.0);
+        let step = osc.lane_state[0].freq as f64 / 48000.0;
+        osc.lane_state[0].phase = 0.5 - 0.5 * step;
+        // From 0 to 2 V, the trigger crosses its threshold halfway.
+        osc.params.restart = Some(PolySignal::mono(Signal::Volts(2.0)));
+        let state = osc.lane_state[0];
+        let prepared = osc.params.prepared.as_ref().unwrap();
+        let table = |phase: f64| 5.0 * prepared.read(state.mip, 0.0, phase as f32);
+        let (naive_first, naive_second) = (table(0.5 - 0.5 * step), table(0.5 * step));
+        osc.update(48000.0);
+        let first = osc.outputs.sample.get(0);
+        osc.update(48000.0);
+        let second = osc.outputs.sample.get(0);
+        let fade = (1.0 - 2.0 * step).powi(2);
+        let share = (5.0 * 2.0 * std::f64::consts::TAU * step / 6.0 * 0.125 * fade) as f32;
+        let (lift_first, lift_second) = (first - naive_first, second - naive_second);
+        assert!(
+            (lift_first - share).abs() < 0.05 * share,
+            "{lift_first} vs {share}"
+        );
+        assert!(
+            (lift_second - share).abs() < 0.05 * share,
+            "{lift_second} vs {share}"
+        );
+    }
+
+    #[test]
+    fn a_warp_that_jumps_at_the_cycle_start_keeps_resets_in_range() {
+        // A partial mirror jumps where the raw phase wraps, right at the
+        // cycle's start. A reset measures the slope on the side the wave
+        // travels, never across that jump.
+        for (sync, restart_every) in [(Some(1.37), None), (Some(0.6), None), (None, Some(97))] {
+            let mut osc = prepared(sync);
+            osc.params.phase = Some(PhaseWarp::Mirror {
+                amount: PolySignal::mono(Signal::Volts(3.0)),
+            });
+            for i in 0..8000 {
+                if let Some(every) = restart_every {
+                    let v = if i % every < 2 { 5.0 } else { 0.0 };
+                    osc.params.restart = Some(PolySignal::mono(Signal::Volts(v)));
+                }
+                osc.update(48000.0);
+                let v = osc.outputs.sample.get(0);
+                assert!(
+                    v.abs() <= 5.5,
+                    "sync {sync:?}, restart {restart_every:?}, sample {i}: {v}"
+                );
+            }
+        }
     }
 }

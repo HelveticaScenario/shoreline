@@ -62,7 +62,7 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Slow pad sweep",
             code: r#"
-                chord: $saw($chord('C3[m7]')).lpf(
+                chord: $saw('c3:m7').lpf(
                   $sine('0.05hz').range('c4', 'c7'),
                   1,
                 )

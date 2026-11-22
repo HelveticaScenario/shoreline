@@ -49,7 +49,7 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Pad thinning out and back",
             code: r#"
-                chord: $saw($chord('C3[maj7]')).hpf(
+                chord: $saw('c3:M7').hpf(
                   $sine('0.1hz').range('c3', 'c6'),
                   2,
                 )

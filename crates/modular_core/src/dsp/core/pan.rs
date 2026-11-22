@@ -53,7 +53,7 @@ const PAN_DOCS: ModuleDocs = ModuleDocs {
     examples: &[
         DocExample {
             title: "Chord fanned across the stereo field",
-            code: "chord: $pan($saw($chord('C3[m9]')), 0, { spread: 4 })",
+            code: "chord: $pan($saw('c3:m9'), 0, { spread: 4 })",
         },
         DocExample {
             title: "An autopanned bass",

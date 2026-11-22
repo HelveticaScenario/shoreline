@@ -93,7 +93,7 @@ const REMAP_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             const duck = $perc($clock._beatTrigger, { decay: 0.3 })
             kick: $tr808.kick($clock._beatTrigger)
-            chord: $saw($chord('C3[m7]')).amp($remap(duck, 5, 0, 0, 5))
+            chord: $saw('c3:m7').amp($remap(duck, 5, 0, 0, 5))
         "#,
     }],
 };
