@@ -20,6 +20,7 @@ pub mod erratic;
 pub mod gain;
 pub mod hold;
 pub mod hz;
+pub mod inversion;
 pub mod lag;
 pub mod logic;
 pub mod math;
@@ -73,6 +74,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     motion_follower::MotionFollower::install_constructor(map);
     mul_hz::MulHz::install_constructor(map);
     hz::Hz::install_constructor(map);
+    inversion::Inversion::install_constructor(map);
     remap::Remap::install_constructor(map);
     sample_and_hold::SampleAndHold::install_constructor(map);
     sample_and_hold::TrackAndHold::install_constructor(map);
@@ -117,6 +119,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     motion_follower::MotionFollower::install_params_deserializer(map);
     mul_hz::MulHz::install_params_deserializer(map);
     hz::Hz::install_params_deserializer(map);
+    inversion::Inversion::install_params_deserializer(map);
     remap::Remap::install_params_deserializer(map);
     sample_and_hold::SampleAndHold::install_params_deserializer(map);
     sample_and_hold::TrackAndHold::install_params_deserializer(map);
@@ -162,6 +165,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         motion_follower::MotionFollower::get_schema(),
         mul_hz::MulHz::get_schema(),
         hz::Hz::get_schema(),
+        inversion::Inversion::get_schema(),
         remap::Remap::get_schema(),
         sample_and_hold::SampleAndHold::get_schema(),
         sample_and_hold::TrackAndHold::get_schema(),

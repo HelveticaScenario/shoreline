@@ -46,7 +46,9 @@ import { VIDEO_CV_RANGE } from '../../shared/dsl/controlRanges';
 import { assertControlsPlaced } from './controlPlacement';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $, $arrange } from './miniNotation';
-import { DELAY_SITE } from './signalSiteTables';
+import { DELAY_SITE, SUPER_SITE } from './signalSiteTables';
+import { outputSetOf } from './outputResolution';
+import { superDefaults } from '../../shared/dsl/superDefaults';
 import { setActiveCycleFactory } from './patterns';
 import { VideoGraphBuilder } from './video/VideoGraphBuilder';
 import type { VideoOutput } from './video/VideoOutput';
@@ -598,6 +600,73 @@ export function executePatchScript(
         $delay(self as Collection, ...(args as [PolySignal, DelayOptions?])),
     );
 
+    const $unison = userNamespaceTree['$unison'];
+    const $stereoFold = userNamespaceTree['$stereoFold'];
+    const superDefault = superDefaults(schemas);
+    if (
+        typeof $unison !== 'function' ||
+        typeof $stereoFold !== 'function' ||
+        !superDefault
+    ) {
+        throw new Error(
+            'DSL execution error: "$super" requires "$unison", "$stereoFold" and "$supersaw"',
+        );
+    }
+
+    interface SuperOptions {
+        /** Copies per note. */
+        unison?: number;
+        /** Semitones between the lowest and highest copy. */
+        detune?: PolySignal;
+        /** How far the copies fan out across the stereo field. */
+        width?: PolySignal;
+    }
+
+    /**
+     * A detuned, stereo-spread unison stack of any voice: `cb` builds one
+     * voice from the `$unison` copies of `freq`, and the copies it makes are
+     * folded into one stereo lane per note.
+     */
+    const $super = (
+        freq: PolySignal,
+        cb: (
+            voices: Collection,
+            options: { phaseOffset: Collection },
+        ) => Collection,
+        opts: SuperOptions = {},
+    ): Collection => {
+        if (typeof cb !== 'function') {
+            throw new TypeError(
+                "$super: the second argument builds one voice, e.g. $super('c3', (freq, { phaseOffset }) => $saw(freq, { phaseOffset }))",
+            );
+        }
+        if (typeof opts !== 'object' || opts === null) {
+            throw new TypeError(
+                '$super: options must be an object, e.g. { unison: 7, detune: 0.3, width: 4 }',
+            );
+        }
+        const { unison = superDefault.unison, detune, width } = opts;
+        const signals: Record<string, unknown> = { detune, freq, width };
+        return builder.outputResolver.withCall(
+            Object.entries(SUPER_SITE.inputs).map(([name, inputClass]) => [
+                name,
+                signals[name],
+                inputClass,
+            ]),
+            () => {
+                const voices = $unison(freq, unison, detune) as Collection;
+                // Read past the root, so offering the phase does not count as
+                // taking the copies as their phase.
+                const phaseOffset = outputSetOf(voices)?.values
+                    .phase as Collection;
+                const voice = builder.outputResolver.withUserCode(() =>
+                    cb(voices, { phaseOffset }),
+                );
+                return $stereoFold(voice, unison, width) as Collection;
+            },
+        );
+    };
+
     const $keyframes = userNamespaceTree['$keyframes'];
     if (typeof $keyframes !== 'function') {
         throw new Error(
@@ -879,6 +948,7 @@ export function executePatchScript(
         ),
         $buffer,
         $delay,
+        $super,
         $cross,
         $wavMeta,
         // Built-in modules

@@ -12366,7 +12366,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -12392,7 +12392,25 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 3.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -12526,7 +12544,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12544,7 +12562,20 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 3.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12592,6 +12623,10 @@
         {
           "title": "Breathing triangle",
           "code": "keys: $saw('a3', { shape: $sine('0.2hz').range(1, 4) })"
+        },
+        {
+          "title": "Sync sweep",
+          "code": "lead: $saw('a2', { sync: $sine('0.2hz').range(0, 3) })"
         }
       ]
     },
@@ -12601,7 +12636,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -12646,7 +12681,25 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 3.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -12785,7 +12838,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12817,7 +12870,20 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 3.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -12874,7 +12940,7 @@
       "type": "object",
       "properties": {
         "freq": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -12938,7 +13004,25 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 3.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -13072,7 +13156,7 @@
     "signalParams": [
       {
         "name": "freq",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -13118,7 +13202,20 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the wave runs; sweep it for sync tearing",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 3.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -13978,9 +14075,24 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.0,
             "minValue": 0.0,
             "controlMin": 0.0,
-            "controlMax": 4.0
+            "controlMax": 3.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts every saw at its starting phase",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "trig"
           }
         },
         "waitForZeroCross": {
@@ -14121,9 +14233,19 @@
         "name": "sync",
         "description": "hard sync: how many octaves above its restart pitch each saw runs; sweep it for sync tearing",
         "paramType": "control",
+        "defaultValue": 0.0,
         "minValue": 0.0,
         "controlMin": 0.0,
-        "controlMax": 4.0,
+        "controlMax": 3.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts every saw at its starting phase",
+        "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -15175,7 +15297,7 @@
       "type": "object",
       "properties": {
         "pitch": {
-          "description": "oscillator pitch",
+          "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
           "$ref": "#/$defs/PolySignal",
           "x-signal": {
             "paramType": "pitch"
@@ -15224,7 +15346,25 @@
           "default": "throughZero"
         },
         "sync": {
-          "description": "hard sync: each rising edge restarts the cycle",
+          "description": "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 3.0
+          }
+        },
+        "restart": {
+          "description": "each rising edge restarts the cycle",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -15558,7 +15698,7 @@
     "signalParams": [
       {
         "name": "pitch",
-        "description": "oscillator pitch",
+        "description": "oscillator pitch; with `sync` set, the pitch it restarts at",
         "paramType": "pitch",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -15590,7 +15730,20 @@
       },
       {
         "name": "sync",
-        "description": "hard sync: each rising edge restarts the cycle",
+        "description": "hard sync: how many octaves above its restart pitch the table runs; sweep it for sync tearing",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 3.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "restart",
+        "description": "each rising edge restarts the cycle",
         "paramType": "trig",
         "carriesBounds": false,
         "boundsNeedConstant": false,
@@ -29494,6 +29647,211 @@
     "stereo": "lift"
   },
   {
+    "name": "$inversion",
+    "docs": {
+      "summary": "Glide notes through inversions",
+      "description": "Glides a chord through its inversions, crossfading each moving note between its two octaves so nothing clicks. It outputs one lane more than its input: scale each voice by `level`, or the extra lane sounds too.",
+      "categories": [
+        "pitch"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Second inversion",
+          "code": "const c = $inversion(['c3', 'e3', 'g3'], 2)\nchord: $saw(c).amp(c._level)"
+        },
+        {
+          "title": "Gliding through the inversions",
+          "code": "const c = $inversion(\n  ['c3', 'e3', 'g3', 'b3'],\n  $sine('0.05hz').range(0, 4),\n)\nchord: $saw(c).amp(c._level)"
+        },
+        {
+          "title": "Inverting the keys you hold",
+          "code": "const midi = $midiCV({ lanes: 4 })\nconst c = $inversion(midi, $sine('0.05hz').range(0, 4), {\n  gate: midi._gate,\n})\nchord: $saw(c).amp(c._level)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "InversionParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the notes to invert, one per lane, in any order",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "pitch"
+          }
+        },
+        "amount": {
+          "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+          "$ref": "#/$defs/LaneSum",
+          "x-signal": {
+            "paramType": "control",
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "gate": {
+          "description": "turns notes on and off: input lane N is inverted only while gate lane N is high; with every gate low the output holds",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "gate"
+          }
+        }
+      },
+      "required": [
+        "input",
+        "amount"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "LaneSum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "pitch",
+        "description": "the inverted notes, one lane more than the input, the notes rotating across them",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "level",
+        "description": "each lane's level: crossfading as a note changes octave, fading as gates or notes change, 0 for a silent lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "fixed"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the notes to invert, one per lane, in any order",
+        "paramType": "pitch",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "amount",
+        "description": "how many of the lowest notes are raised an octave, gliding through the inversions as it moves; negative drops the highest notes instead",
+        "paramType": "control",
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "gate",
+        "description": "turns notes on and off: input lane N is inverted only while gate lane N is high; with every gate low the output holds",
+        "paramType": "gate",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "amount"
+      }
+    ],
+    "experimental": true,
+    "stereo": "mono"
+  },
+  {
     "name": "$remap",
     "docs": {
       "summary": "Rescale between ranges",
@@ -31169,15 +31527,15 @@
       "examples": [
         {
           "title": "Thick seven-voice saw",
-          "code": "melody: $saw($unison('c3', 7, 3)).lpf('c6', 1)"
+          "code": "melody: $saw($unison('c3', 7, 0.3)).lpf('c6', 1)"
         },
         {
           "title": "Copies that start apart",
-          "code": "const voices = $unison('c3', 7, 1)\nmelody: $saw(voices, { phaseOffset: voices._phase })"
+          "code": "const voices = $unison('c3', 7)\nmelody: $saw(voices, { phaseOffset: voices._phase })"
         },
         {
           "title": "Chord with breathing detune",
-          "code": "melody: $saw(\n  $unison($chord('C3[m9]'), 3, $sine('0.1hz').range(0, 4)),\n)"
+          "code": "melody: $saw(\n  $unison(\n    $chord('C3[m9]'),\n    3,\n    $sine('0.1hz').range(0, 0.5),\n  ),\n)"
         }
       ]
     },
@@ -31202,7 +31560,7 @@
           "default": 1
         },
         "spread": {
-          "description": "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
+          "description": "spread between the lowest and highest copy, in semitones",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -31213,10 +31571,10 @@
           ],
           "x-signal": {
             "paramType": "control",
+            "defaultValue": 0.18,
             "minValue": 0.0,
-            "maxValue": 10.0,
             "controlMin": 0.0,
-            "controlMax": 10.0
+            "controlMax": 12.0
           }
         }
       },
@@ -31320,12 +31678,12 @@
       },
       {
         "name": "spread",
-        "description": "detune width, finer near 0: 0 none, 10 puts the outer copies an octave above and below",
+        "description": "spread between the lowest and highest copy, in semitones",
         "paramType": "control",
+        "defaultValue": 0.18,
         "minValue": 0.0,
-        "maxValue": 10.0,
         "controlMin": 0.0,
-        "controlMax": 10.0,
+        "controlMax": 12.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

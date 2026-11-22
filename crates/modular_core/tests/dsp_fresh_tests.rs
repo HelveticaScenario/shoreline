@@ -501,7 +501,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$gain" => json!({ "input": 0.0, "level": 5.0 }),
         "_crossfade" => json!({ "dry": 0.0, "wet": 0.0, "mix": 2.5 }),
         "$chord" => json!({ "chord": "C[maj]" }),
-        "$cheby" | "$fold" | "$segment" => json!({ "input": 0.0, "amount": 0.0 }),
+        "$cheby" | "$fold" | "$segment" | "$inversion" => json!({ "input": 0.0, "amount": 0.0 }),
         "$overdrive" => json!({ "input": 0.0, "drive": 0.0 }),
         // Shape modules: `input` + required `mode` (drive is optional). digital
         // and sine take no mode.
@@ -952,6 +952,27 @@ fn chord_outputs_spec_voltages() {
     for (lane, semis) in [-12.0_f32, -8.0, -5.0, -1.0].iter().enumerate() {
         let v = module.get_value_at("pitch", lane, slot);
         assert!(approx_eq(v, semis / 12.0, 1e-5), "lane {lane}: {v}");
+    }
+}
+
+#[test]
+fn inversion_adds_a_lane_and_raises_the_lowest_note() {
+    let notes = [-1.0_f32, -8.0 / 12.0, -5.0 / 12.0];
+    let module = make_module(
+        "$inversion",
+        "inv",
+        json!({ "input": notes, "amount": 1.0 }),
+    );
+    let slot = Stepper::new().tick(module.as_ref());
+    let mut sounding: Vec<f32> = (0..4)
+        .filter(|&lane| module.get_value_at("level", lane, slot) == 5.0)
+        .map(|lane| module.get_value_at("pitch", lane, slot))
+        .collect();
+    sounding.sort_by(f32::total_cmp);
+    let expected = [-8.0 / 12.0, -5.0 / 12.0, 0.0];
+    assert_eq!(sounding.len(), 3, "{sounding:?}");
+    for (v, e) in sounding.iter().zip(expected) {
+        assert!(approx_eq(*v, e, 1e-5), "{sounding:?}");
     }
 }
 

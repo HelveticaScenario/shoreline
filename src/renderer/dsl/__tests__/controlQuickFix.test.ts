@@ -180,7 +180,8 @@ describe('computeControlQuickFixes — add sliders for missing params', () => {
         const titles = addTitles(fixes);
         expect(titles).toContain(`Add slider for 'width'`);
         expect(titles).toContain(`Add slider for 'pwm'`);
-        expect(titles).toContain(`Add button for 'sync'`);
+        expect(titles).toContain(`Add slider for 'sync'`);
+        expect(titles).toContain(`Add button for 'restart'`);
         expect(titles).toContain(`Add slider for 'phaseOffset'`);
         expect(titles).not.toContain(`Add note slider for 'freq'`);
     });
@@ -278,7 +279,7 @@ describe('computeControlQuickFixes — labels', () => {
 
     test('dedupes against ungrouped buttons too', () => {
         const { source, fixes } = fixesAt(
-            `const b = $btn('width');\n$pulse('a3', { width: 2.|5, sync: b }).track();`,
+            `const b = $btn('width');\n$pulse('a3', { width: 2.|5, restart: b }).track();`,
         );
         expect(apply(source, wrapFix(fixes))).toContain(
             `width: $slider('width 2', 2.5, 0, 5)`,

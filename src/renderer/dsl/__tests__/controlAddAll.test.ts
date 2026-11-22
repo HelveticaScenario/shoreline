@@ -25,7 +25,7 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
     test('creates the config object with a control for each unset param', () => {
         const { source, fix } = addAll(`$pulse('a3'|).track();`);
         expect(apply(source, fix!)).toBe(
-            `$pulse('a3', { width: $slider('width', 2.5, 0, 5), pwm: $slider('pwm', 0, -5, 5), sync: $btn('sync'), phaseOffset: $slider('phaseOffset', 0, 0, 1) }).track();`,
+            `$pulse('a3', { width: $slider('width', 2.5, 0, 5), pwm: $slider('pwm', 0, -5, 5), sync: $slider('sync', 0, 0, 3), restart: $btn('restart'), phaseOffset: $slider('phaseOffset', 0, 0, 1) }).track();`,
         );
         expect(controlAtCaret(source, fix!)).toBe(
             `$slider('phaseOffset', 0, 0, 1)`,
@@ -52,7 +52,7 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
         );
         const out = apply(source, fix!);
         expect(out).toContain(
-            `pwm: $slider('pwm', 0, -5, 5), sync: $btn('sync'), phaseOffset: $slider('phaseOffset', 0, 0, 1)`,
+            `pwm: $slider('pwm', 0, -5, 5), sync: $slider('sync', 0, 0, 3), restart: $btn('restart'), phaseOffset: $slider('phaseOffset', 0, 0, 1)`,
         );
         expect(out.match(/width/g)).toHaveLength(1);
     });
@@ -97,7 +97,8 @@ describe('computeControlQuickFixes — add controls for all unset params', () =>
                 `$pulse('a3', {`,
                 `  width: 2.5,`,
                 `  pwm: $slider('pwm', 0, -5, 5),`,
-                `  sync: $btn('sync'),`,
+                `  sync: $slider('sync', 0, 0, 3),`,
+                `  restart: $btn('restart'),`,
                 `  phaseOffset: $slider('phaseOffset', 0, 0, 1),`,
                 `}).track();`,
             ].join('\n'),
