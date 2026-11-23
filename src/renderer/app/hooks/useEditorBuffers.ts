@@ -1,11 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import type { QuoteStyle } from '../../../shared/ipcTypes';
 import { requote } from '../../dsl/requote';
 import { findBuffer } from '../bufferList';
+import { bufferReducer, initialBufferState } from '../bufferState';
 import {
     DEFAULT_PATCH,
-    formatBufferLabel,
-    getBufferId,
     readUnsavedBuffers,
     saveUnsavedBuffers,
 } from '../buffers';
@@ -32,13 +31,10 @@ export function useEditorBuffers({
 }: UseEditorBuffersParams) {
     const defaultPatch = requote(DEFAULT_PATCH, quotes);
     const [restoredBuffers] = useState(readUnsavedBuffers);
-    const [buffers, setBuffers] = useState(restoredBuffers);
-
-    const [activeBufferId, setActiveBufferId] = useState<string | undefined>(
-        () =>
-            restoredBuffers.length > 0
-                ? getBufferId(restoredBuffers[0])
-                : undefined,
+    const [{ buffers, activeBufferId }, dispatch] = useReducer(
+        bufferReducer,
+        restoredBuffers,
+        initialBufferState,
     );
 
     const patchCode =
@@ -56,15 +52,9 @@ export function useEditorBuffers({
         viewStates.setOpenUntitled(JSON.parse(untitledIdsKey) as string[]);
     }, [untitledIdsKey, viewStates]);
 
-    useBufferDiskSync(buffers, restoredBuffers, setBuffers);
+    useBufferDiskSync(buffers, restoredBuffers, dispatch);
 
-    const shared = {
-        activeBufferId,
-        buffers,
-        setActiveBufferId,
-        setBuffers,
-        workspaceRoot,
-    };
+    const shared = { activeBufferId, buffers, dispatch, workspaceRoot };
     const saving = useBufferSaving({
         ...shared,
         onFileSaved,
@@ -88,10 +78,7 @@ export function useEditorBuffers({
         ...tabs,
         activeBufferId,
         buffers,
-        formatFileLabel: formatBufferLabel,
         patchCode,
-        setActiveBufferId,
-        setBuffers,
         viewStates,
     };
 }

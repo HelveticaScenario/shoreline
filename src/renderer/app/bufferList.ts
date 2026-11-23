@@ -47,7 +47,7 @@ export const newFileBuffer = (
     filePath: string,
     content: string,
     isPreview: boolean,
-): EditorBuffer => ({
+): FileBuffer => ({
     content,
     dirty: false,
     filePath,
@@ -136,52 +136,27 @@ export const withUntitledSavedAs = (
 };
 
 /**
- * `buffers` without `bufferId`, and the buffer to activate when the closed one
- * was active: the one that followed it, or the last when it was the tail.
- * Undefined when no buffer has that id.
- */
-export const closeBufferIn = (
-    buffers: EditorBuffer[],
-    bufferId: string,
-):
-    | { remaining: EditorBuffer[]; nextActiveId: string | undefined }
-    | undefined => {
-    const index = buffers.findIndex((b) => getBufferId(b) === bufferId);
-    if (index === -1) {
-        return undefined;
-    }
-    const remaining = buffers.filter((b) => getBufferId(b) !== bufferId);
-    const nextActiveId =
-        remaining.length > 0
-            ? getBufferId(remaining[Math.min(index, remaining.length - 1)])
-            : undefined;
-    return { nextActiveId, remaining };
-};
-
-/**
- * The file a rename or delete acts on. `target` is a buffer id or a path,
- * absolute or workspace-relative; without one the active buffer's file is
- * used. `isOpen` tells whether a buffer holds the file.
+ * The path of the file a rename or delete acts on. `target` is a buffer id or
+ * a path, absolute or workspace-relative; without one the active buffer's file
+ * is used.
  */
 export const resolveFileTarget = (
     buffers: EditorBuffer[],
     activeBufferId: string | undefined,
     workspaceRoot: string | null,
     target: string | undefined,
-): { filePath: string; isOpen: boolean } | undefined => {
+): string | undefined => {
     const targetPath = target
         ? toAbsoluteWorkspacePath(workspaceRoot, target)
         : undefined;
     const buffer =
         findBuffer(buffers, target) ?? findFileBuffer(buffers, targetPath);
     if (buffer?.kind === 'file') {
-        return { filePath: buffer.filePath, isOpen: true };
+        return buffer.filePath;
     }
     if (targetPath) {
-        return { filePath: targetPath, isOpen: false };
+        return targetPath;
     }
     const active = findBuffer(buffers, activeBufferId);
-    return active?.kind === 'file'
-        ? { filePath: active.filePath, isOpen: true }
-        : undefined;
+    return active?.kind === 'file' ? active.filePath : undefined;
 };

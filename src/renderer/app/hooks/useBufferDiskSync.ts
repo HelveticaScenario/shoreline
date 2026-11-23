@@ -1,8 +1,7 @@
-import { useEffect, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, type Dispatch } from 'react';
 import electronAPI from '../../electronAPI';
 import type { EditorBuffer } from '../../types/editor';
-import { updateFileBuffer } from '../bufferList';
-import { withDiskChange, withSavedContent } from '../buffers';
+import type { BufferAction } from '../bufferState';
 
 /**
  * Keeps file buffers in step with their files: open files are watched for
@@ -12,7 +11,7 @@ import { withDiskChange, withSavedContent } from '../buffers';
 export function useBufferDiskSync(
     buffers: EditorBuffer[],
     restoredBuffers: EditorBuffer[],
-    setBuffers: Dispatch<SetStateAction<EditorBuffer[]>>,
+    dispatch: Dispatch<BufferAction>,
 ) {
     const watchedPathsKey = JSON.stringify(
         buffers.flatMap((b) => (b.kind === 'file' ? [b.filePath] : [])).sort(),
@@ -27,20 +26,12 @@ export function useBufferDiskSync(
 
     useEffect(
         () =>
-            electronAPI.filesystem.onFileChanged(({ filePath, content }) => {
-                setBuffers((prev) =>
-                    updateFileBuffer(prev, filePath, (b) =>
-                        withDiskChange(b, content),
-                    ),
-                );
-            }),
-        [setBuffers],
+            electronAPI.filesystem.onFileChanged(({ filePath, content }) =>
+                dispatch({ content, filePath, type: 'diskChanged' }),
+            ),
+        [dispatch],
     );
 
-    // A restored buffer whose baseline is unknown adopts the disk content as
-    // its baseline; one with a baseline treats the disk content like an
-    // external change, so edits made against an older file still conflict on
-    // save.
     useEffect(() => {
         for (const buffer of restoredBuffers) {
             if (buffer.kind !== 'file') {
@@ -49,22 +40,17 @@ export function useBufferDiskSync(
             const { filePath, savedContent } = buffer;
             electronAPI.filesystem
                 .readFile(filePath)
-                .then((diskContent) => {
-                    setBuffers((prev) =>
-                        updateFileBuffer(prev, filePath, (b) => {
-                            // A save or reload since the read makes it stale.
-                            if (b.savedContent !== savedContent) {
-                                return b;
-                            }
-                            return b.savedContent === null
-                                ? withSavedContent(b, diskContent)
-                                : withDiskChange(b, diskContent);
-                        }),
-                    );
-                })
+                .then((diskContent) =>
+                    dispatch({
+                        baseline: savedContent,
+                        diskContent,
+                        filePath,
+                        type: 'restoredFileRead',
+                    }),
+                )
                 .catch(() => {
                     // A missing or unreadable file keeps the buffer dirty.
                 });
         }
-    }, [restoredBuffers, setBuffers]);
+    }, [restoredBuffers, dispatch]);
 }

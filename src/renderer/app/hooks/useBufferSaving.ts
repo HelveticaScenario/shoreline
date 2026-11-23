@@ -1,28 +1,23 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useState, type Dispatch } from 'react';
 import electronAPI from '../../electronAPI';
 import type { EditorBuffer, FileBuffer } from '../../types/editor';
 import { PATCH_EXTENSION } from '../../../shared/patchFiles';
-import {
-    findBuffer,
-    updateFileBuffer,
-    withUntitledSavedAs,
-} from '../bufferList';
+import { fsError } from '../../utils/errorUtils';
+import { findBuffer } from '../bufferList';
+import type { BufferAction } from '../bufferState';
 import {
     getBufferId,
     normalizeFileName,
     toAbsoluteWorkspacePath,
-    withSavedContent,
 } from '../buffers';
 import type { EditorViewStates } from '../editorViewStates';
-import { fsError } from '../fsResult';
 
 const SAVE_FAILED = 'Failed to save file';
 
 interface UseBufferSavingParams {
     buffers: EditorBuffer[];
-    setBuffers: Dispatch<SetStateAction<EditorBuffer[]>>;
     activeBufferId: string | undefined;
-    setActiveBufferId: Dispatch<SetStateAction<string | undefined>>;
+    dispatch: Dispatch<BufferAction>;
     workspaceRoot: string | null;
     refreshFileTree: () => Promise<void>;
     onFileSaved?: (filePath: string) => void;
@@ -32,9 +27,8 @@ interface UseBufferSavingParams {
 /** Writing buffers to disk, and the conflict a refused write leaves open. */
 export function useBufferSaving({
     buffers,
-    setBuffers,
     activeBufferId,
-    setActiveBufferId,
+    dispatch,
     workspaceRoot,
     refreshFileTree,
     onFileSaved,
@@ -67,12 +61,12 @@ export function useBufferSaving({
         }
 
         viewStates.move(buffer.id, filePath);
-        setBuffers((prev) =>
-            withUntitledSavedAs(prev, buffer.id, filePath, savedContent),
-        );
-        if (buffer.id === activeBufferId) {
-            setActiveBufferId(filePath);
-        }
+        dispatch({
+            filePath,
+            savedContent,
+            type: 'saveUntitledAs',
+            untitledId: buffer.id,
+        });
         await refreshFileTree();
         onFileSaved?.(filePath);
         return filePath;
@@ -89,11 +83,7 @@ export function useBufferSaving({
             overwrite ? undefined : (buffer.savedContent ?? undefined),
         );
         if (result.success) {
-            setBuffers((prev) =>
-                updateFileBuffer(prev, filePath, (b) =>
-                    withSavedContent(b, savedContent),
-                ),
-            );
+            dispatch({ filePath, savedContent, type: 'fileSaved' });
             onFileSaved?.(filePath);
             return filePath;
         }
@@ -141,11 +131,7 @@ export function useBufferSaving({
     /** Resolve a save conflict by replacing the buffer with the disk content. */
     const revertToDiskContent = (bufferId: string, diskContent: string) => {
         setSaveConflict(null);
-        setBuffers((prev) =>
-            updateFileBuffer(prev, bufferId, (b) =>
-                withSavedContent({ ...b, content: diskContent }, diskContent),
-            ),
-        );
+        dispatch({ bufferId, diskContent, type: 'revertToDisk' });
     };
 
     return {

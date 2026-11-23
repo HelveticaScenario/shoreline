@@ -97,9 +97,7 @@ export function useFileActions({
                 }
             } else {
                 // Don't Save
-                files.setBuffers((prev) =>
-                    prev.filter((b) => !(b.kind === 'file' && b.dirty)),
-                );
+                files.discardUnsavedFiles();
             }
         }
         await chooseWorkspace();
