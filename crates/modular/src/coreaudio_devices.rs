@@ -229,6 +229,7 @@ pub fn enumerate_devices(host_id: &str) -> (Vec<AudioDeviceInfo>, Vec<AudioDevic
                 name: name.clone(),
                 input_channels: 0,
                 output_channels: channels,
+                follows_default: false,
                 is_default: default_output == Some(device),
                 sample_rate,
                 supported_sample_rates: supported_sample_rates(
@@ -246,6 +247,7 @@ pub fn enumerate_devices(host_id: &str) -> (Vec<AudioDeviceInfo>, Vec<AudioDevic
                 name,
                 input_channels: channels,
                 output_channels: 0,
+                follows_default: false,
                 is_default: default_input == Some(device),
                 sample_rate,
                 supported_sample_rates: supported_sample_rates(

@@ -110,9 +110,9 @@ jobs:
             # Mesa's software Vulkan driver, lavapipe, as the runner has no GPU.
             - name: Install Linux dependencies
               if: matrix.os == 'ubuntu-latest'
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libasound2-dev libudev-dev libjack-jackd2-dev rpm libvulkan1 mesa-vulkan-drivers
+              uses: ./.github/actions/linux-native-deps
+              with:
+                  packages: rpm libvulkan1 mesa-vulkan-drivers
 
             # - name: Setup ASIO SDK (Windows)
             #   if: matrix.os == 'windows-latest'

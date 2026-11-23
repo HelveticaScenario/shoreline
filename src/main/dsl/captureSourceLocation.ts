@@ -54,21 +54,49 @@ export function captureSourceLocation(): SourceLocation | undefined {
         return undefined;
     }
 
-    // Stack frames from vm-evaluated code look like:
-    // "    at evalmachine.<anonymous>:3:12"
-    const lines = stackHolder.stack.split('\n');
+    const location = scriptLocationIn(stackHolder.stack);
+    return location?.column === undefined
+        ? undefined
+        : { column: location.column, line: location.line };
+}
 
-    for (const line of lines) {
-        const anonymousMatch = line.match(/<anonymous>:(\d+):(\d+)/);
-        if (anonymousMatch) {
-            const rawLine = parseInt(anonymousMatch[1], 10);
-            const column = parseInt(anonymousMatch[2], 10);
-            const adjustedLine = rawLine - dslWrapperLineOffset;
-            if (adjustedLine > 0) {
-                return { column, line: adjustedLine };
-            }
+/**
+ * Where in the patch source an error thrown while compiling or running the
+ * patch script points: a SyntaxError's stack opens with the script's line,
+ * and any other error's innermost script frame is the call the user wrote.
+ */
+export function errorSourceLocation(
+    error: unknown,
+): { line: number; column?: number } | undefined {
+    const stack =
+        typeof error === 'object' && error !== null
+            ? (error as { stack?: unknown }).stack
+            : undefined;
+    return typeof stack === 'string' ? scriptLocationIn(stack) : undefined;
+}
+
+/** ` (line N)` for an error message about `location`, or nothing without one. */
+export function lineSuffix(location: { line: number } | undefined): string {
+    return location ? ` (line ${location.line})` : '';
+}
+
+/**
+ * The first patch-source position in a stack: frames of the vm script
+ * compiled by `executePatchScript` read `evalmachine.<anonymous>:line:column`,
+ * and a SyntaxError's header gives only the line.
+ */
+function scriptLocationIn(
+    stack: string,
+): { line: number; column?: number } | undefined {
+    for (const match of stack.matchAll(/<anonymous>:(\d+)(?::(\d+))?/g)) {
+        const line = parseInt(match[1], 10) - dslWrapperLineOffset;
+        if (line > 0) {
+            return {
+                column:
+                    match[2] === undefined ? undefined : parseInt(match[2], 10),
+                line,
+            };
         }
     }
-
     return undefined;
 }

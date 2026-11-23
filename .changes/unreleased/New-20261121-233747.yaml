@@ -1,3 +1,0 @@
-kind: New
-body: 'New `$inversion` glides any set of notes through their inversions: `amount` raises that many of the lowest notes an octave, crossfading the moving note between octaves so nothing clicks. Scale each voice by its `_level` output, as in `$saw(c).amp(c._level)`, and patch `gate` to invert only the notes whose gate is high, as `$quantizer` does. Voices fade in and out as gates change, so nothing clicks.'
-time: 2026-11-21T23:37:47.93712-05:00

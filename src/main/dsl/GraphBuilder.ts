@@ -40,7 +40,7 @@ import {
     type ChainFunction,
     type ChainHost,
 } from './chainModules';
-import { captureSourceLocation } from './captureSourceLocation';
+import { captureSourceLocation, lineSuffix } from './captureSourceLocation';
 import { type FeedbackTrack, findBusFeedback } from './busFeedback';
 import { MIX_SLOT } from '../../shared/dsl/outputResolutionRule';
 import {
@@ -865,6 +865,7 @@ export class GraphBuilder implements ChainHost {
     private pendingSends: {
         track: string;
         sends: unknown;
+        sourceLocation?: { line: number; column: number };
     }[] = [];
     private endOfChainCb: (
         mixed: Collection,
@@ -1264,9 +1265,9 @@ export class GraphBuilder implements ChainHost {
         // every group it plays into, so sends are added once every track's
         // stage is built, and the buses are finalized after.
         const sendsByTrack = new Map(
-            this.pendingSends.map(({ track, sends }) => [
+            this.pendingSends.map(({ track, sends, sourceLocation }) => [
                 track,
-                this.resolveSends(track, sends),
+                this.resolveSends(track, sends, sourceLocation),
             ]),
         );
 
@@ -1562,7 +1563,7 @@ export class GraphBuilder implements ChainHost {
                         const target = this.groupsByName.get(group.group);
                         if (!target) {
                             throw new Error(
-                                `track ${group.label} cannot play into ${group.group}, which is not a group. A group is a track whose signal is $group() or methods chained on it`,
+                                `track ${group.label} cannot play into ${group.group}, which is not a group. A group is a track whose signal is $group() or methods chained on it${lineSuffix(group.sourceLocation)}`,
                             );
                         }
                         target.addMember(outputSignals);
@@ -1734,10 +1735,9 @@ export class GraphBuilder implements ChainHost {
         for (const { label, tap, sourceLocation } of this.trackTaps) {
             const out = outsByLabel.get(trackNameKey(label));
             if (!out) {
-                const at = sourceLocation
-                    ? ` (line ${sourceLocation.line})`
-                    : '';
-                throw new Error(`$trackTap: no track is named "${label}"${at}`);
+                throw new Error(
+                    `$trackTap: no track is named "${label}"${lineSuffix(sourceLocation)}`,
+                );
             }
             let sources = outSources.get(trackNameKey(label));
             if (!sources) {
@@ -1752,12 +1752,9 @@ export class GraphBuilder implements ChainHost {
             if (out.isBus) {
                 // Every track sends to every bus, so a track reading a bus's
                 // audio would feed back into it.
-                const at = sourceLocation
-                    ? ` (line ${sourceLocation.line})`
-                    : '';
                 tap.resolveControls(
                     sources,
-                    `${label} is a bus, so its audio can't be used here${at}. A bus's audio is processed only on its own track: chain the effect onto ${label}'s $bus() instead. Its name still works in sends, and .active, .level and .panning read its mixer controls.`,
+                    `${label} is a bus, so its audio can't be used here${lineSuffix(sourceLocation)}. A bus's audio is processed only on its own track: chain the effect onto ${label}'s $bus() instead. Its name still works in sends, and .active, .level and .panning read its mixer controls.`,
                 );
             } else {
                 tap.resolve(sources);
@@ -1879,9 +1876,8 @@ export class GraphBuilder implements ChainHost {
             }),
         );
         if (feedback) {
-            const loc = feedback.track.sourceLocation;
             throw new Error(
-                `track ${feedback.track.label} uses the audio of bus ${feedback.bus}${loc ? ` (line ${loc.line})` : ''}. A bus's audio is processed only on its own track: chain the effect onto ${feedback.bus}'s $bus() instead.`,
+                `track ${feedback.track.label} uses the audio of bus ${feedback.bus}${lineSuffix(feedback.track.sourceLocation)}. A bus's audio is processed only on its own track: chain the effect onto ${feedback.bus}'s $bus() instead.`,
             );
         }
 
@@ -2079,7 +2075,11 @@ export class GraphBuilder implements ChainHost {
             bus.trackName = name;
             this.bussesByName.set(name, bus);
         } else if (options.sends !== undefined) {
-            this.pendingSends.push({ sends: options.sends, track: name });
+            this.pendingSends.push({
+                sends: options.sends,
+                sourceLocation,
+                track: name,
+            });
         }
         const state = {
             displayName: declaration.displayName,
@@ -2155,6 +2155,7 @@ export class GraphBuilder implements ChainHost {
     private resolveSends(
         track: string,
         sends: unknown,
+        sourceLocation?: { line: number; column: number },
     ): [Bus, PolySignal | undefined][] {
         const entries =
             this.sendTarget(sends) !== undefined || this.isSendPair(sends)
@@ -2166,8 +2167,8 @@ export class GraphBuilder implements ChainHost {
             );
             return new Error(
                 target === undefined
-                    ? `track ${track}: sends takes a bus track's name, a [name, level] pair, or an array of them`
-                    : `track ${track}: sends cannot reach ${target}, which is not a bus. A bus is a track whose signal is $bus() or methods chained on it; to set a send's level from a track, wrap its name, as in [bus, $c(name)]`,
+                    ? `track ${track}: sends takes a bus track's name, a [name, level] pair, or an array of them${lineSuffix(sourceLocation)}`
+                    : `track ${track}: sends cannot reach ${target}, which is not a bus${lineSuffix(sourceLocation)}. A bus is a track whose signal is $bus() or methods chained on it; to set a send's level from a track, wrap its name, as in [bus, $c(name)]`,
             );
         };
         if (!Array.isArray(entries)) {

@@ -10,6 +10,7 @@ import {
     deriveLaneCountChecked,
     spreadNoteLiterals,
 } from './factories';
+import { errorSourceLocation, lineSuffix } from './captureSourceLocation';
 import type {
     AnyCollection,
     BufferOutputRef,
@@ -200,6 +201,9 @@ if (typeof Array.prototype.pipe !== 'function') {
         writable: true,
     });
 }
+
+/** The forms in which DSL errors name their own line. */
+const DSL_LINE_TEXT = /\bat line \d+|\(line \d+\)/;
 
 /**
  * Execute a DSL script and return the resulting PatchGraph with source locations.
@@ -1081,7 +1085,17 @@ export function executePatchScript(
                 ? (error as { message: string }).message
                 : null;
         if (message !== null) {
-            throw new Error(`DSL execution error: ${message}`, {
+            // A position past the patch's last line is the wrapper's closing
+            // line, where V8 reports input that ends inside an open bracket.
+            const location = errorSourceLocation(error);
+            const inSource =
+                location && location.line <= source.split('\n').length
+                    ? location
+                    : undefined;
+            const located = DSL_LINE_TEXT.test(message)
+                ? message
+                : message + lineSuffix(inSource);
+            throw new Error(`DSL execution error: ${located}`, {
                 cause: error,
             });
         }

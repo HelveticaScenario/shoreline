@@ -7,8 +7,8 @@ use napi::Result;
 use crate::AudioConfigOptions;
 use crate::audio::{
     AudioDeviceCache, AudioDeviceInfo, BufferSizeRange, PREFERRED_DEFAULT_BUFFER_SIZE,
-    find_input_device_in_host, find_output_device_in_host, get_host_by_preference,
-    preferred_default_sample_rate,
+    find_input_device_in_host, find_output_device_in_host, get_host_by_preference, host_key,
+    parse_host_key, preferred_default_sample_rate,
 };
 
 /// The output device a stream open asks for.
@@ -176,7 +176,7 @@ pub(crate) fn resolve(cache: &AudioDeviceCache, request: OpenRequest) -> Result<
             let id = device.id().map(|id| id.to_string()).map_err(|err| {
                 napi::Error::from_reason(format!("The output device has no id: {err}"))
             })?;
-            let host_id = host_name(&host);
+            let host_id = host_key(host.id());
             (host, host_id, id, device, None)
         }
     };
@@ -333,7 +333,7 @@ pub(crate) fn launch_request(
 ) -> OpenRequest {
     let host = match &config.host_id {
         None => get_host_by_preference(),
-        Some(requested) => match parse_host_id(requested) {
+        Some(requested) => match parse_host_key(requested) {
             Some(id) => cpal::host_from_id(id).unwrap_or_else(|_| {
                 append_warning(
                     warning,
@@ -353,7 +353,7 @@ pub(crate) fn launch_request(
             }
         },
     };
-    let host_id = host_name(&host);
+    let host_id = host_key(host.id());
     let on_host = |device: Option<&AudioDeviceInfo>| device.is_some_and(|d| d.host_id == host_id);
 
     let listed_output = match &config.output_device_id {
@@ -392,11 +392,6 @@ pub(crate) fn launch_request(
     }
 }
 
-/// The name the device cache gives `host`.
-fn host_name(host: &cpal::Host) -> String {
-    format!("{:?}", host.id())
-}
-
 /// The input device an id asks for: `None` for no input, which the renderer
 /// sends as `"none"` or an empty id.
 pub(crate) fn chosen_input(input_device_id: Option<String>) -> Option<String> {
@@ -404,7 +399,7 @@ pub(crate) fn chosen_input(input_device_id: Option<String>) -> Option<String> {
 }
 
 pub(crate) fn host_for_id(host_id: &str) -> Option<cpal::Host> {
-    parse_host_id(host_id).and_then(|id| cpal::host_from_id(id).ok())
+    parse_host_key(host_id).and_then(|id| cpal::host_from_id(id).ok())
 }
 
 /// The id of the host's system default output. A stream built from
@@ -414,21 +409,6 @@ pub(crate) fn host_for_id(host_id: &str) -> Option<cpal::Host> {
 pub(crate) fn system_default_output_id(host: &cpal::Host) -> Option<String> {
     let device = host.default_output_device()?;
     device.id().ok().map(|id| id.to_string())
-}
-
-/// Parse a host ID string to cpal::HostId
-fn parse_host_id(id: &str) -> Option<cpal::HostId> {
-    match id {
-        #[cfg(target_os = "macos")]
-        "CoreAudio" => Some(cpal::HostId::CoreAudio),
-        #[cfg(target_os = "windows")]
-        "Wasapi" | "WASAPI" => Some(cpal::HostId::Wasapi),
-        #[cfg(target_os = "linux")]
-        "Alsa" | "ALSA" => Some(cpal::HostId::Alsa),
-        #[cfg(target_os = "linux")]
-        "Jack" | "JACK" => Some(cpal::HostId::Jack),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
@@ -442,6 +422,7 @@ mod tests {
             name: String::new(),
             input_channels: 2,
             output_channels: 2,
+            follows_default: false,
             is_default: true,
             sample_rate: rates[0],
             supported_sample_rates: rates.to_vec(),

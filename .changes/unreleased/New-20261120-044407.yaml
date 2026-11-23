@@ -1,3 +1,0 @@
-kind: New
-body: 'New `$stereoFold` folds each note''s `$unison` copies into one stereo lane, fanning them across left and right the way `$supersaw` spreads its saws, so any oscillator can make a wide unison stack: `$saw($unison(''c3'', 7, 3)).stereoFold(7)`. Its `width` sets how far the copies fan out.'
-time: 2026-11-20T04:44:07.788825-05:00

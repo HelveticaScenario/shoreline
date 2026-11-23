@@ -1,3 +1,0 @@
-kind: New
-body: 'Patterns and signals play scales: a note with a scale in parentheses, like `d3(dorian)` or `c(0 2 4 7 9)`, plays every note of the scale at once, in a pattern or anywhere a signal goes (`$saw(''d3(dorian)'')` is seven voices). Scales are not allowed in `.scale` patterns.'
-time: 2026-11-21T20:24:50.887075-05:00

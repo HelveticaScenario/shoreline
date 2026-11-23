@@ -197,6 +197,7 @@ pub fn enumerate_devices(host_id: &str) -> (Vec<AudioDeviceInfo>, Vec<AudioDevic
 
         let is_output = flow == eRender;
         let info = AudioDeviceInfo {
+            follows_default: false,
             is_default: if is_output {
                 default_output.as_deref() == Some(endpoint_id.as_str())
             } else {

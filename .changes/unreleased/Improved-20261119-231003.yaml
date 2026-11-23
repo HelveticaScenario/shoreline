@@ -1,3 +1,0 @@
-kind: Improved
-body: A mixer meter turns red while its track clips, its levels in three shades of the theme's red. The peak readout above it holds the highest peak until you click it, and is red while that peak is above 0 dB.
-time: 2026-11-19T23:10:03.264782-05:00

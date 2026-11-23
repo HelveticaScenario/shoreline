@@ -2935,3 +2935,60 @@ describe('$setLanes', () => {
         expect(patch.scopes[0].lanes.length).toBe(2);
     });
 });
+
+describe('error lines', () => {
+    test('a syntax error names its line', () => {
+        expect(() => exec('const a = 1;\nconst b = ;\n')).toThrow(
+            /\(line 2\)$/,
+        );
+    });
+
+    test('a runtime error names the line that threw', () => {
+        expect(() => exec('const a = 1;\n\nnotDefined();\n')).toThrow(
+            /notDefined is not defined \(line 3\)$/,
+        );
+    });
+
+    test('a DSL function error names the line of the call', () => {
+        expect(() =>
+            exec('const a = $sine("c4");\n\nout: $sine($hz(0));\n'),
+        ).toThrow(/Frequency must be positive.* \(line 3\)$/);
+    });
+
+    test('a message that already names its line is left as it is', () => {
+        expect(() => exec('const a = 1;\nout: $sine("60m");\n')).toThrow(
+            /^DSL execution error: \$sine at line 2: Invalid signal format$/,
+        );
+    });
+
+    test.each([
+        'const a = 1;\nconst b = (',
+        'const a = 1;\nconst b = (\n',
+        'const a = 1;\nconst s = `abc',
+        'const a = 1;\nfunction f() {\n  return 1;\n',
+    ])(
+        'input that ends inside an open bracket names no line past the end: %j',
+        (source) => {
+            let message = '';
+            try {
+                exec(source);
+            } catch (error) {
+                message = (error as Error).message;
+            }
+            expect(message).toMatch(/^DSL execution error: /);
+            expect(message).not.toMatch(/\(line \d+\)/);
+        },
+    );
+
+    test("a message that mentions a line of its own still gets the patch's line", () => {
+        expect(() =>
+            exec('const a = 1;\n\n\n\nconst x = JSON.parse("{bad");\n'),
+        ).toThrow(/\(line 1 column 2\) \(line 5\)$/);
+    });
+
+    test('an error on the first line names line 1', () => {
+        expect(() => exec('throw new Error("boom");')).toThrow(
+            /boom \(line 1\)$/,
+        );
+    });
+});

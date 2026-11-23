@@ -14,6 +14,8 @@ mod pinned_output_tests;
 use device_poll::DeviceReport;
 mod graph_analysis;
 mod link;
+#[cfg(all(test, target_os = "linux"))]
+mod linux_hosts_tests;
 mod media_audio;
 mod midi;
 mod output_choice;
@@ -294,8 +296,22 @@ enum FileInsideError {
     Unreadable(std::io::Error),
 }
 
-/// The file `relative` names inside `root`, with links followed.
-fn file_inside(root: &Path, relative: &str) -> std::result::Result<PathBuf, FileInsideError> {
+/// Whether links in a folder may lead out of it.
+#[derive(Clone, Copy)]
+enum Links {
+    /// Followed wherever they point: a workspace can link in a sample library.
+    Followed,
+    /// Followed only to files inside the folder: the bundled assets.
+    Contained,
+}
+
+/// The file `relative` names inside `root`, with links followed as `links`
+/// allows.
+fn file_inside(
+    root: &Path,
+    relative: &str,
+    links: Links,
+) -> std::result::Result<PathBuf, FileInsideError> {
     let relative = Path::new(relative);
     let mut components = relative.components().peekable();
     if components.peek().is_none()
@@ -304,12 +320,13 @@ fn file_inside(root: &Path, relative: &str) -> std::result::Result<PathBuf, File
         return Err(FileInsideError::Outside);
     }
     let file = std::fs::canonicalize(root.join(relative)).map_err(FileInsideError::Unreadable)?;
-    let root = std::fs::canonicalize(root).map_err(FileInsideError::Unreadable)?;
-    if file.starts_with(&root) {
-        Ok(file)
-    } else {
-        Err(FileInsideError::Outside)
+    if let Links::Contained = links {
+        let root = std::fs::canonicalize(root).map_err(FileInsideError::Unreadable)?;
+        if !file.starts_with(&root) {
+            return Err(FileInsideError::Outside);
+        }
     }
+    Ok(file)
 }
 
 fn build_wav_load_info(
@@ -404,11 +421,12 @@ impl WavCache {
     }
 
     /// The file `path` names: a workspace-rooted `/...` path or a bundled
-    /// `builtin/...` one. Every segment after the prefix must be a plain name,
-    /// and the file, with links followed, must lie inside the prefix's folder.
+    /// `builtin/...` one. Every segment after the prefix must be a plain name.
+    /// A workspace file may lie wherever its links lead; a bundled file, with
+    /// links followed, must lie inside the bundled folder.
     fn asset_file(&self, path: &str) -> Result<PathBuf> {
         if let Some(relative) = path.strip_prefix(BUILTIN_PREFIX) {
-            return file_inside(&self.builtin_path, relative).map_err(|e| {
+            return file_inside(&self.builtin_path, relative, Links::Contained).map_err(|e| {
                 napi::Error::from_reason(match e {
                     FileInsideError::Outside => {
                         format!("WAV path must name a built-in file: {path}")
@@ -428,7 +446,7 @@ impl WavCache {
             ))
         };
         let relative = path.strip_prefix('/').ok_or_else(outside)?;
-        file_inside(&self.workspace_path, relative).map_err(|e| match e {
+        file_inside(&self.workspace_path, relative, Links::Followed).map_err(|e| match e {
             FileInsideError::Outside => outside(),
             FileInsideError::Unreadable(e) => {
                 napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
@@ -735,6 +753,10 @@ pub struct Synthesizer {
     chosen_buffer_size: Option<u32>,
     chosen_input_device_id: Option<String>,
     device_cache: AudioDeviceCache,
+    /// The host the poll reads the system default output from, by host id.
+    /// It lives across polls, since a PulseAudio host is a client connection
+    /// to the sound server.
+    default_poll_host: Option<(String, cpal::Host)>,
     fallback_warning: Option<String>,
     next_update_id: u64,
     wav_cache: WavCache,
@@ -794,6 +816,7 @@ impl Synthesizer {
             chosen_buffer_size: config.buffer_size,
             chosen_input_device_id: chosen_input(config.input_device_id),
             device_cache,
+            default_poll_host: None,
             fallback_warning,
             next_update_id: 0,
             wav_cache: WavCache::new(PathBuf::new()),
@@ -1988,16 +2011,18 @@ mod wav_cache_tests {
     }
 
     #[test]
-    fn paths_resolve_from_the_workspace_root_and_stay_inside_it() {
+    fn paths_resolve_from_the_workspace_root_and_follow_its_links() {
         let workspace = temp_workspace("paths");
         let outside = temp_workspace("paths_outside");
         std::fs::File::create(workspace.join("wavs").join("kick.wav")).expect("write wav");
-        std::fs::File::create(outside.join("wavs").join("secret.wav")).expect("write wav");
+        std::fs::File::create(outside.join("wavs").join("linked.wav")).expect("write wav");
         #[cfg(unix)]
         std::os::unix::fs::symlink(outside.join("wavs"), workspace.join("linked")).expect("link");
         let cache = WavCache::new(workspace.clone());
 
         let resolved = cache.asset_file("/wavs/kick.wav");
+        #[cfg(unix)]
+        let linked = cache.asset_file("/linked/linked.wav");
         let escapes: Vec<_> = [
             "wavs/kick.wav",
             "/",
@@ -2005,7 +2030,6 @@ mod wav_cache_tests {
             "/../kick.wav",
             "/wavs/../../kick.wav",
             "/./wavs/kick.wav",
-            "/linked/secret.wav",
         ]
         .into_iter()
         .filter(|bad| cache.asset_file(bad).is_ok())
@@ -2016,6 +2040,11 @@ mod wav_cache_tests {
         assert!(
             resolved.expect("rooted path").ends_with("wavs/kick.wav"),
             "a plain rooted path resolves inside the workspace"
+        );
+        #[cfg(unix)]
+        assert!(
+            linked.expect("linked path").ends_with("wavs/linked.wav"),
+            "a link out of the workspace is followed"
         );
         assert!(escapes.is_empty(), "accepted {escapes:?}");
     }

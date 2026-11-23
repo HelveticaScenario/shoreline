@@ -1,3 +1,0 @@
-kind: New
-body: 'Patterns play chords: write a note, a colon and a chord symbol, like `c3:M7`, `a:m9` or `g:7b9b13sus`, to play all its notes at once, and the same chord strings work anywhere a signal goes (`$saw(''c3:M7'')` is four voices). `^N` inverts a chord and a final `%` tunes it in just intonation. Chords are not allowed in `.scale` patterns.'
-time: 2026-11-21T04:35:22.457443-05:00

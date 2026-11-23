@@ -219,6 +219,12 @@ export interface AudioDeviceInfo {
   outputChannels: number
   /** Whether this is the default device for this host */
   isDefault: boolean
+  /**
+   * The system default itself rather than a device that is the default
+   * now: its stream moves to whatever device becomes the default. Shown
+   * only as System Default.
+   */
+  followsDefault: boolean
   /** Default sample rate in Hz */
   sampleRate: number
   /** Supported sample rates (common rates that the device supports) */
@@ -489,6 +495,8 @@ export interface ValidationError {
   expectedType?: string
   /** JSON snippet of the actual value that failed */
   actualValue?: string
+  /** Id of the module the error belongs to, which the renderer maps to its source line */
+  moduleId?: string
 }
 
 /** Samples of history each video tap keeps. */

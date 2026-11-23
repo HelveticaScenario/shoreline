@@ -4,10 +4,11 @@ import { transformErrorsWithSourceLocations } from '../validationErrorLocations'
 import type { ValidationError } from '@modular/core';
 import type { SourceLocationInfo } from '../../../shared/ipcTypes';
 
-const err = (location: string): ValidationError => ({
+const err = (location: string, moduleId?: string): ValidationError => ({
     field: 'params.freq',
     location,
     message: 'invalid value',
+    moduleId,
 });
 
 const loc = (line: number, idIsExplicit = false): SourceLocationInfo => ({
@@ -17,47 +18,28 @@ const loc = (line: number, idIsExplicit = false): SourceLocationInfo => ({
 });
 
 describe('transformErrorsWithSourceLocations', () => {
-    test('resolves an auto-generated location to the module of that exact type', () => {
-        const map = {
-            '$sine-1': loc(3),
-            '$saw-1': loc(9),
-        };
+    test("an error takes its own module's line, even among several of its type", () => {
+        const map = { '$sine-1': loc(3), '$sine-2': loc(9) };
         const [out] = transformErrorsWithSourceLocations(
-            [err('$saw(...)')],
+            [err('$sine(...)', '$sine-2')],
             map,
         );
         expect(out.location).toBe('line 9');
     });
 
-    test('a type that is a prefix of another type never matches the longer type', () => {
-        const map = {
-            '$mix-1': loc(2),
-            '$setLanes-1': loc(7),
-        };
+    test('an explicit id keeps its name beside the line', () => {
+        const map = { myOsc: loc(4, true) };
         const [out] = transformErrorsWithSourceLocations(
-            [err('$setLanes(...)')],
+            [err("'myOsc'", 'myOsc')],
             map,
         );
-        expect(out.location).toBe('line 7');
+        expect(out.location).toBe("'myOsc' line 4");
     });
 
-    test('several modules of the same type keep the type hint instead of guessing a line', () => {
-        const map = {
-            '$sine-1': loc(3),
-            '$sine-2': loc(9),
-        };
-        const [out] = transformErrorsWithSourceLocations(
-            [err('$sine(...)')],
-            map,
-        );
-        expect(out.location).toBe('$sine(...)');
-    });
-
-    test('explicit-ID locations and explicit map entries are left alone', () => {
-        const map = {
-            myOsc: loc(4, true),
-        };
-        const input = [err("'myOsc'")];
+    test('an error without a located module is left as it is', () => {
+        const map = { '$sine-1': loc(3) };
+        const input = [err('$sine(...)'), err('$saw(...)', '$saw-1')];
         expect(transformErrorsWithSourceLocations(input, map)).toEqual(input);
+        expect(transformErrorsWithSourceLocations(input)).toEqual(input);
     });
 });
