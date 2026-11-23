@@ -282,6 +282,7 @@ pub fn __bench_make_overdrive(params: OverdriveParams) -> Overdrive {
         _lane_count: 1,
         _channels: 1,
         _block_index: Default::default(),
+        _connected: Default::default(),
         state: OverdriveState::default(),
         lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
     };
@@ -311,6 +312,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             state: OverdriveState::default(),
             lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };

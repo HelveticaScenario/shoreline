@@ -318,6 +318,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             lane_state: Box::default(),
         };
         // Production constructs → init → connects → on_patch_update → process;

@@ -67,6 +67,10 @@ impl crate::types::OutputStruct for BufferWriteOutputs {
         self.sample.set_lanes(lanes);
     }
 
+    type Connected = ();
+
+    fn connected(_mask: u64) {}
+
     fn schemas() -> Vec<crate::types::OutputSchema> {
         vec![crate::types::OutputSchema {
             name: "output".to_string(),
@@ -493,6 +497,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         }
     }
 

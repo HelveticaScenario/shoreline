@@ -1510,22 +1510,33 @@ impl AudioState {
         }
         let last = patches.len() - 1;
         let targets = if last == 0 { vec![0] } else { vec![0, last] };
-        targets
-            .into_iter()
-            .map(|index| {
-                let (update_id, _, settlement) = &patches[index];
-                let mut deserialized =
-                    crate::params_cache::deserialize_params(module_type, params.clone(), false)
-                        .map_err(|e| {
-                            format!("Failed to deserialize params for {module_type}: {e}")
-                        })?;
-                let mode = settlement.prepare_rebuilt(id, &mut deserialized)?;
-                let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
-                    .map_err(|e| format!("Failed to create module {id}: {e}"))?;
-                settlement.settle_rebuilt(id, module.as_ref());
-                Ok((module, *update_id))
-            })
-            .collect()
+        // A patch that leaves an output this module reads disconnected cannot
+        // take it; the edit still lands in any other patch it belongs in.
+        let mut disconnected = None;
+        let mut rebuilt = Vec::with_capacity(targets.len());
+        for index in targets {
+            let (update_id, _, settlement) = &patches[index];
+            let mut deserialized =
+                crate::params_cache::deserialize_params(module_type, params.clone(), false)
+                    .map_err(|e| format!("Failed to deserialize params for {module_type}: {e}"))?;
+            let mode = settlement.prepare_rebuilt(id, &mut deserialized)?;
+            let module = constructor(id, sample_rate, deserialized, self.block_size, mode)
+                .map_err(|e| format!("Failed to create module {id}: {e}"))?;
+            if let Some(cable) = settlement.disconnected_read(module.as_ref()) {
+                disconnected.get_or_insert(cable);
+                continue;
+            }
+            settlement.settle_rebuilt(id, module.as_ref());
+            rebuilt.push((module, *update_id));
+        }
+        match disconnected {
+            Some(cable) if rebuilt.is_empty() => Err(format!(
+                "{id} reads {}.{}, which the patch leaves disconnected; \
+                 run the patch to connect it",
+                cable.module, cable.port
+            )),
+            _ => Ok(rebuilt),
+        }
     }
 
     /// True if the audio callback has caught a panic and is now emitting silence.
@@ -2009,10 +2020,25 @@ impl AudioState {
             }
             to_construct.push((id, module_type, deserialized, mode));
         }
-        let settlement = update
+        let mut settlement = update
             .new_patch
             .insert_modules(to_construct, sample_rate, self.block_size)
             .map_err(napi::Error::from_reason)?;
+        let scope_taps = update
+            .scope_next
+            .keys()
+            .map(|key| (key.module_id.as_str(), key.port_name.as_str()));
+        let meter_taps = update.vu_next.iter().flat_map(|meter| {
+            std::iter::once((meter.module_id.as_str(), meter.port_name.as_str())).chain(
+                meter
+                    .control_sources
+                    .iter()
+                    .map(|src| (src.module_id.as_str(), src.port_name.as_str())),
+            )
+        });
+        update
+            .new_patch
+            .settle_connections(&mut settlement, scope_taps.chain(meter_taps));
         // Recorded before the update is sent, so a module rebuilt from here
         // on settles as this patch did, and taken back if the send fails.
         self.patch_settlements.lock().push((
@@ -5748,6 +5774,118 @@ mod tests {
         assert_eq!(details[0].module_id.as_deref(), Some("$noise-2"));
         assert_eq!(details[0].location.as_deref(), Some("$noise(...)"));
         assert!(details[0].message.contains("unknown parameter"));
+    }
+
+    fn cable_to(module: &str, port: &str) -> serde_json::Value {
+        serde_json::json!({ "type": "cable", "module": module, "port": port, "lane": 0 })
+    }
+
+    fn module_spec(
+        id: &str,
+        module_type: &str,
+        params: serde_json::Value,
+    ) -> modular_core::types::ModuleSpec {
+        modular_core::types::ModuleSpec {
+            id: id.into(),
+            module_type: module_type.into(),
+            id_is_explicit: None,
+            skip_state_transfer: None,
+            params,
+        }
+    }
+
+    fn tap(module: &str, port: &str) -> modular_core::types::ScopeLane {
+        modular_core::types::ScopeLane {
+            module_id: module.into(),
+            port_name: port.into(),
+            lane: 0,
+            side: None,
+        }
+    }
+
+    /// `src` into a `$multimode` `filter`, plus `extra`, submitted as update
+    /// `update_id` with `trigger`, its taps a scope on `filter.hp` and a VU
+    /// meter on `filter.bp` whose control follows `filter.morph`.
+    fn submit_filter_patch(
+        state: &AudioState,
+        extra: Vec<modular_core::types::ModuleSpec>,
+        update_id: u64,
+        trigger: QueuedTrigger,
+    ) {
+        let filter = serde_json::json!({ "input": cable_to("src", "output"), "cutoff": 1.0 });
+        let mut modules = vec![
+            module_spec("src", "$saw", serde_json::json!({ "freq": 0.0 })),
+            module_spec("filter", "$multimode", filter),
+        ];
+        modules.extend(extra);
+        let errors = state.handle_set_patch(PatchSubmission {
+            graph: PatchGraph {
+                modules,
+                module_id_remaps: None,
+                scopes: vec![modular_core::types::Scope {
+                    lanes: vec![tap("filter", "hp")],
+                    ms_per_frame: 10,
+                    trigger_threshold: None,
+                    range: (-5.0, 5.0),
+                    split: None,
+                }],
+                vu_meters: vec![modular_core::types::VuMeterSpec {
+                    key: "track".into(),
+                    module_id: "filter".into(),
+                    port_name: "bp".into(),
+                    channels: 1,
+                    mute_module_id: None,
+                    control_sources: Some(vec![tap("filter", "morph")]),
+                }],
+            },
+            sample_rate: 44_100.0,
+            trigger,
+            update_id,
+            wav_data: HashMap::new(),
+            transport_meta: None,
+            reset_clock: false,
+        });
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn scopes_and_meters_connect_the_outputs_they_read() {
+        let state = create_test_audio_state();
+        submit_filter_patch(&state, vec![], 1, QueuedTrigger::Immediate);
+        let params = serde_json::json!({ "input": cable_to("src", "output"), "cutoff": 2.0 });
+        let filter = state
+            .rebuild_module("filter", "$multimode", params, 44_100.0)
+            .unwrap()
+            .remove(0)
+            .0;
+        let bits = |ports: &[&str]| {
+            ports
+                .iter()
+                .fold(0, |mask, port| mask | 1 << filter.port_index(port).unwrap())
+        };
+        assert_eq!(filter.connected_outputs(), bits(&["hp", "bp", "morph"]));
+        // A rebuilt module cannot connect an output the patch left unread.
+        let reader = serde_json::json!({ "input": cable_to("filter", "lp"), "offset": 1.0 });
+        assert!(state.rebuild_module("y", "$add", reader, 44_100.0).is_err());
+    }
+
+    #[test]
+    fn an_edit_lands_in_the_queued_patch_that_connects_what_it_reads() {
+        let state = create_test_audio_state();
+        submit_filter_patch(&state, vec![], 1, QueuedTrigger::Immediate);
+        let reader = |offset: f64| serde_json::json!({ "input": cable_to("filter", "lp"), "offset": offset });
+        let queued = vec![module_spec("y", "$add", reader(1.0))];
+        submit_filter_patch(&state, queued, 2, QueuedTrigger::NextBar);
+        let rebuilt = state
+            .rebuild_module("y", "$add", reader(2.0), 44_100.0)
+            .unwrap();
+        assert_eq!(
+            rebuilt
+                .iter()
+                .map(|(_, update_id)| *update_id)
+                .collect::<Vec<_>>(),
+            [2]
+        );
     }
 
     #[test]

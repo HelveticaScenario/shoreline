@@ -630,6 +630,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 2,
             _block_index: Default::default(),
+            _connected: Default::default(),
             state: SupersawState::default(),
             lane_state: Box::default(),
         };

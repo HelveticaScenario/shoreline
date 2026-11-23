@@ -1,6 +1,7 @@
 //! `$multimode` renders identically on the block and per-sample paths: held
 //! and modulated controls, mono and poly inputs, a group with one live lane,
-//! self-oscillation, and both resolutions.
+//! self-oscillation, and both resolutions. Each output read renders the
+//! same whichever others are read.
 
 mod block_common;
 
@@ -70,4 +71,33 @@ fn allocation_free() {
         ),
         0
     );
+}
+
+#[test]
+fn outputs_render_the_same_whichever_others_are_read() {
+    let ports = ["morph", "lp", "bp", "hp"];
+    for high_res in [true, false] {
+        check_connections_agree(
+            "$multimode",
+            json!({
+                "input": poly_cable("src", LANES),
+                "cutoff": cable("lfo", 0),
+                "resonance": 3.0,
+                "mode": 3.5,
+                "drive": 2.0,
+                "highRes": high_res,
+            }),
+            &ports,
+            1e-4,
+            64,
+        );
+        // A lone lane decimates its outputs together.
+        check_connections_agree(
+            "$multimode",
+            json!({ "input": cable("src", 0), "cutoff": 1.0, "mode": 1.0, "highRes": high_res }),
+            &ports,
+            1e-4,
+            64,
+        );
+    }
 }
