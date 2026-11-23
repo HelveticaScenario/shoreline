@@ -1,4 +1,5 @@
 import type { editor } from 'monaco-editor';
+import type { ModelRanges } from '../../app/modelAnchors';
 import type { VideoPreviewZone } from '../../types/editor';
 import { subscribePreviewFrames } from '../../video/previewFrames';
 import { drawPreview } from '../../video/previewViews';
@@ -7,7 +8,7 @@ interface VideoPreviewViewZoneParams {
     editor: editor.IStandaloneCodeEditor;
     zones: VideoPreviewZone[];
     /** Tracked decoration collection addressed by each zone's `decorationIndex`. */
-    decorations: editor.IEditorDecorationsCollection | null;
+    decorations: ModelRanges | null;
 }
 
 export interface VideoPreviewViewZoneHandle {
@@ -22,7 +23,7 @@ const ZONE_HEIGHT = { image: 112, vectorscope: 152, waveform: 136 } as const;
 const PANEL_PADDING = 8;
 
 function resolveLine(
-    decorations: editor.IEditorDecorationsCollection | null,
+    decorations: ModelRanges | null,
     decorationIndex: number | null,
 ): number | null {
     if (decorations && decorationIndex !== null) {

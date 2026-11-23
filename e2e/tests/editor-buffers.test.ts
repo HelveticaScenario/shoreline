@@ -286,4 +286,43 @@ test.describe('editor buffers', () => {
         await window.waitForTimeout(1000);
         expect(await editorValue()).toBe('// unsaved\n');
     });
+
+    test('a running buffer’s scope and scroll position return with it', async ({
+        window,
+    }) => {
+        const view = () =>
+            window.evaluate(() => {
+                const ed = window.monaco.editor
+                    .getEditors()
+                    .find(
+                        (e) => e.getModel()?.getLanguageId() === 'javascript',
+                    )!;
+                return {
+                    scopes: document.querySelectorAll('.view-zones canvas')
+                        .length,
+                    scrollTop: ed.getScrollTop(),
+                };
+            });
+
+        await openUntitledBuffer(window);
+        await setEditor(window, `out: $sine($hz(440)).scope()\n${LONG_PATCH}`);
+        await window.evaluate(() => window.__TEST_API__!.executePatch());
+        await expect.poll(async () => (await view()).scopes).toBe(1);
+
+        // Below the scope, so its height is part of the scroll position.
+        await window.evaluate(() => {
+            const ed = window.monaco.editor
+                .getEditors()
+                .find((e) => e.getModel()?.getLanguageId() === 'javascript')!;
+            ed.setScrollTop(1500);
+        });
+        const left = await view();
+        expect(left.scrollTop).toBeGreaterThan(0);
+
+        await window.evaluate(() => window.__TEST_API__!.newUntitledFile());
+        await expect.poll(async () => (await view()).scopes).toBe(0);
+        await window.locator('.buffer-item', { hasText: 'untitled-1' }).click();
+
+        await expect.poll(view).toEqual(left);
+    });
 });

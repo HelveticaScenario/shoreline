@@ -8,6 +8,7 @@ import type { ScopeView, VideoPreviewZone } from '../types/editor';
 import electronAPI from '../electronAPI';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { EditorViewStates } from '../app/editorViewStates';
+import type { ModelRanges } from '../app/modelAnchors';
 import { editorCodeFormat } from './patchEditor/codeFormat';
 import { patchEditorOptions } from './patchEditor/editorOptions';
 import { useBufferModels } from './patchEditor/useBufferModels';
@@ -34,13 +35,13 @@ export interface PatchEditorProps {
     onEditorChange: (editor: editor.IStandaloneCodeEditor | null) => void;
     scopeViews?: ScopeView[];
     /** Tracked decoration collection whose ranges correspond 1:1 with scopeViews. */
-    scopeDecorations?: editor.IEditorDecorationsCollection | null;
+    scopeDecorations?: ModelRanges | null;
     onRegisterScopeCanvas?: (key: string, canvas: HTMLCanvasElement) => void;
     onUnregisterScopeCanvas?: (key: string) => void;
     runningBufferId?: string | null;
     /** `$v.preview` panels, anchored by `videoPreviewDecorations`. */
     videoPreviewZones?: VideoPreviewZone[];
-    videoPreviewDecorations?: editor.IEditorDecorationsCollection | null;
+    videoPreviewDecorations?: ModelRanges | null;
 }
 
 const NO_SCOPE_VIEWS: ScopeView[] = [];

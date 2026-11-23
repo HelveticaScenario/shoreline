@@ -1,0 +1,3 @@
+kind: Fixed
+body: Scopes, `$v.preview` panels and inline EQ panels stay with their buffer when you switch to another tab and back, and the editor returns to where you left it.
+time: 2026-11-23T05:57:00.94485-05:00

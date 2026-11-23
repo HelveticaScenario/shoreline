@@ -3,11 +3,12 @@
  * committed when the engine applies it (immediately, or at a queued
  * bar/beat).
  */
-import { editor } from 'monaco-editor';
+import type { editor, IRange } from 'monaco-editor';
 
 import type { EqPanelDef } from '../../shared/dsl/eqPanelTypes';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../shared/dsl/spanTypes';
 import type { DSLExecuteResult } from '../../shared/ipcTypes';
+import { type ModelRanges, createModelRanges } from '../app/modelAnchors';
 import { resolveScopeCallRange } from '../app/scopeCallRange';
 import type { RawEqParams } from './eqPanelModel';
 
@@ -16,7 +17,7 @@ export interface EqPanelSetup {
     params: Map<string, RawEqParams>;
     model: editor.ITextModel | null;
     /** One tracked range per def, from the callee to the call's last line. */
-    decorations: editor.IEditorDecorationsCollection | null;
+    decorations: ModelRanges | null;
     /**
      * Old module id → new module id for instances the engine carried over
      * under a new id; panels follow these so their state stays with the same
@@ -56,7 +57,7 @@ export function createEqPanelSetup(
     if (!editorInstance || !model || defs.length === 0) {
         return { ...base, decorations: null };
     }
-    const descs: editor.IModelDeltaDecoration[] = defs.map((def) => {
+    const ranges: IRange[] = defs.map((def) => {
         const loc = def.zoneLocation;
         const range = loc
             ? resolveScopeCallRange(
@@ -71,22 +72,18 @@ export function createEqPanelSetup(
                   result.callSiteSpans?.[`${loc.line}:${loc.column}`],
               )
             : null;
-        return {
-            options: {
-                stickiness:
-                    editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
-            },
-            range: range ?? {
+        return (
+            range ?? {
                 endColumn: 1,
                 endLineNumber: 1,
                 startColumn: 1,
                 startLineNumber: 1,
-            },
-        };
+            }
+        );
     });
     return {
         ...base,
-        decorations: editorInstance.createDecorationsCollection(descs),
+        decorations: createModelRanges(model, ranges),
     };
 }
 

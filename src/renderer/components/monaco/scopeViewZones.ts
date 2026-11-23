@@ -1,5 +1,6 @@
 import type { ScopeView } from '../../types/editor';
 import type { editor } from 'monaco-editor';
+import type { ModelRanges } from '../../app/modelAnchors';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 
 interface ScopeViewZoneParams {
@@ -7,7 +8,7 @@ interface ScopeViewZoneParams {
     monaco: Monaco;
     views: ScopeView[];
     /** Tracked decoration collection addressed by each view's `decorationIndex`. */
-    scopeDecorations: editor.IEditorDecorationsCollection | null;
+    scopeDecorations: ModelRanges | null;
     onRegisterScopeCanvas?: (key: string, canvas: HTMLCanvasElement) => void;
     onUnregisterScopeCanvas?: (key: string) => void;
 }
@@ -27,7 +28,7 @@ export interface ScopeViewZoneHandle {
  * that the view zone should be hidden.
  */
 function resolveLineNumber(
-    scopeDecorations: editor.IEditorDecorationsCollection | null,
+    scopeDecorations: ModelRanges | null,
     decorationIndex: number | null,
 ): number | null {
     if (scopeDecorations && decorationIndex !== null) {

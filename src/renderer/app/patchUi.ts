@@ -1,4 +1,4 @@
-import { editor } from 'monaco-editor';
+import type { editor, IRange } from 'monaco-editor';
 import type { DSLExecuteResult } from '../../shared/ipcTypes';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
@@ -11,7 +11,12 @@ import type { EqPanelController } from '../eq/eqPanelController';
 import { type EqPanelSetup, disposeEqPanelSetup } from '../eq/eqPanelSetup';
 import type { ScopeView } from '../types/editor';
 import { type ControlAnchors, createControlAnchors } from './controlAnchors';
-import { type ModelAnchors, createModelAnchors } from './modelAnchors';
+import {
+    type ModelAnchors,
+    type ModelRanges,
+    createModelAnchors,
+    createModelRanges,
+} from './modelAnchors';
 import { scopeBufferKeyFromLane } from './oscilloscope';
 import { resolveScopeCallRange } from './scopeCallRange';
 import {
@@ -27,7 +32,7 @@ export interface RunningPatchUi {
     scopeViews: ScopeView[];
     /** Tracked ranges spanning each scope() call, which Monaco moves as the
      *  document is edited; `ScopeView.decorationIndex` indexes them. */
-    scopeDecorations: editor.IEditorDecorationsCollection | null;
+    scopeDecorations: ModelRanges | null;
     sliderDefs: SliderDefinition[];
     buttonDefs: ButtonDefinition[];
     /** Anchors on the patch's control calls. */
@@ -82,7 +87,7 @@ function buildScopes(
 ): Pick<RunningPatchUi, 'scopeViews' | 'scopeDecorations'> {
     const model = editorInstance?.getModel();
     const scopeViews: ScopeView[] = [];
-    const decorations: editor.IModelDeltaDecoration[] = [];
+    const ranges: IRange[] = [];
     (result.appliedPatch?.scopes ?? []).forEach((scope, i) => {
         // Panel feeds (the EQ spectrum) have no view of their own.
         if ((scope as { headless?: boolean }).headless) {
@@ -110,7 +115,7 @@ function buildScopes(
                   )
                 : null;
         scopeViews.push({
-            decorationIndex: range ? decorations.length : null,
+            decorationIndex: range ? ranges.length : null,
             file,
             key:
                 laneKeys.length > 0
@@ -121,20 +126,13 @@ function buildScopes(
             split: scope.split ?? null,
         });
         if (range) {
-            decorations.push({
-                options: {
-                    stickiness:
-                        editor.TrackedRangeStickiness
-                            .NeverGrowsWhenTypingAtEdges,
-                },
-                range,
-            });
+            ranges.push(range);
         }
     });
     return {
         scopeDecorations:
-            editorInstance && decorations.length > 0
-                ? editorInstance.createDecorationsCollection(decorations)
+            model && ranges.length > 0
+                ? createModelRanges(model, ranges)
                 : null,
         scopeViews,
     };

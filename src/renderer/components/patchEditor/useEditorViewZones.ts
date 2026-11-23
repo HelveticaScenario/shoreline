@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { editor } from 'monaco-editor';
+import type { ModelRanges } from '../../app/modelAnchors';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { ScopeView, VideoPreviewZone } from '../../types/editor';
 import {
@@ -17,11 +18,11 @@ interface EditorViewZonesParams {
     /** The buffer the editor shows; zones of other buffers are left out. */
     currentFile: string | undefined;
     scopeViews: ScopeView[];
-    scopeDecorations: editor.IEditorDecorationsCollection | null;
+    scopeDecorations: ModelRanges | null;
     onRegisterScopeCanvas?: (key: string, canvas: HTMLCanvasElement) => void;
     onUnregisterScopeCanvas?: (key: string) => void;
     videoPreviewZones: VideoPreviewZone[];
-    videoPreviewDecorations: editor.IEditorDecorationsCollection | null;
+    videoPreviewDecorations: ModelRanges | null;
 }
 
 /**
