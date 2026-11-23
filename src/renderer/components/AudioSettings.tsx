@@ -1,4 +1,5 @@
 import { SelectSetting } from './SettingsControls';
+import { PREFERRED_SAMPLE_RATE } from './audioSettings/deviceOptions';
 import { useAudioSettings } from './audioSettings/useAudioSettings';
 
 interface AudioSettingsTabProps {
@@ -161,7 +162,8 @@ export function AudioSettingsTab({ isActive }: AudioSettingsTabProps) {
                                     {size} samples (~
                                     {(
                                         (size /
-                                            (selection.sampleRate || 48000)) *
+                                            (selection.sampleRate ||
+                                                PREFERRED_SAMPLE_RATE)) *
                                         1000
                                     ).toFixed(1)}{' '}
                                     ms)

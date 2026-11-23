@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef } from 'react';
 import electronAPI from '../../electronAPI';
 import type {
     CurrentAudioState,
@@ -9,11 +9,11 @@ import {
     audioSettingsReducer,
 } from './audioSettingsState';
 import {
-    deviceOptions,
     sameSelection,
     shownSelection,
     type AudioSelection,
-} from './deviceOptions';
+} from './audioSelection';
+import { deviceOptions } from './deviceOptions';
 
 const DEVICE_REFRESH_INTERVAL_MS = 2000;
 
@@ -62,29 +62,21 @@ export function useAudioSettings(isActive: boolean) {
         audioSettingsReducer,
         INITIAL_AUDIO_SETTINGS,
     );
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [warning, setWarning] = useState<string | null>(null);
-    const [applying, setApplying] = useState(false);
-
     // When the device list was last re-read, as `performance.now()`.
     const lastDeviceRefreshAt = useRef(-Infinity);
     const deviceRefreshInFlight = useRef(false);
 
-    const { deviceCache, engine, selection } = state;
+    const { deviceCache, engine, loadRun, selection } = state;
     const options = deviceOptions(deviceCache, engine, selection);
 
     // Each time the tab becomes active it shows as loading until the
     // engine's state has been read afresh.
-    const [wasActive, setWasActive] = useState(false);
-    if (isActive !== wasActive) {
-        setWasActive(isActive);
-        if (isActive) {
-            setLoading(true);
-            setError(null);
-        }
+    if (isActive !== state.active) {
+        dispatch({ active: isActive, type: 'activeChanged' });
     }
 
+    // The reducer drops the result of a load the tab has since left or
+    // restarted, so a slow device refresh cannot land over a later one.
     useEffect(() => {
         if (!isActive) {
             return;
@@ -96,17 +88,24 @@ export function useAudioSettings(isActive: boolean) {
                 return readDevicesAndEngine();
             })
             .then((read) => {
-                dispatch({ ...read, type: 'loaded' });
-                setWarning(read.engine.fallbackWarning ?? null);
+                dispatch({ ...read, run: loadRun, type: 'loaded' });
             })
             .catch((err) => {
-                setError(errorMessage(err, 'Failed to load settings'));
-            })
-            .then(() => setLoading(false))
-            .catch(console.error);
-    }, [isActive]);
+                dispatch({
+                    message: errorMessage(err, 'Failed to load settings'),
+                    run: loadRun,
+                    type: 'loadFailed',
+                });
+            });
+    }, [isActive, loadRun]);
 
-    useEffect(() => electronAPI.audio.onFallbackWarning(setWarning), []);
+    useEffect(
+        () =>
+            electronAPI.audio.onFallbackWarning((warning) =>
+                dispatch({ type: 'warned', warning }),
+            ),
+        [],
+    );
 
     // The output device changed, went or came back: show what the engine
     // runs with now.
@@ -118,10 +117,15 @@ export function useAudioSettings(isActive: boolean) {
             readDevicesAndEngine()
                 .then((read) => {
                     dispatch({ ...read, type: 'engineChanged' });
-                    setWarning(read.engine.fallbackWarning ?? null);
                 })
                 .catch((err) => {
-                    setError(errorMessage(err, 'Failed to read audio state'));
+                    dispatch({
+                        message: errorMessage(
+                            err,
+                            'Failed to read audio state',
+                        ),
+                        type: 'failed',
+                    });
                 });
         });
     }, [isActive]);
@@ -146,7 +150,10 @@ export function useAudioSettings(isActive: boolean) {
             const cache = await electronAPI.audio.getDeviceCache();
             dispatch({ cache, type: 'devicesListed' });
         } catch (err) {
-            setError(errorMessage(err, 'Failed to refresh devices'));
+            dispatch({
+                message: errorMessage(err, 'Failed to refresh devices'),
+                type: 'failed',
+            });
         }
         deviceRefreshInFlight.current = false;
         lastDeviceRefreshAt.current = performance.now();
@@ -155,27 +162,30 @@ export function useAudioSettings(isActive: boolean) {
     const applyConfig = async () => {
         const { sampleRate } = selection;
         if (!sampleRate) {
-            setError('Please select a sample rate');
+            dispatch({
+                message: 'Please select a sample rate',
+                type: 'failed',
+            });
             return;
         }
-        setApplying(true);
-        setError(null);
-        setWarning(null);
+        dispatch({ type: 'applyStarted' });
         try {
             const applied = await applySelection(selection, sampleRate);
             dispatch({ engine: applied, type: 'applied' });
         } catch (err) {
-            setError(errorMessage(err, 'Failed to apply configuration'));
+            dispatch({
+                message: errorMessage(err, 'Failed to apply configuration'),
+                type: 'applyFailed',
+            });
         }
-        setApplying(false);
     };
 
     const { unlistedOutputDeviceId } = options;
 
     return {
         applyConfig,
-        applying,
-        error,
+        applying: state.applying,
+        error: state.error,
         /** The hosts with at least one device. */
         hosts:
             deviceCache?.hosts.filter(
@@ -184,7 +194,7 @@ export function useAudioSettings(isActive: boolean) {
         isDirty:
             engine !== null &&
             !sameSelection(selection, shownSelection(engine)),
-        loading,
+        loading: state.loading,
         options,
         refreshDeviceList,
         select: (patch: Partial<AudioSelection>) =>
@@ -194,6 +204,6 @@ export function useAudioSettings(isActive: boolean) {
         unlistedOutputName: unlistedOutputDeviceId
             ? (state.outputNames.get(unlistedOutputDeviceId) ?? 'Chosen device')
             : null,
-        warning,
+        warning: state.warning,
     };
 }

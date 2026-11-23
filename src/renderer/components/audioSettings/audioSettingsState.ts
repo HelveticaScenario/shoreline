@@ -5,13 +5,12 @@ import type {
 import {
     EMPTY_SELECTION,
     appliedSelection,
-    deviceOptions,
     followSelection,
     patchSelection,
-    runnableSettings,
     shownSelection,
     type AudioSelection,
-} from './deviceOptions';
+} from './audioSelection';
+import { deviceOptions, runnableSettings } from './deviceOptions';
 
 export interface AudioSettingsState {
     deviceCache: DeviceCacheSnapshot | null;
@@ -25,10 +24,30 @@ export interface AudioSettingsState {
     outputNames: ReadonlyMap<string, string>;
     /** The host whose device selections are settled. */
     resolvedHostId: string | null;
+    /** Whether the tab is showing. */
+    active: boolean;
+    /**
+     * Counts the tab's activations and deactivations. A load carries the
+     * count it started at, and its result lands only while that is still the
+     * count and the load is still awaited.
+     */
+    loadRun: number;
+    /** Whether the engine's state is still being read for this activation. */
+    loading: boolean;
+    applying: boolean;
+    error: string | null;
+    warning: string | null;
 }
 
 export type AudioSettingsAction =
-    | { type: 'loaded'; cache: DeviceCacheSnapshot; engine: CurrentAudioState }
+    | { type: 'activeChanged'; active: boolean }
+    | {
+          type: 'loaded';
+          run: number;
+          cache: DeviceCacheSnapshot;
+          engine: CurrentAudioState;
+      }
+    | { type: 'loadFailed'; run: number; message: string }
     /** The output changed under the engine. */
     | {
           type: 'engineChanged';
@@ -36,15 +55,26 @@ export type AudioSettingsAction =
           engine: CurrentAudioState;
       }
     | { type: 'devicesListed'; cache: DeviceCacheSnapshot }
+    | { type: 'applyStarted' }
     | { type: 'applied'; engine: CurrentAudioState }
-    | { type: 'selected'; patch: Partial<AudioSelection> };
+    | { type: 'applyFailed'; message: string }
+    | { type: 'selected'; patch: Partial<AudioSelection> }
+    /** The engine reported a device fallback. */
+    | { type: 'warned'; warning: string }
+    | { type: 'failed'; message: string };
 
 export const INITIAL_AUDIO_SETTINGS: AudioSettingsState = {
+    active: false,
+    applying: false,
     deviceCache: null,
     engine: null,
+    error: null,
+    loadRun: 0,
+    loading: true,
     outputNames: new Map(),
     resolvedHostId: null,
     selection: EMPTY_SELECTION,
+    warning: null,
 };
 
 function withOutputNames(
@@ -129,17 +159,42 @@ function withDeviceCache(
     };
 }
 
+/** Whether the load started at `run` is the one `state` waits on. */
+function awaitsLoad(state: AudioSettingsState, run: number): boolean {
+    return state.loading && state.loadRun === run;
+}
+
 export function audioSettingsReducer(
     state: AudioSettingsState,
     action: AudioSettingsAction,
 ): AudioSettingsState {
     switch (action.type) {
+        case 'activeChanged':
+            if (action.active === state.active) {
+                return state;
+            }
+            return {
+                ...state,
+                active: action.active,
+                loadRun: state.loadRun + 1,
+                ...(action.active ? { error: null, loading: true } : {}),
+            };
         case 'loaded':
+            if (!awaitsLoad(state, action.run)) {
+                return state;
+            }
             return settle({
                 ...withDeviceCache(state, action.cache),
                 engine: action.engine,
+                loading: false,
                 selection: shownSelection(action.engine),
+                warning: action.engine.fallbackWarning ?? null,
             });
+        case 'loadFailed':
+            if (!awaitsLoad(state, action.run)) {
+                return state;
+            }
+            return { ...state, error: action.message, loading: false };
         case 'engineChanged':
             return settle({
                 ...withDeviceCache(state, action.cache),
@@ -153,19 +208,29 @@ export function audioSettingsReducer(
                           shownSelection(action.engine),
                       )
                     : state.selection,
+                warning: action.engine.fallbackWarning ?? null,
             });
         case 'devicesListed':
             return settle(withDeviceCache(state, action.cache));
+        case 'applyStarted':
+            return { ...state, applying: true, error: null, warning: null };
         case 'applied':
             return settle({
                 ...state,
+                applying: false,
                 engine: action.engine,
                 selection: appliedSelection(action.engine),
             });
+        case 'applyFailed':
+            return { ...state, applying: false, error: action.message };
         case 'selected':
             return settle({
                 ...state,
                 selection: patchSelection(state.selection, action.patch),
             });
+        case 'warned':
+            return { ...state, warning: action.warning };
+        case 'failed':
+            return { ...state, error: action.message };
     }
 }
