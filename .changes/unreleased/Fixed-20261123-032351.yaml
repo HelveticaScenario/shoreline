@@ -1,0 +1,3 @@
+kind: Fixed
+body: A param's default on its Docs panel card shows names such as `fall` (on `$slew`'s `rise`) as code, the way the editor's hover does, instead of with raw backticks.
+time: 2026-11-23T03:23:51.516782-05:00
