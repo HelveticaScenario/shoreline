@@ -188,6 +188,7 @@ pub fn __bench_make_mix(params: MixParams) -> Mix {
         _lane_count: lanes,
         _channels: 1,
         _block_index: Default::default(),
+        _connected: Default::default(),
         lane_state: vec![SwapGlide::default(); lanes].into_boxed_slice(),
     }
 }
@@ -423,6 +424,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             lane_state: vec![SwapGlide::default(); lanes].into_boxed_slice(),
         }
     }

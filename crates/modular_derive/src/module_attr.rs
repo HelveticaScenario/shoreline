@@ -279,6 +279,20 @@ pub fn module_impl(attr: TokenStream, item: TokenStream) -> TokenStream {
             pub _channels: usize
         };
         fields.named.push(field);
+        // `_connected` says which outputs something reads, set on the main
+        // thread before the module ships. A missing `outputs` field is
+        // reported below.
+        let outputs_ty = fields
+            .named
+            .iter()
+            .find(|f| f.ident.as_ref().is_some_and(|i| i == "outputs"))
+            .map(|f| f.ty.clone());
+        if let Some(outputs_ty) = outputs_ty {
+            let field: syn::Field = syn::parse_quote! {
+                pub _connected: <#outputs_ty as crate::types::OutputStruct>::Connected
+            };
+            fields.named.push(field);
+        }
     }
 
     // Inject `_block_index: Cell<usize>` so inner DSP can read the current
@@ -446,6 +460,7 @@ fn impl_module_macro_attr(
                             "params" => Ok(quote! { params: *concrete_params }),
                             "_lane_count" => Ok(quote! { _lane_count: deserialized.lane_count }),
                             "_channels" => Ok(quote! { _channels: deserialized.channels }),
+                            "_connected" => Ok(quote! { _connected: Default::default() }),
                             "_block_index" => Ok(quote! { _block_index: Default::default() }),
                             "outputs" | "state" => Ok(quote! { #field_name: Default::default() }),
                             "lane_state" => Ok(quote! {
@@ -843,6 +858,14 @@ fn impl_module_macro_attr(
                 self._channels
             }
 
+            /// Which outputs something reads, one flag per output. Set before
+            /// the module ships, so current from `on_patch_update` on but not
+            /// in `init`; every output is connected until a patch settles.
+            #[inline]
+            pub fn connected(&self) -> <#outputs_ty as crate::types::OutputStruct>::Connected {
+                self._connected
+            }
+
             /// Returns the current sample slot index within the block being
             /// processed. Only valid to call from inside `update()` — the
             /// wrapper writes the slot index here before each per-sample
@@ -902,6 +925,8 @@ fn impl_module_macro_attr(
             /// stamped into the params so a `SwapGlide` can tell a new swap
             /// from the one it already handled.
             glide_generation: std::cell::Cell<u64>,
+            /// The outputs something reads, bits by port index.
+            connected: std::cell::Cell<u64>,
             /// Block size pinned at construction. Mirrors the BlockPort length.
             block_size: usize,
             /// Block vs. Sample mode, assigned by graph_analysis cycle
@@ -1121,6 +1146,25 @@ fn impl_module_macro_attr(
                 }
             }
 
+            fn collect_cables(&self, sink: &mut Vec<crate::types::CableSource>) {
+                // SAFETY: as `bounded_outputs`.
+                let params = unsafe { &(*self.module.get()).params };
+                crate::types::Connect::collect_cables(params, sink);
+            }
+
+            fn set_connected_outputs(&self, mask: u64) {
+                self.connected.set(mask);
+                // SAFETY: as `bounded_outputs`.
+                unsafe {
+                    (*self.module.get())._connected =
+                        <#outputs_ty as crate::types::OutputStruct>::connected(mask);
+                }
+            }
+
+            fn connected_outputs(&self) -> u64 {
+                self.connected.get()
+            }
+
             fn port_lanes(&self, port: &str) -> usize {
                 let Some(port_idx) = <#block_outputs_ty>::port_index(port) else {
                     return 0;
@@ -1265,6 +1309,7 @@ fn impl_module_macro_attr(
                     ports
                 }),
                 glide_generation: std::cell::Cell::new(0),
+                connected: std::cell::Cell::new(u64::MAX),
                 block_size: _block_size,
                 mode: _mode,
                 f64_outputs: deserialized.f64_inputs && <#block_outputs_ty>::INHERITS,

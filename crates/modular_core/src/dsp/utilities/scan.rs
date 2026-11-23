@@ -157,6 +157,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         }
     }
@@ -296,6 +297,7 @@ mod tests {
             _lane_count: 2,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             lane_state: vec![LaneState::default(); 2].into_boxed_slice(),
         };
         m.update(48_000.0);

@@ -146,6 +146,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         };
         module.outputs.sample.set_lanes(1);
         module.update(44100.0);
@@ -164,6 +165,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         };
         module.outputs.sample.set_lanes(1);
         module.update(44100.0);

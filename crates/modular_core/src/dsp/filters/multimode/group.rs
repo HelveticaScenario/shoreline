@@ -124,10 +124,10 @@ impl GroupState {
     }
 
     /// One core-rate sample from drive VCA outputs `x`, returning the outputs
-    /// `[output, lp, bp, hp]`. The output amp's feedback pole filters the LP,
-    /// BP and HP nodes before the mode VCAs, which only rescale them, so
-    /// filtering each one equals filtering their mix. The drive stage runs on
-    /// the first `active` elements.
+    /// `[output, lp, bp, hp]`, 0 for those not in `taps`. The output amp's
+    /// feedback pole filters the LP, BP and HP nodes before the mode VCAs,
+    /// which only rescale them, so filtering each one equals filtering their
+    /// mix. The drive stage runs on the first `active` elements.
     #[inline]
     fn tick<L: Simd>(
         &mut self,
@@ -135,6 +135,7 @@ impl GroupState {
         fold_gains: &[(f32, f32); SIMD_WIDTH],
         tables: Tables,
         active: usize,
+        taps: Taps,
     ) -> [L; 4] {
         let x = self.drive_pole.process(x);
         let filter_in = self.drive.process(tables.drive, x, fold_gains, active);
@@ -151,11 +152,17 @@ impl GroupState {
         let [p_lp, p_bp, p_hp] = &mut self.output_poles;
         let (lp, bp, hp) = (p_lp.process(lp), p_bp.process(bp), p_hp.process(hp));
         let amp = |v| output_amp(tables.chain, v, active);
+        let off = L::splat(0.0);
+        let [sample, lp_tap, bp_tap, hp_tap] = taps;
         [
-            amp(morph(lp, bp, hp, &c.mode_x4)),
-            amp(lp),
-            amp(-bp),
-            amp(hp),
+            if sample {
+                amp(morph(lp, bp, hp, &c.mode_x4))
+            } else {
+                off
+            },
+            if lp_tap { amp(lp) } else { off },
+            if bp_tap { amp(-bp) } else { off },
+            if hp_tap { amp(hp) } else { off },
         ]
     }
 }
@@ -184,6 +191,11 @@ fn morph<L: Simd>(lp: L, bp: L, hp: L, (gain_a, gain_b): &(GainX4, GainX4)) -> L
 /// One sample's `[output, lp, bp, hp]` for a group's elements.
 pub(super) type GroupOutputs = [[f32; SIMD_WIDTH]; 4];
 
+/// Which of `[output, lp, bp, hp]` something reads. The rest are left
+/// uncomputed: their output amps and mode VCAs hold no state, and their
+/// downsamplers settle within about a millisecond once read again.
+pub(super) type Taps = [bool; 4];
+
 /// One sample for the `active` lanes of group `state`, kept out of line so
 /// `update` carries one inlined copy.
 #[inline(never)]
@@ -191,10 +203,10 @@ pub(super) fn process_group<L: Simd>(
     state: &mut GroupState,
     controls: &ControlInputs,
     input: [f32; SIMD_WIDTH],
-    (active, high_res, rate, tables): (usize, bool, f32, Tables),
+    (active, high_res, rate, tables, taps): (usize, bool, f32, Tables, Taps),
 ) -> GroupOutputs {
     update_controls::<L>(&mut state.controls, controls, active, rate);
-    step::<L>(state, input, active, high_res, tables)
+    step::<L>(state, input, active, high_res, tables, taps)
 }
 
 /// Slots `range` for the `active` lanes of group `state`, from lane
@@ -206,7 +218,7 @@ pub(super) fn process_block_group<L: Simd>(
     inputs: &MultimodeParamsBlockInputs,
     outputs: &mut MultimodeBlockOutputs,
     range: Range<usize>,
-    (base, active, high_res, rate, tables): (usize, usize, bool, f32, Tables),
+    (base, active, high_res, rate, tables, taps): (usize, usize, bool, f32, Tables, Taps),
 ) {
     let held = [
         &inputs.cutoff,
@@ -227,14 +239,14 @@ pub(super) fn process_block_group<L: Simd>(
             update_controls::<L>(&mut state.controls, &controls, active, rate);
         }
         let input = row(&inputs.input, i, base, active);
-        let [sample, lp, bp, hp] = step::<L>(state, input, active, high_res, tables);
+        let [sample, lp, bp, hp] = step::<L>(state, input, active, high_res, tables, taps);
         let ports = [
             (&mut outputs.sample, sample),
             (&mut outputs.lp, lp),
             (&mut outputs.bp, bp),
             (&mut outputs.hp, hp),
         ];
-        for (port, values) in ports {
+        for ((port, values), _) in ports.into_iter().zip(taps).filter(|(_, tap)| *tap) {
             let slot = &mut port.slot_mut(i)[base..base + active];
             for (out, &v) in slot.iter_mut().zip(&values) {
                 *out = sanitize(v);
@@ -244,7 +256,7 @@ pub(super) fn process_block_group<L: Simd>(
 }
 
 /// One sample of the signal path for the first `active` elements of group
-/// `state`, returning each output's elements.
+/// `state`, returning each output's elements, 0 for those not in `taps`.
 #[inline(always)]
 pub(super) fn step<L: Simd>(
     state: &mut GroupState,
@@ -252,6 +264,7 @@ pub(super) fn step<L: Simd>(
     active: usize,
     high_res: bool,
     tables: Tables,
+    taps: Taps,
 ) -> GroupOutputs {
     let c = &state.controls;
     let fold = c.fold_gains;
@@ -260,19 +273,25 @@ pub(super) fn step<L: Simd>(
     let x = (L::splat(R_DRIVE_IN) * vca::output(&c.drive_x4, drive_in)).sanitize();
     let out = if high_res {
         let (even, odd) = state.up.process(x);
-        let even = state.tick(even, &fold, tables, active);
-        let odd = state.tick(odd, &fold, tables, active);
+        let even = state.tick(even, &fold, tables, active, taps);
+        let odd = state.tick(odd, &fold, tables, active, taps);
         // A lone lane decimates its four outputs as one downsampler's elements.
         if L::WIDTH == 1 {
             let pack = |o: [L; 4]| f32x4::new(o.map(|v| v.to_elements()[0]));
             let y = state.down[0].process(pack(even), pack(odd)).to_array();
             y.map(L::splat)
         } else {
-            std::array::from_fn(|k| state.down[k].process(even[k], odd[k]))
+            std::array::from_fn(|k| {
+                if taps[k] {
+                    state.down[k].process(even[k], odd[k])
+                } else {
+                    L::splat(0.0)
+                }
+            })
         }
     } else {
         let x = state.pre_emphasis.process(x);
-        state.tick(x, &fold, tables, active)
+        state.tick(x, &fold, tables, active, taps)
     };
 
     out.map(|v| rails(v).to_elements())
