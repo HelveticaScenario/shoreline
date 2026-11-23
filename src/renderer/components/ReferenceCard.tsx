@@ -119,8 +119,8 @@ interface ReferenceCardProps {
 }
 
 /**
- * The full Docs-panel view of one module or global. The virtualized list that
- * mounts the cards renders on every scroll and is not compiled, so `memo`
+ * The full Docs-panel view of one module or global. The virtualizing hook
+ * that mounts the cards runs on every scroll and is not compiled, so `memo`
  * keeps a scroll from re-rendering them.
  */
 export const ReferenceCard = memo<ReferenceCardProps>(

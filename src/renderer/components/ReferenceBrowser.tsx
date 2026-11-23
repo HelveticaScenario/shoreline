@@ -88,20 +88,45 @@ export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
         .sort((a, b) => a.rank - b.rank)
         .map(({ entry }) => entry);
 
+    const { scrollRef, list, topName, scrollToEntry } = useVirtualCards(
+        filteredEntries,
+        searchQuery,
+        category,
+        onTypeClick,
+    );
+
     return (
-        <ReferenceList
-            noun={noun}
-            hasEntries={entries.length > 0}
-            filteredEntries={filteredEntries}
-            categories={categories}
-            searchQuery={searchQuery}
-            onSearchQueryChange={onSearchQueryChange}
-            category={category}
-            onCategoryChange={onCategoryChange}
-            indexWidth={indexWidth}
-            onIndexWidthChange={setIndexWidth}
-            onTypeClick={onTypeClick}
-        />
+        <div className="reference-browser">
+            <ReferenceIndex
+                noun={noun}
+                entries={filteredEntries}
+                topName={topName}
+                onSelect={scrollToEntry}
+                searchQuery={searchQuery}
+                onSearchQueryChange={onSearchQueryChange}
+                category={category}
+                width={indexWidth}
+                onWidthChange={setIndexWidth}
+            />
+            <div className="reference-browser-main">
+                {categories.length > 0 && (
+                    <ReferenceCategories
+                        categories={categories}
+                        category={category}
+                        onCategoryChange={onCategoryChange}
+                    />
+                )}
+                <div ref={scrollRef} className="reference-cards">
+                    {filteredEntries.length === 0 && entries.length > 0 && (
+                        <p className="reference-browser-empty">
+                            No {noun} match
+                            {category ? ` in ${category}` : ''}.
+                        </p>
+                    )}
+                    {list}
+                </div>
+            </div>
+        </div>
     );
 };
 
@@ -120,8 +145,8 @@ interface ReferenceIndexProps {
 
 /**
  * The search field and the list of entry names, which follows the cards'
- * scroll. `memo` because the virtualized list around it renders on every
- * scroll frame.
+ * scroll. `memo` because the browser around it renders on every scroll
+ * frame.
  */
 const ReferenceIndex = memo(function ReferenceIndex({
     noun,
@@ -240,53 +265,45 @@ const ReferenceCategories: React.FC<ReferenceCategoriesProps> = ({
     </div>
 );
 
-interface ReferenceListProps {
-    noun: string;
-    hasEntries: boolean;
-    filteredEntries: ReferenceEntry[];
-    categories: typeof referenceCategories;
-    searchQuery: string;
-    onSearchQueryChange: (query: string) => void;
-    category: string | null;
-    onCategoryChange: (category: string | null) => void;
-    indexWidth: number | null;
-    onIndexWidthChange: (width: number | null) => void;
-    onTypeClick: (typeName: DslTypeName) => void;
+interface VirtualCards {
+    /** Goes on the element that scrolls the cards. */
+    scrollRef: React.RefObject<HTMLDivElement | null>;
+    /** The cards near the viewport, in a box as tall as all of them. */
+    list: React.ReactElement;
+    /** The entry whose card is at the top of the scroll element. */
+    topName: string | undefined;
+    /** Scrolls the card of the entry at `index` to the top. */
+    scrollToEntry: (index: number) => void;
 }
 
 /**
- * The virtualized cards, between the panes that steer them. `useVirtualizer`
- * returns a mutable instance whose methods read fresh state on every render,
- * so React Compiler must not memoize anything derived from it.
+ * Virtualizes the cards of `entries`, scrolling back to the first whenever
+ * `searchQuery` or `category` changes. `useVirtualizer` returns a mutable
+ * instance whose methods read fresh state on every render, so React Compiler
+ * must not memoize anything derived from it: everything that reads the
+ * instance, the cards' markup included, is inside this hook.
  */
-const ReferenceList: React.FC<ReferenceListProps> = ({
-    noun,
-    hasEntries,
-    filteredEntries,
-    categories,
-    searchQuery,
-    onSearchQueryChange,
-    category,
-    onCategoryChange,
-    indexWidth,
-    onIndexWidthChange,
-    onTypeClick,
-}) => {
+function useVirtualCards(
+    entries: ReferenceEntry[],
+    searchQuery: string,
+    category: string | null,
+    onTypeClick: (typeName: DslTypeName) => void,
+): VirtualCards {
     'use no memo';
-    const cardsRef = useRef<HTMLDivElement>(null);
+    const scrollRef = useRef<HTMLDivElement>(null);
 
     const getItemKey = useCallback(
-        (index: number) => filteredEntries[index].name,
-        [filteredEntries],
+        (index: number) => entries[index].name,
+        [entries],
     );
 
     // oxlint-disable-next-line react-hooks-js/incompatible-library
     const virtualizer = useVirtualizer({
-        count: filteredEntries.length,
+        count: entries.length,
         estimateSize: () => ESTIMATED_CARD_HEIGHT_PX,
         gap: CARD_GAP_PX,
         getItemKey,
-        getScrollElement: () => cardsRef.current,
+        getScrollElement: () => scrollRef.current,
         // A hidden pane measures every card as zero; keep the sizes they had while shown.
         measureElement: (element, entry, instance) => {
             const size = measureElement(element, entry, instance);
@@ -321,59 +338,29 @@ const ReferenceList: React.FC<ReferenceListProps> = ({
     const topItem = virtualItems.find(
         (item) => item.end + CARD_GAP_PX - 1 > scrollOffset,
     );
-    const topName = topItem && filteredEntries[topItem.index]?.name;
+    const topName = topItem && entries[topItem.index]?.name;
 
-    return (
-        <div className="reference-browser">
-            <ReferenceIndex
-                noun={noun}
-                entries={filteredEntries}
-                topName={topName}
-                onSelect={scrollToEntry}
-                searchQuery={searchQuery}
-                onSearchQueryChange={onSearchQueryChange}
-                category={category}
-                width={indexWidth}
-                onWidthChange={onIndexWidthChange}
-            />
-            <div className="reference-browser-main">
-                {categories.length > 0 && (
-                    <ReferenceCategories
-                        categories={categories}
-                        category={category}
-                        onCategoryChange={onCategoryChange}
+    const list = (
+        <div
+            className="reference-list"
+            style={{ height: virtualizer.getTotalSize() }}
+        >
+            {virtualItems.map((item) => (
+                <div
+                    key={item.key}
+                    ref={virtualizer.measureElement}
+                    data-index={item.index}
+                    className="reference-list-item"
+                    style={{ transform: `translateY(${item.start}px)` }}
+                >
+                    <ReferenceCard
+                        entry={entries[item.index]}
+                        onTypeClick={onTypeClick}
                     />
-                )}
-                <div ref={cardsRef} className="reference-cards">
-                    {filteredEntries.length === 0 && hasEntries && (
-                        <p className="reference-browser-empty">
-                            No {noun} match
-                            {category ? ` in ${category}` : ''}.
-                        </p>
-                    )}
-                    <div
-                        className="reference-list"
-                        style={{ height: virtualizer.getTotalSize() }}
-                    >
-                        {virtualItems.map((item) => (
-                            <div
-                                key={item.key}
-                                ref={virtualizer.measureElement}
-                                data-index={item.index}
-                                className="reference-list-item"
-                                style={{
-                                    transform: `translateY(${item.start}px)`,
-                                }}
-                            >
-                                <ReferenceCard
-                                    entry={filteredEntries[item.index]}
-                                    onTypeClick={onTypeClick}
-                                />
-                            </div>
-                        ))}
-                    </div>
                 </div>
-            </div>
+            ))}
         </div>
     );
-};
+
+    return { scrollRef, list, topName, scrollToEntry };
+}

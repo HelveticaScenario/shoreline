@@ -61,9 +61,9 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
                 .catch(console.error);
         };
 
-        // Enable, then poll. Keyed on `isOpen` only so a sample-rate change
-        // (a display-only control, handled in the effect below) doesn't tear
-        // down and re-enable profiling. The enable refcounts on the Rust side
+        // Enable, then poll. Keyed on `isOpen` only: the sampling rate is
+        // set by the effect below, so changing it never tears down and
+        // re-enables profiling. The enable refcounts on the Rust side
         // (AudioState), so concurrent consumers remain safe if this re-runs.
         void (async () => {
             try {
@@ -89,9 +89,10 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
         };
     }, [isOpen]);
 
-    // Push sample-rate changes without disturbing the enable refcount or the
-    // polling loop — the dropdown is display-only, so it must not toggle
-    // profiling off/on (which would blip the global and flash "Loading…").
+    // The dropdown sets how many audio callbacks the engine times (1 in
+    // `sampleRate`). That setting is separate from the enable refcount and
+    // the polling loop, so a change never toggles profiling off and on
+    // (which would blip the global and flash "Loading…").
     useEffect(() => {
         if (!isOpen) return;
         electronAPI.synthesizer

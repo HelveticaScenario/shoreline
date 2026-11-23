@@ -36,7 +36,6 @@ export function BufferItem({
         buffer.kind === 'file' && renamingPath === buffer.filePath
             ? buffer.filePath
             : null;
-    const isRenaming = renamingFilePath !== null;
     const label = formatLabel(buffer);
 
     return (
@@ -50,8 +49,12 @@ export function BufferItem({
             ]
                 .filter(Boolean)
                 .join(' ')}
-            onClick={() => !isRenaming && onSelectBuffer(bufferId)}
-            onDoubleClick={() => !isRenaming && onKeepBuffer(bufferId)}
+            onClick={() =>
+                renamingFilePath === null && onSelectBuffer(bufferId)
+            }
+            onDoubleClick={() =>
+                renamingFilePath === null && onKeepBuffer(bufferId)
+            }
             onContextMenu={(e) => onContextMenu(e, buffer)}
         >
             {renamingFilePath !== null ? (
@@ -66,13 +69,13 @@ export function BufferItem({
             ) : (
                 <span className="file-name">{label}</span>
             )}
-            {!isRenaming && isRunning && (
+            {renamingFilePath === null && isRunning && (
                 <span className="running-badge">▶</span>
             )}
-            {!isRenaming && buffer.dirty && (
+            {renamingFilePath === null && buffer.dirty && (
                 <span className="dirty-dot">●</span>
             )}
-            {!isRenaming && (
+            {renamingFilePath === null && (
                 <button
                     className="close-button"
                     onClick={(e) => {
