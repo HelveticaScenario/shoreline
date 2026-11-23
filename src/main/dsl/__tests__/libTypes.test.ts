@@ -146,12 +146,20 @@ describe('generated DSL lib', () => {
         expect(patchErrors).toEqual([]);
     });
 
-    test('concat rejects a collection of another type', () => {
-        const patchErrors = patchDiagnostics(`
-                $enosc('c3').concat($sine('c3'));
-                $('c4').concat($enosc('c3'));
-            `);
-        expect(patchErrors).toHaveLength(2);
+    test('a module with several outputs takes any signal in concat', () => {
+        expect(
+            patchDiagnostics(`
+                $enosc('c3').concat($sine('c3'))._root.scope();
+                out: $saw('c3').lpf('c5').concat($enosc('c3'))._24db;
+                verb: $bus().lpf('c5').concat($sine('c3'));
+            `),
+        ).toEqual([]);
+    });
+
+    test('a pattern rejects a collection of another type in concat', () => {
+        expect(patchDiagnostics(`$('c4').concat($enosc('c3'));`)).toHaveLength(
+            1,
+        );
     });
 
     test('an arithmetic method needs its operand', () => {
@@ -212,9 +220,11 @@ b: $bus().reverb().track({ sends: a })
         expect(
             labelErrors(`
 low: $bus().xover()._low
-lead: $saw('c3').track({ sends: low })
+steep: $bus().lpf('c5')._24db.plate()
+ladder: $bus().lpfLadder('c5')._12db
+lead: $saw('c3').track({ sends: [low, steep, ladder] })
 `),
-        ).toHaveLength(1);
+        ).toEqual([]);
     });
 
     test('a send level is any signal but a track name', () => {
@@ -360,6 +370,17 @@ pad: $sine('c4').amp($motionFollower(drums)).amp(drums.active)
 kick$drums: $sine('c1')
 drums$rhythm: $group().reverb()
 rhythm: $group()
+`),
+        ).toEqual([]);
+    });
+
+    test('a suffix naming a group that ends in a module with several outputs is clean', () => {
+        expect(
+            suffixErrors(`
+kick$drums: $sine('c1')
+drums$rhythm: $group().lpf('c7')
+hat$rhythm: $noise()
+rhythm: $group().lpfLadder('c6')._12db
 `),
         ).toEqual([]);
     });

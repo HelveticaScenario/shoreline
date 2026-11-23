@@ -1,0 +1,3 @@
+kind: New
+body: '`$lpf`, `$hpf` and `$bpf` have a second output, `._24db`: a steeper 4-pole version of the filter. Used on its own, each still gives its 2-pole sound, also available as `._12db`. A new `$notch` cuts a band instead: one null on `._12db`, two spread around the centre on `._24db`.'
+time: 2026-11-23T06:51:19.897925-05:00

@@ -1,43 +1,6 @@
-use deserr::Deserr;
-use schemars::JsonSchema;
-
+use crate::dsp::filters::svf_module::svf_filter;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
-use crate::{
-    dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
-    poly::{PolyOutput, PolySignal},
-};
-
-#[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct BandpassFilterParams {
-    #[input("the sound to filter", type = audio)]
-    input: PolySignal,
-    #[input(
-        "centre frequency; tops out just under half the sample rate",
-        type = frequency,
-        range = (-3.71, ..),
-    )]
-    center: PolySignal,
-    #[input(
-        "higher narrows the band, and keeps narrowing past 5",
-        type = control,
-        default = 1.0,
-        range = (0.0, ..),
-        control_range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    resonance: Option<PolySignal>,
-}
-
-#[derive(Outputs, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct BandpassFilterOutputs {
-    #[output("output", "filtered signal", type = cv, default)]
-    sample: PolyOutput,
-}
 
 const BPF_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonant bandpass filter",
@@ -63,46 +26,13 @@ const BPF_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(
-    name = "$bpf",
+svf_filter! {
     docs = BPF_DOCS,
-    patch_update,
-    args(input, center, resonance)
-)]
-pub struct BandpassFilter {
-    outputs: BandpassFilterOutputs,
-    state: SvfFilterState,
-    lane_state: Box<[SvfLane]>,
-    params: BandpassFilterParams,
+    name = "$bpf",
+    ident = BandpassFilter,
+    response = Bandpass,
+    freq = center: "centre frequency; tops out just under half the sample rate",
+    resonance = 1.0: "higher narrows the band, and keeps narrowing past 5",
+    db12 = "2-pole bandpass: 6 dB/oct each side",
+    db24 = "4-pole bandpass: 12 dB/oct each side, flat across the band",
 }
-
-impl BandpassFilter {
-    fn update(&mut self, sample_rate: f32) {
-        let lanes = self.lane_count();
-        resonant_svf::run(
-            Response::Bandpass,
-            lanes,
-            &self.params.input,
-            &self.params.center,
-            &self.params.resonance,
-            1.0,
-            sample_rate,
-            &mut self.state,
-            &mut self.lane_state,
-            &mut self.outputs.sample,
-        );
-    }
-}
-
-impl crate::types::PatchUpdateHandler for BandpassFilter {
-    fn on_patch_update(&mut self) {
-        resonant_svf::on_patch_update(
-            &self.params.center,
-            &self.params.resonance,
-            &mut self.state,
-            &mut self.lane_state,
-        );
-    }
-}
-
-message_handlers!(impl BandpassFilter {});

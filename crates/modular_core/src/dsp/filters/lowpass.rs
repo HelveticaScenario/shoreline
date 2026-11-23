@@ -1,51 +1,13 @@
-use deserr::Deserr;
-use schemars::JsonSchema;
-
+use crate::dsp::filters::svf_module::svf_filter;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
-use crate::{
-    dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
-    poly::{PolyOutput, PolySignal},
-};
-
-#[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct LowpassFilterParams {
-    #[input("the sound to filter", type = audio)]
-    input: PolySignal,
-    #[input(
-        "cutoff frequency; tops out just under half the sample rate",
-        type = frequency,
-        default = 0.0,
-        range = (-3.71, ..),
-    )]
-    cutoff: PolySignal,
-    #[input(
-        "resonant peak at the cutoff; keeps sharpening past 5",
-        type = control,
-        default = 0.0,
-        range = (0.0, ..),
-        control_range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    resonance: Option<PolySignal>,
-}
-
-#[derive(Outputs, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct LowpassFilterOutputs {
-    #[output("output", "filtered signal", type = cv, default)]
-    sample: PolyOutput,
-}
 
 const LPF_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonant lowpass filter",
     description: "Removes the highs above the cutoff: the everyday filter for taming bright \
                   oscillators and for envelope-swept basses and pads. Resonance adds a ringing \
-                  peak at the cutoff but never self-oscillates; reach for `$jup6f` when you \
-                  want the filter to sing.",
+                  peak at the cutoff but never self-oscillates; reach for `$lpfLadder` when \
+                  you want the filter to sing.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
@@ -71,46 +33,13 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(
-    name = "$lpf",
+svf_filter! {
     docs = LPF_DOCS,
-    patch_update,
-    args(input, cutoff, resonance)
-)]
-pub struct LowpassFilter {
-    outputs: LowpassFilterOutputs,
-    state: SvfFilterState,
-    lane_state: Box<[SvfLane]>,
-    params: LowpassFilterParams,
+    name = "$lpf",
+    ident = LowpassFilter,
+    response = Lowpass,
+    freq = cutoff: "cutoff frequency; tops out just under half the sample rate", default = 0.0,
+    resonance = 0.0: "resonant peak at the cutoff; keeps sharpening past 5",
+    db12 = "2-pole lowpass: 12 dB/oct",
+    db24 = "4-pole lowpass: 24 dB/oct, flat up to the cutoff at resonance 0",
 }
-
-impl LowpassFilter {
-    fn update(&mut self, sample_rate: f32) {
-        let lanes = self.lane_count();
-        resonant_svf::run(
-            Response::Lowpass,
-            lanes,
-            &self.params.input,
-            &self.params.cutoff,
-            &self.params.resonance,
-            0.0,
-            sample_rate,
-            &mut self.state,
-            &mut self.lane_state,
-            &mut self.outputs.sample,
-        );
-    }
-}
-
-impl crate::types::PatchUpdateHandler for LowpassFilter {
-    fn on_patch_update(&mut self) {
-        resonant_svf::on_patch_update(
-            &self.params.cutoff,
-            &self.params.resonance,
-            &mut self.state,
-            &mut self.lane_state,
-        );
-    }
-}
-
-message_handlers!(impl LowpassFilter {});
