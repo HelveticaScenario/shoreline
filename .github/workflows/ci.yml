@@ -114,9 +114,13 @@ jobs:
               if: ${{ !cancelled() }}
               run: cargo fmt -p modular_core -p modular_derive -p modular -- --check
 
+            # `build.warnings = deny` fails the step on any warning, so a stale
+            # `#[expect]` or a rustc lint gates the same as a clippy lint.
             - name: Clippy
               if: ${{ !cancelled() }}
               run: cargo clippy -p modular_core -p modular_derive -p modular --all-targets
+              env:
+                  CARGO_BUILD_WARNINGS: deny
 
     # The branch ruleset requires this check name; it passes only when every
     # job in `needs` succeeded. It runs even on cancellation, because a skipped

@@ -157,6 +157,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         };
         crate::dsp::utils::rng::TEST_SEED_BASE.set(Some(0x5eed));
         m.on_patch_update();

@@ -267,8 +267,8 @@ impl<const PTS: usize> Folder<PTS> {
             (val, ad)
         };
         let (mut f, mut ad) = seg(0);
-        for i in 1..PTS - 1 {
-            if x >= self.xs[i] {
+        for (i, &knee) in self.xs.iter().enumerate().take(PTS - 1).skip(1) {
+            if x >= knee {
                 let (v, a) = seg(i);
                 f = v;
                 ad = a;

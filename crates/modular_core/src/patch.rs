@@ -11,7 +11,7 @@ use crate::types::{
     SampleableMap, WavData,
 };
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 /// The core patch structure containing the DSP graph
@@ -93,6 +93,9 @@ pub struct SettledModule {
 #[derive(Clone, Debug, Default)]
 pub struct Settlement {
     pub bounds: PatchBounds,
+    /// The outputs something reads, as `(module, port)`; all of them when
+    /// `None`, before the patch settles its connections.
+    pub connected: Option<HashSet<(String, String)>>,
     pub modules: HashMap<String, SettledModule>,
 }
 
@@ -123,6 +126,23 @@ impl Settlement {
     pub fn settle_rebuilt(&self, id: &str, module: &dyn Sampleable) {
         module.settle_params(&self.bounds);
         module.make_bounded(self.bounds.read.get(id).copied().unwrap_or(0));
+        if let Some(connected) = &self.connected {
+            module.set_connected_outputs(connected_mask(id, module, connected));
+        }
+    }
+
+    /// The first cable of `module` that reads an output this settlement left
+    /// disconnected: a module rebuilt on its own cannot connect an output of
+    /// a module it does not rebuild.
+    pub fn disconnected_read(&self, module: &dyn Sampleable) -> Option<CableSource> {
+        let connected = self.connected.as_ref()?;
+        let mut cables = Vec::new();
+        module.collect_cables(&mut cables);
+        cables.into_iter().find(|cable| {
+            self.modules.contains_key(&cable.module)
+                && !engine_read(&cable.module)
+                && !connected.contains(&(cable.module.clone(), cable.port.clone()))
+        })
     }
 }
 
@@ -204,7 +224,8 @@ impl Patch {
 
     /// Construct each module from already-deserialized params at its resolved
     /// processing mode and insert it unconnected, returning what the patch
-    /// settled. Main thread only.
+    /// settled, with every output connected until
+    /// [`settle_connections`](Self::settle_connections). Main thread only.
     pub fn insert_modules(
         &mut self,
         modules: impl IntoIterator<
@@ -243,8 +264,37 @@ impl Patch {
         }
         Ok(Settlement {
             bounds: self.settle_bounds(),
+            connected: None,
             modules: settled_modules,
         })
+    }
+
+    /// Settle which outputs something reads, and tell each module: an output
+    /// is connected when a cable reads it, when it is one of `taps` (the
+    /// outputs scopes and meters read, as `(module, port)`), or when it
+    /// belongs to a module the engine reads itself. Main thread, after
+    /// [`insert_modules`](Self::insert_modules) and before the patch ships.
+    pub fn settle_connections<'a>(
+        &self,
+        settlement: &mut Settlement,
+        taps: impl IntoIterator<Item = (&'a str, &'a str)>,
+    ) {
+        let mut cables = Vec::new();
+        for module in self.sampleables.values() {
+            module.collect_cables(&mut cables);
+        }
+        let connected: HashSet<(String, String)> = cables
+            .into_iter()
+            .map(|cable| (cable.module, cable.port))
+            .chain(
+                taps.into_iter()
+                    .map(|(module, port)| (module.to_string(), port.to_string())),
+            )
+            .collect();
+        for (id, module) in &self.sampleables {
+            module.set_connected_outputs(connected_mask(id, module.as_ref(), &connected));
+        }
+        settlement.connected = Some(connected);
     }
 
     /// Settle which outputs carry bounds and give them their storage.
@@ -356,6 +406,32 @@ impl Patch {
             module.on_patch_update();
         }
     }
+}
+
+/// Whether the engine reads every output of module `id` itself.
+fn engine_read(id: &str) -> bool {
+    use crate::types::WellKnownModule;
+    [
+        WellKnownModule::RootOutput,
+        WellKnownModule::RootClock,
+        WellKnownModule::RootInput,
+        WellKnownModule::HiddenAudioIn,
+    ]
+    .iter()
+    .any(|known| known.id() == id)
+}
+
+/// The outputs of module `id` in `connected`, as bits by port index.
+fn connected_mask(id: &str, module: &dyn Sampleable, connected: &HashSet<(String, String)>) -> u64 {
+    if engine_read(id) {
+        return u64::MAX;
+    }
+    module
+        .port_names()
+        .iter()
+        .enumerate()
+        .filter(|(_, port)| connected.contains(&(id.to_string(), port.to_string())))
+        .fold(0, |mask, (i, _)| mask | 1 << i)
 }
 
 /// Settle every module's channels per lane and map its inputs onto their

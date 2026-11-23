@@ -230,6 +230,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         };
         module.outputs.sample.set_lanes(lanes);
         module.outputs.pos.set_lanes(lanes);

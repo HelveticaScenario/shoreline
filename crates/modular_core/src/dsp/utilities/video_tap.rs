@@ -194,6 +194,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         }
     }
 

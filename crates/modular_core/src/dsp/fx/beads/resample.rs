@@ -172,9 +172,11 @@ impl MonoHistory {
 
         let mut acc = [0.0f32; LANES];
         for ((a, b), x) in row0
-            .chunks_exact(LANES)
-            .zip(row1.chunks_exact(LANES))
-            .zip(x.chunks_exact(LANES))
+            .as_chunks::<LANES>()
+            .0
+            .iter()
+            .zip(row1.as_chunks::<LANES>().0)
+            .zip(x.as_chunks::<LANES>().0)
         {
             for k in 0..LANES {
                 let w = a[k] + t * (b[k] - a[k]);

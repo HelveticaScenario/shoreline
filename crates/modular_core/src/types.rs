@@ -342,6 +342,24 @@ pub trait Sampleable: MessageHandler + Send {
     /// Give the outputs in `mask` their bounds storage. Main thread only:
     /// allocates, before the module is connected.
     fn make_bounded(&self, _mask: u64) {}
+    /// Push every cable this module's params read. Main thread, while the
+    /// patch is analysed.
+    fn collect_cables(&self, _sink: &mut Vec<CableSource>) {}
+    /// Tell the module which of its outputs something reads, as bits by
+    /// port index: a cable, a scope or meter, or the engine itself. A
+    /// module never told has every output connected. Main thread, before
+    /// the module is shipped to the audio thread.
+    fn set_connected_outputs(&self, _mask: u64) {}
+    /// The outputs set by [`set_connected_outputs`](Self::set_connected_outputs).
+    fn connected_outputs(&self) -> u64 {
+        u64::MAX
+    }
+    /// Whether output `port` is connected; a name that is not an output
+    /// port is.
+    fn output_connected(&self, port: &str) -> bool {
+        self.port_index(port)
+            .is_none_or(|i| self.connected_outputs() & (1 << i) != 0)
+    }
     /// Read like [`get_value_at`](Self::get_value_at), but treat lanes at or
     /// above the port's width as silence rather than cycling back over the
     /// lower ones. For consumers whose lanes are physical rather than
@@ -2984,6 +3002,10 @@ impl Connect for Signal {
         } = self
         {
             let upstream = patch.sampleables.get(module);
+            debug_assert!(
+                upstream.is_none_or(|sampleable| sampleable.output_connected(port)),
+                "a cable reads {module}.{port}, which the patch settled as disconnected"
+            );
             *resolved = upstream.map(|sampleable| NonNull::from(sampleable.as_ref()));
             *view = upstream
                 .and_then(|sampleable| sampleable.port_view(port))
@@ -3386,6 +3408,13 @@ pub trait OutputStruct: Default + Send + 'static {
     /// Allocates — main thread only, after
     /// [`set_all_lanes`](Self::set_all_lanes).
     fn make_bounded(&mut self, _mask: u64) {}
+    /// One flag per output saying whether something reads it; its default
+    /// has every output connected.
+    type Connected: Copy + Default + Send + 'static;
+    /// The flags for the connected outputs in `mask`, bits by port index.
+    fn connected(mask: u64) -> Self::Connected
+    where
+        Self: Sized;
     /// Size the `#[output(…, mono)]` outputs to one lane per logical lane
     /// of a module with `channels` sides. Main thread only, after
     /// [`set_all_lanes`](Self::set_all_lanes).

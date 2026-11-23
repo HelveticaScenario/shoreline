@@ -84,10 +84,6 @@ pub static FOLD_MAX_TABLE: LazyLock<[f32; FOLD_MAX_SIZE]> = LazyLock::new(|| {
 pub static CHEBY_TABLES: LazyLock<[[f32; CHEBY_SIZE]; CHEBY_TABLES_COUNT]> = LazyLock::new(|| {
     let mut tables = [[0.0f32; CHEBY_SIZE]; CHEBY_TABLES_COUNT];
 
-    #[expect(
-        clippy::needless_range_loop,
-        reason = "each column runs the recurrence down the tables"
-    )]
     for i in 0..CHEBY_SIZE {
         let x = (i as f32 * 2.0) / (CHEBY_SIZE - 1) as f32 - 1.0; // [-1, 1]
 
@@ -296,9 +292,9 @@ mod tests {
     #[test]
     fn test_cheby_table_identity() {
         // T₁(x) = x, so first table should be approximately linear
-        for i in 0..CHEBY_SIZE {
+        for (i, &value) in CHEBY_TABLES[0].iter().enumerate() {
             let expected = (i as f32 * 2.0) / (CHEBY_SIZE - 1) as f32 - 1.0;
-            assert!((CHEBY_TABLES[0][i] - expected).abs() < 0.001);
+            assert!((value - expected).abs() < 0.001);
         }
     }
 
