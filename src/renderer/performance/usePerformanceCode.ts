@@ -1,5 +1,5 @@
 import type { editor } from 'monaco-editor';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import type { AppTheme } from '../themes/types';
 import { performanceOutput } from '../video/PerformanceOutput';
@@ -21,35 +21,38 @@ export function usePerformanceCode(
     controls: readonly PlacedControl[],
 ): (offset: number) => void {
     const monaco = useCustomMonaco();
-    const code = useMemo(
-        () => (monaco === null ? null : new PerformanceCode(monaco)),
-        [monaco],
-    );
+    const codeRef = useRef<PerformanceCode | null>(null);
 
+    // Each run owns the instance it creates. The effects below run after
+    // this one and name `monaco` as the instance's identity, so a new
+    // instance is given everything again.
     useEffect(() => {
-        if (code === null) return;
+        if (monaco === null) return;
+        const code = new PerformanceCode(monaco);
+        codeRef.current = code;
         performanceOutput.setCode(code);
         return () => {
+            codeRef.current = null;
             performanceOutput.setCode(null);
             code.dispose();
         };
-    }, [code]);
+    }, [monaco]);
 
     useEffect(() => {
-        code?.attach(codeEditor);
-    }, [code, codeEditor]);
+        codeRef.current?.attach(codeEditor);
+    }, [monaco, codeEditor]);
 
     useEffect(() => {
-        code?.showBuffer(bufferPath);
-    }, [code, bufferPath]);
+        codeRef.current?.showBuffer(bufferPath);
+    }, [monaco, bufferPath]);
 
     useEffect(() => {
-        code?.setControls(controls);
-    }, [code, controls]);
+        codeRef.current?.setControls(controls);
+    }, [monaco, controls]);
 
     useEffect(() => {
-        code?.setLook(settings, theme);
-    }, [code, settings, theme]);
+        codeRef.current?.setLook(settings, theme);
+    }, [monaco, settings, theme]);
 
     useEffect(() => {
         performanceOutput.setCodeOpacity(
@@ -57,5 +60,5 @@ export function usePerformanceCode(
         );
     }, [settings.codeVisible, settings.codeOpacity]);
 
-    return useCallback((offset: number) => code?.reveal(offset), [code]);
+    return (offset: number) => codeRef.current?.reveal(offset);
 }

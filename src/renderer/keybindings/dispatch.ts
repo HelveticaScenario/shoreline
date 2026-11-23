@@ -14,13 +14,13 @@ import type { editor } from 'monaco-editor';
 
 import { executeCommand, getCommand } from './commands';
 
-let activeEditor: editor.ICodeEditor | null = null;
+let activeEditor: editor.IStandaloneCodeEditor | null = null;
 
-export function setActiveEditor(ed: editor.ICodeEditor | null): void {
+export function setActiveEditor(ed: editor.IStandaloneCodeEditor | null): void {
     activeEditor = ed;
 }
 
-export function getActiveEditor(): editor.ICodeEditor | null {
+export function getActiveEditor(): editor.IStandaloneCodeEditor | null {
     return activeEditor;
 }
 

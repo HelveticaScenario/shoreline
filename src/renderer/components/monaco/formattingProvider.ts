@@ -55,7 +55,7 @@ export async function formatDsl(
 
 export function registerDslFormattingProvider(
     monaco: Monaco,
-    userConfig: PrettierConfig = {},
+    getConfig: () => PrettierConfig,
 ) {
     return monaco.languages.registerDocumentFormattingEditProvider(
         'javascript',
@@ -64,7 +64,7 @@ export function registerDslFormattingProvider(
                 return [
                     {
                         range: model.getFullModelRange(),
-                        text: await formatDsl(model.getValue(), userConfig),
+                        text: await formatDsl(model.getValue(), getConfig()),
                     },
                 ];
             },

@@ -3,7 +3,7 @@
  * selected section's Q handles, scroll over a node for Q, double-click to
  * add a section or reset a node's gain, and right-click to reset or revert.
  */
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useEffectEvent, useRef } from 'react';
 
 import { MAX_EQ_SECTIONS, typeHasGain } from './eqMath';
 import type { EqSectionChange, EqSectionView } from './eqPanelModel';
@@ -273,63 +273,48 @@ export function useEqGraphGestures({
 
     // Wheel over a node sets its Q. Registered non-passive so the scroll can
     // be kept from the editor; wheels elsewhere scroll the editor as usual.
-    const wheelStateRef = useRef({
-        editable,
-        geometry,
-        ghosts,
-        onChange,
-        sections,
-    });
-    useLayoutEffect(() => {
-        wheelStateRef.current = {
-            editable,
-            geometry,
-            ghosts,
-            onChange,
-            sections,
-        };
+    const commitWheel = useEffectEvent((index: number, codeOnly: boolean) =>
+        onChange(index, {}, 'commit', codeOnly),
+    );
+    const handleWheel = useEffectEvent((e: WheelEvent) => {
+        if (!geometry) {
+            return;
+        }
+        const { x, y } = localPoint(e);
+        const index = hitTestNode(geometry, sections, x, y);
+        if (index === null) {
+            return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        const codeOnly = isCodeOnly(e);
+        if (codeOnly && !editable) {
+            return;
+        }
+        const base = gestureBase(
+            sections[index],
+            ghosts[index] ?? null,
+            codeOnly,
+        );
+        if (base.driven.q || base.q === null) {
+            return;
+        }
+        const q = base.q * Math.exp(-e.deltaY * WHEEL_Q_PER_PIXEL);
+        onChange(index, { q }, 'move', codeOnly);
+        if (wheelTimerRef.current !== null) {
+            window.clearTimeout(wheelTimerRef.current);
+        }
+        wheelTimerRef.current = window.setTimeout(() => {
+            wheelTimerRef.current = null;
+            commitWheel(index, codeOnly);
+        }, WHEEL_COMMIT_MS);
     });
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) {
             return;
         }
-        const onWheel = (e: WheelEvent) => {
-            const s = wheelStateRef.current;
-            if (!s.geometry) {
-                return;
-            }
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-            const index = hitTestNode(s.geometry, s.sections, x, y);
-            if (index === null) {
-                return;
-            }
-            e.preventDefault();
-            e.stopPropagation();
-            const codeOnly = isCodeOnly(e);
-            if (codeOnly && !s.editable) {
-                return;
-            }
-            const base = gestureBase(
-                s.sections[index],
-                s.ghosts[index] ?? null,
-                codeOnly,
-            );
-            if (base.driven.q || base.q === null) {
-                return;
-            }
-            const q = base.q * Math.exp(-e.deltaY * WHEEL_Q_PER_PIXEL);
-            s.onChange(index, { q }, 'move', codeOnly);
-            if (wheelTimerRef.current !== null) {
-                window.clearTimeout(wheelTimerRef.current);
-            }
-            wheelTimerRef.current = window.setTimeout(() => {
-                wheelTimerRef.current = null;
-                wheelStateRef.current.onChange(index, {}, 'commit', codeOnly);
-            }, WHEEL_COMMIT_MS);
-        };
+        const onWheel = (e: WheelEvent) => handleWheel(e);
         canvas.addEventListener('wheel', onWheel, { passive: false });
         return () => canvas.removeEventListener('wheel', onWheel);
     }, [canvasRef]);

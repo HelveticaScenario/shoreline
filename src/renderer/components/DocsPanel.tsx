@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { VideoDocs } from './VideoDocs';
 import { BuiltinDocs } from './BuiltinDocs';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
@@ -189,11 +189,11 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
     }, []);
 
     // Opens the types page at a type, expanded
-    const handleTypeClick = useCallback((typeName: DslTypeName) => {
+    const handleTypeClick = (typeName: DslTypeName) => {
         setActivePage('types');
         setRevealedType({ name: typeName });
         setExpandedTypes((prev) => new Set(prev).add(typeName));
-    }, []);
+    };
 
     // Each new target is revealed in the render that receives it.
     const [revealedTarget, setRevealedTarget] = useState<DocsTarget | null>(
@@ -217,7 +217,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
     }
 
     // Toggle type card expansion
-    const toggleTypeExpanded = useCallback((typeName: DslTypeName) => {
+    const toggleTypeExpanded = (typeName: DslTypeName) => {
         setExpandedTypes((prev) => {
             const next = new Set(prev);
             if (next.has(typeName)) {
@@ -227,7 +227,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             }
             return next;
         });
-    }, []);
+    };
 
     // Scroll to selected type when it changes
     useEffect(() => {
