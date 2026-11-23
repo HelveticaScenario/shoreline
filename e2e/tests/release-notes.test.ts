@@ -11,6 +11,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ElectronApplication } from 'playwright';
 import { test, expect } from '../fixtures';
+import { compareVersions } from '../../src/shared/releaseNotes';
 
 const INSTALLED_VERSION = '0.0.130';
 const FULL_CHANGELOG_URL =
@@ -282,17 +283,46 @@ test.describe('release notes', () => {
 
         const panel = window.locator('.release-notes-panel');
         await expect(panel).toContainText('Release Notes');
-        const headings = panel.locator('.release-notes-release h3');
-        await expect(headings).toHaveText([
+        // The list also holds every release in the bundled changelog, so the
+        // checks follow the stubbed version, not a fixed set of releases.
+        const release = (version: string) =>
+            panel.locator('.release-notes-release').filter({
+                has: window.locator('h3', { hasText: `Version ${version}` }),
+            });
+        await expect(release('0.2.0').locator('h3')).toHaveText(
             /Version 0\.2\.0\s*Not installed/,
+        );
+        await expect(release('0.1.1').locator('h3')).toHaveText(
             /Version 0\.1\.1\s*Installed/,
-            /Version 0\.1\.0/,
-        ]);
-        await expect(headings.nth(2)).not.toContainText('nstalled');
+        );
+        await expect(release('0.1.0').locator('h3')).not.toContainText(
+            'nstalled',
+        );
+        const headings = await panel
+            .locator('.release-notes-release h3')
+            .allInnerTexts();
+        const versions = headings.map(
+            (heading) => heading.match(/Version (\d+\.\d+\.\d+)/)?.[1] ?? '',
+        );
+        expect(versions).toEqual(
+            [...versions].sort((a, b) => compareVersions(b, a)),
+        );
+        for (const [index, heading] of headings.entries()) {
+            const order = compareVersions(versions[index], '0.1.1');
+            const tag =
+                order > 0 ? 'Not installed' : order === 0 ? 'Installed' : null;
+            expect(
+                heading.match(/(Not installed|Installed)/)?.[1] ?? null,
+            ).toBe(tag);
+        }
+        // Published notes win over the bundled changelog's for a version.
+        await expect(release('0.2.0')).toContainText('A plate reverb');
         await expect(panel.locator('.release-notes-breaking')).toHaveCount(0);
-        await expect(
-            panel.locator('.release-notes-kind--breaking li'),
-        ).toHaveCount(2);
+        for (const version of ['0.2.0', '0.1.0']) {
+            await expect(
+                release(version).locator('.release-notes-kind--breaking li'),
+            ).toHaveCount(1);
+        }
         await panel.screenshot({
             path: testInfo.outputPath('changelog.png'),
         });
