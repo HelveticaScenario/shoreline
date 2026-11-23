@@ -23,6 +23,8 @@ export type EditorBuffer =
           isPreview?: boolean;
       };
 
+export type FileBuffer = Extract<EditorBuffer, { kind: 'file' }>;
+
 export type UnsavedBufferSnapshot =
     | {
           kind: 'file';

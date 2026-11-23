@@ -1,6 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import electronAPI from '../../electronAPI';
-import type { EditorBuffer } from '../../types/editor';
+import type { EditorBuffer, FileBuffer } from '../../types/editor';
 import { PATCH_EXTENSION } from '../../../shared/patchFiles';
 import {
     findBuffer,
@@ -79,7 +79,7 @@ export function useBufferSaving({
     };
 
     const saveToFile = async (
-        buffer: EditorBuffer & { kind: 'file' },
+        buffer: FileBuffer,
         overwrite: boolean | undefined,
     ) => {
         const { filePath, content: savedContent } = buffer;
