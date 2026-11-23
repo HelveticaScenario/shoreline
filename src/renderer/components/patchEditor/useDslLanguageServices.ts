@@ -26,8 +26,7 @@ interface DslLanguageServicesParams {
 
 /**
  * Registers the language features every model shares: the DSL's types and
- * providers, formatting, completions, quick fixes and refactors. Providers
- * register in a fixed order, which Monaco uses to rank them.
+ * providers, formatting, completions, quick fixes and refactors.
  */
 export function useDslLanguageServices({
     monaco,

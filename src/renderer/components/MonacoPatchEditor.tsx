@@ -149,6 +149,15 @@ export function MonacoPatchEditor({
         registerConfigSchema(monaco, configSchema);
     }, [monaco]);
 
+    // Its own statement, so the object changes only with the appearance:
+    // the Editor wrapper calls `updateOptions` for each new one.
+    const options = patchEditorOptions({
+        cursorStyle,
+        font,
+        fontLigatures,
+        fontSize,
+    });
+
     return (
         <div className="patch-editor" style={{ height: '100%' }}>
             {currentFile && (
@@ -164,12 +173,7 @@ export function MonacoPatchEditor({
                     onMount={handleMount}
                     keepCurrentModel
                     saveViewState={false}
-                    options={patchEditorOptions({
-                        cursorStyle,
-                        font,
-                        fontLigatures,
-                        fontSize,
-                    })}
+                    options={options}
                 />
             )}
         </div>
