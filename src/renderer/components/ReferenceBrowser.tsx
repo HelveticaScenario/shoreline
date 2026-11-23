@@ -1,4 +1,4 @@
-import React, { useCallback, useLayoutEffect, useRef } from 'react';
+import React, { memo, useCallback, useLayoutEffect, useRef } from 'react';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import referenceCategories from '@modular/core/referenceCategories.json';
 import { ReferenceCard } from './ReferenceCard';
@@ -118,8 +118,12 @@ interface ReferenceIndexProps {
     onWidthChange: (width: number | null) => void;
 }
 
-/** The search field and the list of entry names, which follows the cards' scroll. */
-const ReferenceIndex: React.FC<ReferenceIndexProps> = ({
+/**
+ * The search field and the list of entry names, which follows the cards'
+ * scroll. `memo` because the virtualized list around it renders on every
+ * scroll frame.
+ */
+const ReferenceIndex = memo(function ReferenceIndex({
     noun,
     entries,
     topName,
@@ -129,10 +133,10 @@ const ReferenceIndex: React.FC<ReferenceIndexProps> = ({
     category,
     width,
     onWidthChange,
-}) => {
+}: ReferenceIndexProps) {
     const listRef = useRef<HTMLUListElement>(null);
 
-    // A new filter starts its results from the first match.
+    // A new filter shows its names from their left edge.
     useLayoutEffect(() => {
         if (listRef.current) {
             listRef.current.scrollLeft = 0;
@@ -205,7 +209,7 @@ const ReferenceIndex: React.FC<ReferenceIndexProps> = ({
             </ul>
         </div>
     );
-};
+});
 
 interface ReferenceCategoriesProps {
     categories: typeof referenceCategories;
