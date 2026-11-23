@@ -1,5 +1,5 @@
 {
-    "$schema": "https://unpkg.com/knip@6.1.1/schema.json",
+    "$schema": "https://unpkg.com/knip@6.47.0/schema.json",
     "workspaces": {
         ".": {
             "entry": [
@@ -22,7 +22,6 @@
             ],
             "ignore": [
                 "crates/modular/scripts/copy-host-binary-to-npm.mjs",
-                "crates/modular/wasi-worker-browser.mjs",
                 "src/main/dsl/miniNotation/grammar.generated.ts"
             ],
             "ignoreDependencies": [
@@ -68,6 +67,7 @@
                 "@modular/core-darwin-arm64",
                 "@modular/core-freebsd-x64",
                 "@modular/core-freebsd-arm64",
+                "@modular/core-freebsd-ppc64",
                 "@modular/core-linux-x64-musl",
                 "@modular/core-linux-x64-gnu",
                 "@modular/core-linux-arm64-musl",
@@ -85,7 +85,13 @@
                 "@modular/core-openharmony-arm",
                 "@modular/core-wasm32-wasi"
             ],
-            "ignoreBinaries": ["build", "electron-rebuild"]
+            "ignoreBinaries": [
+                "build",
+                "dsymutil",
+                "electron-rebuild",
+                "lipo",
+                "swift"
+            ]
         }
     },
     "ignoreExportsUsedInFile": true,

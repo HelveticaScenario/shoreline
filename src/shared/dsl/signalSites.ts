@@ -416,8 +416,7 @@ export function collectSignalSites(
     ): { receiver: TS.Expression; module: ModuleSiteInfo } | undefined => {
         const names: string[] = [];
         let found:
-            | { receiver: TS.Expression; module: ModuleSiteInfo }
-            | undefined;
+            { receiver: TS.Expression; module: ModuleSiteInfo } | undefined;
         let node: TS.Expression = callee;
         while (ts.isPropertyAccessExpression(node)) {
             names.unshift(node.name.text);

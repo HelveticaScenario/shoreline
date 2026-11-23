@@ -204,20 +204,18 @@ export function readDocText(text: DocText): {
 export function functionToReferenceEntry(fn: FunctionDoc): ReferenceEntry {
     const all = fn.declarations.map(parseDeclaration);
     const [first] = all;
-    const params = first.params.map(
-        (param): ParamDoc => ({
-            ...readDocText(fn.params[param.name]),
-            name: param.name,
-            rest: param.rest || undefined,
-            type: unionOf(
-                all.flatMap((d) =>
-                    d.params
-                        .filter((p) => p.name === param.name)
-                        .map((p) => p.types),
-                ),
+    const params = first.params.map((param): ParamDoc => ({
+        ...readDocText(fn.params[param.name]),
+        name: param.name,
+        rest: param.rest || undefined,
+        type: unionOf(
+            all.flatMap((d) =>
+                d.params
+                    .filter((p) => p.name === param.name)
+                    .map((p) => p.types),
             ),
-        }),
-    );
+        ),
+    }));
     const signature = `${first.name}(${first.params
         .map((p) =>
             p.rest ? `...${p.name}` : p.optional ? `${p.name}?` : p.name,

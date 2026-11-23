@@ -32,49 +32,49 @@ Matches the C++ except: the same decay clamp; trigger delay 8 blocks instead of 
 
 ## 2. Engine evaluation
 
-| #   | Engine            | Verdict        | Module(s) / existing equivalent                                                                                                                                                  |
-| --- | ----------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 0   | VA + VCF          | Replicable     | `$saw`/`$pulse` + sub `$pulse` an octave down → `$multimode`/`$lpf`/`$jup6f`                                                                                                     |
-| 1   | Phase distortion  | **Port**       | `$mi.phaseDistortion`                                                                                                                                                            |
-| 2–4 | Six-op FM         | **Port**       | `$mi.sixOp`                                                                                                                                                                      |
-| 5   | Wave terrain      | **Port**       | `$mi.waveTerrain`                                                                                                                                                                |
-| 6   | String machine    | Replicable after ports | `$chord` → `$mi.divideDown` → `$lpf` → `$mi.chorus`                                                                                                                     |
-| 7   | Chiptune          | Replicable     | `$chord` + `$pulse` (sync for the "super square"), arpeggios via `$cycle($p.s(...))`, `$perc` envelope, triangle bass via `$saw` shape 2.5 + `$math` rounding to 16 steps        |
-| 8   | Virtual analog    | Replicable     | `$saw`/`$pulse` with `sync`, detune by pitch offset                                                                                                                              |
-| 9   | Waveshaping       | **Port**       | `$mi.waveshaper`                                                                                                                                                                 |
-| 10  | Two-op FM         | **Port**       | `$mi.twoOp`                                                                                                                                                                      |
-| 11  | Granular formant  | **Port**       | `$mi.formant` + `$mi.zOsc`                                                                                                                                                       |
-| 12  | Additive          | **Port**       | `$mi.additive`                                                                                                                                                                   |
-| 13  | Wavetable         | Not ported     | `$wavetable` covers it                                                                                                                                                           |
-| 14  | Chords            | Replicable after ports | `$chord` with the new `inversion` (§5) → `$mi.divideDown`                                                                                                               |
-| 15  | Speech            | **Port**       | `$mi.formantVowel`, `$mi.samVowel`, `$mi.lpcVowel` + `$mi.speak`                                                                                                                                                        |
-| 16  | Swarm             | **Port**       | `$mi.swarm`                                                                                                                                                                      |
-| 17  | Filtered noise    | Replicable     | `$noise` (clocked `rate`) → `$multimode`/`$bpf`                                                                                                                                  |
-| 18  | Particle noise    | **Port**       | `$mi.particles`                                                                                                                                                                  |
-| 19  | Inharmonic string | **Port**       | `$mi.string`                                                                                                                                                                     |
-| 20  | Modal resonator   | **Port**       | `$mi.modal`                                                                                                                                                                      |
-| 21  | Bass drum         | **Port**       | `$mi.kick` + `$mi.synthKick`                                                                                                                                                     |
-| 22  | Snare             | **Port**       | `$mi.snare` + `$mi.synthSnare`                                                                                                                                                   |
-| 23  | Hi-hat            | **Port**       | `$mi.hiHat` + `$mi.ringHat`                                                                                                                                                      |
+| #   | Engine            | Verdict                | Module(s) / existing equivalent                                                                                                                                           |
+| --- | ----------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0   | VA + VCF          | Replicable             | `$saw`/`$pulse` + sub `$pulse` an octave down → `$multimode`/`$lpf`/`$jup6f`                                                                                              |
+| 1   | Phase distortion  | **Port**               | `$mi.phaseDistortion`                                                                                                                                                     |
+| 2–4 | Six-op FM         | **Port**               | `$mi.sixOp`                                                                                                                                                               |
+| 5   | Wave terrain      | **Port**               | `$mi.waveTerrain`                                                                                                                                                         |
+| 6   | String machine    | Replicable after ports | `$chord` → `$mi.divideDown` → `$lpf` → `$mi.chorus`                                                                                                                       |
+| 7   | Chiptune          | Replicable             | `$chord` + `$pulse` (sync for the "super square"), arpeggios via `$cycle($p.s(...))`, `$perc` envelope, triangle bass via `$saw` shape 2.5 + `$math` rounding to 16 steps |
+| 8   | Virtual analog    | Replicable             | `$saw`/`$pulse` with `sync`, detune by pitch offset                                                                                                                       |
+| 9   | Waveshaping       | **Port**               | `$mi.waveshaper`                                                                                                                                                          |
+| 10  | Two-op FM         | **Port**               | `$mi.twoOp`                                                                                                                                                               |
+| 11  | Granular formant  | **Port**               | `$mi.formant` + `$mi.zOsc`                                                                                                                                                |
+| 12  | Additive          | **Port**               | `$mi.additive`                                                                                                                                                            |
+| 13  | Wavetable         | Not ported             | `$wavetable` covers it                                                                                                                                                    |
+| 14  | Chords            | Replicable after ports | `$chord` with the new `inversion` (§5) → `$mi.divideDown`                                                                                                                 |
+| 15  | Speech            | **Port**               | `$mi.formantVowel`, `$mi.samVowel`, `$mi.lpcVowel` + `$mi.speak`                                                                                                          |
+| 16  | Swarm             | **Port**               | `$mi.swarm`                                                                                                                                                               |
+| 17  | Filtered noise    | Replicable             | `$noise` (clocked `rate`) → `$multimode`/`$bpf`                                                                                                                           |
+| 18  | Particle noise    | **Port**               | `$mi.particles`                                                                                                                                                           |
+| 19  | Inharmonic string | **Port**               | `$mi.string`                                                                                                                                                              |
+| 20  | Modal resonator   | **Port**               | `$mi.modal`                                                                                                                                                               |
+| 21  | Bass drum         | **Port**               | `$mi.kick` + `$mi.synthKick`                                                                                                                                              |
+| 22  | Snare             | **Port**               | `$mi.snare` + `$mi.synthSnare`                                                                                                                                            |
+| 23  | Hi-hat            | **Port**               | `$mi.hiHat` + `$mi.ringHat`                                                                                                                                               |
 
 ## 3. Main/aux
 
 Rule: **split** when the two outputs are different algorithms that only share knobs; **keep a second output** when it is a byproduct of the same process or costs little next to the main render; **make it a param** when it is a separate, comparably expensive render (Operator computes every output whether or not it is patched); **drop it** when it is a trivial transform of the main output.
 
-| Engine           | Decision                                                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Phase distortion | Param `sync` (default on). Aux is a second full 2×-oversampled render of the modulator without sync.                           |
-| Six-op           | One output (aux = main).                                                                                                       |
-| Wave terrain     | Outputs `output` + `pm` (sine phase-modulated by path + height; needs the internal path).                                      |
-| Waveshaping      | Outputs `output` + `overtones` (triangle → sine ↔ second folder; one cheap oscillator and a LUT read).                          |
-| Two-op FM        | Outputs `output` + `subOctave` (sub-octave sine PM'd by the carrier, computed in the same oversampled loop; `sub` is reserved). |
-| Granular formant | Split: `$mi.formant` (grainlet pair) and `$mi.zOsc` (windowed-sine "filtered waveform", peak/LP/BP/HP morph).                  |
-| Additive         | Param `series: 'integer' \| 'organ'` (24 vs 8 harmonics, separate oscillator banks).                                            |
+| Engine           | Decision                                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase distortion | Param `sync` (default on). Aux is a second full 2×-oversampled render of the modulator without sync.                                                          |
+| Six-op           | One output (aux = main).                                                                                                                                      |
+| Wave terrain     | Outputs `output` + `pm` (sine phase-modulated by path + height; needs the internal path).                                                                     |
+| Waveshaping      | Outputs `output` + `overtones` (triangle → sine ↔ second folder; one cheap oscillator and a LUT read).                                                        |
+| Two-op FM        | Outputs `output` + `subOctave` (sub-octave sine PM'd by the carrier, computed in the same oversampled loop; `sub` is reserved).                               |
+| Granular formant | Split: `$mi.formant` (grainlet pair) and `$mi.zOsc` (windowed-sine "filtered waveform", peak/LP/BP/HP morph).                                                 |
+| Additive         | Param `series: 'integer' \| 'organ'` (24 vs 8 harmonics, separate oscillator banks).                                                                          |
 | Speech           | Split by model: `$mi.formantVowel`, `$mi.samVowel` and `$mi.lpcVowel` (one synth each) and `$mi.speak` (LPC word banks). Each keeps `excitation` (byproduct). |
-| Swarm            | Outputs `output` (saw) + `sine` (same voices and envelopes).                                                                   |
-| Particle         | Outputs `output` + `raw` (the dust driving the filters).                                                                       |
-| String / Modal   | Outputs `output` + `exciter` (internal excitation, for mixing attack back in).                                                 |
-| Drums            | Split analog/synthetic kick and snare; split the two hi-hat models (different noise source, VCA and filter).                   |
+| Swarm            | Outputs `output` (saw) + `sine` (same voices and envelopes).                                                                                                  |
+| Particle         | Outputs `output` + `raw` (the dust driving the filters).                                                                                                      |
+| String / Modal   | Outputs `output` + `exciter` (internal excitation, for mixing attack back in).                                                                                |
+| Drums            | Split analog/synthetic kick and snare; split the two hi-hat models (different noise source, VCA and filter).                                                  |
 
 ## 4. Modules
 
@@ -88,32 +88,32 @@ Parameter names are semantic (no harmonics/timbre/morph). Absolute frequencies (
 
 **Excitation and accent.** Modules whose Plaits engine used `level` as accent (six-op velocity, string, modal, speech word replay, drums) take `accent` (0–5 V, default 4 V = Plaits' unpatched 0.8), matching `$tr808.*`. Plaits' unpatched-trigger "sustain" modes (string/modal bowed excitation, drum drones, six-op envelope scrubbing, swarm continuous mode) keep that behaviour when `trigger`/`gate` is disconnected, documented per module.
 
-| Module                 | Source                                           | Params                                                                                      | Inputs                                   | Outputs              |
-| ---------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------- |
-| `$mi.phaseDistortion`  | `engine2/phase_distortion_engine`                | `ratio` (quantised modulator ratio), `amount`, `asymmetry`, `sync` (bool)                    | `freq`, `fm`                             | `output`             |
-| `$mi.sixOp`            | `engine2/six_op_engine` + `fm/*`                 | `bank` (0–2 built-in), `patch` (0–31), `brightness`, `envelope` (time scale / scrub)         | `freq`, `fm`, `gate`, `accent`           | `output`             |
-| `$mi.waveTerrain`      | `engine2/wave_terrain_engine`                    | `terrain` (morph across 8), `radius`, `offset`                                              | `freq`, `fm`                             | `output`, `pm`       |
-| `$mi.waveshaper`       | `engine/waveshaping_engine` + `lut_ws_*`, `lut_fold*` | `shape` (4-table morph), `fold`, `asymmetry`                                            | `freq`, `fm`                             | `output`, `overtones` |
-| `$mi.twoOp`            | `engine/fm_engine`                               | `ratio` (quantised), `index`, `feedback` (−5…5: phase ↔ self feedback)                      | `freq`, `fm`                             | `output`, `subOctave` |
-| `$mi.formant`          | `oscillator/grainlet_oscillator` ×2              | `formant`, `ratio`, `width`                                                                 | `freq`, `fm`                             | `output`             |
-| `$mi.zOsc`             | `oscillator/z_oscillator`                        | `cutoff`, `shape`, `mode`                                                                   | `freq`, `fm`                             | `output`             |
-| `$mi.additive`         | `engine/additive_engine` + `harmonic_oscillator` | `centroid`, `slope`, `bumps`, `series`                                                      | `freq`, `fm`                             | `output`             |
-| `$mi.formantVowel`     | `speech/naive_*`                                 | `vowel`, `formantShift`                                                                     | `freq`, `fm`, `trigger`                  | `output`, `excitation` |
-| `$mi.samVowel`         | `speech/sam_*`                                   | `vowel`, `formantShift`                                                                     | `freq`, `fm`, `trigger`                  | `output`, `excitation` |
-| `$mi.lpcVowel`         | `speech/lpc_*`                                   | `vowel`, `formantShift`                                                                     | `freq`, `fm`, `trigger`                  | `output`, `excitation` |
-| `$mi.speak`            | `speech/lpc_speech_synth_controller` + words     | `bank` (0–4), `word` (index), `formantShift`, `prosody`, `speed`                           | `freq`, `fm`, `trigger`, `accent`        | `output`, `excitation` |
-| `$mi.swarm`            | `engine/swarm_engine`                            | `density`, `spread`, `grainSize`                                                            | `freq`, `fm`, `trigger`                  | `output`, `sine`     |
-| `$mi.particles`        | `engine/particle_engine` + `fx/diffuser`         | `density`, `spread`, `resonance` (bipolar: diffusion ↔ resonance)                           | `freq`, `fm`, `trigger`                  | `output`, `raw`      |
-| `$mi.string`           | `physical_modelling/string_voice` + `string`     | `structure`, `brightness`, `damping`                                                        | `freq`, `fm`, `trigger`, `accent`, `input` | `output`, `exciter` |
-| `$mi.modal`            | `physical_modelling/modal_voice` + `resonator`   | `structure`, `brightness`, `damping`                                                        | `freq`, `fm`, `trigger`, `accent`, `input` | `output`, `exciter` |
-| `$mi.divideDown`       | `oscillator/string_synth_oscillator` + registration | `registration` (organ → string)                                                          | `freq`, `fm`                             | `output`             |
-| `$mi.chorus`           | `fx/ensemble`                                    | `amount`, `depth`                                                                           | `input` (mono or stereo)                 | stereo `output`      |
-| `$mi.kick`             | `drums/analog_bass_drum` + overdrive             | `tone`, `decay`, `attackFm`, `selfFm`, `drive`                                              | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.synthKick`        | `drums/synthetic_bass_drum`                      | `tone`, `decay`, `dirt`, `fmEnvelope`, `fmDecay`                                            | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.snare`            | `drums/analog_snare_drum`                        | `tone`, `decay`, `snappy`                                                                   | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.synthSnare`       | `drums/synthetic_snare_drum`                     | `attackFm`, `decay`, `snappy`                                                               | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.hiHat`            | `drums/hi_hat` (square noise, swing VCA, HPF)    | `tone`, `decay`, `noisiness`                                                                | `freq`, `fm`, `trigger`, `accent`        | `output`             |
-| `$mi.ringHat`          | `drums/hi_hat` (ring-mod noise, linear VCA)      | `tone`, `decay`, `noisiness`                                                                | `freq`, `fm`, `trigger`, `accent`        | `output`             |
+| Module                | Source                                                | Params                                                                               | Inputs                                     | Outputs                |
+| --------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------ | ---------------------- |
+| `$mi.phaseDistortion` | `engine2/phase_distortion_engine`                     | `ratio` (quantised modulator ratio), `amount`, `asymmetry`, `sync` (bool)            | `freq`, `fm`                               | `output`               |
+| `$mi.sixOp`           | `engine2/six_op_engine` + `fm/*`                      | `bank` (0–2 built-in), `patch` (0–31), `brightness`, `envelope` (time scale / scrub) | `freq`, `fm`, `gate`, `accent`             | `output`               |
+| `$mi.waveTerrain`     | `engine2/wave_terrain_engine`                         | `terrain` (morph across 8), `radius`, `offset`                                       | `freq`, `fm`                               | `output`, `pm`         |
+| `$mi.waveshaper`      | `engine/waveshaping_engine` + `lut_ws_*`, `lut_fold*` | `shape` (4-table morph), `fold`, `asymmetry`                                         | `freq`, `fm`                               | `output`, `overtones`  |
+| `$mi.twoOp`           | `engine/fm_engine`                                    | `ratio` (quantised), `index`, `feedback` (−5…5: phase ↔ self feedback)               | `freq`, `fm`                               | `output`, `subOctave`  |
+| `$mi.formant`         | `oscillator/grainlet_oscillator` ×2                   | `formant`, `ratio`, `width`                                                          | `freq`, `fm`                               | `output`               |
+| `$mi.zOsc`            | `oscillator/z_oscillator`                             | `cutoff`, `shape`, `mode`                                                            | `freq`, `fm`                               | `output`               |
+| `$mi.additive`        | `engine/additive_engine` + `harmonic_oscillator`      | `centroid`, `slope`, `bumps`, `series`                                               | `freq`, `fm`                               | `output`               |
+| `$mi.formantVowel`    | `speech/naive_*`                                      | `vowel`, `formantShift`                                                              | `freq`, `fm`, `trigger`                    | `output`, `excitation` |
+| `$mi.samVowel`        | `speech/sam_*`                                        | `vowel`, `formantShift`                                                              | `freq`, `fm`, `trigger`                    | `output`, `excitation` |
+| `$mi.lpcVowel`        | `speech/lpc_*`                                        | `vowel`, `formantShift`                                                              | `freq`, `fm`, `trigger`                    | `output`, `excitation` |
+| `$mi.speak`           | `speech/lpc_speech_synth_controller` + words          | `bank` (0–4), `word` (index), `formantShift`, `prosody`, `speed`                     | `freq`, `fm`, `trigger`, `accent`          | `output`, `excitation` |
+| `$mi.swarm`           | `engine/swarm_engine`                                 | `density`, `spread`, `grainSize`                                                     | `freq`, `fm`, `trigger`                    | `output`, `sine`       |
+| `$mi.particles`       | `engine/particle_engine` + `fx/diffuser`              | `density`, `spread`, `resonance` (bipolar: diffusion ↔ resonance)                    | `freq`, `fm`, `trigger`                    | `output`, `raw`        |
+| `$mi.string`          | `physical_modelling/string_voice` + `string`          | `structure`, `brightness`, `damping`                                                 | `freq`, `fm`, `trigger`, `accent`, `input` | `output`, `exciter`    |
+| `$mi.modal`           | `physical_modelling/modal_voice` + `resonator`        | `structure`, `brightness`, `damping`                                                 | `freq`, `fm`, `trigger`, `accent`, `input` | `output`, `exciter`    |
+| `$mi.divideDown`      | `oscillator/string_synth_oscillator` + registration   | `registration` (organ → string)                                                      | `freq`, `fm`                               | `output`               |
+| `$mi.chorus`          | `fx/ensemble`                                         | `amount`, `depth`                                                                    | `input` (mono or stereo)                   | stereo `output`        |
+| `$mi.kick`            | `drums/analog_bass_drum` + overdrive                  | `tone`, `decay`, `attackFm`, `selfFm`, `drive`                                       | `freq`, `fm`, `trigger`, `accent`          | `output`               |
+| `$mi.synthKick`       | `drums/synthetic_bass_drum`                           | `tone`, `decay`, `dirt`, `fmEnvelope`, `fmDecay`                                     | `freq`, `fm`, `trigger`, `accent`          | `output`               |
+| `$mi.snare`           | `drums/analog_snare_drum`                             | `tone`, `decay`, `snappy`                                                            | `freq`, `fm`, `trigger`, `accent`          | `output`               |
+| `$mi.synthSnare`      | `drums/synthetic_snare_drum`                          | `attackFm`, `decay`, `snappy`                                                        | `freq`, `fm`, `trigger`, `accent`          | `output`               |
+| `$mi.hiHat`           | `drums/hi_hat` (square noise, swing VCA, HPF)         | `tone`, `decay`, `noisiness`                                                         | `freq`, `fm`, `trigger`, `accent`          | `output`               |
+| `$mi.ringHat`         | `drums/hi_hat` (ring-mod noise, linear VCA)           | `tone`, `decay`, `noisiness`                                                         | `freq`, `fm`, `trigger`, `accent`          | `output`               |
 
 Notes:
 
@@ -158,23 +158,23 @@ Plaits computes control values once per 12-sample block at 48 kHz (4 kHz) and ra
 
 Per-module feasibility — every core decomposes this way; none needs an output buffer:
 
-| Module                | Per-sample `step()`                             | Block path worth measuring                                            |
-| --------------------- | ----------------------------------------------- | --------------------------------------------------------------------- |
-| phaseDistortion       | yes (2 substeps + naive decimation)             | yes: constant ratio/amount hoisted                                    |
-| sixOp                 | yes (sample-major over 6 ops)                   | **yes**: operator-major chunks                                         |
-| waveTerrain           | yes (2 substeps, terrain eval)                  | yes                                                                   |
-| waveshaper            | yes                                             | yes: shaper table pair selected once per chunk                        |
-| twoOp                 | yes (4 substeps + FIR downsampler per sample)   | yes                                                                   |
-| formant, zOsc         | yes                                             | yes: cheap modules, input reads dominate                               |
-| additive              | yes (Chebyshev recurrence per harmonic)         | **yes**: harmonic-major chunks                                         |
-| vowels, speak         | yes (LPC clock is already a phase accumulator)  | no — per-sample work dominates                                        |
-| swarm                 | yes (8 voices × saw + sine)                     | yes: voice-major chunks                                                |
-| particles             | yes                                             | yes                                                                   |
-| string                | yes (delay line + filters)                      | no — memory reads dominate (as with `$grains`)                         |
-| modal                 | yes (up to 24 SVF modes)                        | **yes**: mode-major chunks                                             |
-| divideDown            | yes                                             | yes                                                                   |
-| chorus                | yes                                             | no — delay-line reads dominate                                        |
-| drums                 | yes                                             | hi-hats yes (stage-major); others measure                             |
+| Module          | Per-sample `step()`                            | Block path worth measuring                     |
+| --------------- | ---------------------------------------------- | ---------------------------------------------- |
+| phaseDistortion | yes (2 substeps + naive decimation)            | yes: constant ratio/amount hoisted             |
+| sixOp           | yes (sample-major over 6 ops)                  | **yes**: operator-major chunks                 |
+| waveTerrain     | yes (2 substeps, terrain eval)                 | yes                                            |
+| waveshaper      | yes                                            | yes: shaper table pair selected once per chunk |
+| twoOp           | yes (4 substeps + FIR downsampler per sample)  | yes                                            |
+| formant, zOsc   | yes                                            | yes: cheap modules, input reads dominate       |
+| additive        | yes (Chebyshev recurrence per harmonic)        | **yes**: harmonic-major chunks                 |
+| vowels, speak   | yes (LPC clock is already a phase accumulator) | no — per-sample work dominates                 |
+| swarm           | yes (8 voices × saw + sine)                    | yes: voice-major chunks                        |
+| particles       | yes                                            | yes                                            |
+| string          | yes (delay line + filters)                     | no — memory reads dominate (as with `$grains`) |
+| modal           | yes (up to 24 SVF modes)                       | **yes**: mode-major chunks                     |
+| divideDown      | yes                                            | yes                                            |
+| chorus          | yes                                            | no — delay-line reads dominate                 |
+| drums           | yes                                            | hi-hats yes (stage-major); others measure      |
 
 Block paths are added only where `cargo bench -p modular_core --bench patch_bench` and real patches show a gain.
 

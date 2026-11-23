@@ -131,6 +131,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -142,10 +146,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -397,6 +397,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -408,10 +412,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -608,6 +608,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -619,10 +623,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -759,6 +759,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -770,10 +774,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -925,6 +925,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -936,10 +940,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1087,6 +1087,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1098,10 +1102,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1224,6 +1224,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1235,10 +1239,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1349,6 +1349,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1360,10 +1364,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1474,6 +1474,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1485,10 +1489,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1599,6 +1599,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1610,10 +1614,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1724,6 +1724,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1735,10 +1739,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -1857,6 +1857,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -1868,10 +1872,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -2036,6 +2036,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -2047,10 +2051,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -2236,6 +2236,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -2247,10 +2251,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -2713,6 +2713,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -2724,10 +2728,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -2974,6 +2974,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -2985,10 +2989,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -3197,6 +3197,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -3208,10 +3212,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -3411,6 +3411,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -3422,10 +3426,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -3624,6 +3624,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -3635,10 +3639,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -3799,6 +3799,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -3810,10 +3814,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -3964,6 +3964,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -3975,10 +3979,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -4172,6 +4172,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -4183,10 +4187,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -4422,6 +4422,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -4433,10 +4437,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -4687,6 +4687,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -4698,10 +4702,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -4915,6 +4915,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -4926,10 +4930,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -5143,6 +5143,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -5154,10 +5158,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -5371,6 +5371,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -5382,10 +5386,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -5599,6 +5599,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -5610,10 +5614,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -5827,6 +5827,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -5838,10 +5842,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -6093,6 +6093,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -6104,10 +6108,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -6368,6 +6368,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -6379,10 +6383,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -6571,6 +6571,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -6582,10 +6586,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -6736,6 +6736,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -6747,10 +6751,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -6940,6 +6940,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -6951,10 +6955,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -7168,6 +7168,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -7179,10 +7183,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -7396,6 +7396,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -7407,10 +7411,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -7763,6 +7763,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -7774,10 +7778,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -8063,6 +8063,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -8074,10 +8078,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -8273,6 +8273,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -8284,10 +8288,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -8461,6 +8461,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -8472,10 +8476,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -8727,6 +8727,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -8738,10 +8742,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -8996,6 +8996,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -9007,10 +9011,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -9172,6 +9172,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -9183,10 +9187,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -9371,6 +9371,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -9382,10 +9386,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -9613,6 +9613,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -9624,10 +9628,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -9895,6 +9895,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -9906,10 +9910,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -10232,6 +10232,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -10243,10 +10247,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -10483,6 +10483,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -10494,10 +10498,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -10729,6 +10729,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -10740,10 +10744,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -11092,6 +11092,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -11103,10 +11107,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -11515,6 +11515,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -11526,10 +11530,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -11788,6 +11788,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -11799,10 +11803,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -12141,6 +12141,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -12152,10 +12156,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -12493,6 +12493,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -12504,10 +12508,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -12787,6 +12787,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -12798,10 +12802,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -13105,6 +13105,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -13116,10 +13120,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -13328,6 +13328,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -13339,10 +13343,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -13479,6 +13479,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -13490,10 +13494,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -13663,6 +13663,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -13674,10 +13678,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -13916,6 +13916,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -13927,10 +13931,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -14154,6 +14154,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -14165,10 +14169,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -14564,6 +14564,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -14575,10 +14579,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -14855,6 +14855,10 @@
               "description": "Your own notes, like the hardware's learn mode.",
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "custom"
+                },
                 "notes": {
                   "type": "array",
                   "items": {
@@ -14864,10 +14868,6 @@
                 },
                 "repeatsOctave": {
                   "type": "boolean"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "custom"
                 }
               },
               "required": [
@@ -14915,12 +14915,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "mirror"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -14931,12 +14931,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "bend"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -14947,12 +14947,12 @@
             {
               "type": "object",
               "properties": {
-                "ratio": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "sync"
+                },
+                "ratio": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -14963,12 +14963,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "fold"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -14979,12 +14979,12 @@
             {
               "type": "object",
               "properties": {
-                "width": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "pwm"
+                },
+                "width": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -14995,12 +14995,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "pulsar"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15011,12 +15011,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "crush"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15027,12 +15027,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "feedback"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15043,15 +15043,15 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "pipe"
+                },
                 "first": {
                   "$ref": "#/$defs/PhaseWarp"
                 },
                 "second": {
                   "$ref": "#/$defs/PhaseWarp"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "pipe"
                 }
               },
               "required": [
@@ -15462,6 +15462,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -15473,10 +15477,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -15548,12 +15548,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "mirror"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15564,12 +15564,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "bend"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15580,12 +15580,12 @@
             {
               "type": "object",
               "properties": {
-                "ratio": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "sync"
+                },
+                "ratio": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15596,12 +15596,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "fold"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15612,12 +15612,12 @@
             {
               "type": "object",
               "properties": {
-                "width": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "pwm"
+                },
+                "width": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15628,12 +15628,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "pulsar"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15644,12 +15644,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "crush"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15660,12 +15660,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "feedback"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -15676,15 +15676,15 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "pipe"
+                },
                 "first": {
                   "$ref": "#/$defs/PhaseWarp"
                 },
                 "second": {
                   "$ref": "#/$defs/PhaseWarp"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "pipe"
                 }
               },
               "required": [
@@ -15894,6 +15894,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -15905,10 +15909,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -16132,6 +16132,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -16143,10 +16147,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -16343,6 +16343,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -16354,10 +16358,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -16528,6 +16528,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -16539,10 +16543,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -16714,6 +16714,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -16725,10 +16729,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -16983,6 +16983,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -16994,10 +16998,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -17262,6 +17262,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -17273,10 +17277,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -17530,6 +17530,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -17541,10 +17545,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -17820,6 +17820,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -17831,10 +17835,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -18050,6 +18050,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -18061,10 +18065,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -18280,6 +18280,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -18291,10 +18295,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -18520,6 +18520,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -18531,10 +18535,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -18735,6 +18735,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -18746,10 +18750,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -18925,6 +18925,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -18936,10 +18940,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -19140,6 +19140,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -19151,10 +19155,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -19360,6 +19360,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -19371,10 +19375,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -19570,6 +19570,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -19581,10 +19585,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -19790,6 +19790,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -19801,10 +19805,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -20010,6 +20010,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -20021,10 +20025,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -20215,6 +20215,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -20226,10 +20230,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -20420,6 +20420,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -20431,10 +20435,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -20625,6 +20625,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -20636,10 +20640,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -20830,6 +20830,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -20841,10 +20845,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -21050,6 +21050,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -21061,10 +21065,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -21290,8 +21290,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -21331,6 +21331,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -21342,10 +21346,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -21511,8 +21511,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -21552,6 +21552,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -21563,10 +21567,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -21732,8 +21732,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -21773,6 +21773,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -21784,10 +21788,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -21953,8 +21953,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -21994,6 +21994,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -22005,10 +22009,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -22174,8 +22174,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -22215,6 +22215,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -22226,10 +22230,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -22395,8 +22395,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -22436,6 +22436,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -22447,10 +22451,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -22611,8 +22611,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -22652,6 +22652,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -22663,10 +22667,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -22827,8 +22827,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -22868,6 +22868,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -22879,10 +22883,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -23043,8 +23043,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -23084,6 +23084,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -23095,10 +23099,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -23259,8 +23259,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 1,
-          "maximum": 4
+          "maximum": 4,
+          "default": 1
         }
       },
       "required": [
@@ -23300,6 +23300,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -23311,10 +23315,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -23475,8 +23475,8 @@
           ],
           "format": "uint",
           "minimum": 1,
-          "default": 3,
-          "maximum": 3
+          "maximum": 3,
+          "default": 3
         }
       },
       "required": [
@@ -23516,6 +23516,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -23527,10 +23531,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -23731,6 +23731,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -23742,10 +23746,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -23951,6 +23951,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -23962,10 +23966,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -24146,6 +24146,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -24157,10 +24161,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -24358,6 +24358,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -24369,10 +24373,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -24400,12 +24400,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "mirror"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24416,12 +24416,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "bend"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24432,12 +24432,12 @@
             {
               "type": "object",
               "properties": {
-                "ratio": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "sync"
+                },
+                "ratio": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24448,12 +24448,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "fold"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24464,12 +24464,12 @@
             {
               "type": "object",
               "properties": {
-                "width": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "pwm"
+                },
+                "width": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24480,12 +24480,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "pulsar"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24496,12 +24496,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "crush"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24512,12 +24512,12 @@
             {
               "type": "object",
               "properties": {
-                "amount": {
-                  "$ref": "#/$defs/PolySignal"
-                },
                 "type": {
                   "type": "string",
                   "const": "feedback"
+                },
+                "amount": {
+                  "$ref": "#/$defs/PolySignal"
                 }
               },
               "required": [
@@ -24528,15 +24528,15 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "pipe"
+                },
                 "first": {
                   "$ref": "#/$defs/PhaseWarp"
                 },
                 "second": {
                   "$ref": "#/$defs/PhaseWarp"
-                },
-                "type": {
-                  "type": "string",
-                  "const": "pipe"
                 }
               },
               "required": [
@@ -24664,6 +24664,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -24675,10 +24679,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -24801,6 +24801,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -24812,10 +24816,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -25055,6 +25055,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -25066,10 +25070,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -25269,6 +25269,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -25280,10 +25284,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -25418,6 +25418,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -25429,10 +25433,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -25567,6 +25567,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -25578,10 +25582,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -25716,6 +25716,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -25727,10 +25731,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -25866,6 +25866,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -25877,10 +25881,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26010,6 +26010,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26021,10 +26025,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26135,6 +26135,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26146,10 +26150,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26260,6 +26260,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26271,10 +26275,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26421,6 +26421,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26432,10 +26436,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26555,6 +26555,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26566,10 +26570,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26723,6 +26723,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26734,10 +26738,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -26900,6 +26900,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -26911,10 +26915,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -27059,6 +27059,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -27070,10 +27074,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -27256,6 +27256,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -27267,10 +27271,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -27432,6 +27432,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -27443,10 +27447,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -27613,6 +27613,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -27624,10 +27628,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -27863,6 +27863,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -27874,10 +27878,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -28111,6 +28111,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -28122,10 +28126,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -28294,6 +28294,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -28305,10 +28309,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -28446,6 +28446,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -28457,10 +28461,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -28573,6 +28573,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -28584,10 +28588,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -28765,6 +28765,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -28776,10 +28780,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -28997,6 +28997,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -29008,10 +29012,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -29224,6 +29224,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -29235,10 +29239,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -29368,6 +29368,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -29379,10 +29383,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -29528,6 +29528,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -29539,10 +29543,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -29757,6 +29757,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -29768,10 +29772,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -29956,6 +29956,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -29967,10 +29971,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -30101,6 +30101,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -30112,10 +30116,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -30260,6 +30260,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -30271,10 +30275,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -30444,6 +30444,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -30455,10 +30459,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -30627,6 +30627,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -30638,10 +30642,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -30793,6 +30793,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -30804,10 +30808,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -30958,6 +30958,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -30969,10 +30973,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -31215,6 +31215,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -31226,10 +31230,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -31406,6 +31406,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -31417,10 +31421,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -31570,6 +31570,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -31581,10 +31585,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -31725,6 +31725,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -31736,10 +31740,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -34405,6 +34405,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -34416,10 +34420,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -34626,6 +34626,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -34637,10 +34641,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -34825,6 +34825,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -34836,10 +34840,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -35135,6 +35135,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -35146,10 +35150,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -35566,6 +35566,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -35577,10 +35581,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -36100,6 +36100,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -36111,10 +36115,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -36605,6 +36605,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -36616,10 +36620,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -37039,6 +37039,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -37050,10 +37054,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -37317,6 +37317,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -37328,10 +37332,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -37526,6 +37526,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -37537,10 +37541,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -37768,6 +37768,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -37779,10 +37783,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -38075,6 +38075,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -38086,10 +38090,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -38409,6 +38409,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -38420,10 +38424,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -38781,6 +38781,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -38792,10 +38796,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -39181,6 +39181,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -39192,10 +39196,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -39577,6 +39577,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -39588,10 +39592,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -39963,6 +39963,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -39974,10 +39978,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -40322,6 +40322,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -40333,10 +40337,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -40652,6 +40652,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -40663,10 +40667,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -40982,6 +40982,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -40993,10 +40997,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -41330,6 +41330,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -41341,10 +41345,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -41664,6 +41664,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -41675,10 +41679,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -42055,6 +42055,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -42066,10 +42070,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -42488,6 +42488,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -42499,10 +42503,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -42898,6 +42898,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -42909,10 +42913,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -43209,6 +43209,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -43220,10 +43224,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -43553,6 +43553,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -43564,10 +43568,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -43888,6 +43888,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -43899,10 +43903,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -44246,6 +44246,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -44257,10 +44261,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -44586,6 +44586,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -44597,10 +44601,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -44907,6 +44907,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -44918,10 +44922,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -45228,6 +45228,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -45239,10 +45243,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -45558,6 +45558,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -45569,10 +45573,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -45893,6 +45893,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -45904,10 +45908,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -46205,6 +46205,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -46216,10 +46220,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -46509,6 +46509,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -46520,10 +46524,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -46967,6 +46967,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -46978,10 +46982,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -47153,6 +47153,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -47164,10 +47168,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -47354,6 +47354,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -47365,10 +47369,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -47585,6 +47585,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -47596,10 +47600,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -47781,6 +47781,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -47792,10 +47796,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -47987,6 +47987,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -47998,10 +48002,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -48188,6 +48188,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -48199,10 +48203,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -48414,6 +48414,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -48425,10 +48429,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [
@@ -48577,6 +48577,10 @@
             {
               "type": "object",
               "properties": {
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                },
                 "module": {
                   "type": "string"
                 },
@@ -48588,10 +48592,6 @@
                   "format": "uint",
                   "minimum": 0,
                   "default": 0
-                },
-                "type": {
-                  "type": "string",
-                  "const": "cable"
                 }
               },
               "required": [

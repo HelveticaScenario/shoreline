@@ -189,9 +189,7 @@ export function paramMeta(
         return formatSignalMeta(signal, required);
     }
     const prop = module.paramsSchema.properties?.[name];
-    return prop && typeof prop === 'object'
-        ? formatPlainMeta(prop as PlainParamSchema)
-        : undefined;
+    return prop && typeof prop === 'object' ? formatPlainMeta(prop) : undefined;
 }
 
 /** `description (meta)`, or the description alone when there is no meta. */

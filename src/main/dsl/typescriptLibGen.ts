@@ -1664,8 +1664,7 @@ function buildConfigArg(moduleSchema: Schema): {
 } {
     const { paramsSchema } = moduleSchema;
     const schemaProperties = paramsSchema.properties as
-        | Record<string, JSONSchema | undefined>
-        | undefined;
+        Record<string, JSONSchema | undefined> | undefined;
     const schemaRequired: readonly string[] = paramsSchema.required || [];
     const positionalKeys = new Set(
         (moduleSchema.positionalArgs || []).map((a) => a.name),
@@ -1733,8 +1732,7 @@ function buildSignature(
 ): { args: string[]; docLines: string[] } {
     const { paramsSchema } = moduleSchema;
     const schemaProperties = paramsSchema.properties as
-        | Record<string, JSONSchema | undefined>
-        | undefined;
+        Record<string, JSONSchema | undefined> | undefined;
     const schemaRequired: readonly string[] = paramsSchema.required || [];
     const positionals = (moduleSchema.positionalArgs || []).slice(
         opts.positionalStart,
@@ -2103,7 +2101,7 @@ export function generateDSL(schemas: Schemas): string {
         'export function $buffer(input: Signal, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    const builtModules = dslModules(schemas as unknown as ModuleSchema[]);
+    const builtModules = dslModules(schemas);
     lines.push(...renderFunctions(builtModules));
 
     // Chain methods. The qualifying set matches the runtime's exactly: both

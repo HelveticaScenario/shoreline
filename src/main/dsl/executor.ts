@@ -490,7 +490,7 @@ export function executePatchScript(
         if (items.every((item) => typeof item === 'number')) {
             return items.map((item) => hz(item));
         }
-        return builder.getFactory('_hz')(frequency) as Collection;
+        return builder.getFactory('_hz')(frequency);
     };
     const $mix = userNamespaceTree['$mix'];
     const $delayRead = userNamespaceTree['$delayRead'];
@@ -547,7 +547,7 @@ export function executePatchScript(
                 const feedback = $clamp(opts?.feedback ?? 2.5, {
                     min: 0,
                     max: 5,
-                }) as Collection;
+                });
                 const maxTime = opts?.maxTime ?? 5;
                 // Size the feedback path to the widest polysignal param so a poly
                 // `time` or `feedback` is not truncated when it exceeds `input`.
@@ -562,10 +562,7 @@ export function executePatchScript(
                 // is excited by the dry signal (otherwise the extra lanes carry
                 // only feedback and decay to silence — `$mix` skips, not cycles, a
                 // narrower input group's missing lanes).
-                const mixed = $mix([
-                    cycleToLanes(input, lanes),
-                    def,
-                ]) as Collection;
+                const mixed = $mix([cycleToLanes(input, lanes), def]);
                 // Colour every recirculation: process the dry-plus-feedback mix before
                 // it is written to the buffer.
                 const { feedbackCb } = opts ?? {};
@@ -575,7 +572,7 @@ export function executePatchScript(
                       )
                     : mixed;
                 const buf = $buffer(buffered, maxTime);
-                const delayed = $delayRead(buf, time) as Collection;
+                const delayed = $delayRead(buf, time);
                 def.set(builder.getFactory('$amp')(delayed, feedback));
                 return delayed;
             },
@@ -631,13 +628,13 @@ export function executePatchScript(
                 inputClass,
             ]),
             () => {
-                const voices = $unison(freq, unison, detune) as Collection;
+                const voices = $unison(freq, unison, detune);
                 const phaseOffset = outputSetOf(voices)?.values
                     .phase as Collection;
                 const voice = builder.outputResolver.withUserCode(() =>
                     cb(voices, { phaseOffset }),
                 );
-                return $stereoFold(voice, unison, width) as Collection;
+                return $stereoFold(voice, unison, width);
             },
         );
     };
@@ -695,7 +692,7 @@ export function executePatchScript(
         return $keyframes(frames, {
             playhead,
             interpolationType,
-        }) as Collection;
+        });
     };
 
     if (typeof _smoothControl !== 'function') {
@@ -711,7 +708,7 @@ export function executePatchScript(
             controlFactories[moduleType](value, {
                 ...range,
                 id,
-            }) as CollectionWithRange,
+            }),
     });
 
     if (typeof _videoTap !== 'function') {
@@ -739,8 +736,7 @@ export function executePatchScript(
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
-        cvSignal: (id) =>
-            signal(0, { ...VIDEO_CV_RANGE, id }) as CollectionWithRange,
+        cvSignal: (id) => signal(0, { ...VIDEO_CV_RANGE, id }),
         mediaAudio: (path, playback) => {
             if (!options.loadMediaAudio) {
                 throw new Error(
@@ -751,11 +747,11 @@ export function executePatchScript(
             if (info === null) {
                 throw new Error(`$v.video(...).audio: "/${path}" has no audio`);
             }
-            return _mediaAudio(wavRef(info), playback) as Collection;
+            return _mediaAudio(wavRef(info), playback);
         },
         mediaExists: options.mediaExists,
         sourceLocation: captureSourceLocation,
-        constantSignal: (value) => signal(value) as Collection,
+        constantSignal: (value) => signal(value),
     });
 
     /** `$v.scopeXY(...)` shown as the patch's picture. */

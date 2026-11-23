@@ -20,8 +20,7 @@ export function createVideoPreviewAnchors(
     editorInstance: editor.IStandaloneCodeEditor,
     sites: VideoPreviewSite[],
     callSiteSpans:
-        | Record<string, { startLine: number; endLine: number }>
-        | undefined,
+        Record<string, { startLine: number; endLine: number }> | undefined,
     file: string,
 ): VideoPreviewAnchors {
     const model = editorInstance.getModel();

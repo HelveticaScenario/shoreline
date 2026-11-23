@@ -1,5 +1,5 @@
 {
-    "$schema": "https://cdn.jsdelivr.net/npm/oxlint@1.58.0/configuration_schema.json",
+    "$schema": "https://cdn.jsdelivr.net/npm/oxlint@1.94.0/configuration_schema.json",
     "plugins": ["react", "typescript", "import"],
     "jsPlugins": [
         {
@@ -35,6 +35,7 @@
         "import/no-named-as-default": "off",
         "import/no-unassigned-import": "off",
         "no-extend-native": "off",
+        "no-underscore-dangle": "off",
         "react-hooks-js/component-hook-factories": "error",
         "react-hooks-js/config": "error",
         "react-hooks-js/error-boundaries": "error",
@@ -53,9 +54,19 @@
         "react-hooks-js/unsupported-syntax": "warn",
         "react-hooks-js/use-memo": "error",
         "react/exhaustive-deps": "warn",
+        "react/exhaustive-effect-dependencies": "off",
+        "react/immutability": "off",
+        "react/no-unstable-nested-components": "off",
         "react/react-in-jsx-scope": "off",
+        "react/refs": "off",
         "react/rules-of-hooks": "error",
+        "react/set-state-in-effect": "off",
+        "typescript/consistent-return": "off",
         "typescript/no-implied-eval": "off",
-        "typescript/no-unsafe-type-assertion": "off"
+        "typescript/no-unnecessary-type-conversion": "off",
+        "typescript/no-unnecessary-type-parameters": "off",
+        "typescript/no-unsafe-enum-assignment": "off",
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/no-useless-default-assignment": "off"
     }
 }

@@ -48,12 +48,7 @@ export type ParamKind =
     | 'unknown';
 
 export type ParamType =
-    | 'audio'
-    | 'pitch'
-    | 'frequency'
-    | 'gate'
-    | 'trig'
-    | 'control';
+    'audio' | 'pitch' | 'frequency' | 'gate' | 'trig' | 'control';
 
 const PARAM_TYPES = new Set<string>([
     'audio',
@@ -121,7 +116,7 @@ function asJsonSchema(value: unknown): JsonSchema | null {
     if (!isPlainObject(value)) {
         return null;
     }
-    return value as JsonSchema;
+    return value;
 }
 
 function getByJsonPointer(

@@ -53,8 +53,6 @@ test.describe('settings panel', () => {
         await sideSelect.selectOption('right');
         await expect(sidebar).toHaveClass(/\bright\b/);
         const box = await sidebar.boundingBox();
-        expect(Math.round((box?.x ?? 0) + (box?.width ?? 0))).toBe(
-            windowWidth,
-        );
+        expect(Math.round((box?.x ?? 0) + (box?.width ?? 0))).toBe(windowWidth);
     });
 });

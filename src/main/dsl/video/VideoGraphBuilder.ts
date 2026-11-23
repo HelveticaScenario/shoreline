@@ -149,7 +149,7 @@ export class VideoGraphBuilder implements VideoCore {
             uniform = {
                 ...binding,
                 slot: this.uniforms.length,
-            } as VideoUniform;
+            };
             this.uniforms.push(uniform);
         }
         return { kind: 'uniform', slot: uniform.slot };

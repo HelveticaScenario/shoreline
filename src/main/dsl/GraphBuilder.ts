@@ -626,9 +626,11 @@ function sliceRoot(
     for (const [name, value] of Object.entries(set.values)) {
         values[name] =
             value instanceof BaseCollection && value.length === rootLanes
-                ? new (value.constructor as new (
-                      ...args: ModuleOutput[]
-                  ) => AnyCollection)(...indices.map((i) => value.items[i]))
+                ? new (
+                      value.constructor as new (
+                          ...args: ModuleOutput[]
+                      ) => AnyCollection
+                  )(...indices.map((i) => value.items[i]))
                 : value;
     }
     markRoot(sliced, {
@@ -705,7 +707,7 @@ function remapRange(
         outMax,
         inMin,
         inMax,
-    ) as CollectionWithRange;
+    );
 }
 
 /**
@@ -878,10 +880,7 @@ export class GraphBuilder implements ChainHost {
 
     /** The function behind chain path `path`: `lpf` is the `$lpf` factory. */
     chainFunction(path: string): ChainFunction {
-        return (
-            this.chainHelpers.get(path) ??
-            (this.getFactory(`$${path}`) as ChainFunction)
-        );
+        return this.chainHelpers.get(path) ?? this.getFactory(`$${path}`);
     }
 
     /**
@@ -1322,7 +1321,7 @@ export class GraphBuilder implements ChainHost {
             ).items;
         };
         const gated = (signal: ModuleOutput[], gate: Collection) =>
-            (ampFactory(signal, gate) as Collection).items;
+            ampFactory(signal, gate).items;
         // Each track's stage and the group it plays into, by name, and each
         // sending track's final signal.
         const stagesByLabel = new Map<
@@ -1490,12 +1489,12 @@ export class GraphBuilder implements ChainHost {
                     const muteSig = signalFactory(gate, {
                         ...GATE_RANGE,
                         id: `__vuMute_${sk}`,
-                    }) as Collection;
+                    });
                     const smoothed = slewFactory(muteSig, {
                         fall: 0.002,
                         id: `__vuSlew_${sk}`,
                         rise: 0.002,
-                    }) as Collection;
+                    });
                     // The gate must sit at this patch's mute state from a
                     // swap's first sample — a carried-over open gate would
                     // leak an on-bar attack while still closing. Live M/S
@@ -1652,7 +1651,7 @@ export class GraphBuilder implements ChainHost {
             }
             // Mix all channel collections together using poly mix
             // Each collection contributes to corresponding output channels
-            const finalMix = mixFactory(allChannelCollections) as Collection;
+            const finalMix = mixFactory(allChannelCollections);
 
             // Apply end of chain processing and global output gain. A
             // numeric output gain is lifted into a _smoothControl so the
@@ -1726,7 +1725,7 @@ export class GraphBuilder implements ChainHost {
             ) {
                 return first;
             }
-            return (signalFactory(first, { ...range }) as Collection).items[0];
+            return signalFactory(first, { ...range }).items[0];
         };
         // Every tap of a track shares its sources.
         const outSources = new Map<string, TrackTapSources>();
@@ -1838,24 +1837,21 @@ export class GraphBuilder implements ChainHost {
                 };
             }),
             scopes: [
-                ...this.scopes.map(
-                    (scope) =>
-                        ({
-                            ...scope,
-                            // A deferred lane resolves to its output only
-                            // now, so a mono one's second trace drops here.
-                            lanes: this.scopedLanes(scope)
-                                .map((lane) => this.resolveScopeLane(lane))
-                                .filter(
-                                    (lane) =>
-                                        lane.side === undefined ||
-                                        this.portChannels(
-                                            lane.moduleId,
-                                            lane.portName,
-                                        ) !== 'mono',
-                                ),
-                        }) as ScopeWithLocation,
-                ),
+                ...this.scopes.map((scope) => ({
+                    ...scope,
+                    // A deferred lane resolves to its output only
+                    // now, so a mono one's second trace drops here.
+                    lanes: this.scopedLanes(scope)
+                        .map((lane) => this.resolveScopeLane(lane))
+                        .filter(
+                            (lane) =>
+                                lane.side === undefined ||
+                                this.portChannels(
+                                    lane.moduleId,
+                                    lane.portName,
+                                ) !== 'mono',
+                        ),
+                })),
                 ...eqScopes,
             ],
             // Napi maps both null and undefined to None, so the renderer's
@@ -2611,7 +2607,7 @@ function crossfadeMix(
             : original,
         result,
         amount,
-    ) as Collection;
+    );
 }
 
 /**

@@ -13,14 +13,9 @@ import type { MonospaceFont } from './fonts';
 import type { ReleaseNotes } from './releaseNotes';
 import type {
     ApplyPatchError,
-    AudioConfigOptions,
     AudioDeviceInfo,
-    BufferSizeRange,
     CurrentAudioState,
     DeviceCacheSnapshot,
-    HostDeviceInfo,
-    HostInfo,
-    MidiInputInfo,
     PatchGraph,
     QueuedTrigger,
     Synthesizer,
@@ -43,13 +38,8 @@ export type {
     PatchGraph,
     ApplyPatchError,
     AudioDeviceInfo,
-    MidiInputInfo,
-    HostInfo,
-    BufferSizeRange,
     DeviceCacheSnapshot,
-    HostDeviceInfo,
     CurrentAudioState,
-    AudioConfigOptions,
     TransportSnapshot,
     QueuedTrigger,
 };
@@ -62,7 +52,7 @@ export interface AudioConfig {
     bufferSize?: number;
 }
 
-export type { MonospaceFont, SystemFont } from './fonts';
+export type { MonospaceFont } from './fonts';
 
 /** How Format Document quotes strings. `backtick` prints each string as a
  *  template literal wherever the syntax allows one. */
@@ -278,8 +268,7 @@ export interface FileChange {
 }
 
 export type FSWriteResult =
-    | FSOperationResult
-    | { success: false; conflict: true };
+    FSOperationResult | { success: false; conflict: true };
 
 export interface WorkspaceFolder {
     path: string;
@@ -328,8 +317,7 @@ export interface EditorContextMenuOptions {
 }
 
 export type ContextMenuOptions =
-    | FileContextMenuOptions
-    | EditorContextMenuOptions;
+    FileContextMenuOptions | EditorContextMenuOptions;
 
 export type ContextMenuCommand = 'save' | 'rename' | 'delete' | 'editor';
 

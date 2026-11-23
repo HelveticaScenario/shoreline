@@ -175,8 +175,7 @@ export function EditorSettingsTab({
                     onChange={(e) =>
                         onConfigChange({
                             docsLocation: e.target.value as
-                                | 'bottom'
-                                | 'sidebar',
+                                'bottom' | 'sidebar',
                         })
                     }
                 >

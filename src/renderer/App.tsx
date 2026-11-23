@@ -2053,8 +2053,7 @@ function App() {
                             : `scope:${i}:empty`;
 
                     const loc = (scope as any).sourceLocation as
-                        | { line: number; column: number }
-                        | undefined;
+                        { line: number; column: number } | undefined;
 
                     // A scope whose call site cannot be resolved (source
                     // edited during the async round-trip) gets no decoration

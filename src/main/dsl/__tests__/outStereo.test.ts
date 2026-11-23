@@ -26,8 +26,7 @@ function sourceType(
     >;
     const value = params?.[field];
     const cable = (Array.isArray(value) ? value[0] : value) as
-        | { module?: string }
-        | undefined;
+        { module?: string } | undefined;
     return patch.find((m) => m.id === cable?.module)?.moduleType;
 }
 

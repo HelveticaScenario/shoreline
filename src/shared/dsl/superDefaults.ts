@@ -22,8 +22,7 @@ export function superDefaults(
         find(module)?.signalParams.find((p) => p.name === param)?.defaultValue;
     const unison = (
         find('$supersaw')?.paramsSchema as
-            | { properties?: Record<string, { default?: unknown }> }
-            | undefined
+            { properties?: Record<string, { default?: unknown }> } | undefined
     )?.properties?.unison?.default;
     const detune = signalDefault('$unison', 'spread');
     const width = signalDefault('$stereoFold', 'width');

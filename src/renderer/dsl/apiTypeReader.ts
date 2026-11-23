@@ -64,7 +64,7 @@ export class TypeReader {
         const video = new Set(
             [...interfaces.keys()].filter((n) => n.startsWith('Video')),
         );
-        for (let grew = true; grew; ) {
+        for (let grew = true; grew;) {
             grew = false;
             for (const [name, list] of interfaces) {
                 if (

@@ -111,7 +111,7 @@ export function parseConfig(json: unknown): AppConfig | null {
     if (!isPlainObject(json)) {
         return null;
     }
-    return parseFields(AppConfigSchema.shape, json, '') as AppConfig;
+    return parseFields(AppConfigSchema.shape, json, '');
 }
 
 export interface ConfigStore {

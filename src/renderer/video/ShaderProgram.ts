@@ -19,12 +19,7 @@ import { PREVIEW_FORMAT } from './PreviewCapture';
 type ParityGroups = [GPUBindGroup, GPUBindGroup];
 
 type ResourceKind =
-    | 'uniform'
-    | 'sampler'
-    | 'buffer'
-    | 'history'
-    | 'source'
-    | 'scope';
+    'uniform' | 'sampler' | 'buffer' | 'history' | 'source' | 'scope';
 
 /** What each kind of resource looks like in the bind group layout. */
 const LAYOUT_ENTRIES: Record<

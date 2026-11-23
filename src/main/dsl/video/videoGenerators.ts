@@ -45,10 +45,7 @@ export function generatorMethods(core: VideoCore) {
          */
         ramp: (
             axis:
-                | 'horizontal'
-                | 'vertical'
-                | 'radial'
-                | 'angular' = 'horizontal',
+                'horizontal' | 'vertical' | 'radial' | 'angular' = 'horizontal',
             config?: VideoRampConfig,
         ): VideoOutput =>
             core.addNode(

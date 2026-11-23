@@ -14,19 +14,10 @@ import { analyzeCallSiteSpans } from './callSiteSpanAnalyzer';
 
 // Re-export types and utilities so existing consumers can import from here
 export type {
-    SourceSpan,
-    ResolvedInterpolation,
-    InterpolationResolutionMap,
-    CallSiteSpans,
     CallSiteKey,
     SpanRegistry,
-    CallExpressionSpan,
     CallSiteSpanRegistry,
     AnalysisResult,
-} from './sourceAnalysisTypes';
-export {
-    setActiveInterpolationResolutions,
-    getActiveInterpolationResolutions,
 } from './sourceAnalysisTypes';
 
 /**
