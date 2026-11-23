@@ -1,12 +1,10 @@
 import { v4 } from 'uuid';
-import type { EditorBuffer } from '../types/editor';
+import type { EditorBuffer, FileBuffer } from '../types/editor';
 import {
     getBufferId,
     toAbsoluteWorkspacePath,
     withSavedContent,
 } from './buffers';
-
-type FileBuffer = EditorBuffer & { kind: 'file' };
 
 export const findBuffer = (
     buffers: EditorBuffer[],

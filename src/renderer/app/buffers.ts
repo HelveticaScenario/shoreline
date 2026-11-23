@@ -1,4 +1,8 @@
-import type { EditorBuffer, UnsavedBufferSnapshot } from '../types/editor';
+import type {
+    EditorBuffer,
+    FileBuffer,
+    UnsavedBufferSnapshot,
+} from '../types/editor';
 import {
     isPatchPath,
     PATCH_EXTENSION,
@@ -107,7 +111,7 @@ export const withBufferContent = (
 
 /** Record that `savedContent` is what the buffer's file now holds on disk. */
 export const withSavedContent = (
-    buffer: EditorBuffer & { kind: 'file' },
+    buffer: FileBuffer,
     savedContent: string,
 ): EditorBuffer => ({
     ...buffer,
@@ -120,7 +124,7 @@ export const withSavedContent = (
  * content; a dirty one keeps its edits, and its next save reports a conflict.
  */
 export const withDiskChange = (
-    buffer: EditorBuffer & { kind: 'file' },
+    buffer: FileBuffer,
     diskContent: string,
 ): EditorBuffer => {
     if (buffer.content === diskContent || !buffer.dirty) {
