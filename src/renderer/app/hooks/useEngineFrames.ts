@@ -14,10 +14,39 @@ export interface EngineFrame {
 }
 
 /**
- * Polls the engine once per animation frame while the clock runs and hands
- * each poll to `onFrame`. While the clock is stopped and Link is enabled it
- * polls the transport alone, so the Link phase indicator stays live before
- * play.
+ * Runs `step` once per animation frame, each frame waiting for the one
+ * before to settle. `step` checks `isLive` after it awaits, before acting on
+ * what it read. Returns the function that stops the loop.
+ */
+function startFrameLoop(
+    step: (isLive: () => boolean) => Promise<void>,
+): () => void {
+    let cancelled = false;
+    let rafId = 0;
+    const isLive = () => !cancelled;
+    const tick = () => {
+        void step(isLive)
+            .catch((err) => {
+                console.error('Failed to poll the engine:', err);
+            })
+            .then(() => {
+                if (!cancelled) {
+                    rafId = requestAnimationFrame(tick);
+                }
+            });
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => {
+        cancelled = true;
+        cancelAnimationFrame(rafId);
+    };
+}
+
+/**
+ * Polls the engine once per animation frame while the clock runs: each poll
+ * updates the transport store, then goes to `onFrame`. While the clock is
+ * stopped and Link is enabled it polls the transport alone, so the Link phase
+ * indicator stays live before play.
  */
 export function useEngineFrames({
     running,
@@ -46,62 +75,29 @@ export function useEngineFrames({
         if (!running) {
             return;
         }
-        let cancelled = false;
-        const tick = () => {
-            if (cancelled) {
+        return startFrameLoop(async (isLive) => {
+            const [scopeData, transport, meters] = await poll();
+            if (!isLive()) {
                 return;
             }
-            void poll()
-                .then(([scopeData, transport, meters]) => {
-                    if (cancelled) {
-                        return;
-                    }
-                    const scopes: ScopeFrames = new Map();
-                    for (const [bufferKey, data, stats] of scopeData) {
-                        scopes.set(scopeBufferKeyToString(bufferKey), {
-                            data,
-                            stats,
-                        });
-                    }
-                    deliver({ meters, scopes, transport });
-                })
-                .catch((err) => {
-                    console.error('Failed to get scopes:', err);
-                })
-                .then(() => {
-                    if (!cancelled) {
-                        requestAnimationFrame(tick);
-                    }
-                });
-        };
-        requestAnimationFrame(tick);
-        return () => {
-            cancelled = true;
-        };
+            const scopes: ScopeFrames = new Map();
+            for (const [bufferKey, data, stats] of scopeData) {
+                scopes.set(scopeBufferKeyToString(bufferKey), { data, stats });
+            }
+            setTransport(transport);
+            deliver({ meters, scopes, transport });
+        });
     }, [running]);
 
     useEffect(() => {
         if (!linkEnabled || running) {
             return;
         }
-        let cancelled = false;
-        let rafId = 0;
-        const tick = () => {
-            if (cancelled) {
-                return;
+        return startFrameLoop(async (isLive) => {
+            const transport = await electronAPI.synthesizer.getTransportState();
+            if (isLive()) {
+                setTransport(transport);
             }
-            void electronAPI.synthesizer.getTransportState().then((t) => {
-                if (cancelled) {
-                    return;
-                }
-                setTransport(t);
-                rafId = requestAnimationFrame(tick);
-            });
-        };
-        rafId = requestAnimationFrame(tick);
-        return () => {
-            cancelled = true;
-            cancelAnimationFrame(rafId);
-        };
+        });
     }, [linkEnabled, running]);
 }

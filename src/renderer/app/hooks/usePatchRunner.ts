@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { QueuedTrigger } from '@modular/core';
 import type { editor } from 'monaco-editor';
 import type {
@@ -43,7 +43,7 @@ export function usePatchRunner({
     activeBufferId,
     activeSourceId,
     getCode,
-    editorInstance,
+    editorRef,
     eqController,
     mixer,
     errors,
@@ -55,7 +55,9 @@ export function usePatchRunner({
     activeSourceId: string | undefined;
     /** The active buffer's text as the editor has it. */
     getCode: () => string;
-    editorInstance: editor.IStandaloneCodeEditor | null;
+    /** Read when a run's result arrives, so a run started as the editor
+     *  mounts still decorates it. */
+    editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
     eqController: EqPanelController;
     mixer: MixerController;
     errors: PatchErrors;
@@ -127,7 +129,8 @@ export function usePatchRunner({
         setRunning({ bufferId: activeBufferId, sourceId });
         errors.clear();
 
-        const model = editorInstance?.getModel();
+        const editorNow = editorRef.current;
+        const model = editorNow?.getModel();
         if (model) {
             void applyRuntimeResolutions(
                 model,
@@ -137,7 +140,7 @@ export function usePatchRunner({
         }
         const ui = buildPatchUi(
             result,
-            editorInstance,
+            editorNow,
             eqController,
             activeBufferId,
             sourceId,

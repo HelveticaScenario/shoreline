@@ -15,7 +15,7 @@ import { useRecording } from './app/hooks/useRecording';
 import { useTestApi } from './app/hooks/useTestApi';
 import { useWorkspace } from './app/hooks/useWorkspace';
 import { ScopeCanvases } from './app/scopeCanvases';
-import { setTransport, updateTransport } from './app/transportStore';
+import { updateTransport } from './app/transportStore';
 import { PerformancePreview } from './app/video/PerformancePreview';
 import { VideoBackdrop } from './app/video/VideoBackdrop';
 import { AppUpdates } from './components/AppUpdates';
@@ -126,7 +126,7 @@ function App() {
         activeBufferId,
         activeSourceId,
         buffers,
-        editorInstance,
+        editorRef,
         eqController,
         errors,
         getCode,
@@ -164,9 +164,6 @@ function App() {
         );
     }, [eqController, prettierConfig]);
     useEffect(() => {
-        mixer.setVisibleBuffer(activeSourceId);
-    }, [mixer, activeSourceId]);
-    useEffect(() => {
         if (!isClockRunning) {
             eqController.onStopped();
             mixer.meters.silence();
@@ -174,7 +171,6 @@ function App() {
     }, [eqController, mixer, isClockRunning]);
     useEffect(() => () => eqController.dispose(), [eqController]);
 
-    // Declared after the effect that tells the mixer which buffer shows.
     const jumpToTrack = useMixerJump({
         buffers,
         jumpTo: controlActions.jumpTo,
@@ -187,10 +183,7 @@ function App() {
         onFrame: ({ scopes, meters, transport }: EngineFrame) => {
             eqController.onScopeFrames(scopes, performance.now());
             scopeCanvases.draw(scopes);
-            if (isMixerVisible) {
-                mixer.drawFrames(meters);
-            }
-            setTransport(transport);
+            mixer.drawFrames(meters);
             patch.settleQueuedUpdate(transport);
         },
         pollMeters: isMixerVisible,
@@ -233,7 +226,7 @@ function App() {
     });
     useKeymap();
     useTestApi({
-        editorInstance,
+        editorRef,
         eqController,
         getLastResult: patch.getLastResult,
         isClockRunning,
