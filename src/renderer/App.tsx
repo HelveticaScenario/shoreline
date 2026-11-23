@@ -1,235 +1,92 @@
-import {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
-import { MonacoPatchEditor as PatchEditor } from './components/MonacoPatchEditor';
-import { VideoBackdrop } from './app/video/VideoBackdrop';
-import { PerformancePreview } from './app/video/PerformancePreview';
-import { PerformancePanel } from './components/PerformancePanel';
-import { usePerformanceCode } from './performance/usePerformanceCode';
-import { performanceOutput } from './video/PerformanceOutput';
-import { AudioControls } from './components/AudioControls';
-import { TransportDisplay } from './components/TransportDisplay';
-import { ErrorDisplay } from './components/ErrorDisplay';
-import { AudioPanicDialog } from './components/AudioPanicDialog';
-import { AudioDeviceBanner } from './components/AudioDeviceBanner';
-import { EngineHealth } from './components/EngineHealth';
-import { ModuleProfile } from './components/ModuleProfile';
-import {
-    SaveConflictDiff,
-    SaveConflictNotification,
-} from './components/SaveConflict';
-import type { UpdateNotificationState } from './components/UpdateNotification';
-import { UpdateNotification } from './components/UpdateNotification';
-import { ReleaseNotesDialog } from './components/ReleaseNotesDialog';
-import type { ReleaseNotes } from '../shared/releaseNotes';
-import { CommandPalette } from './components/CommandPalette';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import type { editor } from 'monaco-editor';
 import './App.css';
-import { editor } from 'monaco-editor';
-import { getErrorMessage } from './utils/errorUtils';
-import { FileExplorer } from './components/FileExplorer';
-import { Sidebar } from './components/Sidebar';
-import { ControlPanel } from './components/ControlPanel';
-import electronAPI from './electronAPI';
-import type { ValidationError } from '@modular/core';
-import type { QueuedTrigger, ScopeStats } from '@modular/core';
-import type {
-    ChangelogInfo,
-    FileTreeEntry,
-    UpdateAvailableInfo,
-} from '../shared/ipcTypes';
-import type { SliderDefinition } from '../shared/dsl/sliderTypes';
-import type { ButtonDefinition } from '../shared/dsl/buttonTypes';
-import type { VuMeterDef, VuMeterGhost } from '../shared/dsl/vuMeterTypes';
-import { gateParams, outGainParams } from '../shared/dsl/controlRanges';
-import {
-    DEFAULT_OUTPUT_GAIN,
-    UNITY_OUT_GAIN,
-    dbToOutGain,
-    outGainToDb,
-} from '../shared/dsl/vuMeterTypes';
-import type { EditorBuffer } from './types/editor';
-import { applySliderChange } from './app/sliderChange';
-import { applyButtonChange, applyGroupCollapse } from './app/buttonChange';
-import { resolvePrettierOptions } from './components/monaco/formattingProvider';
-import { codeStyleFromPrettier } from './dsl/listEdits';
-import { bindControls } from './app/controlBinding';
-import { performanceControls } from './app/performanceControls';
-import { formatPath } from './components/monaco/monacoHelpers';
-import { ControlAnchors, createControlAnchors } from './app/controlAnchors';
-import { applyRuntimeResolutions } from './components/monaco/outputResolutionHints';
-import { extractControls, resolveControls } from './dsl/extractControls';
-import type { ResolvedControls } from './dsl/extractControls';
-import { type ModelAnchors, createModelAnchors } from './app/modelAnchors';
-import { resolveScopeCallRange } from './app/scopeCallRange';
-import {
-    type VideoPreviewAnchors,
-    createVideoPreviewAnchors,
-} from './app/videoPreviewAnchors';
-import { transformErrorsWithSourceLocations } from './app/validationErrorLocations';
-import {
-    computeSetMainGainEdit,
-    computeTrackOptionEdit,
-    computeTrackStateEdit,
-    type TrackSourceEdit,
-} from './dsl/trackSourceEdit';
-import { trackGates } from '../shared/dsl/trackGates';
-import type { TrackState } from '../shared/dsl/trackLabels';
-import { VuMeterPanel } from './components/VuMeterPanel';
-import { useVuKnobControls } from './app/hooks/useVuKnobControls';
+import { getBufferId } from './app/buffers';
+import { useAppCommands } from './app/hooks/useAppCommands';
+import { useControlActions, useControlViews } from './app/hooks/useControls';
+import { useEditorBuffers } from './app/hooks/useEditorBuffers';
+import { type EngineFrame, useEngineFrames } from './app/hooks/useEngineFrames';
+import { useFileActions } from './app/hooks/useFileActions';
+import { useLatestCode } from './app/hooks/useLatestCode';
+import { usePatchErrors } from './app/hooks/usePatchErrors';
+import { usePatchRunner } from './app/hooks/usePatchRunner';
+import { usePerformanceWindow } from './app/hooks/usePerformanceWindow';
+import { useRecording } from './app/hooks/useRecording';
+import { useTestApi } from './app/hooks/useTestApi';
+import { useWorkspace } from './app/hooks/useWorkspace';
+import { ScopeCanvases } from './app/scopeCanvases';
+import { setTransport, updateTransport } from './app/transportStore';
+import { PerformancePreview } from './app/video/PerformancePreview';
+import { VideoBackdrop } from './app/video/VideoBackdrop';
+import { AppUpdates } from './components/AppUpdates';
+import { AudioControls } from './components/AudioControls';
+import { AudioDeviceBanner } from './components/AudioDeviceBanner';
+import { AudioPanicDialog } from './components/AudioPanicDialog';
 import { BottomBar } from './components/BottomBar';
 import { BottomPanel } from './components/BottomPanel';
+import { CommandPalette } from './components/CommandPalette';
+import { ControlPanel } from './components/ControlPanel';
+import { EngineHealth } from './components/EngineHealth';
+import { ErrorDisplay } from './components/ErrorDisplay';
+import { FileExplorer } from './components/FileExplorer';
+import { ModuleProfile } from './components/ModuleProfile';
+import { MonacoPatchEditor as PatchEditor } from './components/MonacoPatchEditor';
+import { PerformancePanel } from './components/PerformancePanel';
+import { SaveConflicts } from './components/SaveConflicts';
+import { Sidebar } from './components/Sidebar';
+import { TransportDisplay } from './components/TransportDisplay';
+import { VuMeterPanel } from './components/VuMeterPanel';
+import { resolvePrettierOptions } from './components/monaco/formattingProvider';
+import { codeStyleFromPrettier } from './dsl/listEdits';
+import electronAPI from './electronAPI';
+import { EqPanelController } from './eq/eqPanelController';
 import { useBottomPanel } from './hooks/useBottomPanel';
 import { useEditableConfig } from './hooks/useEditableConfig';
-import type { VuBallistics } from './app/vuMeter';
-import {
-    drawVuMeter,
-    formatDb,
-    isClipping,
-    newBallistics,
-    updateBallistics,
-    voltsToDb,
-} from './app/vuMeter';
-import { readVuMeterColors } from './app/vuMeterColors';
-import type { ScopeView } from './types/editor';
-import { EqPanelController } from './eq/eqPanelController';
-import { type EqPanelSetup, disposeEqPanelSetup } from './eq/eqPanelSetup';
-import {
-    FIRST_LINE_COLUMN_OFFSET,
-    setActiveInterpolationResolutions,
-} from '../shared/dsl/spanTypes';
-import {
-    drawOscilloscope,
-    readScopeColors,
-    scopeBufferKeyFromLane,
-    scopeBufferKeyToString,
-} from './app/oscilloscope';
-import { useEditorBuffers } from './app/hooks/useEditorBuffers';
-import {
-    executeCommand,
-    registerCommand,
-    unregisterCommand,
-} from './keybindings/commands';
-import { loadAndInstallKeymap, setWhenEvaluator } from './keybindings/keymap';
-import { evaluateWhen } from './keybindings/contextKey';
-import { getBufferId } from './app/buffers';
-import {
-    setTransport,
-    updateTransport,
-    useTransportLinkEnabled,
-} from './app/transportStore';
+import { useKeybindingsFile } from './keybindings/useKeybindingsFile';
+import { useKeymap } from './keybindings/useKeymap';
+import { MixerController } from './mixer/MixerController';
+import { useMixerJump } from './mixer/useMixerJump';
 import { useTheme } from './themes/ThemeContext';
+import type { EditorBuffer } from './types/editor';
 
-type ReleaseNotesView =
-    | { kind: 'update' }
-    | { kind: 'whatsNew'; currentVersion: string; releases: ReleaseNotes[] }
-    | { kind: 'changelog'; info: ChangelogInfo };
+const createEqController = () =>
+    new EqPanelController({
+        getModuleStates: () => electronAPI.synthesizer.getModuleStates(),
+        getSampleRate: () => electronAPI.synthesizer.getSampleRate(),
+        setModuleParam: (moduleId, moduleType, params) =>
+            electronAPI.synthesizer.setModuleParam(
+                moduleId,
+                moduleType,
+                params as object,
+            ),
+    });
 
-/** Show a meter's highest peak on its readout pill, red above 0 dB. */
-function showVuPeak(readout: HTMLElement, peakDb: number): void {
-    readout.textContent = formatDb(peakDb);
-    readout.dataset.clipped = String(isClipping(peakDb));
-}
+const toggleLink = (enabled: boolean) => {
+    void electronAPI.synthesizer.enableLink(enabled);
+    // The transport is only polled while playing, so show the change now.
+    updateTransport((prev) => ({
+        ...prev,
+        linkEnabled: enabled,
+        linkPeers: enabled ? prev.linkPeers : 0,
+    }));
+};
 
 function App() {
-    const {
-        codeBackdropOpacity,
-        performanceScale,
-        performanceView,
-        prettierConfig,
-        theme,
-        themes,
-    } = useTheme();
+    const { codeBackdropOpacity, performanceScale, prettierConfig } =
+        useTheme();
+    const prettierOptions = resolvePrettierOptions(prettierConfig);
 
-    // Workspace & filesystem
-    const [workspaceRoot, setWorkspaceRoot] = useState<string | null>(null);
-    const [fileTree, setFileTree] = useState<FileTreeEntry[]>([]);
-
-    const refreshFileTree = useCallback(async () => {
-        try {
-            const tree = await electronAPI.filesystem.listFiles();
-            setFileTree(tree);
-        } catch (error) {
-            console.error('Failed to refresh file tree:', error);
-        }
-    }, []);
-
-    // Absolute path to the user keybindings.json, resolved once. Used to
-    // detect when that file is saved so the keymap can be reloaded live.
-    const keybindingsPathRef = useRef<string | null>(null);
-    const handleFileSaved = useCallback((filePath: string) => {
-        if (filePath === keybindingsPathRef.current) {
-            window.dispatchEvent(new Event('shoreline:keybindings-changed'));
-        }
-    }, []);
-
-    const {
-        buffers,
-        setBuffers,
-        activeBufferId,
-        setActiveBufferId,
-        patchCode,
-        handlePatchChange,
-        openFile,
-        openAbsoluteFile,
-        createUntitledFile,
-        saveFile,
-        renameFile,
-        deleteFile,
-        closeBuffer,
-        keepBuffer,
-        renamingPath,
-        setRenamingPath,
-        handleRenameCommit,
-        formatFileLabel,
-        saveConflict,
-        dismissSaveConflict,
-        overwriteOnConflict,
-        revertToDiskContent,
-        viewStates,
-    } = useEditorBuffers({
-        refreshFileTree,
-        workspaceRoot,
-        onFileSaved: handleFileSaved,
-        quotes: resolvePrettierOptions(prettierConfig).quotes,
-    });
-
-    // Audio state
-    const [isClockRunning, setIsClockRunning] = useState(true);
-    const [isRecording, setIsRecording] = useState(false);
+    const [editorInstance, setEditorInstance] =
+        useState<editor.IStandaloneCodeEditor | null>(null);
+    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+    /** Inline `ui: true` EQ panels of the running patch. */
+    const [eqController] = useState(createEqController);
+    const [mixer] = useState(() => new MixerController());
+    const [scopeCanvases] = useState(() => new ScopeCanvases());
     const [isEngineHealthOpen, setIsEngineHealthOpen] = useState(false);
-    const [isPaletteOpen, setIsPaletteOpen] = useState(false);
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [validationErrors, setValidationErrors] = useState<
-        ValidationError[] | null
-    >(null);
+    const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
-    const [scopeViews, setScopeViews] = useState<ScopeView[]>([]);
-    const [videoPreviews, setVideoPreviews] = useState<VideoPreviewAnchors>({
-        decorations: null,
-        zones: [],
-    });
-    const videoPreviewsRef = useRef(videoPreviews);
-    const commitVideoPreviews = useCallback((anchors: VideoPreviewAnchors) => {
-        videoPreviewsRef.current.decorations?.clear();
-        videoPreviewsRef.current = anchors;
-        setVideoPreviews(anchors);
-    }, []);
-    // Path-identity (getBufferId) of the buffer the running patch came from,
-    // compared against activeBufferId by every consumer. Path identities
-    // mutate on save/rename, so the stable EditorBuffer.id of the running
-    // buffer is tracked alongside and the effect below re-derives this value
-    // whenever the buffer's path identity changes.
-    const [runningBufferId, setRunningBufferId] = useState<string | null>(null);
-    const runningSourceIdRef = useRef<string | null>(null);
-    const [sliderDefs, setSliderDefs] = useState<SliderDefinition[]>([]);
-    const [buttonDefs, setButtonDefs] = useState<ButtonDefinition[]>([]);
-    const [vuOutputs, setVuOutputs] = useState<VuMeterDef[]>([]);
     const [appConfig, changeAppConfig, appConfigLoaded] =
         useEditableConfig(true);
     const bottomPanel = useBottomPanel(
@@ -237,2472 +94,202 @@ function App() {
         changeAppConfig,
         appConfigLoaded,
     );
-    const showBottomPanel = bottomPanel.show;
-    /** Code-side control values diverging from the running audio after
-     *  Ctrl/Cmd (code-only) panel edits, keyed by meter key. Cleared when a
-     *  patch update applies. */
-    const [vuGhosts, setVuGhosts] = useState(new Map<string, VuMeterGhost>());
-    // Per-frame transport lives in an external store (see transportStore) so
-    // updating it ~60×/s does not re-render the whole App tree — only the
-    // transport display, which subscribes directly. App only needs to know
-    // whether Link is enabled (to drive the Link-only poll loop below); that
-    // selector re-renders App only when the flag flips.
-    const linkEnabled = useTransportLinkEnabled();
+    const isMixerVisible = bottomPanel.tab === 'mixer';
 
-    const [updateState, setUpdateState] = useState<UpdateNotificationState>({
-        status: 'idle',
+    const errors = usePatchErrors();
+    const workspace = useWorkspace();
+    const keybindingsFile = useKeybindingsFile();
+    const files = useEditorBuffers({
+        onFileSaved: keybindingsFile.onFileSaved,
+        quotes: prettierOptions.quotes,
+        refreshFileTree: workspace.refreshFileTree,
+        workspaceRoot: workspace.root,
     });
-    // Store the version currently being offered so we can reference it later
-    const pendingUpdateVersion = useRef('');
-    const [releaseNotesView, setReleaseNotesView] =
-        useState<ReleaseNotesView | null>(null);
-
-    const editorRef = useRef<editor.IStandaloneCodeEditor>(null);
-    // Mirror of editorRef as state so children that need to react when the
-    // editor mounts/unmounts (e.g., the command palette enumerating Monaco
-    // editor actions) can subscribe instead of reading the ref during render.
-    const [paletteEditor, setPaletteEditor] =
-        useState<editor.IStandaloneCodeEditor | null>(null);
-    const performanceTheme = useMemo(
-        () => themes.find((t) => t.id === performanceView.themeId) ?? theme,
-        [themes, theme, performanceView.themeId],
-    );
-    const scopeCanvasMapRef = useRef(new Map<string, HTMLCanvasElement>());
-    const vuCanvasMapRef = useRef(new Map<string, HTMLCanvasElement>());
-    /** Peak-readout pills, updated imperatively from the RAF loop. */
-    const vuReadoutMapRef = useRef(new Map<string, HTMLElement>());
-    /** Mirror of vuGhosts for the RAF loop and drag handlers; updated
-     *  synchronously by setVuGhostProp/clearVuGhosts so a redraw issued in
-     *  the same tick sees the new value. */
-    const vuGhostsRef = useRef(vuGhosts);
-    /** Throttle state for live source writes during fader/knob drags,
-     *  keyed `<meterKey>:<control>`. Each Monaco edit re-tokenizes and
-     *  re-colors, so drags write the source at a bounded rate — immediately,
-     *  then at most once per interval while moving; release flushes the
-     *  final value. */
-    const vuEditThrottleRef = useRef(
-        new Map<string, { timer: number | null; lastWrite: number }>(),
-    );
-    /** Per-meter, per-channel peak-marker state keyed by meter key. */
-    const vuBallisticsRef = useRef(new Map<string, VuBallistics[]>());
-    /** Highest peak per meter since its readout was last reset, in dB. The
-     *  readout shows it and is red while it is above 0 dB. It outlives the
-     *  meter's strip, so a clip stays flagged across folds and tab switches
-     *  until the readout is clicked. */
-    const vuPeakMaxRef = useRef(new Map<string, number>());
-    /** Last drawn channel levels per meter, for redraws outside the RAF
-     *  loop (canvas resizes and fader drags while the clock is stopped). */
-    const vuLastChannelsRef = useRef(
-        new Map<string, { rmsDb: number; fastDb: number; peakDb: number }[]>(),
-    );
-    const lastPatchResultRef = useRef<any>(null);
-    /** Inline `ui: true` EQ panels of the running patch. */
-    const [eqController] = useState(
-        () =>
-            new EqPanelController({
-                getModuleStates: () =>
-                    electronAPI.synthesizer.getModuleStates(),
-                getSampleRate: () => electronAPI.synthesizer.getSampleRate(),
-                setModuleParam: (moduleId, moduleType, params) =>
-                    electronAPI.synthesizer.setModuleParam(
-                        moduleId,
-                        moduleType,
-                        params as object,
-                    ),
-            }),
-    );
-
-    /** Long-lived invisible tracked decorations spanning each scope() call.
-     *  Monaco automatically adjusts these ranges as the document is edited,
-     *  so we can always read the current position of a scope call from them. */
-    const scopeDecorationsRef =
-        useRef<editor.IEditorDecorationsCollection | null>(null);
-
-    /** Tracked decorations on each track's label, index-aligned with
-     *  vuOutputs: mixer edits find the playing track's label through them as
-     *  the user edits around it. */
-    const vuDecorationsRef = useRef<ModelAnchors | null>(null);
-
-    /** Pending UI state waiting for the audio thread to apply a queued update */
-    const pendingUIStateRef = useRef<{
-        updateId: number;
-        scopeViews: ScopeView[];
-        sliderDefs: SliderDefinition[];
-        buttonDefs: ButtonDefinition[];
-        vuOutputs: VuMeterDef[];
-        interpolationResolutions?: Map<string, any[]>;
-        /** Tracked decorations created at submit time, swapped into
-         *  scopeDecorationsRef when the pending state is committed. */
-        scopeDecorations: editor.IEditorDecorationsCollection | null;
-        /** Same contract as scopeDecorations, for vuDecorationsRef. */
-        vuDecorations: ModelAnchors | null;
-        /** EQ panels of the pending patch, committed with it. */
-        eqPanels: EqPanelSetup;
-        /** Anchors on the pending patch's control calls, committed with it. */
-        controlAnchors: ControlAnchors | null;
-        /** The pending patch's `$v.preview` panels, committed with it. */
-        videoPreviews: VideoPreviewAnchors;
-        /** Stable id of the buffer the pending patch was evaluated from. */
-        controlsSource: string | null;
-        /** The running buffer before this submit, restored if the queued
-         *  update is cancelled. */
-        previousRunning: { bufferId: string | null; sourceId: string | null };
-    } | null>(null);
-
-    // Stable per-buffer identity (the tab's id) used as the patch source id.
-    // Unlike activeBufferId — a file's mutable path — this survives rename and
-    // save, so reconciliation/clock-reset key on the buffer, not its path.
-    const activeSourceId = useMemo(
-        () =>
-            buffers.find((b) => getBufferId(b) === activeBufferId)?.id ??
-            activeBufferId,
-        [buffers, activeBufferId],
-    );
-    const openBufferIds = useMemo(() => buffers.map(getBufferId), [buffers]);
-    const activeSourceIdRef = useRef(activeSourceId);
-    useEffect(() => {
-        activeSourceIdRef.current = activeSourceId;
-    }, [activeSourceId]);
-
-    // The control panel shows the visible buffer's controls, parsed from its
-    // code, bound to the running patch's controls (sliderDefs/buttonDefs)
-    // when the visible buffer is the running one. Parsing is synchronous so
-    // parsed call offsets always address the live editor document.
-    const visibleCode = useMemo(
-        () => ({ bufferId: activeSourceId, code: patchCode }),
-        [activeSourceId, patchCode],
-    );
-    // Last resolved controls per buffer, so a control whose arguments are
-    // mid-edit keeps showing its last valid state instead of vanishing.
-    // Re-resolved during render whenever the visible code changes.
-    const [controlState, setControlState] = useState<{
-        source: typeof visibleCode | null;
-        controls: ResolvedControls;
-        byBuffer: Map<string, ResolvedControls>;
-    }>({
-        byBuffer: new Map(),
-        controls: { buttons: [], groups: [], sliders: [] },
-        source: null,
+    const { buffers, activeBufferId, patchCode } = files;
+    // The active tab's id. Unlike `activeBufferId`, a file's mutable path,
+    // it survives rename and save.
+    const activeSourceId =
+        buffers.find((b) => getBufferId(b) === activeBufferId)?.id ??
+        activeBufferId;
+    const fileActions = useFileActions({
+        chooseWorkspace: workspace.choose,
+        ensureKeybindingsFile: keybindingsFile.ensureFile,
+        files,
+        showError: errors.show,
     });
-    let codeControls = controlState.controls;
-    if (controlState.source !== visibleCode) {
-        const { bufferId, code } = visibleCode;
-        codeControls = resolveControls(
-            extractControls(code),
-            bufferId === undefined
-                ? undefined
-                : controlState.byBuffer.get(bufferId),
-        );
-        const byBuffer = new Map(controlState.byBuffer);
-        if (bufferId !== undefined) {
-            byBuffer.set(bufferId, codeControls);
-        }
-        setControlState({
-            byBuffer,
-            controls: codeControls,
-            source: visibleCode,
-        });
-    }
 
-    // Anchors on the running patch's control calls. The ref owns disposal
-    // (from the commit paths); the state drives binding during render.
-    const [controlAnchors, setControlAnchors] = useState<ControlAnchors | null>(
-        null,
+    const { getCode, handleEditorChange } = useLatestCode(
+        patchCode,
+        files.handlePatchChange,
     );
-    const controlAnchorsRef = useRef<ControlAnchors | null>(null);
-    // Stable id of the buffer whose patch produced sliderDefs, buttonDefs,
-    // and the anchors. It changes only when those do — at commit, not at
-    // submit — so a queued update for another buffer never binds that
-    // buffer's controls to the still-running patch.
-    const [runningControlsSource, setRunningControlsSource] = useState<
-        string | null
-    >(null);
-    const commitControlAnchors = useCallback((next: ControlAnchors | null) => {
-        controlAnchorsRef.current?.dispose();
-        controlAnchorsRef.current = next;
-        setControlAnchors(next);
-    }, []);
+    const patch = usePatchRunner({
+        activeBufferId,
+        activeSourceId,
+        buffers,
+        editorInstance,
+        eqController,
+        errors,
+        getCode,
+        mixer,
+    });
+    const { isClockRunning, patchUi } = patch;
+    const recording = useRecording();
 
-    const controlViews = useMemo(
-        () =>
-            bindControls(
-                codeControls,
-                sliderDefs,
-                buttonDefs,
-                visibleCode.bufferId !== undefined &&
-                    visibleCode.bufferId === runningControlsSource,
-                (moduleId) => controlAnchors?.offsetOf(moduleId) ?? null,
-            ),
-        [
-            codeControls,
-            sliderDefs,
-            buttonDefs,
-            visibleCode.bufferId,
-            runningControlsSource,
-            controlAnchors,
-        ],
-    );
-
-    // The performance window shows the playing buffer, from when its patch
-    // starts playing until another buffer's does, stop included. It finds the
-    // buffer by id, which survives renames. Once no tab holds that id, it
-    // shows the buffer's file while another tab has it open, and otherwise the
-    // visible buffer; a closed untitled buffer is gone for good, since a new
-    // one reuses its id. Before any patch has played it shows the visible
-    // buffer.
-    const [performanceSourceId, setPerformanceSourceId] = useState<
-        string | null
-    >(null);
-    const [performanceSourceClosed, setPerformanceSourceClosed] =
-        useState(false);
-    const [lastPerformanceFile, setLastPerformanceFile] = useState<
-        string | null
-    >(null);
-    if (
-        runningControlsSource !== null &&
-        runningControlsSource !== performanceSourceId
-    ) {
-        setPerformanceSourceId(runningControlsSource);
-        setPerformanceSourceClosed(false);
-        setLastPerformanceFile(null);
-    }
-    const performanceBuffer =
-        performanceSourceId === null || performanceSourceClosed
-            ? undefined
-            : buffers.find((b) => b.id === performanceSourceId);
-    if (
-        performanceSourceId !== null &&
-        (runningControlsSource === null ||
-            runningControlsSource === performanceSourceId) &&
-        !performanceSourceClosed &&
-        performanceBuffer === undefined
-    ) {
-        setPerformanceSourceClosed(true);
-    }
-    const performanceFile =
-        performanceBuffer?.kind === 'file'
-            ? formatPath(performanceBuffer.filePath)
-            : null;
-    if (performanceFile !== null && performanceFile !== lastPerformanceFile) {
-        setLastPerformanceFile(performanceFile);
-    }
-    const performanceBufferPath =
-        performanceBuffer === undefined
-            ? lastPerformanceFile !== null &&
-              openBufferIds.some((id) => formatPath(id) === lastPerformanceFile)
-                ? lastPerformanceFile
-                : null
-            : formatPath(getBufferId(performanceBuffer));
-    const performanceShowsVisible =
-        performanceBufferPath === null ||
-        (!!activeBufferId &&
-            performanceBufferPath === formatPath(activeBufferId));
-    const performanceCodeControls = useMemo(() => {
-        const views =
-            performanceShowsVisible || performanceSourceId === null
-                ? controlViews
-                : bindControls(
-                      controlState.byBuffer.get(performanceSourceId) ?? {
-                          buttons: [],
-                          groups: [],
-                          sliders: [],
-                      },
-                      sliderDefs,
-                      buttonDefs,
-                      performanceSourceId === runningControlsSource,
-                      (moduleId) => controlAnchors?.offsetOf(moduleId) ?? null,
-                  );
-        return performanceControls(views.sliders, views.buttons, buttonDefs);
-    }, [
-        performanceShowsVisible,
-        performanceSourceId,
-        controlViews,
-        controlState.byBuffer,
-        sliderDefs,
-        buttonDefs,
-        runningControlsSource,
-        controlAnchors,
-    ]);
-    const revealInPerformance = usePerformanceCode(
-        paletteEditor,
-        performanceBufferPath,
-        performanceView,
-        performanceTheme,
-        performanceCodeControls,
-    );
-
-    // Using a control scrolls the performance window to its call, so the
-    // audience sees which control is being played. The Control tab shows the
-    // visible buffer's controls, which the window shows only while that
-    // buffer is the one playing.
-    const revealControlForPerformance = useCallback(
-        (offset: number) => {
-            if (performanceOutput.isOpen && performanceShowsVisible) {
-                revealInPerformance(offset);
-            }
-        },
-        [revealInPerformance, performanceShowsVisible],
-    );
-
-    const setModuleParam = useCallback(
-        (
-            moduleId: string,
-            moduleType: string,
-            params: Record<string, unknown>,
-        ) => {
-            void electronAPI.synthesizer.setModuleParam(
-                moduleId,
-                moduleType,
-                params,
-            );
-        },
-        [],
-    );
-
-    const handleSliderChange = useCallback(
-        (callStart: number, newValue: number) => {
-            const slider = controlViews.sliders.find(
-                (s) => s.callStart === callStart,
-            );
-            if (!slider) {
-                return;
-            }
-            revealControlForPerformance(slider.argsStart);
-            const written = applySliderChange(
-                slider,
-                newValue,
-                slider.moduleId,
-                editorRef.current?.getModel() ?? null,
-                setModuleParam,
-            );
-            const { moduleId } = slider;
-            if (moduleId !== null) {
-                setSliderDefs((prev) =>
-                    prev.map((s) =>
-                        s.moduleId === moduleId ? { ...s, value: written } : s,
-                    ),
-                );
-            }
-        },
-        [controlViews, setModuleParam, revealControlForPerformance],
-    );
-
-    const handleGroupToggle = useCallback(
-        (callStart: number, collapsed: boolean) => {
-            applyGroupCollapse(
-                { callStart },
-                collapsed,
-                editorRef.current?.getModel() ?? null,
-                codeStyleFromPrettier(resolvePrettierOptions(prettierConfig)),
-            );
-        },
-        [prettierConfig],
-    );
-
-    // Control offsets come from parsing the visible buffer, which is the
-    // editor's current model.
-    const handleControlJump = useCallback((offset: number) => {
-        const editorInstance = editorRef.current;
-        const model = editorInstance?.getModel();
-        if (!editorInstance || !model) {
-            return;
-        }
-        const position = model.getPositionAt(offset);
-        editorInstance.setPosition(position);
-        editorInstance.revealPositionInCenterIfOutsideViewport(position);
-        editorInstance.focus();
-    }, []);
-
-    const handleButtonChange = useCallback(
-        (callStart: number, pressed: boolean) => {
-            const button = controlViews.buttons.find(
-                (b) => b.callStart === callStart,
-            );
-            if (!button) {
-                return;
-            }
-            if (pressed || button.mode === 'toggle') {
-                revealControlForPerformance(button.argsStart);
-            }
-            applyButtonChange(
-                button,
-                pressed,
-                button.moduleId,
-                editorRef.current?.getModel() ?? null,
-                setModuleParam,
-            );
-            const { moduleId } = button;
-            if (moduleId !== null) {
-                setButtonDefs((prev) =>
-                    prev.map((b) =>
-                        b.moduleId === moduleId ? { ...b, value: pressed } : b,
-                    ),
-                );
-            }
-        },
-        [controlViews, setModuleParam, revealControlForPerformance],
-    );
+    const controls = useControlViews(activeSourceId, patchCode, patchUi);
+    const revealInPerformance = usePerformanceWindow({
+        activeBufferId,
+        bindBuffer: controls.bindBuffer,
+        buffers,
+        buttonDefs: patchUi.buttonDefs,
+        editorInstance,
+        runningSourceId: patchUi.sourceId,
+        visibleControls: controls.views,
+    });
+    const controlActions = useControlActions({
+        editorInstance,
+        onUse: revealInPerformance,
+        prettierConfig,
+        setButtonValue: patch.setButtonValue,
+        setSliderValue: patch.setSliderValue,
+        views: controls.views,
+    });
 
     useEffect(() => {
-        eqController.attachEditor(paletteEditor);
-    }, [eqController, paletteEditor]);
+        eqController.attachEditor(editorInstance);
+        mixer.attachEditor(editorInstance);
+    }, [eqController, mixer, editorInstance]);
     useEffect(() => {
         eqController.setCodeStyle(
             codeStyleFromPrettier(resolvePrettierOptions(prettierConfig)),
         );
     }, [eqController, prettierConfig]);
     useEffect(() => {
+        mixer.setVisibleBuffer(activeSourceId);
+    }, [mixer, activeSourceId]);
+    useEffect(() => {
         if (!isClockRunning) {
             eqController.onStopped();
+            mixer.meters.silence();
         }
-    }, [eqController, isClockRunning]);
+    }, [eqController, mixer, isClockRunning]);
     useEffect(() => () => eqController.dispose(), [eqController]);
 
-    // Mirrors for the RAF loop and the M/S click handler, which must read
-    // current values without re-subscribing.
-    const vuOutputsRef = useRef<VuMeterDef[]>([]);
-    useEffect(() => {
-        vuOutputsRef.current = vuOutputs;
-    }, [vuOutputs]);
-    /** The buffer the mixer's tracks were built from. It stays through a
-     *  stop, while the mixer still shows those tracks. */
-    const vuSourceIdRef = useRef<string | null>(null);
-    /** The buffer the editor shows: mixer edits land in the code only while
-     *  it is the one the mixer's tracks came from. */
-    const visibleBufferIdRef = useRef<string | undefined>(undefined);
-    useEffect(() => {
-        visibleBufferIdRef.current = visibleCode.bufferId;
-    }, [visibleCode.bufferId]);
-    const isMixerVisibleRef = useRef(false);
-    useEffect(() => {
-        isMixerVisibleRef.current = bottomPanel.tab === 'mixer';
-    }, [bottomPanel.tab]);
-
-    /** Set or clear (`value` undefined) one ghost property for a meter. The
-     *  ref updates synchronously so a redraw in the same tick sees it. */
-    const setVuGhostProp = useCallback(
-        <P extends keyof VuMeterGhost>(
-            key: string,
-            prop: P,
-            value: VuMeterGhost[P] | undefined,
-        ) => {
-            const prev = vuGhostsRef.current;
-            if (value === undefined && prev.get(key)?.[prop] === undefined) {
-                return;
-            }
-            const entry: VuMeterGhost = { ...prev.get(key) };
-            if (value === undefined) {
-                delete entry[prop];
-            } else {
-                entry[prop] = value;
-            }
-            const next = new Map(prev);
-            if (Object.keys(entry).length === 0) {
-                next.delete(key);
-            } else {
-                next.set(key, entry);
-            }
-            vuGhostsRef.current = next;
-            setVuGhosts(next);
-        },
-        [],
-    );
-
-    /** Drop every ghost — an applied patch update re-syncs audio to code. */
-    const clearVuGhosts = useCallback(() => {
-        if (vuGhostsRef.current.size === 0) {
-            return;
-        }
-        vuGhostsRef.current = new Map();
-        setVuGhosts(vuGhostsRef.current);
-    }, []);
-
-    /** Apply a character-offset edit to the editor, keeping the user's
-     *  selections in place (the default would park the cursor at the end of
-     *  the edited span) and the edit on the undo stack. */
-    const pushVuModelEdit = useCallback(
-        (edit: { start: number; end: number; text: string }) => {
-            const editorInstance = editorRef.current;
-            const model = editorInstance?.getModel();
-            if (!model) {
-                return;
-            }
-            const startPos = model.getPositionAt(edit.start);
-            const endPos = model.getPositionAt(edit.end);
-            const editRange = new (window as any).monaco.Range(
-                startPos.lineNumber,
-                startPos.column,
-                endPos.lineNumber,
-                endPos.column,
-            );
-            const selections = editorInstance?.getSelections() ?? null;
-            model.pushEditOperations(
-                selections ?? [],
-                [{ range: editRange, text: edit.text }],
-                () => selections,
-            );
-        },
-        [],
-    );
-
-    /**
-     * Offset of the label of the track named `key` in the editor's source, at
-     * its tracked decoration; 0 for the main strip, which has no label. Null
-     * when the editor shows another buffer than the one the mixer's tracks
-     * came from.
-     */
-    const vuLabelOffset = useCallback((key: string): number | null => {
-        const idx = vuOutputsRef.current.findIndex((o) => o.key === key);
-        if (
-            idx === -1 ||
-            vuSourceIdRef.current === null ||
-            visibleBufferIdRef.current !== vuSourceIdRef.current
-        ) {
-            return null;
-        }
-        return vuOutputsRef.current[idx].main
-            ? 0
-            : (vuDecorationsRef.current?.offsetOf(idx) ?? null);
-    }, []);
-
-    /** A strip jump waiting for the editor to show the mixer's buffer. */
-    const pendingVuJumpRef = useRef<string | null>(null);
-
-    /**
-     * Ctrl/Cmd-click on a mixer strip's name: move the cursor to its label,
-     * first switching the editor to the buffer the mixer's tracks came from.
-     */
-    const handleVuJump = useCallback(
-        (key: string) => {
-            const offset = vuLabelOffset(key);
-            if (offset !== null) {
-                handleControlJump(offset);
-                return;
-            }
-            const source = buffers.find((b) => b.id === vuSourceIdRef.current);
-            if (source) {
-                pendingVuJumpRef.current = key;
-                setActiveBufferId(getBufferId(source));
-            }
-        },
-        [buffers, vuLabelOffset, handleControlJump, setActiveBufferId],
-    );
-    // Runs after the editor has swapped in the buffer's model, which its
-    // anchors were placed on.
-    useEffect(() => {
-        const key = pendingVuJumpRef.current;
-        const offset = key === null ? null : vuLabelOffset(key);
-        if (offset !== null) {
-            pendingVuJumpRef.current = null;
-            handleControlJump(offset);
-        }
-    }, [visibleCode.bufferId, vuLabelOffset, handleControlJump]);
-
-    /**
-     * Mirror a mixer control change into the DSL source of the track named
-     * `key`, at its label's tracked decoration. Returns whether an edit was
-     * written; skipped silently when the editor shows another buffer than the
-     * one the mixer's tracks came from, or when the track has no editable form for it (a
-     * non-literal value, a renamed label).
-     */
-    const applyVuSourceEdit = useCallback(
-        (
-            key: string,
-            makeEdit: (
-                source: string,
-                anchor: number,
-                name: string,
-            ) => TrackSourceEdit | null,
-        ): boolean => {
-            const model = editorRef.current?.getModel();
-            const anchor = vuLabelOffset(key);
-            if (!model || anchor === null) {
-                return false;
-            }
-            const edit = makeEdit(model.getValue(), anchor, key);
-            if (!edit) {
-                return false;
-            }
-            pushVuModelEdit(edit);
-            if (edit.dropsTrack) {
-                // The label's value is its expression again, so later
-                // option edits append a `.track(...)` to it.
-                const next = vuOutputsRef.current.map((o) =>
-                    o.key === key ? { ...o, fromTrack: false } : o,
-                );
-                vuOutputsRef.current = next;
-                setVuOutputs(next);
-            }
-            return true;
-        },
-        [pushVuModelEdit, vuLabelOffset],
-    );
-
-    /**
-     * Mixer M/S click. Mute and solo toggle on their own, and a soloed
-     * track plays whether or not it is muted. A plain click live-updates
-     * every mute gate whose effective value changed (solo reaches across
-     * tracks and groups) and rewrites the track's label prefix — the same
-     * edit-code + edit-live-graph contract as sliders, with no patch re-eval.
-     * A code-only click edits the source alone: the audio keeps running
-     * unchanged and the buttons' outer (code) sections ghost until a patch
-     * update applies the new state.
-     */
-    const handleVuToggle = useCallback(
-        (key: string, prop: 'mute' | 'solo', codeOnly: boolean) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1) {
-                return;
-            }
-            const audio = outputs[idx];
-            // A bus has no solo.
-            if (prop === 'solo' && audio.isBus) {
-                return;
-            }
-
-            if (codeOnly) {
-                const ghost = vuGhostsRef.current.get(key);
-                const code: TrackState = {
-                    mute: ghost?.mute ?? audio.mute,
-                    solo: ghost?.solo ?? audio.solo,
-                };
-                const nextCode = { ...code, [prop]: !code[prop] };
-                const edited = applyVuSourceEdit(key, (source, anchor, name) =>
-                    computeTrackStateEdit(source, anchor, name, nextCode),
-                );
-                if (edited) {
-                    setVuGhostProp(
-                        key,
-                        prop,
-                        nextCode[prop] === audio[prop]
-                            ? undefined
-                            : nextCode[prop],
-                    );
-                }
-                return;
-            }
-
-            // The other control keeps what the code says, which a code-only
-            // click may have set apart from the audio.
-            const ghost = vuGhostsRef.current.get(key);
-            const nextState: TrackState = {
-                mute: ghost?.mute ?? audio.mute,
-                solo: ghost?.solo ?? audio.solo,
-                [prop]: !audio[prop],
-            };
-            const next = outputs.map((o, i) =>
-                i === idx ? { ...o, [prop]: !audio[prop] } : o,
-            );
-
-            const tracksOf = (list: VuMeterDef[]) =>
-                list.filter((o) => o.muteModuleId != null);
-            const before = trackGates(tracksOf(outputs));
-            const after = trackGates(tracksOf(next));
-            for (const output of next) {
-                // The main meter has no gate.
-                const muteModuleId = output.muteModuleId;
-                if (
-                    muteModuleId != null &&
-                    before.get(output.key) !== after.get(output.key)
-                ) {
-                    void electronAPI.synthesizer.setModuleParam(
-                        muteModuleId,
-                        '$signal',
-                        gateParams(after.get(output.key) ? 5 : 0),
-                    );
-                }
-            }
-
-            applyVuSourceEdit(key, (source, anchor, name) =>
-                computeTrackStateEdit(source, anchor, name, nextState),
-            );
-
-            // Code and audio agree again for this control.
-            setVuGhostProp(key, prop, undefined);
-
-            // Optimistic UI; the source of truth reasserts on the next eval.
-            // Mirror into the ref synchronously so a rapid second toggle reads
-            // these flags, not the pre-toggle state React has yet to commit.
-            vuOutputsRef.current = next;
-            setVuOutputs(next);
-        },
-        [applyVuSourceEdit, setVuGhostProp],
-    );
-
-    /** Interval between live source writes while a control is dragging. */
-    const VU_EDIT_INTERVAL_MS = 150;
-
-    /** Throttled live source write for a dragging control: leading edge
-     *  fires immediately, further moves fire at most once per interval. */
-    const scheduleVuEdit = useCallback(
-        (timerKey: string, write: () => void) => {
-            const throttles = vuEditThrottleRef.current;
-            let state = throttles.get(timerKey);
-            if (!state) {
-                state = { lastWrite: 0, timer: null };
-                throttles.set(timerKey, state);
-            }
-            if (state.timer !== null) {
-                window.clearTimeout(state.timer);
-                state.timer = null;
-            }
-            const elapsed = performance.now() - state.lastWrite;
-            if (elapsed >= VU_EDIT_INTERVAL_MS) {
-                state.lastWrite = performance.now();
-                write();
-                return;
-            }
-            state.timer = window.setTimeout(() => {
-                state.timer = null;
-                state.lastWrite = performance.now();
-                write();
-            }, VU_EDIT_INTERVAL_MS - elapsed);
-        },
-        [],
-    );
-
-    /** Cancel a pending throttled write (its final flush is imminent). */
-    const cancelVuEdit = useCallback((timerKey: string) => {
-        const state = vuEditThrottleRef.current.get(timerKey);
-        if (state?.timer != null) {
-            window.clearTimeout(state.timer);
-            state.timer = null;
-        }
-    }, []);
-
-    const {
-        handleKnobChange: handleVuKnobChange,
-        handleKnobCommit: handleVuKnobCommit,
-        paintKnobFrame: paintVuKnobFrame,
-        registerKnob: registerVuKnob,
-        unregisterKnob: unregisterVuKnob,
-    } = useVuKnobControls({
-        applyVuSourceEdit,
-        cancelVuEdit,
-        scheduleVuEdit,
-        setVuGhostProp,
-        setVuOutputs,
-        vuOutputsRef,
+    // Declared after the effect that tells the mixer which buffer shows.
+    const jumpToTrack = useMixerJump({
+        buffers,
+        jumpTo: controlActions.jumpTo,
+        mixer,
+        showBuffer: files.setActiveBufferId,
+        visibleBufferId: activeSourceId,
     });
 
-    const handleVuToggleMute = useCallback(
-        (key: string, codeOnly: boolean) =>
-            handleVuToggle(key, 'mute', codeOnly),
-        [handleVuToggle],
-    );
-    const handleVuToggleSolo = useCallback(
-        (key: string, codeOnly: boolean) =>
-            handleVuToggle(key, 'solo', codeOnly),
-        [handleVuToggle],
-    );
+    useEngineFrames({
+        onFrame: ({ scopes, meters, transport }: EngineFrame) => {
+            eqController.onScopeFrames(scopes, performance.now());
+            scopeCanvases.draw(scopes);
+            if (isMixerVisible) {
+                mixer.drawFrames(meters);
+            }
+            setTransport(transport);
+            patch.settleQueuedUpdate(transport);
+        },
+        pollMeters: isMixerVisible,
+        running: isClockRunning,
+    });
 
-    // Load workspace and file tree on mount
-    useEffect(() => {
-        electronAPI.filesystem
-            .getWorkspace()
-            .then((workspace) => {
-                if (workspace) {
-                    setWorkspaceRoot(workspace.path);
-                    void refreshFileTree();
-                }
-            })
-            .catch((err) => {
-                console.error('Failed to load workspace:', err);
-            });
-    }, [refreshFileTree]);
-
+    // An output device change that stopped playback leaves the editor in
+    // the same state as Stop.
+    const onDeviceNotice = useEffectEvent(
+        (notice: { stopped: boolean; recordingStopped: boolean }) => {
+            if (notice.stopped) {
+                void patch.stop();
+            }
+            if (notice.recordingStopped) {
+                recording.markStopped();
+            }
+        },
+    );
     useEffect(
-        () => electronAPI.filesystem.onTreeChange(() => void refreshFileTree()),
-        [refreshFileTree],
-    );
-
-    const selectWorkspaceFolder = useCallback(async () => {
-        // Check for dirty file-backed buffers before switching
-        const dirtyFileBuffers = buffers.filter(
-            (b) => b.kind === 'file' && b.dirty,
-        );
-
-        if (dirtyFileBuffers.length > 0) {
-            const fileList = dirtyFileBuffers
-                .map((b) => (b.kind === 'file' ? b.filePath : ''))
-                .filter(Boolean)
-                .join(', ');
-
-            const response =
-                await electronAPI.showUnsavedChangesDialog(fileList);
-
-            if (response === 2) {
-                // Cancel / Escape: abort the open workspace operation
-                return;
-            } else if (response === 0) {
-                // Save all dirty file buffers. A file that fails to save or
-                // hits a save conflict keeps the current workspace open.
-                for (const buffer of dirtyFileBuffers) {
-                    try {
-                        if (
-                            (await saveFile(getBufferId(buffer))) === undefined
-                        ) {
-                            return;
-                        }
-                    } catch (err) {
-                        setError(getErrorMessage(err, 'Failed to save file'));
-                        return;
-                    }
-                }
-            } else {
-                // Don't Save: discard dirty file buffers
-                setBuffers((prev) =>
-                    prev.filter((b) => !(b.kind === 'file' && b.dirty)),
-                );
-            }
-        }
-
-        const workspace = await electronAPI.filesystem.selectWorkspace();
-        if (workspace) {
-            setWorkspaceRoot(workspace.path);
-            await refreshFileTree();
-        }
-    }, [buffers, refreshFileTree, saveFile, setBuffers]);
-
-    const handleOpenFile = useCallback(
-        async (relPath: string, options?: { preview?: boolean }) => {
-            try {
-                await openFile(relPath, options);
-            } catch {
-                setError(`Failed to open file: ${relPath}`);
-            }
-        },
-        [openFile],
-    );
-
-    const handleDeleteFile = useCallback(
-        async (targetIdOrPath?: string) => {
-            try {
-                await deleteFile(targetIdOrPath);
-            } catch (err) {
-                setError(getErrorMessage(err, 'Failed to delete file'));
-            }
-        },
-        [deleteFile],
-    );
-
-    const formatLabel = useCallback(
-        (buffer: EditorBuffer) => {
-            const path = formatFileLabel(buffer);
-            const parts = path.split(/[/\\]/);
-            return parts[parts.length - 1];
-        },
-        [formatFileLabel],
-    );
-
-    const handleRenameCommitSafe = useCallback(
-        async (oldPath: string, newName: string) => {
-            try {
-                await handleRenameCommit(oldPath, newName);
-            } catch (err) {
-                setError(getErrorMessage(err, 'Failed to rename file'));
-            }
-        },
-        [handleRenameCommit],
-    );
-
-    // Handle context menu commands
-    useEffect(
-        () =>
-            electronAPI.onContextMenuCommand((action) => {
-                switch (action.command) {
-                    case 'save':
-                        saveFile(action.bufferId).catch((err) => {
-                            setError(
-                                getErrorMessage(err, 'Failed to save file'),
-                            );
-                        });
-                        break;
-                    case 'rename':
-                        renameFile(action.path || action.bufferId).catch(
-                            (err) => {
-                                setError(
-                                    getErrorMessage(
-                                        err,
-                                        'Failed to rename file',
-                                    ),
-                                );
-                            },
-                        );
-                        break;
-                    case 'delete':
-                        deleteFile(action.path || action.bufferId).catch(
-                            (err) => {
-                                setError(
-                                    getErrorMessage(
-                                        err,
-                                        'Failed to delete file',
-                                    ),
-                                );
-                            },
-                        );
-                        break;
-                }
-            }),
-        [saveFile, renameFile, deleteFile],
-    );
-
-    // Subscribe to update events from main process
-    useEffect(() => {
-        const unsubAvailable = electronAPI.update.onAvailable(
-            (info: UpdateAvailableInfo) => {
-                pendingUpdateVersion.current = info.version;
-                setUpdateState({
-                    currentVersion: info.currentVersion,
-                    hasBreakingChanges: info.hasBreakingChanges,
-                    releaseNotes: info.releaseNotes,
-                    releaseUrl: info.releaseUrl,
-                    status: 'available',
-                    supportsInAppUpdate: info.supportsInAppUpdate,
-                    version: info.version,
-                });
-            },
-        );
-        const unsubDownloading = electronAPI.update.onDownloading(() => {
-            setUpdateState({
-                status: 'downloading',
-                version: pendingUpdateVersion.current,
-            });
-        });
-        const unsubPreparing = electronAPI.update.onPreparing(() => {
-            setUpdateState({
-                status: 'preparing',
-                version: pendingUpdateVersion.current,
-            });
-        });
-        const unsubDownloaded = electronAPI.update.onDownloaded(() => {
-            setUpdateState({ status: 'ready' });
-        });
-        const unsubError = electronAPI.update.onError((message: string) => {
-            setUpdateState({ message, status: 'error' });
-        });
-
-        return () => {
-            unsubAvailable();
-            unsubDownloading();
-            unsubPreparing();
-            unsubDownloaded();
-            unsubError();
-        };
-    }, []);
-
-    // The main process records the running version as seen on the first call,
-    // so the result is applied even if this effect is torn down meanwhile.
-    useEffect(() => {
-        electronAPI.releaseNotes
-            .whatsNew()
-            .then((info) => {
-                if (info.releaseNotes.length > 0) {
-                    setReleaseNotesView({
-                        currentVersion: info.currentVersion,
-                        kind: 'whatsNew',
-                        releases: info.releaseNotes,
-                    });
-                }
-            })
-            .catch((err) => {
-                console.warn("[release-notes] What's new failed:", err);
-            });
-        return electronAPI.releaseNotes.onMenuShow(() => {
-            electronAPI.releaseNotes
-                .getAll()
-                .then((info) => {
-                    setReleaseNotesView({ info, kind: 'changelog' });
-                })
-                .catch((err) => {
-                    console.warn('[release-notes] Changelog failed:', err);
-                });
-        });
-    }, []);
-
-    const closeReleaseNotes = useCallback(() => {
-        setReleaseNotesView(null);
-    }, []);
-
-    const handleUpdateDownload = useCallback(() => {
-        void electronAPI.update.download();
-    }, []);
-
-    const handleUpdateInstall = useCallback(() => {
-        void electronAPI.update.install();
-    }, []);
-
-    const handleUpdateSkip = useCallback(() => {
-        if (pendingUpdateVersion.current) {
-            void electronAPI.config.write({
-                skippedUpdateVersion: pendingUpdateVersion.current,
-            });
-        }
-        setUpdateState({ status: 'idle' });
-    }, []);
-
-    const handleUpdateDismiss = useCallback(() => {
-        setUpdateState({ status: 'idle' });
-    }, []);
-
-    const registerScopeCanvas = useCallback(
-        (key: string, canvas: HTMLCanvasElement) => {
-            scopeCanvasMapRef.current.set(key, canvas);
-        },
+        () => electronAPI.audio.onDeviceNotice((n) => onDeviceNotice(n)),
         [],
     );
 
-    const unregisterScopeCanvas = useCallback((key: string) => {
-        scopeCanvasMapRef.current.delete(key);
-    }, []);
-
-    const registerVuCanvas = useCallback(
-        (key: string, canvas: HTMLCanvasElement) => {
-            vuCanvasMapRef.current.set(key, canvas);
-        },
-        [],
-    );
-
-    const unregisterVuCanvas = useCallback((key: string) => {
-        vuCanvasMapRef.current.delete(key);
-        vuBallisticsRef.current.delete(key);
-        vuLastChannelsRef.current.delete(key);
-    }, []);
-
-    /**
-     * Redraw one meter outside the RAF loop, using the last drawn levels (or
-     * silence) — for canvas resizes and fader moves while the clock is
-     * stopped. `gainDbOverride` paints an in-flight fader value before the
-     * optimistic state lands.
-     */
-    const redrawVuMeter = useCallback(
-        (key: string, gainDbOverride?: number | null) => {
-            const canvas = vuCanvasMapRef.current.get(key);
-            if (!canvas) {
-                return;
-            }
-            const channelCount = Number(canvas.dataset.channels ?? 1);
-            const channels =
-                vuLastChannelsRef.current.get(key) ??
-                Array.from({ length: channelCount }, () => ({
-                    fastDb: -Infinity,
-                    peakDb: -Infinity,
-                    rmsDb: -Infinity,
-                }));
-            const output = vuOutputsRef.current.find((o) => o.key === key);
-            const gainDb =
-                gainDbOverride !== undefined
-                    ? gainDbOverride
-                    : output && output.gain.value !== null
-                      ? outGainToDb(output.gain.value)
-                      : null;
-            const ghostGain = vuGhostsRef.current.get(key)?.gain;
-            drawVuMeter(
-                canvas,
-                channels,
-                readVuMeterColors(),
-                gainDb,
-                output?.gain.locked === true,
-                ghostGain !== undefined ? outGainToDb(ghostGain) : null,
-            );
-        },
-        [],
-    );
-
-    const handleVuCanvasResized = useCallback(
-        (key: string) => {
-            redrawVuMeter(key);
-        },
-        [redrawVuMeter],
-    );
-
-    // A stopped engine makes no sound, so its meters fall to silence; the
-    // readouts keep their highest peaks.
-    useEffect(() => {
-        if (isClockRunning) {
-            return;
-        }
-        vuBallisticsRef.current.clear();
-        vuLastChannelsRef.current.clear();
-        for (const key of vuCanvasMapRef.current.keys()) {
-            redrawVuMeter(key);
-        }
-    }, [isClockRunning, redrawVuMeter]);
-
-    /** Write `gain` into the source — the track's `gain` option, or
-     *  $setMainGain for the master. */
-    const writeVuGainEdit = useCallback(
-        (key: string, gain: number) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gain.moduleId) {
-                return;
-            }
-            if (outputs[idx].main) {
-                // The master fader's source of truth is $setMainGain.
-                applyVuSourceEdit(key, (source) =>
-                    computeSetMainGainEdit(source, gain),
-                );
-            } else {
-                applyVuSourceEdit(key, (source, anchor, name) =>
-                    computeTrackOptionEdit(
-                        source,
-                        anchor,
-                        name,
-                        'gain',
-                        gain,
-                        outputs[idx].fromTrack === true,
-                    ),
-                );
+    useAppCommands({
+        closeActiveBuffer: () => {
+            if (activeBufferId) {
+                void files.closeBuffer(activeBufferId);
             }
         },
-        [applyVuSourceEdit],
-    );
-
-    /**
-     * Fader drag on a meter: drive the lifted gain $signal live and repaint
-     * the triangle immediately (the RAF loop only runs while the clock
-     * does); the source write is debounced like the pan knob's. A code-only
-     * drag leaves the $signal and the solid triangle alone and moves only
-     * the faded ghost triangle, writing the source at the same rate.
-     */
-    const handleVuGainChange = useCallback(
-        (key: string, db: number, codeOnly: boolean) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gain.moduleId) {
-                return;
-            }
-            // Snap to 0.5 dB steps; the scale floor means silence.
-            const snappedDb = Math.round(db * 2) / 2;
-            const gain =
-                snappedDb <= -60
-                    ? 0
-                    : Number(dbToOutGain(snappedDb).toPrecision(4));
-
-            if (codeOnly) {
-                if (!outputs[idx].main && !outputs[idx].sourceLocation) {
-                    return;
-                }
-                if (gain === vuGhostsRef.current.get(key)?.gain) {
-                    return;
-                }
-                setVuGhostProp(
-                    key,
-                    'gain',
-                    gain === outputs[idx].gain.value ? undefined : gain,
-                );
-                redrawVuMeter(key);
-                scheduleVuEdit(`${key}:gain`, () => writeVuGainEdit(key, gain));
-                return;
-            }
-
-            if (gain === outputs[idx].gain.value) {
-                return;
-            }
-
-            void electronAPI.synthesizer.setModuleParam(
-                outputs[idx].gain.moduleId,
-                '_smoothControl',
-                outGainParams(gain),
-            );
-
-            const next = outputs.map((o, i) =>
-                i === idx ? { ...o, gain: { ...o.gain, value: gain } } : o,
-            );
-            vuOutputsRef.current = next;
-            setVuOutputs(next);
-            setVuGhostProp(key, 'gain', undefined);
-            redrawVuMeter(key, gain === 0 ? -Infinity : snappedDb);
-            scheduleVuEdit(`${key}:gain`, () => writeVuGainEdit(key, gain));
-        },
-        [redrawVuMeter, scheduleVuEdit, setVuGhostProp, writeVuGainEdit],
-    );
-
-    /** Drag released: flush the final gain into the source immediately. */
-    const handleVuGainCommit = useCallback(
-        (key: string, codeOnly: boolean) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1) {
-                return;
-            }
-            const gain = codeOnly
-                ? (vuGhostsRef.current.get(key)?.gain ??
-                  outputs[idx].gain.value)
-                : outputs[idx].gain.value;
-            if (gain === null) {
-                return;
-            }
-            cancelVuEdit(`${key}:gain`);
-            writeVuGainEdit(key, gain);
-        },
-        [cancelVuEdit, writeVuGainEdit],
-    );
-
-    /** Ctrl/Cmd right-click on a meter: revert the source to the gain the
-     *  audio is running, dropping the ghost; unity reverts by removing the
-     *  property. No-op when code and audio agree. */
-    const handleVuGainRevert = useCallback(
-        (key: string) => {
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gain.moduleId) {
-                return;
-            }
-            const audioGain = outputs[idx].gain.value;
-            if (
-                vuGhostsRef.current.get(key)?.gain === undefined ||
-                audioGain === null
-            ) {
-                return;
-            }
-            cancelVuEdit(`${key}:gain`);
-            if (!outputs[idx].main && audioGain === UNITY_OUT_GAIN) {
-                applyVuSourceEdit(key, (source, anchor, name) =>
-                    computeTrackOptionEdit(
-                        source,
-                        anchor,
-                        name,
-                        'gain',
-                        null,
-                        outputs[idx].fromTrack === true,
-                    ),
-                );
-            } else {
-                writeVuGainEdit(key, audioGain);
-            }
-            setVuGhostProp(key, 'gain', undefined);
-            redrawVuMeter(key);
-        },
-        [
-            applyVuSourceEdit,
-            cancelVuEdit,
-            redrawVuMeter,
-            setVuGhostProp,
-            writeVuGainEdit,
-        ],
-    );
-
-    /** Right-click on a meter: back to the default gain (unity for tracks,
-     *  the main gain default for the master), property removed
-     *  or rewritten accordingly. */
-    const handleVuGainReset = useCallback(
-        (key: string) => {
-            cancelVuEdit(`${key}:gain`);
-            const outputs = vuOutputsRef.current;
-            const idx = outputs.findIndex((o) => o.key === key);
-            if (idx === -1 || !outputs[idx].gain.moduleId) {
-                return;
-            }
-            const isMain = outputs[idx].main === true;
-            const resetGain = isMain ? DEFAULT_OUTPUT_GAIN : UNITY_OUT_GAIN;
-
-            if (isMain) {
-                applyVuSourceEdit(key, (source) =>
-                    computeSetMainGainEdit(source, resetGain),
-                );
-            } else {
-                applyVuSourceEdit(key, (source, anchor, name) =>
-                    computeTrackOptionEdit(
-                        source,
-                        anchor,
-                        name,
-                        'gain',
-                        null,
-                        outputs[idx].fromTrack === true,
-                    ),
-                );
-            }
-
-            void electronAPI.synthesizer.setModuleParam(
-                outputs[idx].gain.moduleId,
-                '_smoothControl',
-                outGainParams(resetGain),
-            );
-
-            // From the ref, which the source edit may have just updated.
-            const next = vuOutputsRef.current.map((o, i) =>
-                i === idx ? { ...o, gain: { ...o.gain, value: resetGain } } : o,
-            );
-            vuOutputsRef.current = next;
-            setVuOutputs(next);
-            setVuGhostProp(key, 'gain', undefined);
-            redrawVuMeter(key, outGainToDb(resetGain));
-        },
-        [applyVuSourceEdit, cancelVuEdit, redrawVuMeter, setVuGhostProp],
-    );
-
-    const registerVuReadout = useCallback((key: string, el: HTMLElement) => {
-        vuReadoutMapRef.current.set(key, el);
-        showVuPeak(el, vuPeakMaxRef.current.get(key) ?? -Infinity);
-    }, []);
-
-    const unregisterVuReadout = useCallback((key: string) => {
-        vuReadoutMapRef.current.delete(key);
-    }, []);
-
-    /** Restart a meter's peak hold; it re-seeds from the next frame's levels. */
-    const handleVuPeakReset = useCallback((key: string) => {
-        vuBallisticsRef.current.delete(key);
-        vuPeakMaxRef.current.delete(key);
-        const readout = vuReadoutMapRef.current.get(key);
-        if (readout) {
-            showVuPeak(readout, -Infinity);
-        }
-    }, []);
-
-    // Submissions read this ref. The editor's change handler writes it as the
-    // text changes, and it follows buffer switches at commit, so a submit
-    // made before React re-renders never sends stale code.
-    const patchCodeRef = useRef(patchCode);
-    useLayoutEffect(() => {
-        patchCodeRef.current = patchCode;
-    }, [patchCode]);
-    const handleEditorChange = useCallback(
-        (value: string) => {
-            patchCodeRef.current = value;
-            handlePatchChange(value);
-        },
-        [handlePatchChange],
-    );
-
-    const runningBufferIdRef = useRef(runningBufferId);
-    useEffect(() => {
-        runningBufferIdRef.current = runningBufferId;
-    }, [runningBufferId]);
-
-    // Keep runningBufferId pointing at the running buffer's current path
-    // identity: saving an untitled buffer or renaming a file changes
-    // getBufferId, and comparisons against activeBufferId (slider source
-    // rewriting, running indicators) must keep matching afterwards. An untitled
-    // buffer's path identity is its id, which a new untitled buffer reuses, so
-    // once the running one closes no buffer holds the running patch.
-    useEffect(() => {
-        const sourceId = runningSourceIdRef.current;
-        if (sourceId === null) {
-            return;
-        }
-        const running = buffers.find((b) => b.id === sourceId);
-        if (running) {
-            setRunningBufferId(getBufferId(running));
-        } else if (runningBufferIdRef.current === sourceId) {
-            runningSourceIdRef.current = null;
-            setRunningBufferId(null);
-        }
-    }, [buffers]);
-
-    const isClockRunningRef = useRef(isClockRunning);
-    useEffect(() => {
-        isClockRunningRef.current = isClockRunning;
-    }, [isClockRunning]);
-
-    useEffect(() => {
-        if (!isClockRunningRef.current) {
-            return;
-        }
-
-        let cancelled = false;
-        const tick = () => {
-            if (cancelled) return;
-            Promise.all([
-                electronAPI.synthesizer.getScopes(),
-                electronAPI.synthesizer.getTransportState(),
-                // Hidden panel costs zero IPC.
-                isMixerVisibleRef.current
-                    ? electronAPI.synthesizer.getVuMeters()
-                    : Promise.resolve([]),
-            ])
-                .then(([scopeData, transport, vuFrames]) => {
-                    if (cancelled) return;
-                    // Build a map of buffer key → (Float32Array, ScopeStats)
-                    const bufferMap = new Map<
-                        string,
-                        {
-                            data: Float32Array;
-                            stats: ScopeStats;
-                        }
-                    >();
-                    for (const [bufferKey, data, stats] of scopeData) {
-                        const key = scopeBufferKeyToString(bufferKey);
-                        bufferMap.set(key, { data, stats });
-                    }
-
-                    eqController.onScopeFrames(bufferMap, performance.now());
-
-                    const scopeColors = readScopeColors();
-
-                    // For each scope canvas, collect its lanes' data and draw
-                    for (const [
-                        ,
-                        canvas,
-                    ] of scopeCanvasMapRef.current.entries()) {
-                        const rangeMin = parseFloat(
-                            canvas.dataset.scopeRangeMin || '-5',
-                        );
-                        const rangeMax = parseFloat(
-                            canvas.dataset.scopeRangeMax || '5',
-                        );
-                        const laneKeysStr = canvas.dataset.scopeLaneKeys;
-                        if (!laneKeysStr) {
-                            continue;
-                        }
-
-                        const laneKeys = JSON.parse(laneKeysStr) as string[];
-                        const lanes: Float32Array[] = [];
-                        const readOffsets: number[] = [];
-                        const triggerOffsets: number[] = [];
-                        let globalMin = Infinity;
-                        let globalMax = -Infinity;
-
-                        for (const laneKey of laneKeys) {
-                            const entry = bufferMap.get(laneKey);
-                            if (entry) {
-                                lanes.push(entry.data);
-                                readOffsets.push(entry.stats.readOffset);
-                                triggerOffsets.push(entry.stats.triggerOffset);
-                                if (entry.stats.min < globalMin) {
-                                    globalMin = entry.stats.min;
-                                }
-                                if (entry.stats.max > globalMax) {
-                                    globalMax = entry.stats.max;
-                                }
-                            }
-                        }
-
-                        if (lanes.length > 0) {
-                            drawOscilloscope(lanes, canvas, {
-                                colors: scopeColors,
-                                range: [rangeMin, rangeMax],
-                                stats: {
-                                    max: globalMax,
-                                    min: globalMin,
-                                    peakToPeak: globalMax - globalMin,
-                                    readOffset: readOffsets,
-                                    triggerOffset: triggerOffsets,
-                                },
-                            });
-                        }
-                    }
-
-                    // Draw VU meters from this frame's levels. An empty poll
-                    // is a lost try_lock race against the audio thread's
-                    // drain block, not silence — keep the previous frame on
-                    // screen instead of blinking the bars to the floor.
-                    if (
-                        isMixerVisibleRef.current &&
-                        vuCanvasMapRef.current.size > 0 &&
-                        vuFrames.length > 0
-                    ) {
-                        const frameByModule = new Map(
-                            vuFrames.map((f) => [f.moduleId, f]),
-                        );
-                        const outputByKey = new Map(
-                            vuOutputsRef.current.map((o) => [o.key, o]),
-                        );
-                        const vuColors = readVuMeterColors();
-                        const now = performance.now();
-                        for (const [key, canvas] of vuCanvasMapRef.current) {
-                            const channelCount = Number(
-                                canvas.dataset.channels ?? 1,
-                            );
-                            const frame = frameByModule.get(
-                                canvas.dataset.tapModuleId ?? '',
-                            );
-                            if (!frame) {
-                                continue;
-                            }
-                            let ballistics = vuBallisticsRef.current.get(key);
-                            if (
-                                !ballistics ||
-                                ballistics.length !== channelCount
-                            ) {
-                                ballistics = Array.from(
-                                    { length: channelCount },
-                                    newBallistics,
-                                );
-                                vuBallisticsRef.current.set(key, ballistics);
-                            }
-                            const channels = ballistics.map((b, ch) => {
-                                const rmsDb = voltsToDb(frame.rms[ch] ?? 0);
-                                const peakDb = voltsToDb(frame.peak[ch] ?? 0);
-                                updateBallistics(b, peakDb, now);
-                                return {
-                                    fastDb: b.displayFastDb,
-                                    peakDb: b.displayPeakDb,
-                                    rmsDb,
-                                };
-                            });
-                            vuLastChannelsRef.current.set(key, channels);
-                            const output = outputByKey.get(key);
-                            // Signal-driven gains take the live value the
-                            // engine sampled; editable ones use the state.
-                            const gainIndex = output?.gain.sourceIndex;
-                            const liveGain =
-                                gainIndex === undefined
-                                    ? undefined
-                                    : frame.controls?.[gainIndex];
-                            const gainValue =
-                                liveGain ?? output?.gain.value ?? null;
-                            const gainDb =
-                                gainValue === null
-                                    ? null
-                                    : outGainToDb(gainValue);
-                            const ghostGain =
-                                vuGhostsRef.current.get(key)?.gain;
-                            drawVuMeter(
-                                canvas,
-                                channels,
-                                vuColors,
-                                gainDb,
-                                output?.gain.locked === true,
-                                ghostGain !== undefined
-                                    ? outGainToDb(ghostGain)
-                                    : null,
-                            );
-                            if (frame.controls && output) {
-                                paintVuKnobFrame(output, frame.controls);
-                            }
-                            const prevMax =
-                                vuPeakMaxRef.current.get(key) ?? -Infinity;
-                            const peakMax = Math.max(
-                                prevMax,
-                                ...channels.map((c) => c.peakDb),
-                            );
-                            const readout = vuReadoutMapRef.current.get(key);
-                            if (peakMax !== prevMax) {
-                                vuPeakMaxRef.current.set(key, peakMax);
-                                if (readout) {
-                                    showVuPeak(readout, peakMax);
-                                }
-                            }
-                        }
-                    }
-
-                    setTransport(transport);
-
-                    // Check if a pending UI state should be committed
-                    const pending = pendingUIStateRef.current;
-                    if (
-                        pending &&
-                        transport.lastAppliedUpdateId >= pending.updateId
-                    ) {
-                        pendingUIStateRef.current = null;
-                        // Swap decoration collections: dispose old, activate pending
-                        scopeDecorationsRef.current?.clear();
-                        scopeDecorationsRef.current = pending.scopeDecorations;
-                        vuDecorationsRef.current?.clear();
-                        vuDecorationsRef.current = pending.vuDecorations;
-                        vuSourceIdRef.current = pending.controlsSource;
-                        eqController.commit(pending.eqPanels);
-                        commitControlAnchors(pending.controlAnchors);
-                        commitVideoPreviews(pending.videoPreviews);
-                        setRunningControlsSource(pending.controlsSource);
-                        setScopeViews(pending.scopeViews);
-                        setSliderDefs(pending.sliderDefs);
-                        setButtonDefs(pending.buttonDefs);
-                        setVuOutputs(pending.vuOutputs);
-                        // The applied patch was compiled from the edited
-                        // source, so audio and code agree again.
-                        clearVuGhosts();
-                        if (pending.interpolationResolutions) {
-                            setActiveInterpolationResolutions(
-                                pending.interpolationResolutions,
-                            );
-                        }
-                    } else if (
-                        pending &&
-                        transport.lastCancelledUpdateId === pending.updateId
-                    ) {
-                        // The queued update never applies: drop its UI state
-                        // and point back at the buffer that is still playing.
-                        pendingUIStateRef.current = null;
-                        pending.scopeDecorations?.clear();
-                        pending.vuDecorations?.clear();
-                        disposeEqPanelSetup(pending.eqPanels);
-                        pending.controlAnchors?.dispose();
-                        pending.videoPreviews.decorations?.clear();
-                        runningSourceIdRef.current =
-                            pending.previousRunning.sourceId;
-                        setRunningBufferId(pending.previousRunning.bufferId);
-                    }
-
-                    if (isClockRunningRef.current && !cancelled) {
-                        requestAnimationFrame(tick);
-                    }
-                })
-                .catch((err) => {
-                    console.error('Failed to get scopes:', err);
-                    if (isClockRunningRef.current && !cancelled) {
-                        requestAnimationFrame(tick);
-                    }
-                });
-        };
-        requestAnimationFrame(tick);
-
-        return () => {
-            cancelled = true;
-        };
-    }, [
+        newFile: files.createUntitledFile,
+        openEngineHealth: () => setIsEngineHealthOpen(true),
+        openKeybindings: () => void fileActions.openKeybindings(),
+        openModuleProfile: () => setIsModuleProfileOpen(true),
+        openWorkspace: () => void fileActions.switchWorkspace(),
+        save: () => void fileActions.save(),
+        showCommandPalette: () => setIsPaletteOpen(true),
+        stop: () => void patch.stop(),
+        submit: (trigger) => void patch.submit(trigger),
+        toggleRecording: recording.toggle,
+    });
+    useKeymap();
+    useTestApi({
+        editorInstance,
+        eqController,
+        getLastResult: patch.getLastResult,
         isClockRunning,
-        clearVuGhosts,
-        commitControlAnchors,
-        commitVideoPreviews,
-        eqController,
-        paintVuKnobFrame,
-    ]);
+        mixer,
+        openEngineHealth: () => setIsEngineHealthOpen(true),
+        openModuleProfile: () => setIsModuleProfileOpen(true),
+        setMixerVisible: (visible) =>
+            bottomPanel.show(visible ? 'mixer' : null),
+        submit: () => void patch.submit(),
+    });
 
-    // Keep Link phase indicator live while Link is enabled but Shoreline is stopped.
-    // The main tick loop only runs when isClockRunning; this fills the gap so
-    // the phase indicator stays animated even before the user presses play.
-    useEffect(() => {
-        if (!linkEnabled || isClockRunning) return;
-        let cancelled = false;
-        let rafId = 0;
-        const tick = () => {
-            if (cancelled) return;
-            void electronAPI.synthesizer.getTransportState().then((t) => {
-                if (cancelled) return;
-                setTransport(t);
-                rafId = requestAnimationFrame(tick);
-            });
-        };
-        rafId = requestAnimationFrame(tick);
-        return () => {
-            cancelled = true;
-            cancelAnimationFrame(rafId);
-        };
-    }, [linkEnabled, isClockRunning]);
-
-    const handleSaveFile = useCallback(
-        async (id?: string) => {
-            try {
-                await saveFile(id);
-            } catch (err) {
-                setError(getErrorMessage(err, 'Failed to save file'));
-            }
-        },
-        [saveFile],
-    );
-
-    const [conflictDiff, setConflictDiff] = useState<{
-        bufferId: string;
-        filePath: string;
-        diskContent: string;
-    } | null>(null);
-    const conflictDiffBuffer = conflictDiff
-        ? buffers.find((b) => getBufferId(b) === conflictDiff.bufferId)
-        : undefined;
-
-    const handleCompareConflict = useCallback(async () => {
-        if (!saveConflict) {
-            return;
-        }
-        try {
-            const diskContent = await electronAPI.filesystem.readFile(
-                saveConflict.filePath,
-            );
-            setConflictDiff({ ...saveConflict, diskContent });
-            dismissSaveConflict();
-        } catch (err) {
-            setError(getErrorMessage(err, 'Failed to read file'));
-        }
-    }, [saveConflict, dismissSaveConflict]);
-
-    const handleOverwriteConflict = useCallback(
-        async (bufferId: string) => {
-            setConflictDiff(null);
-            try {
-                await overwriteOnConflict(bufferId);
-            } catch (err) {
-                setError(getErrorMessage(err, 'Failed to save file'));
-            }
-        },
-        [overwriteOnConflict],
-    );
-
-    const closeConflictDiff = useCallback(() => setConflictDiff(null), []);
-
-    const handleSaveFileRef = useRef(() => {});
-    useEffect(() => {
-        handleSaveFileRef.current = handleSaveFile;
-    }, [handleSaveFile]);
-    const handleSaveFileStable = useCallback(
-        () => handleSaveFileRef.current(),
-        [],
-    );
-
-    const handleOpenWorkspaceRef = useRef(() => {});
-    useEffect(() => {
-        handleOpenWorkspaceRef.current = selectWorkspaceFolder;
-    }, [selectWorkspaceFolder]);
-
-    const handleSubmitRef = useRef((_trigger?: QueuedTrigger) => {});
-    useLayoutEffect(() => {
-        handleSubmitRef.current = async (trigger?: QueuedTrigger) => {
-            if (!activeBufferId) {
-                return;
-            }
-            try {
-                const patchCodeValue = patchCodeRef.current;
-                const submittedSourceId = activeSourceIdRef.current ?? null;
-
-                // Execute DSL in main process (has direct N-API access).
-                // Use the stable buffer id (not activeBufferId, a file's mutable
-                // path) so reconciliation/clock-reset key on the buffer itself.
-                const result = await electronAPI.executeDSL(
-                    patchCodeValue,
-                    submittedSourceId ?? undefined,
-                    trigger,
-                );
-                lastPatchResultRef.current = result;
-
-                if (!result.success) {
-                    // Still set interpolation resolutions even on validation errors
-                    // (the analysis succeeded, only the patch application failed)
-                    if (result.interpolationResolutions) {
-                        const map = new Map(
-                            Object.entries(result.interpolationResolutions),
-                        );
-                        setActiveInterpolationResolutions(map);
-                    }
-                    if (result.errorMessage) {
-                        setError(result.errorMessage);
-                        setValidationErrors(null);
-                    } else if (result.errors && result.errors.length > 0) {
-                        // Extract and transform validation errors to show source lines
-                        const rawErrors = result.errors.flatMap(
-                            (e) => e.errors || [],
-                        );
-                        const transformedErrors =
-                            transformErrorsWithSourceLocations(
-                                rawErrors,
-                                result.sourceLocationMap,
-                            );
-                        setValidationErrors(transformedErrors);
-                        setError(
-                            result.errors.map((e) => e.message).join('\n') ||
-                                'Failed to apply patch.',
-                        );
-                    }
-                    return;
-                }
-
-                const previousRunning = {
-                    bufferId: runningBufferIdRef.current,
-                    sourceId: runningSourceIdRef.current,
-                };
-                setIsClockRunning(true);
-                setRunningBufferId(activeBufferId);
-                runningSourceIdRef.current = activeSourceIdRef.current ?? null;
-                setError(null);
-                setValidationErrors(null);
-
-                // Set interpolation resolutions in renderer for template literal highlighting
-                const interpolationMap = result.interpolationResolutions
-                    ? new Map(Object.entries(result.interpolationResolutions))
-                    : undefined;
-
-                const scopes = result.appliedPatch?.scopes || [];
-                const { callSiteSpans } = result;
-
-                const editorInstance = editorRef.current;
-                const model = editorInstance?.getModel();
-
-                if (model) {
-                    void applyRuntimeResolutions(
-                        model,
-                        patchCodeValue,
-                        result.outputResolutions ?? [],
-                    );
-                }
-
-                const previewAnchors = editorInstance
-                    ? createVideoPreviewAnchors(
-                          editorInstance,
-                          result.videoPreviews ?? [],
-                          callSiteSpans,
-                          activeBufferId,
-                      )
-                    : { decorations: null, zones: [] };
-
-                const views: ScopeView[] = [];
-                const decorationDescs: editor.IModelDeltaDecoration[] = [];
-
-                for (let i = 0; i < scopes.length; i++) {
-                    const scope = scopes[i];
-                    // Panel feeds (the EQ spectrum) have no view of their own.
-                    if ((scope as { headless?: boolean }).headless) {
-                        continue;
-                    }
-
-                    // Derive buffer keys for each lane in this scope
-                    const laneKeys = scope.lanes.map((lane: any) =>
-                        scopeBufferKeyFromLane(
-                            lane,
-                            scope.msPerFrame,
-                            scope.triggerThreshold,
-                        ),
-                    );
-
-                    // Use first lane's key as the scope's identity
-                    const scopeKey =
-                        laneKeys.length > 0
-                            ? `scope:${i}:${laneKeys.join('+')}`
-                            : `scope:${i}:empty`;
-
-                    const loc = (scope as any).sourceLocation as
-                        | { line: number; column: number }
-                        | undefined;
-
-                    // A scope whose call site cannot be resolved (source
-                    // edited during the async round-trip) gets no decoration
-                    // and a null decorationIndex: its zone is hidden.
-                    const spanKey = loc ? `${loc.line}:${loc.column}` : '';
-                    const range =
-                        model && loc
-                            ? resolveScopeCallRange(
-                                  model,
-                                  loc,
-                                  callSiteSpans?.[spanKey],
-                              )
-                            : null;
-
-                    views.push({
-                        laneKeys,
-                        decorationIndex: range ? decorationDescs.length : null,
-                        file: activeBufferId,
-                        key: scopeKey,
-                        range: scope.range ?? [-5, 5],
-                        split: scope.split ?? null,
-                    });
-
-                    if (range) {
-                        decorationDescs.push({
-                            options: {
-                                stickiness:
-                                    editor.TrackedRangeStickiness
-                                        .NeverGrowsWhenTypingAtEdges,
-                            },
-                            range,
-                        });
-                    }
-                }
-
-                let newScopeDecorations: editor.IEditorDecorationsCollection | null =
-                    null;
-                if (editorInstance && decorationDescs.length > 0) {
-                    newScopeDecorations =
-                        editorInstance.createDecorationsCollection(
-                            decorationDescs,
-                        );
-                }
-
-                const newVuOutputs = (result.appliedPatch?.vuMeters ??
-                    []) as VuMeterDef[];
-                // One anchor per meter on its label's first character; the
-                // main meter has none. Captured columns are V8 columns,
-                // shifted by the executor's indent on line 1 only.
-                const newVuDecorations =
-                    model && newVuOutputs.length > 0
-                        ? createModelAnchors(
-                              model,
-                              newVuOutputs.map((vu) => {
-                                  const loc = vu.sourceLocation;
-                                  if (!loc) {
-                                      return null;
-                                  }
-                                  return {
-                                      column:
-                                          loc.column -
-                                          (loc.line === 1
-                                              ? FIRST_LINE_COLUMN_OFFSET
-                                              : 0),
-                                      line: Math.min(
-                                          loc.line,
-                                          model.getLineCount(),
-                                      ),
-                                  };
-                              }),
-                          )
-                        : null;
-
-                const newEqPanels = eqController.stage(result, editorInstance);
-
-                const newSliderDefs = result.sliders ?? [];
-                const newButtonDefs = result.buttons ?? [];
-                const newControlAnchors = model
-                    ? createControlAnchors(model, [
-                          ...newSliderDefs.map((s) => ({
-                              fnName: '$slider',
-                              moduleId: s.moduleId,
-                              sourceLocation: s.sourceLocation,
-                          })),
-                          ...newButtonDefs.map((b) => ({
-                              fnName: b.mode === 'gate' ? '$btn' : '$toggleBtn',
-                              moduleId: b.moduleId,
-                              sourceLocation: b.sourceLocation,
-                          })),
-                      ])
-                    : null;
-
-                // For queued (non-immediate) triggers, defer UI state until the
-                // Audio thread actually applies the patch update.
-                const isDeferred =
-                    trigger === 'NextBar' || trigger === 'NextBeat';
-
-                if (isDeferred && result.updateId != null) {
-                    // Stash both new decorations and UI state; keep old
-                    // Decorations alive so the current view zones still work.
-                    // Any previously pending (but never committed) decorations
-                    // Are cleaned up before storing the new pending state.
-                    pendingUIStateRef.current?.scopeDecorations?.clear();
-                    pendingUIStateRef.current?.vuDecorations?.clear();
-                    disposeEqPanelSetup(
-                        pendingUIStateRef.current?.eqPanels ?? null,
-                    );
-                    pendingUIStateRef.current?.controlAnchors?.dispose();
-                    pendingUIStateRef.current?.videoPreviews.decorations?.clear();
-                    pendingUIStateRef.current = {
-                        buttonDefs: newButtonDefs,
-                        controlAnchors: newControlAnchors,
-                        controlsSource: submittedSourceId,
-                        eqPanels: newEqPanels,
-                        interpolationResolutions: interpolationMap,
-                        previousRunning,
-                        scopeDecorations: newScopeDecorations,
-                        vuDecorations: newVuDecorations,
-                        scopeViews: views,
-                        sliderDefs: newSliderDefs,
-                        updateId: result.updateId,
-                        videoPreviews: previewAnchors,
-                        vuOutputs: newVuOutputs,
-                    };
-                } else {
-                    // Immediate trigger (or button click): swap decorations
-                    // And apply UI state right away.
-                    pendingUIStateRef.current?.scopeDecorations?.clear();
-                    pendingUIStateRef.current?.vuDecorations?.clear();
-                    disposeEqPanelSetup(
-                        pendingUIStateRef.current?.eqPanels ?? null,
-                    );
-                    pendingUIStateRef.current?.controlAnchors?.dispose();
-                    pendingUIStateRef.current?.videoPreviews.decorations?.clear();
-                    pendingUIStateRef.current = null;
-                    eqController.commit(newEqPanels);
-                    commitVideoPreviews(previewAnchors);
-                    commitControlAnchors(newControlAnchors);
-                    setRunningControlsSource(submittedSourceId);
-                    scopeDecorationsRef.current?.clear();
-                    scopeDecorationsRef.current = newScopeDecorations;
-                    vuDecorationsRef.current?.clear();
-                    vuDecorationsRef.current = newVuDecorations;
-                    vuSourceIdRef.current = submittedSourceId;
-                    setScopeViews(views);
-                    setSliderDefs(newSliderDefs);
-                    setButtonDefs(newButtonDefs);
-                    setVuOutputs(newVuOutputs);
-                    // The applied patch was compiled from the edited source,
-                    // so audio and code agree again.
-                    clearVuGhosts();
-                    if (interpolationMap) {
-                        setActiveInterpolationResolutions(interpolationMap);
-                    }
-                }
-            } catch (err) {
-                setError(getErrorMessage(err, 'Unknown error'));
-                setValidationErrors(null);
-            }
-        };
-    }, [
-        activeBufferId,
-        clearVuGhosts,
-        commitControlAnchors,
-        commitVideoPreviews,
-        eqController,
-    ]);
-
-    // Expose test API for E2E tests
-    useEffect(() => {
-        window.__TEST_API__ = {
-            executePatch: async () => {
-                handleSubmitRef.current();
-            },
-            getAudioHealth: () => electronAPI.synthesizer.getHealth(),
-            getEditorValue: () => editorRef.current?.getValue() ?? '',
-            getCursorOffset: () => {
-                const editorInstance = editorRef.current;
-                const model = editorInstance?.getModel();
-                const position = editorInstance?.getPosition();
-                return model && position ? model.getOffsetAt(position) : null;
-            },
-            getLastPatchResult: () => lastPatchResultRef.current,
-            getScopeData: () => electronAPI.synthesizer.getScopes(),
-            getVuMeterData: () => electronAPI.synthesizer.getVuMeters(),
-            getVuOutputs: () => vuOutputsRef.current,
-            getEqPanels: () => eqController.snapshot(),
-            isClockRunning: () => isClockRunningRef.current,
-            newUntitledFile: () => executeCommand('shoreline.newFile'),
-            openEngineHealth: () => setIsEngineHealthOpen(true),
-            openModuleProfile: () => setIsModuleProfileOpen(true),
-            setEditorValue: (code: string) => editorRef.current?.setValue(code),
-            setMixerVisible: (visible: boolean) =>
-                showBottomPanel(visible ? 'mixer' : null),
-            toggleVuMute: (key: string, codeOnly = false) =>
-                handleVuToggle(key, 'mute', codeOnly),
-            toggleVuSolo: (key: string, codeOnly = false) =>
-                handleVuToggle(key, 'solo', codeOnly),
-        };
-        return () => {
-            delete window.__TEST_API__;
-        };
-    }, [eqController, handleVuToggle, showBottomPanel]);
-
-    const handleStopRef = useRef(() => {});
-    useEffect(() => {
-        handleStopRef.current = async () => {
-            await electronAPI.synthesizer.stop();
-            setIsClockRunning(false);
-            setRunningBufferId(null);
-            runningSourceIdRef.current = null;
-            setRunningControlsSource(null);
-        };
-    }, []);
-    const handleStop = useCallback(() => handleStopRef.current(), []);
-
-    // An output device change that stopped playback leaves the editor in the
-    // same state as Stop.
-    useEffect(
-        () =>
-            electronAPI.audio.onDeviceNotice((notice) => {
-                if (notice.stopped) {
-                    handleStopRef.current();
-                }
-                if (notice.recordingStopped) {
-                    setIsRecording(false);
-                }
-            }),
-        [],
-    );
-
-    const dismissError = useCallback(() => {
-        setError(null);
-        setValidationErrors(null);
-    }, []);
-
-    // Refs keep command handlers stable across renders so the registration
-    // effect below only needs to run once. Anything captured by closure must
-    // funnel through a ref or it goes stale between renders.
-    const activeBufferIdRef = useRef(activeBufferId);
-    useEffect(() => {
-        activeBufferIdRef.current = activeBufferId;
-    }, [activeBufferId]);
-
-    const closeBufferRef = useRef(closeBuffer);
-    useEffect(() => {
-        closeBufferRef.current = closeBuffer;
-    }, [closeBuffer]);
-
-    const createUntitledFileRef = useRef(createUntitledFile);
-    useEffect(() => {
-        createUntitledFileRef.current = createUntitledFile;
-    }, [createUntitledFile]);
-
-    // Ensure the keybindings.json exists (seeding a template if needed) and
-    // open it as a normal editor buffer; saving it reloads the keymap live.
-    const handleOpenKeybindings = useCallback(async () => {
-        try {
-            const path = await electronAPI.keybindings.ensureFile();
-            keybindingsPathRef.current = path;
-            await openAbsoluteFile(path);
-        } catch (err) {
-            setError(getErrorMessage(err, 'Failed to open keybindings'));
-        }
-    }, [openAbsoluteFile]);
-    const handleOpenKeybindingsRef = useRef(handleOpenKeybindings);
-    useEffect(() => {
-        handleOpenKeybindingsRef.current = handleOpenKeybindings;
-    }, [handleOpenKeybindings]);
-
-    // Resolve the keybindings.json path up front so saves to it (even a
-    // session-restored buffer) are recognized and trigger a keymap reload.
-    useEffect(() => {
-        electronAPI.keybindings
-            .getPath()
-            .then((path) => {
-                keybindingsPathRef.current = path;
-            })
-            .catch(() => {});
-    }, []);
-
-    // Register shoreline.* commands in the global registry. The Electron menu
-    // IPC dispatchers below, the cmdk palette, the editor context menu, and
-    // the tinykeys keymap all dispatch through `executeCommand` — single
-    // source of truth for what each command does.
-    useEffect(() => {
-        registerCommand(
-            'shoreline.updatePatch',
-            () => {
-                handleSubmitRef.current('NextBar');
-            },
-            {
-                label: 'Update Patch',
-                category: 'Patch',
-                contextMenu: { group: '1_patch', order: 1 },
-            },
-        );
-        registerCommand(
-            'shoreline.updatePatchNextBeat',
-            () => {
-                handleSubmitRef.current('NextBeat');
-            },
-            {
-                label: 'Update Patch (Next Beat)',
-                category: 'Patch',
-                contextMenu: { group: '1_patch', order: 2 },
-            },
-        );
-        registerCommand(
-            'shoreline.stop',
-            () => {
-                handleStopRef.current();
-            },
-            {
-                label: 'Stop',
-                category: 'Patch',
-                contextMenu: { group: '1_patch', order: 3 },
-            },
-        );
-        registerCommand(
-            'shoreline.cancelQueuedUpdate',
-            () => {
-                void electronAPI.synthesizer.cancelQueuedUpdate();
-            },
-            {
-                label: 'Cancel Queued Update',
-                category: 'Patch',
-                contextMenu: { group: '1_patch', order: 4 },
-            },
-        );
-        registerCommand(
-            'shoreline.newFile',
-            () => {
-                createUntitledFileRef.current();
-            },
-            { label: 'New File', category: 'File' },
-        );
-        registerCommand(
-            'shoreline.closeBuffer',
-            () => {
-                const id = activeBufferIdRef.current;
-                if (id) {
-                    void closeBufferRef.current(id);
-                }
-            },
-            { label: 'Close Buffer', category: 'File' },
-        );
-        registerCommand(
-            'shoreline.save',
-            () => {
-                handleSaveFileRef.current();
-            },
-            { label: 'Save', category: 'File' },
-        );
-        registerCommand(
-            'shoreline.openWorkspace',
-            () => {
-                handleOpenWorkspaceRef.current();
-            },
-            { label: 'Open Workspace…', category: 'File' },
-        );
-        registerCommand(
-            'shoreline.showCommandPalette',
-            () => {
-                setIsPaletteOpen(true);
-            },
-            {
-                label: 'Show Command Palette',
-                category: 'View',
-                contextMenu: { group: 'z_commands', order: 1 },
-            },
-        );
-        registerCommand(
-            'shoreline.openKeybindings',
-            () => {
-                void handleOpenKeybindingsRef.current();
-            },
-            {
-                label: 'Open Keyboard Shortcuts (JSON)',
-                category: 'Preferences',
-            },
-        );
-        registerCommand(
-            'shoreline.togglePerformanceWindow',
-            () => {
-                performanceOutput.toggle();
-            },
-            { label: 'Toggle Performance Window', category: 'View' },
-        );
-        registerCommand(
-            'shoreline.togglePerformanceCode',
-            () => {
-                void electronAPI.config.read().then((config) =>
-                    electronAPI.config.write({
-                        performanceCodeVisible: !(
-                            config.performanceCodeVisible ?? true
-                        ),
-                    }),
-                );
-            },
-            { label: 'Toggle Performance Code', category: 'View' },
-        );
-
-        return () => {
-            unregisterCommand('shoreline.togglePerformanceWindow');
-            unregisterCommand('shoreline.togglePerformanceCode');
-            unregisterCommand('shoreline.updatePatch');
-            unregisterCommand('shoreline.updatePatchNextBeat');
-            unregisterCommand('shoreline.stop');
-            unregisterCommand('shoreline.cancelQueuedUpdate');
-            unregisterCommand('shoreline.newFile');
-            unregisterCommand('shoreline.closeBuffer');
-            unregisterCommand('shoreline.save');
-            unregisterCommand('shoreline.openWorkspace');
-            unregisterCommand('shoreline.showCommandPalette');
-            unregisterCommand('shoreline.openKeybindings');
-        };
-    }, []);
-
-    // Register the macOS-only "Toggle Syphon Output" command when supported,
-    // so it shows in the palette and is bindable. The action lives in the main
-    // process (SyphonBridge), so the handler round-trips through IPC. Gating on
-    // support keeps it out of the palette where the menu item is also hidden.
-    useEffect(() => {
-        let active = true;
-        void electronAPI.syphon.isSupported().then((supported) => {
-            if (!active || !supported) return;
-            registerCommand(
-                'shoreline.toggleSyphon',
-                () => {
-                    void electronAPI.syphon.toggle();
-                },
-                { label: 'Toggle Syphon Output', category: 'View' },
-            );
-        });
-        return () => {
-            active = false;
-            unregisterCommand('shoreline.toggleSyphon');
-        };
-    }, []);
-
-    useEffect(() => {
-        // Electron menu items dispatch through the registry so each handler
-        // body lives in exactly one place. Recording is not in the registry —
-        // toggling it reads render-state isRecording directly, hence this
-        // effect's dependency on it.
-        const cleanupNewFile = electronAPI.onMenuNewFile(() => {
-            executeCommand('shoreline.newFile');
-        });
-        const cleanupSave = electronAPI.onMenuSave(() => {
-            executeCommand('shoreline.save');
-        });
-        const cleanupStop = electronAPI.onMenuStop(() => {
-            executeCommand('shoreline.stop');
-        });
-        const cleanupCancelQueuedUpdate = electronAPI.onMenuCancelQueuedUpdate(
-            () => {
-                executeCommand('shoreline.cancelQueuedUpdate');
-            },
-        );
-        const cleanupUpdate = electronAPI.onMenuUpdatePatch(() => {
-            executeCommand('shoreline.updatePatch');
-        });
-        const cleanupUpdateNextBeat = electronAPI.onMenuUpdatePatchNextBeat(
-            () => {
-                executeCommand('shoreline.updatePatchNextBeat');
-            },
-        );
-        const cleanupOpenWorkspace = electronAPI.onMenuOpenWorkspace(() => {
-            executeCommand('shoreline.openWorkspace');
-        });
-        const cleanupCloseBuffer = electronAPI.onMenuCloseBuffer(() => {
-            executeCommand('shoreline.closeBuffer');
-        });
-        const cleanupToggleRecording = electronAPI.onMenuToggleRecording(() => {
-            if (isRecording) {
-                void electronAPI.synthesizer.stopRecording();
-                setIsRecording(false);
-            } else {
-                void electronAPI.synthesizer.startRecording();
-                setIsRecording(true);
-            }
-        });
-
-        const cleanupToggleMixer = electronAPI.onMenuToggleMixer(() => {
-            executeCommand('shoreline.toggleMixer');
-        });
-        const cleanupTogglePerformanceWindow =
-            electronAPI.onMenuTogglePerformanceWindow(() => {
-                executeCommand('shoreline.togglePerformanceWindow');
-            });
-
-        // Handle opening settings from menu (Cmd+,)
-        const cleanupOpenSettings = electronAPI.onMenuOpenSettings(() => {
-            executeCommand('shoreline.openSettings');
-        });
-        const cleanupOpenEngineHealth = electronAPI.onMenuOpenEngineHealth(
-            () => {
-                setIsEngineHealthOpen(true);
-            },
-        );
-        const cleanupOpenModuleProfile = electronAPI.onMenuOpenModuleProfile(
-            () => {
-                setIsModuleProfileOpen(true);
-            },
-        );
-        return () => {
-            cleanupNewFile();
-            cleanupSave();
-            cleanupStop();
-            cleanupCancelQueuedUpdate();
-            cleanupUpdate();
-            cleanupUpdateNextBeat();
-            cleanupOpenWorkspace();
-            cleanupCloseBuffer();
-            cleanupToggleRecording();
-            cleanupToggleMixer();
-            cleanupTogglePerformanceWindow();
-            cleanupOpenSettings();
-            cleanupOpenEngineHealth();
-            cleanupOpenModuleProfile();
-        };
-    }, [isRecording]);
-
-    // Install the window-level tinykeys keymap. Runs after the shoreline.*
-    // commands above have been registered (effects fire in declaration order),
-    // so dispatch always finds a handler. The loader merges user overrides
-    // from `<userData>/keybindings.json` on top of `DEFAULT_KEYMAP`.
-    useEffect(() => {
-        let disposed = false;
-        let disposer: (() => void) | null = null;
-        // Gate keybinding dispatch on the context-key service so VS Code-style
-        // `when` clauses (editorTextFocus, etc.) are honored.
-        setWhenEvaluator(evaluateWhen);
-        const install = () => {
-            loadAndInstallKeymap()
-                .then((result) => {
-                    if (disposed) {
-                        result.dispose();
-                        return;
-                    }
-                    // Drop the previous binding before swapping in the new one.
-                    disposer?.();
-                    disposer = result.dispose;
-                })
-                .catch((err) => {
-                    console.error('[keymap] failed to install keymap:', err);
-                });
-        };
-        install();
-        // Re-read and re-install when the user saves keybindings.json.
-        const onChanged = () => install();
-        window.addEventListener('shoreline:keybindings-changed', onChanged);
-        return () => {
-            disposed = true;
-            window.removeEventListener(
-                'shoreline:keybindings-changed',
-                onChanged,
-            );
-            disposer?.();
-        };
-    }, []);
-
-    // Ctrl+Enter (and Ctrl+Shift+Enter) are reserved for patch updates.
-    // Browsers activate a focused <button> on Enter regardless of modifier
-    // state, which would spuriously toggle e.g. the Link button after it had
-    // been clicked. Suppress the default activation when a button is focused.
-    useEffect(() => {
-        const onKeyDownCapture = (e: KeyboardEvent) => {
-            if (
-                e.ctrlKey &&
-                e.key === 'Enter' &&
-                e.target instanceof HTMLButtonElement
-            ) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        };
-        window.addEventListener('keydown', onKeyDownCapture, { capture: true });
-        return () =>
-            window.removeEventListener('keydown', onKeyDownCapture, {
-                capture: true,
-            });
-    }, []);
+    const fileName = (buffer: EditorBuffer) =>
+        files.formatFileLabel(buffer).split(/[/\\]/).at(-1)!;
 
     return (
         <div className="app">
             <header className="app-header">
-                <TransportDisplay
-                    onToggleLink={(enabled) => {
-                        void electronAPI.synthesizer.enableLink(enabled);
-                        // Optimistically update UI — polling only runs while playing
-                        updateTransport((prev) => ({
-                            ...prev,
-                            linkEnabled: enabled,
-                            linkPeers: enabled ? prev.linkPeers : 0,
-                        }));
-                    }}
-                />
+                <TransportDisplay onToggleLink={toggleLink} />
                 <AudioControls
                     isRunning={isClockRunning}
-                    isRecording={isRecording}
-                    onStop={handleStop}
-                    onStartRecording={async () => {
-                        await electronAPI.synthesizer.startRecording();
-                        setIsRecording(true);
-                    }}
-                    onStopRecording={async () => {
-                        await electronAPI.synthesizer.stopRecording();
-                        setIsRecording(false);
-                    }}
-                    onUpdatePatch={() => handleSubmitRef.current()}
+                    isRecording={recording.isRecording}
+                    onStop={patch.stop}
+                    onStartRecording={recording.start}
+                    onStopRecording={recording.stop}
+                    onUpdatePatch={() => patch.submit()}
                 />
             </header>
 
             <ErrorDisplay
-                error={error}
-                errors={validationErrors}
-                onDismiss={dismissError}
+                error={errors.error}
+                errors={errors.validationErrors}
+                onDismiss={errors.clear}
             />
-
             <EngineHealth
                 isOpen={isEngineHealthOpen}
                 onClose={() => setIsEngineHealthOpen(false)}
             />
-
             <ModuleProfile
                 isOpen={isModuleProfileOpen}
                 onClose={() => setIsModuleProfileOpen(false)}
             />
-
             <AudioPanicDialog />
-
             <AudioDeviceBanner playing={isClockRunning} />
-
             <CommandPalette
                 open={isPaletteOpen}
                 onOpenChange={setIsPaletteOpen}
-                editor={paletteEditor}
+                editor={editorInstance}
             />
 
             <main className="app-main">
                 <div className="app-workspace">
-                    {!workspaceRoot ? (
+                    {!workspace.root ? (
                         <div className="empty-state">
                             <button
                                 className="open-folder-button"
-                                onClick={selectWorkspaceFolder}
+                                onClick={fileActions.switchWorkspace}
                             >
                                 Open Folder
                             </button>
@@ -2715,22 +302,23 @@ function App() {
                             />
                             <PatchEditor
                                 value={patchCode}
-                                runningBufferId={runningBufferId}
+                                runningBufferId={patch.runningBufferId}
                                 currentFile={activeBufferId}
-                                viewStates={viewStates}
-                                openFiles={openBufferIds}
+                                viewStates={files.viewStates}
+                                openFiles={buffers.map(getBufferId)}
                                 onChange={handleEditorChange}
                                 editorRef={editorRef}
-                                onEditorChange={setPaletteEditor}
-                                scopeViews={scopeViews}
+                                onEditorChange={setEditorInstance}
+                                scopeViews={patchUi.scopeViews}
+                                scopeDecorations={patchUi.scopeDecorations}
                                 videoPreviewDecorations={
-                                    videoPreviews.decorations
+                                    patchUi.videoPreviews.decorations
                                 }
-                                videoPreviewZones={videoPreviews.zones}
-                                // oxlint-disable-next-line react-hooks-js/refs -- intentional: live Monaco decoration collection mutated outside React
-                                scopeDecorations={scopeDecorationsRef.current}
-                                onRegisterScopeCanvas={registerScopeCanvas}
-                                onUnregisterScopeCanvas={unregisterScopeCanvas}
+                                videoPreviewZones={patchUi.videoPreviews.zones}
+                                onRegisterScopeCanvas={scopeCanvases.register}
+                                onUnregisterScopeCanvas={
+                                    scopeCanvases.unregister
+                                }
                             />
                             <PerformancePreview />
                         </div>
@@ -2738,27 +326,7 @@ function App() {
                     <BottomPanel
                         state={bottomPanel}
                         mixer={
-                            <VuMeterPanel
-                                outputs={vuOutputs}
-                                onToggleMute={handleVuToggleMute}
-                                onToggleSolo={handleVuToggleSolo}
-                                ghosts={vuGhosts}
-                                onGainChange={handleVuGainChange}
-                                onGainCommit={handleVuGainCommit}
-                                onGainReset={handleVuGainReset}
-                                onGainRevert={handleVuGainRevert}
-                                onPeakReset={handleVuPeakReset}
-                                onCanvasResized={handleVuCanvasResized}
-                                registerCanvas={registerVuCanvas}
-                                unregisterCanvas={unregisterVuCanvas}
-                                registerReadout={registerVuReadout}
-                                unregisterReadout={unregisterVuReadout}
-                                onKnobChange={handleVuKnobChange}
-                                onKnobCommit={handleVuKnobCommit}
-                                registerKnob={registerVuKnob}
-                                unregisterKnob={unregisterVuKnob}
-                                onJump={handleVuJump}
-                            />
+                            <VuMeterPanel mixer={mixer} onJump={jumpToTrack} />
                         }
                     />
                 </div>
@@ -2769,37 +337,37 @@ function App() {
                     configLoaded={appConfigLoaded}
                     explorerContent={
                         <FileExplorer
-                            workspaceRoot={workspaceRoot}
-                            fileTree={fileTree}
+                            workspaceRoot={workspace.root}
+                            fileTree={workspace.fileTree}
                             buffers={buffers}
                             activeBufferId={activeBufferId}
-                            runningBufferId={runningBufferId}
-                            renamingPath={renamingPath}
-                            formatLabel={formatLabel}
-                            onSelectBuffer={setActiveBufferId}
-                            onOpenFile={handleOpenFile}
-                            onCreateFile={createUntitledFile}
-                            onSaveFile={handleSaveFileStable}
-                            onRenameFile={renameFile}
-                            onDeleteFile={handleDeleteFile}
-                            onCloseBuffer={closeBuffer}
-                            onSelectWorkspace={selectWorkspaceFolder}
-                            onRefreshTree={refreshFileTree}
-                            onRenameCommit={handleRenameCommitSafe}
-                            onRenameCancel={() => setRenamingPath(null)}
-                            onKeepBuffer={keepBuffer}
+                            runningBufferId={patch.runningBufferId}
+                            renamingPath={files.renamingPath}
+                            formatLabel={fileName}
+                            onSelectBuffer={files.setActiveBufferId}
+                            onOpenFile={fileActions.open}
+                            onCreateFile={files.createUntitledFile}
+                            onSaveFile={fileActions.save}
+                            onRenameFile={files.renameFile}
+                            onDeleteFile={fileActions.remove}
+                            onSelectWorkspace={fileActions.switchWorkspace}
+                            onCloseBuffer={files.closeBuffer}
+                            onRefreshTree={workspace.refreshFileTree}
+                            onRenameCommit={fileActions.commitRename}
+                            onRenameCancel={() => files.setRenamingPath(null)}
+                            onKeepBuffer={files.keepBuffer}
                         />
                     }
                     performContent={<PerformancePanel />}
                     controlContent={
                         <ControlPanel
-                            sliders={controlViews.sliders}
-                            buttons={controlViews.buttons}
-                            groups={codeControls.groups}
-                            onGroupToggle={handleGroupToggle}
-                            onSliderChange={handleSliderChange}
-                            onButtonChange={handleButtonChange}
-                            onJump={handleControlJump}
+                            sliders={controls.views.sliders}
+                            buttons={controls.views.buttons}
+                            groups={controls.groups}
+                            onGroupToggle={controlActions.toggleGroup}
+                            onSliderChange={controlActions.changeSlider}
+                            onButtonChange={controlActions.changeButton}
+                            onJump={controlActions.jumpTo}
                         />
                     }
                 />
@@ -2809,93 +377,8 @@ function App() {
                 onToggle={bottomPanel.toggle}
                 docsLocation={bottomPanel.docs.location}
             />
-            {saveConflict && (
-                <SaveConflictNotification
-                    filePath={saveConflict.filePath}
-                    onCompare={handleCompareConflict}
-                    onOverwrite={() =>
-                        handleOverwriteConflict(saveConflict.bufferId)
-                    }
-                    onDismiss={dismissSaveConflict}
-                />
-            )}
-            {conflictDiff && conflictDiffBuffer && (
-                <SaveConflictDiff
-                    filePath={conflictDiff.filePath}
-                    diskContent={conflictDiff.diskContent}
-                    bufferContent={conflictDiffBuffer.content}
-                    onAcceptLocal={() =>
-                        handleOverwriteConflict(conflictDiff.bufferId)
-                    }
-                    onRevertLocal={() => {
-                        revertToDiskContent(
-                            conflictDiff.bufferId,
-                            conflictDiff.diskContent,
-                        );
-                        setConflictDiff(null);
-                    }}
-                    onClose={closeConflictDiff}
-                />
-            )}
-            <UpdateNotification
-                state={updateState}
-                onDownload={handleUpdateDownload}
-                onInstall={handleUpdateInstall}
-                onSkip={handleUpdateSkip}
-                onDismiss={handleUpdateDismiss}
-                onShowReleaseNotes={() =>
-                    setReleaseNotesView({ kind: 'update' })
-                }
-            />
-            {releaseNotesView?.kind === 'update' &&
-                updateState.status === 'available' && (
-                    <ReleaseNotesDialog
-                        title={`Version ${updateState.version} is available`}
-                        summary={`You have version ${updateState.currentVersion}. Here is everything that changed since then.`}
-                        releases={updateState.releaseNotes}
-                        actions={[
-                            {
-                                label: updateState.supportsInAppUpdate
-                                    ? 'Download & Install'
-                                    : 'View Release',
-                                onClick: () => {
-                                    closeReleaseNotes();
-                                    handleUpdateDownload();
-                                },
-                                primary: true,
-                            },
-                            {
-                                label: 'Skip This Version',
-                                onClick: () => {
-                                    closeReleaseNotes();
-                                    handleUpdateSkip();
-                                },
-                            },
-                            { label: 'Not Now', onClick: closeReleaseNotes },
-                        ]}
-                        onClose={closeReleaseNotes}
-                    />
-                )}
-            {releaseNotesView?.kind === 'whatsNew' && (
-                <ReleaseNotesDialog
-                    title={`What's new in version ${releaseNotesView.currentVersion}`}
-                    releases={releaseNotesView.releases}
-                    onClose={closeReleaseNotes}
-                />
-            )}
-            {releaseNotesView?.kind === 'changelog' && (
-                <ReleaseNotesDialog
-                    title="Release Notes"
-                    releases={releaseNotesView.info.releaseNotes}
-                    liftBreaking={false}
-                    installedVersion={releaseNotesView.info.currentVersion}
-                    link={{
-                        href: releaseNotesView.info.fullChangelogUrl,
-                        label: 'Full changelog on GitHub',
-                    }}
-                    onClose={closeReleaseNotes}
-                />
-            )}
+            <SaveConflicts files={files} showError={errors.show} />
+            <AppUpdates />
         </div>
     );
 }

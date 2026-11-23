@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useRef } from 'react';
 import type { SendGhostKey } from '../../shared/dsl/vuMeterTypes';
 
 /** The knob's sweep: 135° either side of straight up. */
@@ -10,28 +10,6 @@ const DRAG_PIXELS = 100;
 
 /** A track's knob: its pan, or its send to a bus. */
 export type KnobId = 'pan' | SendGhostKey;
-
-/** What every mixer knob calls, given its track's key and its id. */
-export interface KnobHandlers {
-    /** Live drag. `codeOnly` gestures edit the source only. */
-    onKnobChange: (
-        key: string,
-        id: KnobId,
-        value: number,
-        codeOnly: boolean,
-    ) => void;
-    /** Drag released, or a right-click reset or revert: write the value
-     *  into the source once. */
-    onKnobCommit: (
-        key: string,
-        id: KnobId,
-        value: number,
-        codeOnly: boolean,
-    ) => void;
-    /** Locked knobs register their SVG for the meter loop to paint. */
-    registerKnob: (key: string, id: KnobId, el: SVGSVGElement) => void;
-    unregisterKnob: (key: string, id: KnobId) => void;
-}
 
 /** The span a knob covers and the value its arc fills from. */
 export interface KnobRange {
@@ -132,59 +110,52 @@ export function Knob({
         moved: boolean;
     } | null>(null);
 
-    const handlePointerDown = useCallback(
-        (e: React.PointerEvent<HTMLDivElement>) => {
-            // Right presses belong to the contextmenu (reset/revert) gesture.
-            if (e.button !== 0) {
-                return;
-            }
-            e.preventDefault();
-            e.currentTarget.setPointerCapture(e.pointerId);
-            const codeOnly = e.ctrlKey || e.metaKey;
-            // A code-only drag continues from the code-side value.
-            const startValue = codeOnly ? (ghost ?? value) : value;
-            dragRef.current = {
-                codeOnly,
-                lastValue: startValue,
-                moved: false,
-                startValue,
-                startY: e.clientY,
-            };
-        },
-        [value, ghost],
-    );
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+        // Right presses belong to the contextmenu (reset/revert) gesture.
+        if (e.button !== 0) {
+            return;
+        }
+        e.preventDefault();
+        e.currentTarget.setPointerCapture(e.pointerId);
+        const codeOnly = e.ctrlKey || e.metaKey;
+        // A code-only drag continues from the code-side value.
+        const startValue = codeOnly ? (ghost ?? value) : value;
+        dragRef.current = {
+            codeOnly,
+            lastValue: startValue,
+            moved: false,
+            startValue,
+            startY: e.clientY,
+        };
+    };
 
-    const handlePointerMove = useCallback(
-        (e: React.PointerEvent<HTMLDivElement>) => {
-            const drag = dragRef.current;
-            if (!drag) {
-                return;
-            }
-            const raw =
-                drag.startValue +
-                ((drag.startY - e.clientY) * (range.max - range.min)) /
-                    DRAG_PIXELS;
-            const clamped = Math.min(range.max, Math.max(range.min, raw));
-            const next = Number((Math.round(clamped / step) * step).toFixed(6));
-            if (next !== drag.lastValue) {
-                drag.lastValue = next;
-                drag.moved = true;
-                onChange(next, drag.codeOnly);
-            }
-        },
-        [onChange, range.max, range.min, step],
-    );
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const drag = dragRef.current;
+        if (!drag) {
+            return;
+        }
+        const raw =
+            drag.startValue +
+            ((drag.startY - e.clientY) * (range.max - range.min)) / DRAG_PIXELS;
+        const clamped = Math.min(range.max, Math.max(range.min, raw));
+        const next = Number((Math.round(clamped / step) * step).toFixed(6));
+        if (next !== drag.lastValue) {
+            drag.lastValue = next;
+            drag.moved = true;
+            onChange(next, drag.codeOnly);
+        }
+    };
 
     // Also bound to pointercancel/lostpointercapture, so a drag that loses
     // its capture still commits; after a normal pointerup it is a no-op. A
     // press that never moved the knob commits nothing.
-    const handlePointerUp = useCallback(() => {
+    const handlePointerUp = () => {
         const drag = dragRef.current;
         dragRef.current = null;
         if (drag?.moved) {
             onCommit(drag.lastValue, drag.codeOnly);
         }
-    }, [onCommit]);
+    };
 
     const degrees = degreesOf(value, range);
     const top = detent ? -5 : 0;

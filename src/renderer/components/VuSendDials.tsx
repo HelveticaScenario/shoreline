@@ -5,7 +5,8 @@ import {
     type VuMeterGhost,
     type VuSendDef,
 } from '../../shared/dsl/vuMeterTypes';
-import { Knob, type KnobHandlers, type KnobRange } from './VuKnob';
+import type { MixerController } from '../mixer/MixerController';
+import { Knob, type KnobRange } from './VuKnob';
 
 /** Height of one row of send dials, letter included. */
 export const SEND_ROW_HEIGHT = 32;
@@ -39,16 +40,14 @@ export function VuSendDials({
     buses,
     sends,
     ghost,
-    onKnobChange,
-    onKnobCommit,
-    registerKnob,
-    unregisterKnob,
+    mixer,
 }: {
     trackKey: string;
     buses: SendBus[];
     sends: VuSendDef[] | undefined;
     ghost: VuMeterGhost | undefined;
-} & KnobHandlers) {
+    mixer: MixerController;
+}) {
     const rows = Math.ceil(buses.length / SENDS_PER_ROW);
     return (
         <div
@@ -81,15 +80,32 @@ export function VuSendDials({
                                 locked={send.locked}
                                 title={sendTitle(bus.label, send)}
                                 onChange={(value, codeOnly) =>
-                                    onKnobChange(trackKey, id, value, codeOnly)
+                                    mixer.changeKnob(
+                                        trackKey,
+                                        id,
+                                        value,
+                                        codeOnly,
+                                    )
                                 }
                                 onCommit={(value, codeOnly) =>
-                                    onKnobCommit(trackKey, id, value, codeOnly)
+                                    mixer.commitKnob(
+                                        trackKey,
+                                        id,
+                                        value,
+                                        codeOnly,
+                                    )
                                 }
                                 registerSvg={(el) =>
                                     el
-                                        ? registerKnob(trackKey, id, el)
-                                        : unregisterKnob(trackKey, id)
+                                        ? mixer.meters.registerKnob(
+                                              trackKey,
+                                              id,
+                                              el,
+                                          )
+                                        : mixer.meters.unregisterKnob(
+                                              trackKey,
+                                              id,
+                                          )
                                 }
                             />
                         </div>
