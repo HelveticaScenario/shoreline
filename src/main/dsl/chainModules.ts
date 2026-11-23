@@ -54,18 +54,21 @@ export function carryDrySource(copy: object, value: object): void {
 }
 
 /**
- * Record `dry` as the source of `result` and of each of its named outputs,
- * so `.wet()` works on a root and on an output named explicitly.
+ * A chain call's `result` came from `receiver`: `.wet()` fades against it,
+ * and the result is rooted at the bus or group the receiver is. Both hold
+ * for a module's set of outputs and for each output named explicitly.
  */
-function markWet(result: unknown, dry: unknown): void {
+function follow(result: unknown, receiver: unknown): void {
     if (typeof result !== 'object' || result === null) {
         return;
     }
-    DRY.set(result, dry);
-    for (const output of Object.values(outputSetOf(result)?.values ?? {})) {
-        if (typeof output === 'object' && output !== null) {
-            DRY.set(output, dry);
-        }
+    const outputs = Object.values(outputSetOf(result)?.values ?? {}).filter(
+        (output): output is object =>
+            typeof output === 'object' && output !== null,
+    );
+    for (const signal of [result, ...outputs]) {
+        DRY.set(signal, receiver);
+        carrySignalRoot(signal, receiver);
     }
 }
 
@@ -86,10 +89,7 @@ export function createChainInstaller(target: ChainTarget): ChainInstaller {
             return target.empty();
         }
         const result = host.chainFunction(path)(receiver, ...args);
-        markWet(result, receiver);
-        if (!outputSetOf(result)) {
-            carrySignalRoot(result, receiver);
-        }
+        follow(result, receiver);
         return result;
     };
 

@@ -1,43 +1,6 @@
-use deserr::Deserr;
-use schemars::JsonSchema;
-
+use crate::dsp::filters::svf_module::svf_filter;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
-use crate::{
-    dsp::filters::resonant_svf::{self, Response, SvfFilterState, SvfLane},
-    poly::{PolyOutput, PolySignal},
-};
-
-#[params]
-#[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct HighpassFilterParams {
-    #[input("the sound to filter", type = audio)]
-    input: PolySignal,
-    #[input(
-        "cutoff frequency; tops out just under half the sample rate",
-        type = frequency,
-        range = (-3.71, ..),
-    )]
-    cutoff: PolySignal,
-    #[input(
-        "resonant peak at the cutoff; keeps sharpening past 5",
-        type = control,
-        default = 0.0,
-        range = (0.0, ..),
-        control_range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    resonance: Option<PolySignal>,
-}
-
-#[derive(Outputs, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct HighpassFilterOutputs {
-    #[output("output", "filtered signal", type = cv, default)]
-    sample: PolyOutput,
-}
 
 const HPF_DOCS: ModuleDocs = ModuleDocs {
     summary: "Resonant highpass filter",
@@ -67,46 +30,13 @@ const HPF_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(
-    name = "$hpf",
+svf_filter! {
     docs = HPF_DOCS,
-    patch_update,
-    args(input, cutoff, resonance)
-)]
-pub struct HighpassFilter {
-    outputs: HighpassFilterOutputs,
-    state: SvfFilterState,
-    lane_state: Box<[SvfLane]>,
-    params: HighpassFilterParams,
+    name = "$hpf",
+    ident = HighpassFilter,
+    response = Highpass,
+    freq = cutoff: "cutoff frequency; tops out just under half the sample rate",
+    resonance = 0.0: "resonant peak at the cutoff; keeps sharpening past 5",
+    db12 = "2-pole highpass: 12 dB/oct",
+    db24 = "4-pole highpass: 24 dB/oct, flat above the cutoff at resonance 0",
 }
-
-impl HighpassFilter {
-    fn update(&mut self, sample_rate: f32) {
-        let lanes = self.lane_count();
-        resonant_svf::run(
-            Response::Highpass,
-            lanes,
-            &self.params.input,
-            &self.params.cutoff,
-            &self.params.resonance,
-            0.0,
-            sample_rate,
-            &mut self.state,
-            &mut self.lane_state,
-            &mut self.outputs.sample,
-        );
-    }
-}
-
-impl crate::types::PatchUpdateHandler for HighpassFilter {
-    fn on_patch_update(&mut self) {
-        resonant_svf::on_patch_update(
-            &self.params.cutoff,
-            &self.params.resonance,
-            &mut self.state,
-            &mut self.lane_state,
-        );
-    }
-}
-
-message_handlers!(impl HighpassFilter {});

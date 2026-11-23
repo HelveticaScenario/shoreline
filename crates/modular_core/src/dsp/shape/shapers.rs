@@ -10,6 +10,8 @@
 use std::f32::consts::PI;
 use std::sync::LazyLock;
 
+use crate::dsp::utils::saturation::tanh_pade;
+
 /// Sign as Surge XT defines it for shapers: `x >= 0 ? +1 : -1` (zero counts as +1).
 #[inline]
 fn sgn(x: f32) -> f32 {
@@ -24,12 +26,11 @@ fn unit_clip(x: f32) -> f32 {
 
 // ============ Saturators ============
 
-/// Padé tanh approximation on an already-driven input: `x·(27 + x²)/(27 + 9x²)`,
-/// clamped to ±1. This is Surge XT's `TANH` body (closer to ideal than plain tanh).
+/// Padé tanh approximation on an already-driven input, clamped to ±1. This
+/// is Surge XT's `TANH` body (closer to ideal than plain tanh).
 #[inline]
 pub fn tanh_driven(x: f32) -> f32 {
-    let xx = x * x;
-    unit_clip(x * (27.0 + xx) / (27.0 + 9.0 * xx))
+    tanh_pade(x)
 }
 
 /// `TANH`: soft saturation.

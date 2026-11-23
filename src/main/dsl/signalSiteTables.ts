@@ -10,6 +10,7 @@ import { resolvableOutputs } from './outputResolution';
 import { processModuleSchema, qualifiesForChain } from './paramsSchema';
 import { signalParamsOf } from './signalParams';
 import {
+    chainedOutputsTypeName,
     PATTERN_TYPES,
     qualifiedMultiOutputInterfaceName,
 } from './typescriptLibGen';
@@ -154,8 +155,10 @@ export function buildSignalSiteTables(
             stereo: schema.stereo as ModuleSiteInfo['stereo'],
         };
         if ((schema.outputs ?? []).length > 1) {
-            tables.roots[qualifiedMultiOutputInterfaceName(schema)] =
-                resolvableOutputs(schema);
+            const outputs = resolvableOutputs(schema);
+            tables.roots[qualifiedMultiOutputInterfaceName(schema)] = outputs;
+            // Chained, the module is typed by its own alias.
+            tables.roots[chainedOutputsTypeName(schema)] = outputs;
         }
         // A pattern is the root of its `$cycle`.
         if (schema.name === '$cycle') {

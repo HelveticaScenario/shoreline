@@ -85,13 +85,9 @@ struct MultimodeParams {
     #[input(
         "run at twice the engine rate: less aliasing from clipping, folding and self-oscillation, and a truer highpass at high cutoffs; false costs less CPU"
     )]
-    #[serde(default = "default_true")]
-    #[deserr(default = default_true())]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
     high_res: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]

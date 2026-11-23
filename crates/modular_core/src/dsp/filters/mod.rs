@@ -3,6 +3,7 @@ use crate::params::ParamsDeserializer;
 use crate::types::{Module, ModuleSchema, SampleableConstructor};
 use std::collections::HashMap;
 
+pub mod analog;
 pub mod apf;
 pub mod bandpass;
 pub mod eq;
@@ -11,19 +12,23 @@ pub mod jup6f;
 pub mod lowpass;
 pub mod lpg;
 pub mod multimode;
+pub mod notch;
 pub mod resonant_svf;
 pub mod surge;
 pub mod svf_core;
+mod svf_module;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     lowpass::LowpassFilter::install_constructor(map);
     apf::Allpass::install_constructor(map);
     highpass::HighpassFilter::install_constructor(map);
     bandpass::BandpassFilter::install_constructor(map);
+    notch::NotchFilter::install_constructor(map);
     jup6f::Jup6f::install_constructor(map);
     lpg::Lpg::install_constructor(map);
     multimode::Multimode::install_constructor(map);
     eq::ParametricEq::install_constructor(map);
+    analog::install_constructors(map);
     surge::install_constructors(map);
 }
 
@@ -40,10 +45,12 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     apf::Allpass::install_params_deserializer(map);
     highpass::HighpassFilter::install_params_deserializer(map);
     bandpass::BandpassFilter::install_params_deserializer(map);
+    notch::NotchFilter::install_params_deserializer(map);
     jup6f::Jup6f::install_params_deserializer(map);
     lpg::Lpg::install_params_deserializer(map);
     multimode::Multimode::install_params_deserializer(map);
     eq::ParametricEq::install_params_deserializer(map);
+    analog::install_params_deserializers(map);
     surge::install_params_deserializers(map);
 }
 
@@ -53,11 +60,13 @@ pub fn schemas() -> Vec<ModuleSchema> {
         apf::Allpass::get_schema(),
         highpass::HighpassFilter::get_schema(),
         bandpass::BandpassFilter::get_schema(),
+        notch::NotchFilter::get_schema(),
         jup6f::Jup6f::get_schema(),
         lpg::Lpg::get_schema(),
         multimode::Multimode::get_schema(),
         eq::ParametricEq::get_schema(),
     ];
+    schemas.extend(analog::schemas());
     schemas.extend(surge::schemas());
     schemas
 }
