@@ -54,6 +54,6 @@ pub fn prime() {
 
 /// The `FIRIPOL_N` taps for interpolation phase `phase` (0..=`FIRIPOL_M`).
 #[inline]
-pub fn taps(phase: usize) -> &'static [f32] {
-    &SINC_TABLE[phase * FIRIPOL_N..(phase + 1) * FIRIPOL_N]
+pub fn taps(phase: usize) -> &'static [f32; FIRIPOL_N] {
+    &SINC_TABLE.as_chunks::<FIRIPOL_N>().0[phase]
 }

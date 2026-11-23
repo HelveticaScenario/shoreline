@@ -44,7 +44,7 @@
         "artifacts": "napi artifacts",
         "build": "node ../../scripts/napi-build.mjs --platform --release --esm && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json referenceCategories.json",
         "build:debug": "node ../../scripts/napi-build.mjs --platform --esm && cargo run -p modular_core --bin generate-schemas -- schemas.json referenceCategories.json",
-        "build:alloc": "node ../../scripts/napi-build.mjs --platform --release --esm --features=alloc-detector && node ../../scripts/copy-debuginfo.mjs --dsymutil && cargo run -p modular_core --bin generate-schemas --release -- schemas.json referenceCategories.json",
+        "build:alloc": "node ../../scripts/napi-build.mjs --platform --release --esm --features=alloc-detector && node ../../scripts/copy-debuginfo.mjs && cargo run -p modular_core --bin generate-schemas --release -- schemas.json referenceCategories.json",
         "format": "run-p format:rs format:toml",
         "format:toml": "taplo format",
         "format:rs": "cargo fmt",

@@ -2,5 +2,5 @@
 # machines and CI. rustfmt output drifts between releases — bump this version
 # deliberately and reformat in the same commit when you do.
 [toolchain]
-channel = "1.96.0"
+channel = "1.100.0"
 components = ["rustfmt", "clippy"]
