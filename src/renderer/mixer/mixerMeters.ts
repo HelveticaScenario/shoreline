@@ -1,5 +1,5 @@
 import type { VuMeterFrame } from '@modular/core';
-import type { VuControl, VuMeterDef } from '../../shared/dsl/vuMeterTypes';
+import type { VuMeterDef } from '../../shared/dsl/vuMeterTypes';
 import { outGainToDb } from '../../shared/dsl/vuMeterTypes';
 import type { VuBallistics } from '../app/vuMeter';
 import {
@@ -11,7 +11,8 @@ import {
     voltsToDb,
 } from '../app/vuMeter';
 import { readVuMeterColors, type VuMeterColors } from '../app/vuMeterColors';
-import { type KnobId, paintKnob } from '../components/VuKnob';
+import { type KnobRange, paintKnob } from './knobPaint';
+import { type KnobId, knobControl } from './mixerKnobId';
 import type { MixerStore } from './mixerStore';
 
 interface ChannelLevels {
@@ -20,16 +21,18 @@ interface ChannelLevels {
     peakDb: number;
 }
 
-/** The bus a send knob's id names. */
-export const busOfKnob = (id: KnobId): string => id.slice('send:'.length);
+/** A mounted meter canvas and what it meters. */
+interface MeterCanvas {
+    canvas: HTMLCanvasElement;
+    /** The module whose frames the meter draws. */
+    moduleId: string;
+    channels: number;
+}
 
-/** The control knob `id` sets on `output`. */
-export function knobControl(output: VuMeterDef, id: KnobId): VuControl | null {
-    if (id === 'pan') {
-        return output.pan;
-    }
-    const bus = busOfKnob(id);
-    return output.sends?.find((s) => s.bus === bus) ?? null;
+/** A mounted locked knob and the range its arc spans. */
+interface LockedKnob {
+    svg: SVGSVGElement;
+    range: KnobRange;
 }
 
 /** Show a meter's highest peak on its readout pill, red above 0 dB. */
@@ -44,10 +47,10 @@ function showPeak(readout: HTMLElement, peakDb: number): void {
  * for resizes and fader moves while it is stopped.
  */
 export class MixerMeters {
-    private readonly canvases = new Map<string, HTMLCanvasElement>();
+    private readonly canvases = new Map<string, MeterCanvas>();
     private readonly readouts = new Map<string, HTMLElement>();
-    /** Locked knobs' SVGs by track key, then knob id. */
-    private readonly knobs = new Map<string, Map<KnobId, SVGSVGElement>>();
+    /** Locked knobs by track key, then knob id. */
+    private readonly knobs = new Map<string, Map<KnobId, LockedKnob>>();
     /** Per-channel peak-marker state by meter key. */
     private readonly ballistics = new Map<string, VuBallistics[]>();
     /** Highest peak per meter since its readout was last reset, in dB. It
@@ -59,8 +62,14 @@ export class MixerMeters {
 
     constructor(private readonly store: MixerStore) {}
 
-    registerCanvas(key: string, canvas: HTMLCanvasElement): void {
-        this.canvases.set(key, canvas);
+    /** Meter `key` draws module `moduleId`'s frames on `canvas`. */
+    registerCanvas(
+        key: string,
+        canvas: HTMLCanvasElement,
+        moduleId: string,
+        channels: number,
+    ): void {
+        this.canvases.set(key, { canvas, channels, moduleId });
     }
 
     unregisterCanvas(key: string): void {
@@ -78,9 +87,14 @@ export class MixerMeters {
         this.readouts.delete(key);
     }
 
-    registerKnob(key: string, id: KnobId, el: SVGSVGElement): void {
-        const forTrack = this.knobs.get(key) ?? new Map();
-        forTrack.set(id, el);
+    registerKnob(
+        key: string,
+        id: KnobId,
+        svg: SVGSVGElement,
+        range: KnobRange,
+    ): void {
+        const forTrack = this.knobs.get(key) ?? new Map<KnobId, LockedKnob>();
+        forTrack.set(id, { range, svg });
         this.knobs.set(key, forTrack);
     }
 
@@ -107,20 +121,17 @@ export class MixerMeters {
      * `gainDbOverride` paints an in-flight fader value.
      */
     redraw(key: string, gainDbOverride?: number | null): void {
-        const canvas = this.canvases.get(key);
-        if (!canvas) {
+        const meter = this.canvases.get(key);
+        if (!meter) {
             return;
         }
         const channels =
             this.lastChannels.get(key) ??
-            Array.from(
-                { length: Number(canvas.dataset.channels ?? 1) },
-                () => ({
-                    fastDb: -Infinity,
-                    peakDb: -Infinity,
-                    rmsDb: -Infinity,
-                }),
-            );
+            Array.from({ length: meter.channels }, () => ({
+                fastDb: -Infinity,
+                peakDb: -Infinity,
+                rmsDb: -Infinity,
+            }));
         const output = this.store.output(key);
         const gainDb =
             gainDbOverride !== undefined
@@ -128,7 +139,14 @@ export class MixerMeters {
                 : output && output.gain.value !== null
                   ? outGainToDb(output.gain.value)
                   : null;
-        this.paint(key, canvas, channels, gainDb, output, readVuMeterColors());
+        this.paint(
+            key,
+            meter.canvas,
+            channels,
+            gainDb,
+            output,
+            readVuMeterColors(),
+        );
     }
 
     /** A stopped engine makes no sound: every meter falls to silence. The
@@ -154,12 +172,12 @@ export class MixerMeters {
         const outputByKey = new Map(this.store.outputs.map((o) => [o.key, o]));
         const colors = readVuMeterColors();
         const now = performance.now();
-        for (const [key, canvas] of this.canvases) {
-            const frame = frameByModule.get(canvas.dataset.tapModuleId ?? '');
+        for (const [key, meter] of this.canvases) {
+            const frame = frameByModule.get(meter.moduleId);
             if (!frame) {
                 continue;
             }
-            const channelCount = Number(canvas.dataset.channels ?? 1);
+            const channelCount = meter.channels;
             let ballistics = this.ballistics.get(key);
             if (!ballistics || ballistics.length !== channelCount) {
                 ballistics = Array.from(
@@ -189,7 +207,7 @@ export class MixerMeters {
             const gainValue = liveGain ?? output?.gain.value ?? null;
             this.paint(
                 key,
-                canvas,
+                meter.canvas,
                 channels,
                 gainValue === null ? null : outGainToDb(gainValue),
                 output,
@@ -235,11 +253,11 @@ export class MixerMeters {
         if (!knobs) {
             return;
         }
-        for (const [id, svg] of knobs) {
+        for (const [id, knob] of knobs) {
             const index = knobControl(output, id)?.sourceIndex;
             const value = index === undefined ? undefined : values[index];
             if (value !== undefined) {
-                paintKnob(svg, value);
+                paintKnob(knob.svg, knob.range, value);
             }
         }
     }

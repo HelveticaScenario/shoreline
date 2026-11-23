@@ -1,7 +1,7 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import type { editor } from 'monaco-editor';
 import './App.css';
-import { getBufferId } from './app/buffers';
+import { formatBufferLabel, getBufferId } from './app/buffers';
 import { useAppCommands } from './app/hooks/useAppCommands';
 import { useControlActions, useControlViews } from './app/hooks/useControls';
 import { useEditorBuffers } from './app/hooks/useEditorBuffers';
@@ -44,6 +44,7 @@ import { useBottomPanel } from './hooks/useBottomPanel';
 import { useEditableConfig } from './hooks/useEditableConfig';
 import { useKeybindingsFile } from './keybindings/useKeybindingsFile';
 import { useKeymap } from './keybindings/useKeymap';
+import { useReservedCtrlEnter } from './keybindings/useReservedCtrlEnter';
 import { MixerController } from './mixer/MixerController';
 import { useMixerJump } from './mixer/useMixerJump';
 import { useTheme } from './themes/ThemeContext';
@@ -61,6 +62,16 @@ const createEqController = () =>
             ),
     });
 
+const createMixer = () =>
+    new MixerController({
+        setModuleParam: (moduleId, moduleType, params) =>
+            electronAPI.synthesizer.setModuleParam(
+                moduleId,
+                moduleType,
+                params,
+            ),
+    });
+
 const toggleLink = (enabled: boolean) => {
     void electronAPI.synthesizer.enableLink(enabled);
     // The transport is only polled while playing, so show the change now.
@@ -75,13 +86,13 @@ function App() {
     const { codeBackdropOpacity, performanceScale, prettierConfig } =
         useTheme();
     const prettierOptions = resolvePrettierOptions(prettierConfig);
+    const codeStyle = codeStyleFromPrettier(prettierOptions);
 
     const [editorInstance, setEditorInstance] =
         useState<editor.IStandaloneCodeEditor | null>(null);
-    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     /** Inline `ui: true` EQ panels of the running patch. */
     const [eqController] = useState(createEqController);
-    const [mixer] = useState(() => new MixerController());
+    const [mixer] = useState(createMixer);
     const [scopeCanvases] = useState(() => new ScopeCanvases());
     const [isEngineHealthOpen, setIsEngineHealthOpen] = useState(false);
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
@@ -126,7 +137,6 @@ function App() {
         activeBufferId,
         activeSourceId,
         buffers,
-        editorRef,
         eqController,
         errors,
         getCode,
@@ -146,9 +156,9 @@ function App() {
         visibleControls: controls.views,
     });
     const controlActions = useControlActions({
+        codeStyle,
         editorInstance,
         onUse: revealInPerformance,
-        prettierConfig,
         setButtonValue: patch.setButtonValue,
         setSliderValue: patch.setSliderValue,
         views: controls.views,
@@ -156,13 +166,11 @@ function App() {
 
     useEffect(() => {
         eqController.attachEditor(editorInstance);
-        mixer.attachEditor(editorInstance);
+        mixer.edits.attachEditor(editorInstance);
     }, [eqController, mixer, editorInstance]);
     useEffect(() => {
-        eqController.setCodeStyle(
-            codeStyleFromPrettier(resolvePrettierOptions(prettierConfig)),
-        );
-    }, [eqController, prettierConfig]);
+        eqController.setCodeStyle(codeStyle);
+    }, [eqController, codeStyle]);
     useEffect(() => {
         if (!isClockRunning) {
             eqController.onStopped();
@@ -183,7 +191,7 @@ function App() {
         onFrame: ({ scopes, meters, transport }: EngineFrame) => {
             eqController.onScopeFrames(scopes, performance.now());
             scopeCanvases.draw(scopes);
-            mixer.drawFrames(meters);
+            mixer.meters.drawFrames(meters);
             patch.settleQueuedUpdate(transport);
         },
         pollMeters: isMixerVisible,
@@ -224,9 +232,9 @@ function App() {
         submit: (trigger) => void patch.submit(trigger),
         toggleRecording: recording.toggle,
     });
-    useKeymap();
+    useKeymap(keybindingsFile.revision);
+    useReservedCtrlEnter();
     useTestApi({
-        editorRef,
         eqController,
         getLastResult: patch.getLastResult,
         isClockRunning,
@@ -239,7 +247,7 @@ function App() {
     });
 
     const fileName = (buffer: EditorBuffer) =>
-        files.formatFileLabel(buffer).split(/[/\\]/).at(-1)!;
+        formatBufferLabel(buffer).split(/[/\\]/).at(-1)!;
 
     return (
         <div className="app">
@@ -300,7 +308,6 @@ function App() {
                                 viewStates={files.viewStates}
                                 openFiles={buffers.map(getBufferId)}
                                 onChange={handleEditorChange}
-                                editorRef={editorRef}
                                 onEditorChange={setEditorInstance}
                                 scopeViews={patchUi.scopeViews}
                                 scopeDecorations={patchUi.scopeDecorations}

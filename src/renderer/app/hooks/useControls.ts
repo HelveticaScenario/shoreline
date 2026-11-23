@@ -1,13 +1,11 @@
 import { useState } from 'react';
 import type { editor } from 'monaco-editor';
-import type { PrettierConfig } from '../../../shared/ipcTypes';
-import { resolvePrettierOptions } from '../../components/monaco/formattingProvider';
 import {
     type ResolvedControls,
     extractControls,
     resolveControls,
 } from '../../dsl/extractControls';
-import { codeStyleFromPrettier } from '../../dsl/listEdits';
+import type { CodeStyle } from '../../dsl/listEdits';
 import electronAPI from '../../electronAPI';
 import { applyButtonChange, applyGroupCollapse } from '../buttonChange';
 import { bindControls } from '../controlBinding';
@@ -101,14 +99,15 @@ export function useControlViews(
 export function useControlActions({
     views,
     editorInstance,
-    prettierConfig,
+    codeStyle,
     onUse,
     setSliderValue,
     setButtonValue,
 }: {
     views: ReturnType<typeof bindControls>;
     editorInstance: editor.IStandaloneCodeEditor | null;
-    prettierConfig: PrettierConfig;
+    /** How generated code is laid out. */
+    codeStyle: CodeStyle;
     /** A control was used; `offset` is where its arguments start. */
     onUse: (offset: number) => void;
     setSliderValue: (moduleId: string, value: number) => void;
@@ -157,12 +156,7 @@ export function useControlActions({
     };
 
     const toggleGroup = (callStart: number, collapsed: boolean) => {
-        applyGroupCollapse(
-            { callStart },
-            collapsed,
-            model(),
-            codeStyleFromPrettier(resolvePrettierOptions(prettierConfig)),
-        );
+        applyGroupCollapse({ callStart }, collapsed, model(), codeStyle);
     };
 
     const jumpTo = (offset: number) => {

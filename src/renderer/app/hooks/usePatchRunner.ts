@@ -1,6 +1,5 @@
-import { useEffect, useRef, useState, type RefObject } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { QueuedTrigger } from '@modular/core';
-import type { editor } from 'monaco-editor';
 import type {
     DSLExecuteResult,
     TransportSnapshot,
@@ -8,6 +7,7 @@ import type {
 import { setActiveInterpolationResolutions } from '../../../shared/dsl/spanTypes';
 import { applyRuntimeResolutions } from '../../components/monaco/outputResolutionHints';
 import electronAPI from '../../electronAPI';
+import { getActiveEditor } from '../../keybindings/dispatch';
 import type { EqPanelController } from '../../eq/eqPanelController';
 import type { MixerController } from '../../mixer/MixerController';
 import type { EditorBuffer } from '../../types/editor';
@@ -43,7 +43,6 @@ export function usePatchRunner({
     activeBufferId,
     activeSourceId,
     getCode,
-    editorRef,
     eqController,
     mixer,
     errors,
@@ -55,9 +54,6 @@ export function usePatchRunner({
     activeSourceId: string | undefined;
     /** The active buffer's text as the editor has it. */
     getCode: () => string;
-    /** Read when a run's result arrives, so a run started as the editor
-     *  mounts still decorates it. */
-    editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
     eqController: EqPanelController;
     mixer: MixerController;
     errors: PatchErrors;
@@ -129,7 +125,9 @@ export function usePatchRunner({
         setRunning({ bufferId: activeBufferId, sourceId });
         errors.clear();
 
-        const editorNow = editorRef.current;
+        // Read at call time, so a run started as the editor mounts still
+        // decorates it.
+        const editorNow = getActiveEditor();
         const model = editorNow?.getModel();
         if (model) {
             void applyRuntimeResolutions(

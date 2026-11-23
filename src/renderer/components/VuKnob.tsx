@@ -1,78 +1,31 @@
 import React, { useRef } from 'react';
-import type { SendGhostKey } from '../../shared/dsl/vuMeterTypes';
+import {
+    KNOB_CENTER,
+    KNOB_RADIUS,
+    KNOB_TRACK_ARC,
+    type KnobRange,
+    knobPointerTransform,
+    knobValueArc,
+} from '../mixer/knobPaint';
+import type { MixerController } from '../mixer/MixerController';
+import type { KnobId } from '../mixer/mixerKnobId';
+import { isJumpGesture } from './controlPanel/controlChrome';
 
-/** The knob's sweep: 135° either side of straight up. */
-const SWEEP_DEGREES = 135;
-const CENTER = 11;
-const RADIUS = 8;
 /** Vertical drag pixels across the knob's whole range. */
 const DRAG_PIXELS = 100;
 
-/** A track's knob: its pan, or its send to a bus. */
-export type KnobId = 'pan' | SendGhostKey;
-
-/** The span a knob covers and the value its arc fills from. */
-export interface KnobRange {
-    min: number;
-    max: number;
-    /** Where the value arc starts: the centre detent of a pan knob, the
-     *  bottom of a send dial. */
-    origin: number;
-}
-
-/** A point on the knob's arc at `degrees` clockwise from straight up. */
-function arcPoint(degrees: number): string {
-    const rad = (degrees * Math.PI) / 180;
-    return `${(CENTER + RADIUS * Math.sin(rad)).toFixed(2)} ${(CENTER - RADIUS * Math.cos(rad)).toFixed(2)}`;
-}
-
-/** The arc between two angles, drawn clockwise from the lesser. */
-function arc(from: number, to: number): string {
-    const [a, b] = from <= to ? [from, to] : [to, from];
-    if (b - a < 0.5) {
-        return '';
-    }
-    return `M ${arcPoint(a)} A ${RADIUS} ${RADIUS} 0 ${b - a > 180 ? 1 : 0} 1 ${arcPoint(b)}`;
-}
-
-function degreesOf(value: number, { min, max }: KnobRange): number {
-    const t = Math.min(1, Math.max(0, (value - min) / (max - min)));
-    return -SWEEP_DEGREES + t * 2 * SWEEP_DEGREES;
-}
-
-const TRACK_ARC = arc(-SWEEP_DEGREES, SWEEP_DEGREES);
-
 /**
- * Point a knob's value arc and pointer at `value`. A locked knob is painted
- * through this from the meter loop, outside React; its range rides on the
- * SVG's data attributes.
- */
-export function paintKnob(svg: SVGSVGElement, value: number): void {
-    const range: KnobRange = {
-        max: Number(svg.dataset.max),
-        min: Number(svg.dataset.min),
-        origin: Number(svg.dataset.origin),
-    };
-    const degrees = degreesOf(value, range);
-    svg.querySelector('.vu-knob-value')?.setAttribute(
-        'd',
-        arc(degreesOf(range.origin, range), degrees),
-    );
-    svg.querySelector('.vu-knob-pointer')?.setAttribute(
-        'transform',
-        `rotate(${degrees} ${CENTER} ${CENTER})`,
-    );
-}
-
-/**
- * A mixer knob. Vertical drag sets the value live and the release commits
- * it; right-click commits `resetValue`. A Ctrl/Cmd drag edits the source
- * only, showing a faded ghost pointer at the code-side value while it
- * diverges from the audio, and Ctrl/Cmd right-click reverts the source to
- * the audio's value. A locked knob (a signal-driven value) takes no input
- * and registers its SVG for the meter loop to paint.
+ * Knob `id` of the track named `trackKey`. Vertical drag sets the value live
+ * and the release commits it; right-click commits `resetValue`. A Ctrl/Cmd
+ * drag edits the source only, showing a faded ghost pointer at the code-side
+ * value while it diverges from the audio, and Ctrl/Cmd right-click reverts
+ * the source to the audio's value. A locked knob (a signal-driven value)
+ * takes no input and registers its SVG for the meter loop to paint.
  */
 export function Knob({
+    mixer,
+    trackKey,
+    id,
     value,
     ghost,
     range,
@@ -82,10 +35,10 @@ export function Knob({
     detent,
     className,
     title,
-    onChange,
-    onCommit,
-    registerSvg,
 }: {
+    mixer: MixerController;
+    trackKey: string;
+    id: KnobId;
     value: number;
     /** Code-side value while it diverges from the audio. */
     ghost: number | undefined;
@@ -98,9 +51,6 @@ export function Knob({
     detent?: boolean;
     className: string;
     title: string;
-    onChange: (value: number, codeOnly: boolean) => void;
-    onCommit: (value: number, codeOnly: boolean) => void;
-    registerSvg: (el: SVGSVGElement | null) => void;
 }) {
     const dragRef = useRef<{
         startY: number;
@@ -110,6 +60,17 @@ export function Knob({
         moved: boolean;
     } | null>(null);
 
+    const commit = (next: number, codeOnly: boolean) =>
+        mixer.knobs.commit(trackKey, id, next, codeOnly);
+
+    const registerSvg = (el: SVGSVGElement | null) => {
+        if (el) {
+            mixer.meters.registerKnob(trackKey, id, el, range);
+        } else {
+            mixer.meters.unregisterKnob(trackKey, id);
+        }
+    };
+
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         // Right presses belong to the contextmenu (reset/revert) gesture.
         if (e.button !== 0) {
@@ -117,7 +78,7 @@ export function Knob({
         }
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
-        const codeOnly = e.ctrlKey || e.metaKey;
+        const codeOnly = isJumpGesture(e);
         // A code-only drag continues from the code-side value.
         const startValue = codeOnly ? (ghost ?? value) : value;
         dragRef.current = {
@@ -142,7 +103,7 @@ export function Knob({
         if (next !== drag.lastValue) {
             drag.lastValue = next;
             drag.moved = true;
-            onChange(next, drag.codeOnly);
+            mixer.knobs.change(trackKey, id, next, drag.codeOnly);
         }
     };
 
@@ -153,11 +114,10 @@ export function Knob({
         const drag = dragRef.current;
         dragRef.current = null;
         if (drag?.moved) {
-            onCommit(drag.lastValue, drag.codeOnly);
+            commit(drag.lastValue, drag.codeOnly);
         }
     };
 
-    const degrees = degreesOf(value, range);
     const top = detent ? -5 : 0;
     return (
         <div
@@ -173,24 +133,21 @@ export function Knob({
                     ? undefined
                     : (e) => {
                           e.preventDefault();
-                          if (e.ctrlKey || e.metaKey) {
+                          if (isJumpGesture(e)) {
                               // Revert the source to the audio's value; no-op
                               // when they already agree.
                               if (ghost !== undefined) {
-                                  onCommit(value, true);
+                                  commit(value, true);
                               }
                               return;
                           }
-                          onCommit(resetValue, false);
+                          commit(resetValue, false);
                       }
             }
         >
             <svg
                 ref={locked ? registerSvg : undefined}
                 viewBox={`0 ${top} 22 ${22 - top}`}
-                data-min={range.min}
-                data-max={range.max}
-                data-origin={range.origin}
             >
                 {detent && (
                     <path
@@ -198,28 +155,28 @@ export function Knob({
                         className="vu-knob-detent"
                     />
                 )}
-                <path className="vu-knob-track" d={TRACK_ARC} />
+                <path className="vu-knob-track" d={KNOB_TRACK_ARC} />
                 {ghost !== undefined && (
                     <line
                         className="vu-knob-ghost"
-                        x1={CENTER}
-                        y1={CENTER}
-                        x2={CENTER}
-                        y2={CENTER - RADIUS + 1}
-                        transform={`rotate(${degreesOf(ghost, range)} ${CENTER} ${CENTER})`}
+                        x1={KNOB_CENTER}
+                        y1={KNOB_CENTER}
+                        x2={KNOB_CENTER}
+                        y2={KNOB_CENTER - KNOB_RADIUS + 1}
+                        transform={knobPointerTransform(ghost, range)}
                     />
                 )}
                 <path
                     className="vu-knob-value"
-                    d={arc(degreesOf(range.origin, range), degrees)}
+                    d={knobValueArc(value, range)}
                 />
                 <line
                     className="vu-knob-pointer"
-                    x1={CENTER}
-                    y1={CENTER}
-                    x2={CENTER}
-                    y2={CENTER - RADIUS + 1}
-                    transform={`rotate(${degrees} ${CENTER} ${CENTER})`}
+                    x1={KNOB_CENTER}
+                    y1={KNOB_CENTER}
+                    x2={KNOB_CENTER}
+                    y2={KNOB_CENTER - KNOB_RADIUS + 1}
+                    transform={knobPointerTransform(value, range)}
                 />
             </svg>
         </div>

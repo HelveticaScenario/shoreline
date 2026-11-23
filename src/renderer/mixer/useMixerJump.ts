@@ -31,9 +31,9 @@ export function useMixerJump({
     // by then the editor has swapped in the buffer's model, which the label
     // anchors were placed on.
     useEffect(() => {
-        mixer.setVisibleBuffer(visibleBufferId);
+        mixer.edits.setVisibleBuffer(visibleBufferId);
         const key = pendingRef.current;
-        const offset = key === null ? null : mixer.labelOffset(key);
+        const offset = key === null ? null : mixer.edits.labelOffset(key);
         if (offset !== null) {
             pendingRef.current = null;
             jumpTo(offset);
@@ -41,12 +41,12 @@ export function useMixerJump({
     }, [visibleBufferId, mixer, jumpTo]);
 
     return (key: string) => {
-        const offset = mixer.labelOffset(key);
+        const offset = mixer.edits.labelOffset(key);
         if (offset !== null) {
             jumpTo(offset);
             return;
         }
-        const source = buffers.find((b) => b.id === mixer.sourceId);
+        const source = buffers.find((b) => b.id === mixer.edits.sourceId);
         if (source) {
             pendingRef.current = key;
             showBuffer(getBufferId(source));

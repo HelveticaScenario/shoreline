@@ -7,6 +7,9 @@ export interface MixerSnapshot {
     /** Code-side control values diverging from the running audio after
      *  code-only (Ctrl/Cmd) edits, keyed by meter key. */
     ghosts: ReadonlyMap<string, VuMeterGhost>;
+    /** The groups whose members are hidden, by key. They outlive the panel,
+     *  which unmounts with its tab, and every patch update. */
+    folded: ReadonlySet<string>;
 }
 
 /**
@@ -15,7 +18,11 @@ export interface MixerSnapshot {
  * the same tick; React subscribes through {@link useMixerSnapshot}.
  */
 export class MixerStore {
-    private snapshot: MixerSnapshot = { ghosts: new Map(), outputs: [] };
+    private snapshot: MixerSnapshot = {
+        folded: new Set(),
+        ghosts: new Map(),
+        outputs: [],
+    };
     private readonly listeners = new Set<() => void>();
 
     readonly subscribe = (listener: () => void): (() => void) => {
@@ -55,12 +62,22 @@ export class MixerStore {
      *  source, so audio and code agree and every ghost drops. */
     commit(outputs: VuMeterDef[]): void {
         this.set({
+            ...this.snapshot,
             ghosts:
                 this.snapshot.ghosts.size === 0
                     ? this.snapshot.ghosts
                     : new Map(),
             outputs,
         });
+    }
+
+    /** Hide or show the members of the group named `key`. */
+    toggleFold(key: string): void {
+        const folded = new Set(this.snapshot.folded);
+        if (!folded.delete(key)) {
+            folded.add(key);
+        }
+        this.set({ ...this.snapshot, folded });
     }
 
     /** Set or clear (`value` undefined) one ghost property of a meter. */

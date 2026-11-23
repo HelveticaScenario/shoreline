@@ -244,7 +244,7 @@ describe('installKeymap', () => {
         return {
             hasTextFocus: () => focused,
             trigger,
-        } as unknown as editor.ICodeEditor;
+        } as unknown as editor.IStandaloneCodeEditor;
     }
 
     test('editor command is not dispatched (event not consumed) when the editor lacks focus', () => {

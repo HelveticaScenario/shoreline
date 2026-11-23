@@ -1,9 +1,4 @@
-import React, {
-    useLayoutEffect,
-    useRef,
-    useState,
-    useSyncExternalStore,
-} from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { VuMeterDef } from '../../shared/dsl/vuMeterTypes';
 import { trackGates } from '../../shared/dsl/trackGates';
 import type { MixerController } from '../mixer/MixerController';
@@ -21,26 +16,6 @@ const READOUT_MIN_HEIGHT = 180;
  *  are shown; each row of dials needs this plus a row's height, so the
  *  sends give way before the pan knob does. */
 const SENDS_MIN_HEIGHT = 140;
-/**
- * The groups whose members are hidden, by key. Kept outside the panel, which
- * unmounts with its tab, and for as long as the app runs.
- */
-const foldStore = {
-    folded: new Set<string>() as ReadonlySet<string>,
-    listeners: new Set<() => void>(),
-    subscribe: (listener: () => void): (() => void) => {
-        foldStore.listeners.add(listener);
-        return () => foldStore.listeners.delete(listener);
-    },
-    toggle(key: string): void {
-        const next = new Set(foldStore.folded);
-        if (!next.delete(key)) {
-            next.add(key);
-        }
-        foldStore.folded = next;
-        foldStore.listeners.forEach((listener) => listener());
-    },
-};
 
 /** The letter a bus shows on its activator: A, B, … Z, AA, AB, … */
 function busLetter(index: number): string {
@@ -57,15 +32,11 @@ export function VuMeterPanel({
     onJump: (key: string) => void;
 }) {
     const jump = useJumpModifier();
-    const { outputs, ghosts } = useMixerSnapshot(mixer.store);
+    const { outputs, ghosts, folded } = useMixerSnapshot(mixer.store);
     const channelOutputs = outputs.filter((o) => !o.main);
     const trackOutputs = channelOutputs.filter((o) => !o.isBus);
     const busOutputs = channelOutputs.filter((o) => o.isBus);
     const mainOutput = outputs.find((o) => o.main) ?? null;
-    const folded = useSyncExternalStore(
-        foldStore.subscribe,
-        () => foldStore.folded,
-    );
     // Each group's members sit beside it; a track naming a group that is
     // not there stands on its own.
     const byKey = new Map(channelOutputs.map((o) => [o.key, o]));
@@ -144,7 +115,8 @@ export function VuMeterPanel({
                     output.isGroup
                         ? {
                               folded: folded.has(output.key),
-                              onToggle: () => foldStore.toggle(output.key),
+                              onToggle: () =>
+                                  mixer.store.toggleFold(output.key),
                           }
                         : undefined
                 }

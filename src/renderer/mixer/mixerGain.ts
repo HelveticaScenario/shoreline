@@ -10,7 +10,6 @@ import {
     computeSetMainGainEdit,
     computeTrackOptionEdit,
 } from '../dsl/trackSourceEdit';
-import electronAPI from '../electronAPI';
 import type { MixerParts } from './mixerParts';
 
 /** The output a fader gesture on `key` sets, when its gain is one it can. */
@@ -47,11 +46,11 @@ function writeGain(
 
 /** Drive the gain's lifted control and show `gain` as the audio's value. */
 function setLiveGain(
-    { store }: MixerParts,
+    { store, engine }: MixerParts,
     output: VuMeterDef & { gain: { moduleId: string } },
     gain: number,
 ): void {
-    void electronAPI.synthesizer.setModuleParam(
+    void engine.setModuleParam(
         output.gain.moduleId,
         '_smoothControl',
         outGainParams(gain),
@@ -65,112 +64,120 @@ function setLiveGain(
 
 const timerKey = (key: string) => `${key}:gain`;
 
-/**
- * Fader drag on a meter: drive the gain live and repaint the triangle at
- * once (the meter loop only runs while the clock does); the source write is
- * throttled. A code-only drag leaves the audio and the solid triangle alone
- * and moves only the ghost triangle, writing the source at the same rate.
- */
-export function changeGain(
-    parts: MixerParts,
-    key: string,
-    db: number,
-    codeOnly: boolean,
-): void {
-    const { store, edits, meters } = parts;
-    const output = faderTarget(parts, key);
-    if (!output) {
-        return;
-    }
-    // Snap to 0.5 dB steps; the scale floor means silence.
-    const snappedDb = Math.round(db * 2) / 2;
-    const gain =
-        snappedDb <= -60 ? 0 : Number(dbToOutGain(snappedDb).toPrecision(4));
-    const write = () => {
-        const current = faderTarget(parts, key);
-        if (current) {
-            writeGain(parts, current, gain);
-        }
-    };
+/** The gain faders of the mixer's meters. */
+export class MixerGain {
+    constructor(private readonly parts: MixerParts) {}
 
-    if (codeOnly) {
-        if (!output.main && !output.sourceLocation) {
+    /**
+     * Fader drag on a meter: drive the gain live and repaint the triangle
+     * at once (the meter loop only runs while the clock does); the source
+     * write is throttled. A code-only drag leaves the audio and the solid
+     * triangle alone and moves only the ghost triangle, writing the source
+     * at the same rate.
+     */
+    change(key: string, db: number, codeOnly: boolean): void {
+        const { parts } = this;
+        const { store, edits, meters } = parts;
+        const output = faderTarget(parts, key);
+        if (!output) {
             return;
         }
-        if (gain === store.ghost(key)?.gain) {
+        // Snap to 0.5 dB steps; the scale floor means silence.
+        const snappedDb = Math.round(db * 2) / 2;
+        const gain =
+            snappedDb <= -60
+                ? 0
+                : Number(dbToOutGain(snappedDb).toPrecision(4));
+        const write = () => {
+            const current = faderTarget(parts, key);
+            if (current) {
+                writeGain(parts, current, gain);
+            }
+        };
+
+        if (codeOnly) {
+            if (!output.main && !output.sourceLocation) {
+                return;
+            }
+            if (gain === store.ghost(key)?.gain) {
+                return;
+            }
+            store.setGhostProp(
+                key,
+                'gain',
+                gain === output.gain.value ? undefined : gain,
+            );
+            meters.redraw(key);
+            edits.schedule(timerKey(key), write);
             return;
         }
-        store.setGhostProp(
-            key,
-            'gain',
-            gain === output.gain.value ? undefined : gain,
-        );
-        meters.redraw(key);
+
+        if (gain === output.gain.value) {
+            return;
+        }
+        setLiveGain(parts, output, gain);
+        meters.redraw(key, gain === 0 ? -Infinity : snappedDb);
         edits.schedule(timerKey(key), write);
-        return;
     }
 
-    if (gain === output.gain.value) {
-        return;
+    /** Drag released: flush the final gain into the source immediately. */
+    commit(key: string, codeOnly: boolean): void {
+        const { parts } = this;
+        const { store, edits } = parts;
+        const output = store.output(key);
+        if (!output) {
+            return;
+        }
+        const gain = codeOnly
+            ? (store.ghost(key)?.gain ?? output.gain.value)
+            : output.gain.value;
+        if (gain === null) {
+            return;
+        }
+        edits.cancel(timerKey(key));
+        if (output.gain.moduleId) {
+            writeGain(parts, output, gain);
+        }
     }
-    setLiveGain(parts, output, gain);
-    meters.redraw(key, gain === 0 ? -Infinity : snappedDb);
-    edits.schedule(timerKey(key), write);
-}
 
-/** Drag released: flush the final gain into the source immediately. */
-export function commitGain(
-    parts: MixerParts,
-    key: string,
-    codeOnly: boolean,
-): void {
-    const { store, edits } = parts;
-    const output = store.output(key);
-    if (!output) {
-        return;
+    /** Revert the source to the gain the audio is running, dropping the
+     *  ghost; unity reverts by removing the option. No-op when code and
+     *  audio agree. */
+    revert(key: string): void {
+        const { parts } = this;
+        const { store, edits, meters } = parts;
+        const output = faderTarget(parts, key);
+        const audioGain = output?.gain.value ?? null;
+        if (
+            !output ||
+            audioGain === null ||
+            store.ghost(key)?.gain === undefined
+        ) {
+            return;
+        }
+        edits.cancel(timerKey(key));
+        writeGain(
+            parts,
+            output,
+            !output.main && audioGain === UNITY_OUT_GAIN ? null : audioGain,
+        );
+        store.setGhostProp(key, 'gain', undefined);
+        meters.redraw(key);
     }
-    const gain = codeOnly
-        ? (store.ghost(key)?.gain ?? output.gain.value)
-        : output.gain.value;
-    if (gain === null) {
-        return;
-    }
-    edits.cancel(timerKey(key));
-    if (output.gain.moduleId) {
-        writeGain(parts, output, gain);
-    }
-}
 
-/** Revert the source to the gain the audio is running, dropping the ghost;
- *  unity reverts by removing the option. No-op when code and audio agree. */
-export function revertGain(parts: MixerParts, key: string): void {
-    const { store, edits, meters } = parts;
-    const output = faderTarget(parts, key);
-    const audioGain = output?.gain.value ?? null;
-    if (!output || audioGain === null || store.ghost(key)?.gain === undefined) {
-        return;
+    /** Back to the default gain: unity for a track, whose option is removed,
+     *  and the main gain default for the master. */
+    reset(key: string): void {
+        const { parts } = this;
+        const { edits, meters } = parts;
+        edits.cancel(timerKey(key));
+        const output = faderTarget(parts, key);
+        if (!output) {
+            return;
+        }
+        const resetValue = output.main ? DEFAULT_OUTPUT_GAIN : UNITY_OUT_GAIN;
+        writeGain(parts, output, output.main ? resetValue : null);
+        setLiveGain(parts, output, resetValue);
+        meters.redraw(key, outGainToDb(resetValue));
     }
-    edits.cancel(timerKey(key));
-    writeGain(
-        parts,
-        output,
-        !output.main && audioGain === UNITY_OUT_GAIN ? null : audioGain,
-    );
-    store.setGhostProp(key, 'gain', undefined);
-    meters.redraw(key);
-}
-
-/** Back to the default gain: unity for a track, whose option is removed,
- *  and the main gain default for the master. */
-export function resetGain(parts: MixerParts, key: string): void {
-    const { edits, meters } = parts;
-    edits.cancel(timerKey(key));
-    const output = faderTarget(parts, key);
-    if (!output) {
-        return;
-    }
-    const resetValue = output.main ? DEFAULT_OUTPUT_GAIN : UNITY_OUT_GAIN;
-    writeGain(parts, output, output.main ? resetValue : null);
-    setLiveGain(parts, output, resetValue);
-    meters.redraw(key, outGainToDb(resetValue));
 }

@@ -6,7 +6,8 @@ import {
     type VuSendDef,
 } from '../../shared/dsl/vuMeterTypes';
 import type { MixerController } from '../mixer/MixerController';
-import { Knob, type KnobRange } from './VuKnob';
+import type { KnobRange } from '../mixer/knobPaint';
+import { Knob } from './VuKnob';
 
 /** Height of one row of send dials, letter included. */
 export const SEND_ROW_HEIGHT = 32;
@@ -71,6 +72,9 @@ export function VuSendDials({
                         >
                             <span className="vu-send-letter">{bus.letter}</span>
                             <Knob
+                                mixer={mixer}
+                                trackKey={trackKey}
+                                id={id}
                                 className="vu-send-knob"
                                 value={send.value ?? 0}
                                 ghost={ghost?.[id]}
@@ -79,34 +83,6 @@ export function VuSendDials({
                                 resetValue={0}
                                 locked={send.locked}
                                 title={sendTitle(bus.label, send)}
-                                onChange={(value, codeOnly) =>
-                                    mixer.changeKnob(
-                                        trackKey,
-                                        id,
-                                        value,
-                                        codeOnly,
-                                    )
-                                }
-                                onCommit={(value, codeOnly) =>
-                                    mixer.commitKnob(
-                                        trackKey,
-                                        id,
-                                        value,
-                                        codeOnly,
-                                    )
-                                }
-                                registerSvg={(el) =>
-                                    el
-                                        ? mixer.meters.registerKnob(
-                                              trackKey,
-                                              id,
-                                              el,
-                                          )
-                                        : mixer.meters.unregisterKnob(
-                                              trackKey,
-                                              id,
-                                          )
-                                }
                             />
                         </div>
                     );

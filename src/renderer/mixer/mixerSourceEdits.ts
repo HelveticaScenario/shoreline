@@ -25,8 +25,9 @@ export class MixerSourceEdits {
     private anchors: ModelAnchors | null = null;
     /** The buffer the tracks were built from. It stays through a stop,
      *  while the mixer still shows those tracks. */
-    private sourceId: string | null = null;
-    /** The buffer the editor shows. */
+    private tracksSourceId: string | null = null;
+    /** The buffer the editor shows: edits reach the source only while it
+     *  is the one the tracks came from. */
     private visibleBufferId: string | undefined = undefined;
     /** Throttle state for live writes during drags, keyed
      *  `<meterKey>:<control>`. Each Monaco edit re-tokenizes and re-colors,
@@ -47,10 +48,10 @@ export class MixerSourceEdits {
     }
 
     /** Take over an applied patch's label anchors and source buffer. */
-    commit(anchors: ModelAnchors | null, sourceId: string | null): void {
+    setSource(anchors: ModelAnchors | null, sourceId: string | null): void {
         this.anchors?.clear();
         this.anchors = anchors;
-        this.sourceId = sourceId;
+        this.tracksSourceId = sourceId;
     }
 
     /**
@@ -62,8 +63,8 @@ export class MixerSourceEdits {
         const idx = this.store.outputs.findIndex((o) => o.key === key);
         if (
             idx === -1 ||
-            this.sourceId === null ||
-            this.visibleBufferId !== this.sourceId
+            this.tracksSourceId === null ||
+            this.visibleBufferId !== this.tracksSourceId
         ) {
             return null;
         }
@@ -72,9 +73,9 @@ export class MixerSourceEdits {
             : (this.anchors?.offsetOf(idx) ?? null);
     }
 
-    /** The buffer the tracks were built from. */
-    get source(): string | null {
-        return this.sourceId;
+    /** Stable id of the buffer the tracks were built from. */
+    get sourceId(): string | null {
+        return this.tracksSourceId;
     }
 
     /**

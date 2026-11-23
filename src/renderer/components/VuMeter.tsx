@@ -8,7 +8,8 @@ import {
     isJumpGesture,
     jumpHandlers,
 } from './controlPanel/controlChrome';
-import { Knob, type KnobRange } from './VuKnob';
+import type { KnobRange } from '../mixer/knobPaint';
+import { Knob } from './VuKnob';
 import { type SendBus, VuSendDials } from './VuSendDials';
 
 /**
@@ -31,6 +32,48 @@ function eventToDb(e: React.PointerEvent<HTMLCanvasElement>): number {
         (e.clientY - rect.top - METER_PAD_CSS) /
         Math.max(1, rect.height - METER_PAD_CSS * 2);
     return meterNormToDb(norm);
+}
+
+/**
+ * A track's mute or solo button. The outer ring shows the code's state and
+ * the inner core the audio's; they differ only while a code-only edit awaits
+ * a patch update.
+ */
+function StateButton({
+    mixer,
+    trackKey,
+    prop,
+    pressed,
+    codePressed,
+    title,
+    children,
+}: {
+    mixer: MixerController;
+    trackKey: string;
+    prop: 'mute' | 'solo';
+    pressed: boolean;
+    codePressed: boolean;
+    title: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <button
+            className={`vu-btn vu-btn-${prop}`}
+            aria-pressed={pressed}
+            data-code-pressed={codePressed}
+            title={title}
+            onClick={(e) => mixer.tracks.toggle(trackKey, prop, isCodeOnly(e))}
+            onContextMenu={(e) => {
+                if (e.ctrlKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    mixer.tracks.toggle(trackKey, prop, true);
+                }
+            }}
+        >
+            <span className="vu-btn-inner">{children}</span>
+        </button>
+    );
 }
 
 interface VuMeterProps {
@@ -80,9 +123,12 @@ export function VuMeter({
         if (!canvas) {
             return;
         }
-        canvas.dataset.tapModuleId = output.moduleId;
-        canvas.dataset.channels = String(output.channels);
-        mixer.meters.registerCanvas(output.key, canvas);
+        mixer.meters.registerCanvas(
+            output.key,
+            canvas,
+            output.moduleId,
+            output.channels,
+        );
         const resize = () => {
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect();
@@ -118,13 +164,13 @@ export function VuMeter({
         e.currentTarget.setPointerCapture(e.pointerId);
         const codeOnly = isCodeOnly(e);
         faderDragRef.current = { codeOnly };
-        mixer.changeGain(output.key, eventToDb(e), codeOnly);
+        mixer.gain.change(output.key, eventToDb(e), codeOnly);
     };
 
     const handleFaderMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
         const drag = faderDragRef.current;
         if (drag) {
-            mixer.changeGain(output.key, eventToDb(e), drag.codeOnly);
+            mixer.gain.change(output.key, eventToDb(e), drag.codeOnly);
         }
     };
 
@@ -136,7 +182,7 @@ export function VuMeter({
         const drag = faderDragRef.current;
         if (drag) {
             faderDragRef.current = null;
-            mixer.commitGain(output.key, drag.codeOnly);
+            mixer.gain.commit(output.key, drag.codeOnly);
         }
     };
 
@@ -213,6 +259,9 @@ export function VuMeter({
                         // the meter loop painted onto it.
                         <Knob
                             key={`pan:${output.pan.locked}`}
+                            mixer={mixer}
+                            trackKey={output.key}
+                            id="pan"
                             className="vu-pan-knob"
                             value={output.pan.value ?? 0}
                             ghost={ghost?.pan}
@@ -226,63 +275,20 @@ export function VuMeter({
                                     ? 'Pan (signal-controlled)'
                                     : `Pan ${output.pan.value} (drag; ⌃/⌘ drag: edit code only; right-click: center; ⌃/⌘ right-click: revert)`
                             }
-                            onChange={(value, codeOnly) =>
-                                mixer.changeKnob(
-                                    output.key,
-                                    'pan',
-                                    value,
-                                    codeOnly,
-                                )
-                            }
-                            onCommit={(value, codeOnly) =>
-                                mixer.commitKnob(
-                                    output.key,
-                                    'pan',
-                                    value,
-                                    codeOnly,
-                                )
-                            }
-                            registerSvg={(el) =>
-                                el
-                                    ? mixer.meters.registerKnob(
-                                          output.key,
-                                          'pan',
-                                          el,
-                                      )
-                                    : mixer.meters.unregisterKnob(
-                                          output.key,
-                                          'pan',
-                                      )
-                            }
                         />
                     )}
                     {output.muteModuleId != null && (
                         <>
-                            {/* Outer ring = code state, inner core = audio
-                                state; they only differ while a code-only
-                                edit awaits a patch update. */}
-                            <button
-                                className="vu-btn vu-btn-mute"
-                                aria-pressed={output.mute}
-                                data-code-pressed={ghost?.mute ?? output.mute}
+                            <StateButton
+                                mixer={mixer}
+                                trackKey={output.key}
+                                prop="mute"
+                                pressed={output.mute}
+                                codePressed={ghost?.mute ?? output.mute}
                                 title={`${output.mute ? 'Unmute' : 'Mute'} (${MS_BUTTON_HINT})`}
-                                onClick={(e) =>
-                                    mixer.toggle(
-                                        output.key,
-                                        'mute',
-                                        isCodeOnly(e),
-                                    )
-                                }
-                                onContextMenu={(e) => {
-                                    if (e.ctrlKey) {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        mixer.toggle(output.key, 'mute', true);
-                                    }
-                                }}
                             >
-                                <span className="vu-btn-inner">{index}</span>
-                            </button>
+                                {index}
+                            </StateButton>
                             {output.isBus ? (
                                 // A bus has no solo; the gap keeps its
                                 // activator level with the tracks'.
@@ -293,34 +299,16 @@ export function VuMeter({
                                     <span className="vu-btn-inner">S</span>
                                 </div>
                             ) : (
-                                <button
-                                    className="vu-btn vu-btn-solo"
-                                    aria-pressed={output.solo}
-                                    data-code-pressed={
-                                        ghost?.solo ?? output.solo
-                                    }
+                                <StateButton
+                                    mixer={mixer}
+                                    trackKey={output.key}
+                                    prop="solo"
+                                    pressed={output.solo}
+                                    codePressed={ghost?.solo ?? output.solo}
                                     title={`Solo (${MS_BUTTON_HINT})`}
-                                    onClick={(e) =>
-                                        mixer.toggle(
-                                            output.key,
-                                            'solo',
-                                            isCodeOnly(e),
-                                        )
-                                    }
-                                    onContextMenu={(e) => {
-                                        if (e.ctrlKey) {
-                                            e.preventDefault();
-                                            e.stopPropagation();
-                                            mixer.toggle(
-                                                output.key,
-                                                'solo',
-                                                true,
-                                            );
-                                        }
-                                    }}
                                 >
-                                    <span className="vu-btn-inner">S</span>
-                                </button>
+                                    S
+                                </StateButton>
                             )}
                         </>
                     )}
@@ -348,9 +336,9 @@ export function VuMeter({
                                 ? (e) => {
                                       e.preventDefault();
                                       if (isCodeOnly(e)) {
-                                          mixer.revertGain(output.key);
+                                          mixer.gain.revert(output.key);
                                       } else {
-                                          mixer.resetGain(output.key);
+                                          mixer.gain.reset(output.key);
                                       }
                                   }
                                 : undefined
