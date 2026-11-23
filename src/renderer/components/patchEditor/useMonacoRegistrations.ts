@@ -69,16 +69,16 @@ export function useMonacoRegistrations({
         });
     }, [monaco, libSource, schemas]);
 
-    // The formatting provider takes its options as a value, so it alone is
-    // registered again when they change.
-    const formatOptions = codeFormat.options;
     useEffect(() => {
         if (!monaco) {
             return;
         }
-        const disposable = registerDslFormattingProvider(monaco, formatOptions);
+        const disposable = registerDslFormattingProvider(
+            monaco,
+            () => currentFormat().options,
+        );
         return () => disposable.dispose();
-    }, [monaco, formatOptions]);
+    }, [monaco]);
 
     useEffect(() => {
         if (!monaco) {
