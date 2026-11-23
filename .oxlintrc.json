@@ -63,7 +63,6 @@
         "react/set-state-in-effect": "off",
         "typescript/consistent-return": "off",
         "typescript/no-implied-eval": "off",
-        "typescript/no-unnecessary-type-assertion": "off",
         "typescript/no-unnecessary-type-conversion": "off",
         "typescript/no-unnecessary-type-parameters": "off",
         "typescript/no-unsafe-enum-assignment": "off",

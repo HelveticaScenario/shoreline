@@ -562,7 +562,7 @@ export class DSLContext {
                         outputs: rootOutputs,
                         values: named,
                     });
-                    return root! as MultiOutput;
+                    return root!;
                 },
             );
         };

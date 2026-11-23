@@ -180,7 +180,7 @@ describe('modules the DSL builds', () => {
     });
 
     test('each has a signal site that chains as its docs say', () => {
-        const { modules } = buildSignalSiteTables(schemas as never);
+        const { modules } = buildSignalSiteTables(schemas);
         for (const fn of dslModules(schemas)) {
             const name = functionName(fn);
             expect(modules[name]?.chainable, name).toBe(Boolean(fn.chainable));
@@ -222,7 +222,7 @@ describe('reserved names', () => {
             TrackTap,
         ]);
         // Fields are own properties of an instance, not of its prototype.
-        const sig = builder.getFactory('$sine')(0) as Collection;
+        const sig = builder.getFactory('$sine')(0);
         const fields = [
             sig,
             sig.range(0, 1, -1, 1),
@@ -460,9 +460,7 @@ describe('pipeMix', () => {
         const out = new Collection(
             new ModuleOutput(builder, 'src-1', 'out', 0),
         );
-        out.pipeMix(
-            (s) => builder.getFactory('$lpf')(s, '100hz') as Collection,
-        );
+        out.pipeMix((s) => builder.getFactory('$lpf')(s, '100hz'));
         const types = builder.toPatch().modules.map((m) => m.moduleType);
         expect(types).toContain('$crossfade');
         expect(types).not.toContain('$mix');

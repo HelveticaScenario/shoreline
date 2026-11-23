@@ -9,7 +9,7 @@
 
 import { isKind } from '../miniNotation/__tests__/kinds';
 import { describe, expect, test } from 'vitest';
-import type { ModuleSchema, PatchGraph } from '@modular/core';
+import type { PatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { assertControlsPlaced } from '../controlPlacement';
 import { type DSLExecutionResult, executePatchScript } from '../executor';
@@ -2026,7 +2026,7 @@ describe('fx modules', () => {
     });
 
     test('$enosc.scale offers every preset the engine accepts', () => {
-        const presets = enoscScalePresets(schemas as ModuleSchema[]);
+        const presets = enoscScalePresets(schemas);
         expect(presets.length).toBe(20);
         const source = presets
             .map(({ name }) => `${name}: $enosc("c2", $enosc.scale.${name})`)

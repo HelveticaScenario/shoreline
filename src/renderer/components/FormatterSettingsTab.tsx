@@ -119,7 +119,7 @@ export function FormatterSettingsTab({
                 <h3>Trailing Commas</h3>
                 <select
                     className="device-select"
-                    value={(prettier.trailingComma as string) ?? 'all'}
+                    value={prettier.trailingComma ?? 'all'}
                     onChange={(e) =>
                         updatePrettier({
                             trailingComma: e.target.value as

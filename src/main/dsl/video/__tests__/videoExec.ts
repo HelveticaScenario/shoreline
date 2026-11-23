@@ -23,7 +23,7 @@ export const loadMediaAudio = (path: string) => {
 
 /** Runs a patch as the app does, with a workspace and media audio stubbed. */
 export const exec = (source: string) =>
-    executePatchScript(source, schemas as never, {
+    executePatchScript(source, schemas, {
         loadMediaAudio,
         sampleRate: 48_000,
         workspaceRoot: '/workspace',

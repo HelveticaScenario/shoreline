@@ -8,11 +8,7 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import schemas from '@modular/core/schemas.json';
 import { DSLContext } from '../factories';
-import {
-    type Collection,
-    CollectionWithRange,
-    type GraphBuilder,
-} from '../GraphBuilder';
+import { CollectionWithRange, type GraphBuilder } from '../GraphBuilder';
 import { executePatchScript } from '../executor';
 
 let builder: GraphBuilder;
@@ -35,8 +31,7 @@ function erraticParams(): Record<string, unknown> {
     return node!.params as Record<string, unknown>;
 }
 
-const lfo = () =>
-    (builder.getFactory('$sine')('1hz') as Collection).range(0, 10, -5, 5);
+const lfo = () => builder.getFactory('$sine')('1hz').range(0, 10, -5, 5);
 
 describe('.erratic()', () => {
     test('a ranged signal stays ranged, its range and mode left to the engine', () => {

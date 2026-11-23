@@ -4,19 +4,18 @@ import type { CompiledVideoShader } from '../../shared/video/videoGraph';
 import { VideoTapSlots } from '../videoTapSlots';
 
 /** A patch whose taps read `sources` (module ids) on DSL slots 0, 1, ... */
-const patchOf = (...sources: string[]): PatchGraph =>
-    ({
-        modules: sources.map((module, slot) => ({
-            id: `_videoTap-${slot}`,
-            moduleType: '_videoTap',
-            params: {
-                input: { lane: 0, module, port: 'output', type: 'cable' },
-                slot,
-            },
-        })),
-        scopes: [],
-        vuMeters: [],
-    }) as unknown as PatchGraph;
+const patchOf = (...sources: string[]): PatchGraph => ({
+    modules: sources.map((module, slot) => ({
+        id: `_videoTap-${slot}`,
+        moduleType: '_videoTap',
+        params: {
+            input: { lane: 0, module, port: 'output', type: 'cable' },
+            slot,
+        },
+    })),
+    scopes: [],
+    vuMeters: [],
+});
 
 /** A shader reading every DSL slot of `count` as history row and uniform. */
 const shaderOf = (count: number): CompiledVideoShader =>

@@ -116,7 +116,7 @@ function asJsonSchema(value: unknown): JsonSchema | null {
     if (!isPlainObject(value)) {
         return null;
     }
-    return value as JsonSchema;
+    return value;
 }
 
 function getByJsonPointer(

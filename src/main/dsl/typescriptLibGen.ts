@@ -2101,7 +2101,7 @@ export function generateDSL(schemas: Schemas): string {
         'export function $buffer(input: Signal, lengthSeconds: number, config?: { id?: string }): BufferOutputRef;',
     );
     lines.push('');
-    const builtModules = dslModules(schemas as unknown as ModuleSchema[]);
+    const builtModules = dslModules(schemas);
     lines.push(...renderFunctions(builtModules));
 
     // Chain methods. The qualifying set matches the runtime's exactly: both

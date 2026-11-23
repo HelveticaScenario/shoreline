@@ -26,7 +26,7 @@ function modules(moduleType: string) {
 }
 
 function sine(freq: string): Collection {
-    return builder.getFactory('$sine')(freq) as Collection;
+    return builder.getFactory('$sine')(freq);
 }
 
 /** Call chain method `method`, which the builder installs at runtime. */

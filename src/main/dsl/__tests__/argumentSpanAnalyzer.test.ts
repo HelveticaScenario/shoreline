@@ -1,11 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import schemas from '@modular/core/schemas.json';
-import type { ModuleSchema } from '@modular/core';
 
 import { analyzeSourceSpans } from '../analyzeSource';
 
 function analyze(source: string) {
-    return analyzeSourceSpans(source, schemas as ModuleSchema[]);
+    return analyzeSourceSpans(source, schemas);
 }
 
 /** Registry entries as `key kind arg=text …`, spans read back from

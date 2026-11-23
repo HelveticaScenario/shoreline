@@ -21,7 +21,7 @@ beforeEach(() => {
 /** An N-lane signal (one $sine per lane). */
 function sig(lanes: number): Collection {
     const freqs = Array.from({ length: lanes }, (_, i) => 1 + i);
-    return builder.getFactory('$sine')(freqs) as Collection;
+    return builder.getFactory('$sine')(freqs);
 }
 
 /** Stable per-lane identifiers for a signal. */
