@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useReducer, useRef, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import electronAPI from '../../electronAPI';
 import type {
     CurrentAudioState,
@@ -22,20 +22,19 @@ function errorMessage(err: unknown, fallback: string): string {
 }
 
 /**
- * The device list and what the engine runs with. The engine keeps reporting a
- * device fallback in its state until the streams are recreated, so `warning`
- * holds one that happened long before the read.
+ * The device list and what the engine runs with. The engine reports a device
+ * fallback in its state until the streams are recreated, so its
+ * `fallbackWarning` can be one from long before the read.
  */
 async function readDevicesAndEngine(): Promise<{
     cache: DeviceCacheSnapshot;
     engine: CurrentAudioState;
-    warning: string | null;
 }> {
     const [cache, engine] = await Promise.all([
         electronAPI.audio.getDeviceCache(),
         electronAPI.audio.getCurrentState(),
     ]);
-    return { cache, engine, warning: engine.fallbackWarning ?? null };
+    return { cache, engine };
 }
 
 /** Reopens the streams with `selection` and returns what the engine then runs with. */
@@ -86,21 +85,6 @@ export function useAudioSettings(isActive: boolean) {
         }
     }
 
-    // Re-read the engine's state after the output changed under it. A
-    // selection still at the previous state's value moves to the new one; one
-    // the user changed stays.
-    const syncEngine = useEffectEvent(async () => {
-        const previous = engine;
-        const read = await readDevicesAndEngine();
-        dispatch({
-            cache: read.cache,
-            engine: read.engine,
-            previous,
-            type: 'engineChanged',
-        });
-        setWarning(read.warning);
-    });
-
     useEffect(() => {
         if (!isActive) {
             return;
@@ -112,12 +96,8 @@ export function useAudioSettings(isActive: boolean) {
                 return readDevicesAndEngine();
             })
             .then((read) => {
-                dispatch({
-                    cache: read.cache,
-                    engine: read.engine,
-                    type: 'loaded',
-                });
-                setWarning(read.warning);
+                dispatch({ ...read, type: 'loaded' });
+                setWarning(read.engine.fallbackWarning ?? null);
             })
             .catch((err) => {
                 setError(errorMessage(err, 'Failed to load settings'));
@@ -135,7 +115,14 @@ export function useAudioSettings(isActive: boolean) {
             return;
         }
         return electronAPI.audio.onDeviceNotice(() => {
-            void syncEngine();
+            readDevicesAndEngine()
+                .then((read) => {
+                    dispatch({ ...read, type: 'engineChanged' });
+                    setWarning(read.engine.fallbackWarning ?? null);
+                })
+                .catch((err) => {
+                    setError(errorMessage(err, 'Failed to read audio state'));
+                });
         });
     }, [isActive]);
 

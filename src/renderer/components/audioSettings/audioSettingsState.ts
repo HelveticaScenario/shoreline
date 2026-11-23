@@ -29,12 +29,11 @@ export interface AudioSettingsState {
 
 export type AudioSettingsAction =
     | { type: 'loaded'; cache: DeviceCacheSnapshot; engine: CurrentAudioState }
+    /** The output changed under the engine. */
     | {
-          /** The output changed under the engine; `previous` is the state it left. */
           type: 'engineChanged';
           cache: DeviceCacheSnapshot;
           engine: CurrentAudioState;
-          previous: CurrentAudioState | null;
       }
     | { type: 'devicesListed'; cache: DeviceCacheSnapshot }
     | { type: 'applied'; engine: CurrentAudioState }
@@ -145,10 +144,12 @@ export function audioSettingsReducer(
             return settle({
                 ...withDeviceCache(state, action.cache),
                 engine: action.engine,
-                selection: action.previous
+                // A choice still at the value the engine left moves to its
+                // new one; one the user changed stays.
+                selection: state.engine
                     ? followSelection(
                           state.selection,
-                          shownSelection(action.previous),
+                          shownSelection(state.engine),
                           shownSelection(action.engine),
                       )
                     : state.selection,
