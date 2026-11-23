@@ -22,6 +22,8 @@ import {
     type DocContent,
     type ReferenceEntry,
 } from '../src/shared/dsl/referenceDocs';
+import { resolvePrettierOptions } from '../src/renderer/components/monaco/formattingProvider';
+import { requote } from '../src/renderer/dsl/requote';
 import {
     processSchemas,
     qualifiesForChain,
@@ -304,7 +306,8 @@ test.describe('docs render', () => {
             );
             check(`${name} hover`, hover);
             for (const meta of spec.hoverMetas) {
-                if (!hover.includes(meta)) {
+                // The hover renders inline code, so its text has no backticks.
+                if (!hover.includes(meta.replaceAll('`', ''))) {
                     failures.push(`${name} hover: missing ${meta}`);
                 }
             }
@@ -422,6 +425,11 @@ test.describe('docs render', () => {
             await window.getByRole('button', { name: 'Docs' }).click();
             const docs = window.locator('.docs-panel');
             const search = docs.locator('input[type="search"], input').first();
+            // Cards quote each example in the profile's quote style.
+            const config = await window.evaluate(() =>
+                window.electronAPI.config.read(),
+            );
+            const quotes = resolvePrettierOptions(config.prettier).quotes;
 
             const failures: string[] = [];
             for (const { tab, cards } of TABS) {
@@ -464,7 +472,7 @@ test.describe('docs render', () => {
                     ) {
                         failures.push(`${spec.name}: examples not all shown`);
                     }
-                    // Each example shows its source exactly, in editor colours.
+                    // Each example shows its source, in editor colours.
                     const colored = await expect
                         .poll(() =>
                             card.evaluate((el) =>
@@ -481,7 +489,7 @@ test.describe('docs render', () => {
                     if (!colored) {
                         failures.push(`${spec.name}: examples not colourized`);
                     }
-                    const codes = examples.map((e) => e.code);
+                    const codes = examples.map((e) => requote(e.code, quotes));
                     const texts = await card.evaluate((el) =>
                         [...el.querySelectorAll('pre')].map((pre) =>
                             pre.innerText.trimEnd(),
