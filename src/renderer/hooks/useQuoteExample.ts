@@ -1,4 +1,3 @@
-import { useCallback } from 'react';
 import { resolvePrettierOptions } from '../components/monaco/formattingProvider';
 import { requote } from '../dsl/requote';
 import { useTheme } from '../themes/ThemeContext';
@@ -8,5 +7,5 @@ import { useTheme } from '../themes/ThemeContext';
 export function useQuoteExample(): (code: string) => string {
     const { prettierConfig } = useTheme();
     const quotes = resolvePrettierOptions(prettierConfig).quotes;
-    return useCallback((code: string) => requote(code, quotes), [quotes]);
+    return (code: string) => requote(code, quotes);
 }

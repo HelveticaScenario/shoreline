@@ -1,5 +1,5 @@
 import type { editor } from 'monaco-editor';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import type { AppTheme } from '../themes/types';
 import { performanceOutput } from '../video/PerformanceOutput';
@@ -21,6 +21,7 @@ export function usePerformanceCode(
     controls: readonly PlacedControl[],
 ): (offset: number) => void {
     const monaco = useCustomMonaco();
+    // One instance per `monaco`: the effects below attach to it and dispose it.
     const code = useMemo(
         () => (monaco === null ? null : new PerformanceCode(monaco)),
         [monaco],
@@ -57,5 +58,5 @@ export function usePerformanceCode(
         );
     }, [settings.codeVisible, settings.codeOpacity]);
 
-    return useCallback((offset: number) => code?.reveal(offset), [code]);
+    return (offset: number) => code?.reveal(offset);
 }

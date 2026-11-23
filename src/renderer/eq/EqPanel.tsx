@@ -1,11 +1,4 @@
-import React, {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { drawEq, makeScratch } from './eqCanvas';
 import { readEqColors } from './eqCanvasLayers';
@@ -89,65 +82,35 @@ export function EqPanel(props: EqPanelProps): React.ReactElement {
     const [hovered, setHovered] = useState<number | null>(null);
     const [overHandle, setOverHandle] = useState(false);
 
-    const geometry = useMemo<EqGeometry | null>(
-        () =>
-            width > 0 ? makeGeometry(width, EQ_GRAPH_HEIGHT, sampleRate) : null,
-        [width, sampleRate],
-    );
-    const scratch = useMemo(
-        () => (geometry ? makeScratch(geometry) : null),
-        [geometry],
-    );
+    const geometry: EqGeometry | null =
+        width > 0 ? makeGeometry(width, EQ_GRAPH_HEIGHT, sampleRate) : null;
+    const scratch = geometry ? makeScratch(geometry) : null;
+    const background = laneLists?.filter((_, i) => i !== lane) ?? [];
 
-    // Everything a redraw reads, so frame callbacks draw current state.
-    const background = useMemo(
-        () => laneLists?.filter((_, i) => i !== lane) ?? [],
-        [laneLists, lane],
-    );
-    const drawStateRef = useRef({
-        adaptiveQ,
-        background,
-        ghosts,
-        hovered,
-        sections,
-        selected,
-    });
-    useLayoutEffect(() => {
-        drawStateRef.current = {
-            adaptiveQ,
-            background,
-            ghosts,
-            hovered,
-            sections,
-            selected,
-        };
-    });
-
-    const redraw = useCallback(() => {
+    const redraw = useEffectEvent(() => {
         const canvas = canvasRef.current;
         if (!canvas || !geometry || !scratch) {
             return;
         }
-        const s = drawStateRef.current;
         drawEq(
             canvas,
             geometry,
             scratch,
             {
-                adaptiveQ: s.adaptiveQ,
-                background: s.background,
-                hovered: s.hovered,
+                adaptiveQ,
+                background,
+                hovered,
                 sampleRate,
-                sections: s.sections.map((view, i) => ({
-                    ghost: s.ghosts[i] ?? null,
+                sections: sections.map((view, i) => ({
+                    ghost: ghosts[i] ?? null,
                     view,
                 })),
-                selected: s.selected,
+                selected,
                 spectrum,
             },
             readEqColors(),
         );
-    }, [geometry, scratch, sampleRate, spectrum]);
+    });
 
     useEffect(() => {
         const wrap = wrapRef.current;
@@ -170,13 +133,26 @@ export function EqPanel(props: EqPanelProps): React.ReactElement {
         canvas.width = Math.max(1, Math.floor(width * dpr));
         canvas.height = Math.floor(EQ_GRAPH_HEIGHT * dpr);
         redraw();
-    }, [width, redraw]);
+    }, [width]);
 
+    // The dependencies are everything a redraw reads.
     useEffect(() => {
         redraw();
-    }, [redraw, sections, background, ghosts, selected, hovered, adaptiveQ]);
+    }, [
+        geometry,
+        scratch,
+        sampleRate,
+        spectrum,
+        sections,
+        laneLists,
+        lane,
+        ghosts,
+        selected,
+        hovered,
+        adaptiveQ,
+    ]);
 
-    useEffect(() => subscribeFrames(redraw), [subscribeFrames, redraw]);
+    useEffect(() => subscribeFrames(() => redraw()), [subscribeFrames]);
 
     const gestures = useEqGraphGestures({
         canvasRef,

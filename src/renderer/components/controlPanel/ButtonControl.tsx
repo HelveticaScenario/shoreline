@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import type { ButtonView } from '../../app/controlBinding';
 import {
     controlTooltip,
@@ -20,13 +20,10 @@ export function ButtonControl({
 }: ButtonControlProps) {
     const [held, setHeld] = useState(false);
 
-    const press = useCallback(
-        (pressed: boolean) => {
-            setHeld(pressed);
-            onChange(button.callStart, pressed);
-        },
-        [button.callStart, onChange],
-    );
+    const press = (pressed: boolean) => {
+        setHeld(pressed);
+        onChange(button.callStart, pressed);
+    };
 
     const message = unsyncedMessage(button);
     const tooltip = controlTooltip(message);
