@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, type RefObject } from 'react';
 import type { editor } from 'monaco-editor';
 import electronAPI from '../../electronAPI';
 import type { EqPanelController } from '../../eq/eqPanelController';
@@ -7,7 +7,8 @@ import type { MixerController } from '../../mixer/MixerController';
 
 /** Exposes `window.__TEST_API__`, which the E2E tests drive the app through. */
 export function useTestApi(app: {
-    editorInstance: editor.IStandaloneCodeEditor | null;
+    /** Read on each call, so a call made as the editor mounts reaches it. */
+    editorRef: RefObject<editor.IStandaloneCodeEditor | null>;
     eqController: EqPanelController;
     mixer: MixerController;
     isClockRunning: boolean;
@@ -26,12 +27,12 @@ export function useTestApi(app: {
             },
             getAudioHealth: () => electronAPI.synthesizer.getHealth(),
             getCursorOffset: () => {
-                const { editorInstance } = latest();
-                const model = editorInstance?.getModel();
-                const position = editorInstance?.getPosition();
+                const editorNow = latest().editorRef.current;
+                const model = editorNow?.getModel();
+                const position = editorNow?.getPosition();
                 return model && position ? model.getOffsetAt(position) : null;
             },
-            getEditorValue: () => latest().editorInstance?.getValue() ?? '',
+            getEditorValue: () => latest().editorRef.current?.getValue() ?? '',
             getEqPanels: () => latest().eqController.snapshot(),
             getLastPatchResult: () => latest().getLastResult(),
             getScopeData: () => electronAPI.synthesizer.getScopes(),
@@ -42,7 +43,7 @@ export function useTestApi(app: {
             openEngineHealth: () => latest().openEngineHealth(),
             openModuleProfile: () => latest().openModuleProfile(),
             setEditorValue: (code: string) =>
-                latest().editorInstance?.setValue(code),
+                latest().editorRef.current?.setValue(code),
             setMixerVisible: (visible: boolean) =>
                 latest().setMixerVisible(visible),
             toggleVuMute: (key: string, codeOnly = false) =>

@@ -78,9 +78,5 @@ export function toggleTrackState(
     // Code and audio agree again for this control.
     store.setGhostProp(key, prop, undefined);
     // From the store, which the source edit may have just updated.
-    store.setOutputs(
-        store.outputs.map((o) =>
-            o.key === key ? { ...o, [prop]: !audio[prop] } : o,
-        ),
-    );
+    store.updateOutput(key, (o) => ({ ...o, [prop]: !audio[prop] }));
 }

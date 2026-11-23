@@ -59,10 +59,6 @@ export class MixerMeters {
 
     constructor(private readonly store: MixerStore) {}
 
-    get hasCanvases(): boolean {
-        return this.canvases.size > 0;
-    }
-
     registerCanvas(key: string, canvas: HTMLCanvasElement): void {
         this.canvases.set(key, canvas);
     }

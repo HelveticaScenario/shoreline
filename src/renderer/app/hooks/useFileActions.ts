@@ -69,7 +69,7 @@ export function useFileActions({
      * changes with the user. A file that fails to save or hits a save
      * conflict keeps the current workspace open.
      */
-    const switchWorkspace = async () => {
+    const settleAndSwitchWorkspace = async () => {
         const dirty = files.buffers.filter(
             (b): b is Extract<EditorBuffer, { kind: 'file' }> =>
                 b.kind === 'file' && b.dirty,
@@ -104,6 +104,8 @@ export function useFileActions({
         }
         await chooseWorkspace();
     };
+    const switchWorkspace = () =>
+        guarded(settleAndSwitchWorkspace, 'Failed to switch workspace');
 
     const onContextMenuCommand = useEffectEvent(
         (
