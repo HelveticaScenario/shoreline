@@ -20,11 +20,7 @@ interface FileExplorerProps {
     onSelectBuffer: (bufferId: string) => void;
     onOpenFile: (relPath: string, options?: { preview?: boolean }) => void;
     onCreateFile: () => void;
-    onSaveFile: (id?: string) => void;
-    onRenameFile: (id?: string) => void;
-    onDeleteFile: (id?: string) => void;
     onCloseBuffer: (bufferId: string) => void;
-    onSelectWorkspace: () => void;
     onRefreshTree: () => void;
     onRenameCommit: (path: string, newName: string) => void;
     onRenameCancel: () => void;

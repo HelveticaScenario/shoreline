@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import type { editor } from 'monaco-editor';
 import './App.css';
 import { getBufferId } from './app/buffers';
@@ -78,7 +78,6 @@ function App() {
 
     const [editorInstance, setEditorInstance] =
         useState<editor.IStandaloneCodeEditor | null>(null);
-    const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
     /** Inline `ui: true` EQ panels of the running patch. */
     const [eqController] = useState(createEqController);
     const [mixer] = useState(() => new MixerController());
@@ -307,7 +306,6 @@ function App() {
                                 viewStates={files.viewStates}
                                 openFiles={buffers.map(getBufferId)}
                                 onChange={handleEditorChange}
-                                editorRef={editorRef}
                                 onEditorChange={setEditorInstance}
                                 scopeViews={patchUi.scopeViews}
                                 scopeDecorations={patchUi.scopeDecorations}
@@ -347,10 +345,6 @@ function App() {
                             onSelectBuffer={files.setActiveBufferId}
                             onOpenFile={fileActions.open}
                             onCreateFile={files.createUntitledFile}
-                            onSaveFile={fileActions.save}
-                            onRenameFile={files.renameFile}
-                            onDeleteFile={fileActions.remove}
-                            onSelectWorkspace={fileActions.switchWorkspace}
                             onCloseBuffer={files.closeBuffer}
                             onRefreshTree={workspace.refreshFileTree}
                             onRenameCommit={fileActions.commitRename}
