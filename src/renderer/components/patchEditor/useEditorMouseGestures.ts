@@ -1,17 +1,33 @@
-import { useEffect } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 import type { editor } from 'monaco-editor';
 import electronAPI from '../../electronAPI';
 import { buildEditorMenuItems } from '../../keybindings/editorMenuItems';
 import { dispatchCommand } from '../../keybindings/dispatch';
+import { installWorkspacePathDrop } from '../monaco/workspacePathCompletion';
+import type { EditorCodeFormat } from './codeFormat';
+
+interface EditorMouseGesturesParams {
+    editor: editor.IStandaloneCodeEditor | null;
+    /** Whether the module schemas have loaded; peeking a symbol waits for them. */
+    dslReady: boolean;
+    codeFormat: EditorCodeFormat;
+}
 
 /**
- * Pops a native Electron menu, built from the command registry, on
- * right-click and dispatches the chosen item through the shared command
- * path. Monaco's built-in menu is disabled in the editor options.
+ * The mouse gestures the editor adds to Monaco's own: a right-click opens
+ * the native context menu, Cmd/Ctrl + click peeks a definition, and a file
+ * dragged from the explorer drops in as its path.
  */
-export function useEditorContextMenu(
-    editor: editor.IStandaloneCodeEditor | null,
-) {
+export function useEditorMouseGestures({
+    editor,
+    dslReady,
+    codeFormat,
+}: EditorMouseGesturesParams) {
+    const currentFormat = useEffectEvent(() => codeFormat);
+
+    // A native Electron menu, built from the command registry, whose chosen
+    // item goes through the shared command path. Monaco's built-in menu is
+    // disabled in the editor options.
     useEffect(() => {
         if (!editor) {
             return;
@@ -52,5 +68,34 @@ export function useEditorContextMenu(
             contextSub.dispose();
             disposeCommandSub();
         };
+    }, [editor]);
+
+    // Cmd (Mac) / Ctrl (Win/Linux) + click peeks a DSL symbol's definition.
+    useEffect(() => {
+        if (!editor || !dslReady) {
+            return;
+        }
+        const disposable = editor.onMouseDown((e) => {
+            if (!e.event.metaKey && !e.event.ctrlKey) {
+                return;
+            }
+            if (e.target.position == null || !editor.getModel()) {
+                return;
+            }
+            editor.focus();
+            editor.trigger('api', 'editor.action.peekDefinition', {});
+        });
+        return () => disposable.dispose();
+    }, [editor, dslReady]);
+
+    useEffect(() => {
+        if (!editor) {
+            return;
+        }
+        const drop = installWorkspacePathDrop(
+            editor,
+            () => currentFormat().quote,
+        );
+        return () => drop.dispose();
     }, [editor]);
 }

@@ -12,6 +12,8 @@ interface BufferModelsParams {
     currentFile: string | undefined;
     openFiles: string[];
     viewStates: EditorViewStates;
+    /** Columns per indent level of every buffer the editor shows. */
+    tabSize: number;
     onChange: (value: string) => void;
 }
 
@@ -42,8 +44,9 @@ function writeModelText(
 }
 
 /**
- * Keeps one Monaco model per open buffer and the shown buffer's text and
- * view state in step with the app. Returns the Editor's change handler.
+ * Keeps one Monaco model per open buffer and the shown buffer's text, view
+ * state and indentation in step with the app. Returns the Editor's change
+ * handler.
  */
 export function useBufferModels({
     editor,
@@ -52,6 +55,7 @@ export function useBufferModels({
     currentFile,
     openFiles,
     viewStates,
+    tabSize,
     onChange,
 }: BufferModelsParams) {
     // Each buffer keeps its own model (keepCurrentModel) so undo history
@@ -116,6 +120,18 @@ export function useBufferModels({
     useEffect(() => {
         viewStates.afterShow();
     }, [editor, currentFile, value, viewStates]);
+
+    useEffect(() => {
+        if (!editor) {
+            return;
+        }
+        const apply = () => {
+            editor.getModel()?.updateOptions({ insertSpaces: true, tabSize });
+        };
+        apply();
+        const disposable = editor.onDidChangeModel(apply);
+        return () => disposable.dispose();
+    }, [editor, tabSize]);
 
     return handleEditorChange;
 }

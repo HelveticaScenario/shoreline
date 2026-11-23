@@ -40,7 +40,7 @@ export function patchEditorOptions({
         automaticLayout: true,
         // Monaco's built-in menu hosts a "Command Palette" entry that invokes
         // `editor.action.quickCommand` directly, bypassing the keymap. The
-        // native menu of `useEditorContextMenu` replaces it.
+        // native menu of `useEditorMouseGestures` replaces it.
         contextmenu: false,
         fontFamily: fontFamilyWithFallback(font),
         fontLigatures,

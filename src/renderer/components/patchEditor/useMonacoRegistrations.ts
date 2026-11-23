@@ -1,63 +1,84 @@
 import { useEffect, useEffectEvent } from 'react';
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import type { PrettierConfig } from '../../../shared/ipcTypes';
 import type { Schemas } from '../../../shared/dsl/schemaTypeResolver';
+import type { AppTheme } from '../../themes/types';
+import { configSchema } from '../../configSchema';
 import electronAPI from '../../electronAPI';
 import { apiIndexFor } from '../../dsl/apiSignatures';
+import { applyMonacoTheme } from '../monaco/theme';
+import { registerConfigSchema } from '../monaco/jsonSchema';
 import { setupMonacoJavascript } from '../monaco/monacoLanguage';
-import {
-    registerDslFormattingProvider,
-    resolvePrettierOptions,
-} from '../monaco/formattingProvider';
+import { registerDslFormattingProvider } from '../monaco/formattingProvider';
 import { registerMidiCompletionProvider } from '../monaco/midiCompletionProvider';
 import { registerWorkspacePathCompletionProvider } from '../monaco/workspacePathCompletion';
 import { registerControlQuickFixProvider } from '../monaco/controlQuickFixProvider';
 import { registerRefactorProvider } from '../monaco/refactorProvider';
 import { registerKeybindingsCompletionProvider } from '../monaco/keybindingsCompletion';
 import { registerKeybindingsDiagnostics } from '../monaco/keybindingsDiagnostics';
+import type { EditorCodeFormat } from './codeFormat';
 
-interface DslLanguageServicesParams {
+interface MonacoRegistrationsParams {
     monaco: Monaco | null;
+    theme: AppTheme;
+    /** The id `theme` is defined under, which the Editor selects. */
+    themeId: string;
     /** The DSL's TypeScript declarations; null until they have loaded. */
     libSource: string | null;
     schemas: Schemas;
-    prettierConfig: PrettierConfig;
+    codeFormat: EditorCodeFormat;
 }
 
 /**
- * Registers the language features every model shares: the DSL's types and
- * providers, formatting, completions, quick fixes and refactors.
+ * Owns everything registered on the shared Monaco instance, which every
+ * model and editor sees: the theme, the config file's JSON schema, the DSL's
+ * types, and the formatting, completion, quick-fix, refactor and diagnostics
+ * providers. Whatever attaches to the one editor instance lives in the
+ * `useEditor*` hooks.
  */
-export function useDslLanguageServices({
+export function useMonacoRegistrations({
     monaco,
+    theme,
+    themeId,
     libSource,
     schemas,
-    prettierConfig,
-}: DslLanguageServicesParams) {
-    const currentQuotes = useEffectEvent(
-        () => resolvePrettierOptions(prettierConfig).quotes,
-    );
+    codeFormat,
+}: MonacoRegistrationsParams) {
+    const currentFormat = useEffectEvent(() => codeFormat);
+
+    useEffect(() => {
+        if (!monaco) {
+            return;
+        }
+        applyMonacoTheme(monaco, theme, themeId);
+    }, [monaco, theme, themeId]);
+
+    useEffect(() => {
+        if (!monaco) {
+            return;
+        }
+        registerConfigSchema(monaco, configSchema);
+    }, [monaco]);
 
     useEffect(() => {
         if (!monaco || !libSource) {
             return;
         }
         return setupMonacoJavascript(monaco, libSource, {
-            quotes: () => currentQuotes(),
+            quotes: () => currentFormat().options.quotes,
             schemas,
         });
     }, [monaco, libSource, schemas]);
 
+    // The formatting provider takes its options as a value, so it alone is
+    // registered again when they change.
+    const formatOptions = codeFormat.options;
     useEffect(() => {
         if (!monaco) {
             return;
         }
-        const disposable = registerDslFormattingProvider(
-            monaco,
-            prettierConfig,
-        );
+        const disposable = registerDslFormattingProvider(monaco, formatOptions);
         return () => disposable.dispose();
-    }, [monaco, prettierConfig]);
+    }, [monaco, formatOptions]);
 
     useEffect(() => {
         if (!monaco) {
@@ -85,23 +106,24 @@ export function useDslLanguageServices({
         if (!monaco || schemas.length === 0) {
             return;
         }
-        const formatOptions = resolvePrettierOptions(prettierConfig);
         const provider = registerControlQuickFixProvider(
             monaco,
             () => ({ index: apiIndexFor(libSource), schemas }),
-            () => formatOptions,
+            () => currentFormat().options,
         );
         return () => provider.dispose();
-    }, [monaco, schemas, libSource, prettierConfig]);
+    }, [monaco, schemas, libSource]);
 
     useEffect(() => {
         if (!monaco) {
             return;
         }
-        const formatOptions = resolvePrettierOptions(prettierConfig);
-        const provider = registerRefactorProvider(monaco, () => formatOptions);
+        const provider = registerRefactorProvider(
+            monaco,
+            () => currentFormat().options,
+        );
         return () => provider.dispose();
-    }, [monaco, prettierConfig]);
+    }, [monaco]);
 
     // Autocomplete command ids and `when` context keys in the keybindings.json
     // buffer, and flag unsupported `when` operators as warnings. Both scope

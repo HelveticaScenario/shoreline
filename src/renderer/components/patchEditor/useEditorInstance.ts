@@ -1,44 +1,39 @@
-import { useEffect, useState, type RefObject } from 'react';
+import { useState } from 'react';
 import type { OnMount } from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { setActiveEditor } from '../../keybindings/dispatch';
+import { getActiveEditor, setActiveEditor } from '../../keybindings/dispatch';
 
 type CodeEditor = editor.IStandaloneCodeEditor;
 
 /**
- * Tracks the mounted Monaco editor as state, holds it in `editorRef` from the
- * moment it mounts, reports it to `onEditorChange`, and makes it the dispatch
- * target for window-level keybindings and the context menu (see
- * keybindings/dispatch). All go back to `null` when the inner Editor
- * unmounts, which happens when the last buffer closes.
+ * Owns the mounted Monaco editor. It publishes the editor, and `null` once
+ * Monaco disposes it (the inner Editor unmounts when the last buffer
+ * closes), to its two kinds of reader at the same moment: `onEditorChange`
+ * for React, and the dispatch target of keybindings/dispatch for the
+ * window-level keymap and the context menu. Both happen inside Monaco's own
+ * callbacks, so a reader that runs before the next render already sees the
+ * editor. The returned `editor` is the same value as state, for the
+ * component's own hooks.
  *
  * No editor-level keybindings are registered on mount. The capture-phase
  * window keymap (keybindings/keymap) owns every shortcut and runs before
  * Monaco, so keybindings.json can rebind or remove each one.
  */
 export function useEditorInstance(
-    editorRef: RefObject<CodeEditor | null>,
     onEditorChange: (editor: CodeEditor | null) => void,
 ) {
     const [editor, setEditor] = useState<CodeEditor | null>(null);
 
-    useEffect(() => {
-        onEditorChange(editor);
-        setActiveEditor(editor);
-        return () => {
-            onEditorChange(null);
-            setActiveEditor(null);
-        };
-    }, [editor, onEditorChange]);
-
     const handleMount: OnMount = (mounted) => {
-        setEditor(mounted);
-        editorRef.current = mounted;
-        // Monaco disposes the editor when the inner Editor unmounts.
+        const publish = (next: CodeEditor | null) => {
+            setActiveEditor(next);
+            setEditor(next);
+            onEditorChange(next);
+        };
+        publish(mounted);
         mounted.onDidDispose(() => {
-            setEditor((current) => (current === mounted ? null : current));
-            if (editorRef.current === mounted) {
-                editorRef.current = null;
+            if (getActiveEditor() === mounted) {
+                publish(null);
             }
         });
     };

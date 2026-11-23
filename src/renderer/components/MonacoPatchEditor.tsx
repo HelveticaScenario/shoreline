@@ -1,24 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { useTheme } from '../themes/ThemeContext';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
-import { configSchema } from '../configSchema';
 import { formatPath } from './monaco/monacoHelpers';
 import type { ScopeView, VideoPreviewZone } from '../types/editor';
-import { applyMonacoTheme } from './monaco/theme';
-import { registerConfigSchema } from './monaco/jsonSchema';
-import { startModuleStatePolling } from './monaco/moduleStateTracking';
 import electronAPI from '../electronAPI';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
 import type { EditorViewStates } from '../app/editorViewStates';
+import { editorCodeFormat } from './patchEditor/codeFormat';
 import { patchEditorOptions } from './patchEditor/editorOptions';
 import { useBufferModels } from './patchEditor/useBufferModels';
-import { useDslLanguageServices } from './patchEditor/useDslLanguageServices';
-import { useEditorBehaviours } from './patchEditor/useEditorBehaviours';
-import { useEditorContextMenu } from './patchEditor/useEditorContextMenu';
+import { useCodeDecorations } from './patchEditor/useCodeDecorations';
+import { useEditorContextKeys } from './patchEditor/useEditorContextKeys';
 import { useEditorInstance } from './patchEditor/useEditorInstance';
+import { useEditorMouseGestures } from './patchEditor/useEditorMouseGestures';
 import { useEditorViewZones } from './patchEditor/useEditorViewZones';
+import { useMonacoRegistrations } from './patchEditor/useMonacoRegistrations';
 
 export interface PatchEditorProps {
     value: string;
@@ -28,11 +26,11 @@ export interface PatchEditorProps {
     /** Ids of every open buffer; models of buffers not listed are disposed. */
     openFiles: string[];
     onChange: (value: string) => void;
-    /** Holds the editor from the moment it mounts, for handlers that can run
-     *  before `onEditorChange` has rendered. */
-    editorRef: React.RefObject<editor.IStandaloneCodeEditor | null>;
-    /** Called with the editor instance when it mounts, and with null when
-     *  it goes away (the last buffer closed). */
+    /** Called with the editor as it mounts and with null as it goes away (the
+     *  last buffer closed), from inside Monaco's own callbacks, so what it
+     *  stores is readable before the next render. The editor keeps the
+     *  function it mounted with, so it must not read values that change
+     *  between renders. */
     onEditorChange: (editor: editor.IStandaloneCodeEditor | null) => void;
     scopeViews?: ScopeView[];
     /** Tracked decoration collection whose ranges correspond 1:1 with scopeViews. */
@@ -54,7 +52,6 @@ export function MonacoPatchEditor({
     viewStates,
     openFiles,
     onChange,
-    editorRef,
     onEditorChange,
     scopeViews = NO_SCOPE_VIEWS,
     scopeDecorations = null,
@@ -72,28 +69,37 @@ export function MonacoPatchEditor({
     }, []);
 
     const monaco = useCustomMonaco();
-    const { editor, handleMount } = useEditorInstance(
-        editorRef,
-        onEditorChange,
-    );
+    const { editor, handleMount } = useEditorInstance(onEditorChange);
 
-    // Highlights the steps the running patch is playing, from the argument
-    // and source spans its module states carry. They go on the running
-    // buffer's model whether or not the editor shows it, so the performance
-    // window shows them too.
-    useEffect(() => {
-        if (!monaco || !runningBufferId) {
-            return;
-        }
-        const uri = monaco.Uri.parse(formatPath(runningBufferId));
-        return startModuleStatePolling({
-            getModel: () => monaco.editor.getModel(uri),
-            getModuleStates: () =>
-                window.electronAPI.synthesizer.getModuleStates(),
-            monaco,
-        });
-    }, [monaco, runningBufferId]);
+    const {
+        theme: appTheme,
+        cursorStyle,
+        font,
+        fontLigatures,
+        fontSize,
+        prettierConfig,
+    } = useTheme();
+    const codeFormat = editorCodeFormat(prettierConfig);
+    const monacoThemeId = `theme-${appTheme.id}`;
 
+    useMonacoRegistrations({
+        codeFormat,
+        libSource,
+        monaco,
+        schemas,
+        theme: appTheme,
+        themeId: monacoThemeId,
+    });
+    const handleEditorChange = useBufferModels({
+        currentFile,
+        editor,
+        monaco,
+        onChange,
+        openFiles,
+        tabSize: codeFormat.tabSize,
+        value,
+        viewStates,
+    });
     useEditorViewZones({
         currentFile,
         editor,
@@ -105,48 +111,13 @@ export function MonacoPatchEditor({
         videoPreviewDecorations,
         videoPreviewZones,
     });
-    useEditorContextMenu(editor);
-    const handleEditorChange = useBufferModels({
-        currentFile,
-        editor,
-        monaco,
-        onChange,
-        openFiles,
-        value,
-        viewStates,
-    });
-
-    const {
-        theme: appTheme,
-        cursorStyle,
-        font,
-        fontLigatures,
-        fontSize,
-        prettierConfig,
-    } = useTheme();
-
-    useDslLanguageServices({ libSource, monaco, prettierConfig, schemas });
-    useEditorBehaviours({
+    useCodeDecorations({ editor, monaco, runningBufferId });
+    useEditorContextKeys(editor);
+    useEditorMouseGestures({
+        codeFormat,
         dslReady: monaco !== null && schemas.length > 0,
         editor,
-        prettierConfig,
     });
-
-    const monacoThemeId = `theme-${appTheme.id}`;
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        applyMonacoTheme(monaco, appTheme, monacoThemeId);
-    }, [monaco, appTheme, monacoThemeId]);
-
-    // JSON schema for config files.
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        registerConfigSchema(monaco, configSchema);
-    }, [monaco]);
 
     // Its own statement, so the object changes only with the appearance:
     // the Editor wrapper calls `updateOptions` for each new one.
