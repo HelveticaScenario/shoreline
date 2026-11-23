@@ -16,7 +16,7 @@ import { installWorkspacePathDrop } from '../monaco/workspacePathCompletion';
 
 interface EditorBehavioursParams {
     editor: editor.IStandaloneCodeEditor | null;
-    /** Whether the DSL's definitions are loaded, so a symbol can be peeked. */
+    /** Whether the module schemas have loaded; peeking a symbol waits for them. */
     dslReady: boolean;
     prettierConfig: PrettierConfig;
 }
