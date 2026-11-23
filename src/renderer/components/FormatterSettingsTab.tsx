@@ -1,10 +1,10 @@
-import React from 'react';
 import type {
     AppConfig,
     PrettierConfig,
     QuoteStyle,
 } from '../../shared/ipcTypes';
 import { resolvePrettierOptions } from './monaco/formattingProvider';
+import { SelectSetting } from './SettingsControls';
 
 const TRAILING_COMMA_OPTIONS = ['all', 'es5', 'none'] as const;
 
@@ -36,7 +36,6 @@ export function FormatterSettingsTab({
                 These are merged with built-in defaults.
             </p>
 
-            {/* Print Width */}
             <div className="settings-section">
                 <h3>Print Width</h3>
                 <div className="settings-row">
@@ -56,7 +55,6 @@ export function FormatterSettingsTab({
                 </div>
             </div>
 
-            {/* Tab Width */}
             <div className="settings-section">
                 <h3>Tab Width</h3>
                 <div className="settings-row">
@@ -74,7 +72,6 @@ export function FormatterSettingsTab({
                 </div>
             </div>
 
-            {/* Semicolons */}
             <div className="settings-section">
                 <h3>Semicolons</h3>
                 <label className="settings-toggle">
@@ -89,53 +86,44 @@ export function FormatterSettingsTab({
                 </label>
             </div>
 
-            {/* Quotes */}
-            <div className="settings-section">
-                <h3>Quotes</h3>
-                <select
-                    className="device-select"
-                    value={resolvePrettierOptions(prettier).quotes}
-                    onChange={(e) =>
-                        updatePrettier({
-                            quotes: e.target.value as QuoteStyle,
-                            singleQuote: undefined,
-                        })
-                    }
-                >
-                    {QUOTE_OPTIONS.map(({ label, value }) => (
-                        <option key={value} value={value}>
-                            {label}
-                        </option>
-                    ))}
-                </select>
-                <span className="settings-hint">
-                    Backtick keeps quotes where JavaScript requires them, such
-                    as import paths and object keys
-                </span>
-            </div>
+            <SelectSetting
+                label="Quotes"
+                value={resolvePrettierOptions(prettier).quotes}
+                onChange={(value) =>
+                    updatePrettier({
+                        quotes: value as QuoteStyle,
+                        singleQuote: undefined,
+                    })
+                }
+                note={
+                    <span className="settings-hint">
+                        Backtick keeps quotes where JavaScript requires them,
+                        such as import paths and object keys
+                    </span>
+                }
+            >
+                {QUOTE_OPTIONS.map(({ label, value }) => (
+                    <option key={value} value={value}>
+                        {label}
+                    </option>
+                ))}
+            </SelectSetting>
 
-            {/* Trailing Commas */}
-            <div className="settings-section">
-                <h3>Trailing Commas</h3>
-                <select
-                    className="device-select"
-                    value={(prettier.trailingComma as string) ?? 'all'}
-                    onChange={(e) =>
-                        updatePrettier({
-                            trailingComma: e.target.value as
-                                | 'all'
-                                | 'es5'
-                                | 'none',
-                        })
-                    }
-                >
-                    {TRAILING_COMMA_OPTIONS.map((opt) => (
-                        <option key={opt} value={opt}>
-                            {opt}
-                        </option>
-                    ))}
-                </select>
-            </div>
+            <SelectSetting
+                label="Trailing Commas"
+                value={(prettier.trailingComma as string) ?? 'all'}
+                onChange={(value) =>
+                    updatePrettier({
+                        trailingComma: value as 'all' | 'es5' | 'none',
+                    })
+                }
+            >
+                {TRAILING_COMMA_OPTIONS.map((opt) => (
+                    <option key={opt} value={opt}>
+                        {opt}
+                    </option>
+                ))}
+            </SelectSetting>
         </div>
     );
 }
