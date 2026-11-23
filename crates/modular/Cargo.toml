@@ -10,7 +10,7 @@ crate-type = ["cdylib"]
 
 [features]
 default = []
-tracy   = ["modular_core/tracy", "tracy-client", "profiling/profile-with-tracy"]
+tracy   = ["profiling/profile-with-tracy"]
 # Dev-only audio-thread allocation detector (see src/alloc_detector.rs). Off by
 # default; enabled by `yarn start:alloc` or `build-native-alloc`. Installs a global allocator — never ship.
 alloc-detector = ["modular_core/alloc-detector", "dep:backtrace"]
@@ -19,8 +19,6 @@ alloc-detector = ["modular_core/alloc-detector", "dep:backtrace"]
 aubio = { version = "0.2", features = ["builtin", "bindgen"] }
 backtrace = { version = "0.3", optional = true }
 bytemuck = "1.24.0"
-crossbeam-channel = "0.5"
-dirs = "5"
 hound = "3.5"
 lru = "0.16.3"
 midir = "0.11"
@@ -49,15 +47,10 @@ symphonia = { version = "0.5", default-features = false, features = [
   "vorbis",
   "wav",
 ] }
-tracy-client = { workspace = true, optional = true }
 
   [dependencies.napi]
   features = ["serde", "serde-json", "napi10"]
   version  = "3.7.1"
-
-  [dependencies.chrono]
-  default-features = true
-  version          = "0.4"
 
   [dependencies.cpal]
   features = ["jack"]

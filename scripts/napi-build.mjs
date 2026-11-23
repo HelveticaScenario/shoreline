@@ -60,13 +60,21 @@ if (windows) {
     moved = setAsideAddons();
 }
 
+// On macOS cargo leaves release debug info in the object files unless asked to
+// pack it; packed, it writes the `.dSYM` bundle that copy-debuginfo.mjs ships
+// beside the addon. Linux keeps its DWARF inside the `.so`.
+const buildEnv =
+    process.platform === 'darwin'
+        ? { ...process.env, CARGO_PROFILE_RELEASE_SPLIT_DEBUGINFO: 'packed' }
+        : process.env;
+
 const requireFromCrate = createRequire(join(crateDir, 'package.json'));
 const cliPkgPath = requireFromCrate.resolve('@napi-rs/cli/package.json');
 const cliBin = JSON.parse(readFileSync(cliPkgPath, 'utf8')).bin.napi;
 const result = spawnSync(
     process.execPath,
     [join(dirname(cliPkgPath), cliBin), 'build', ...process.argv.slice(2)],
-    { stdio: 'inherit', cwd: crateDir },
+    { stdio: 'inherit', cwd: crateDir, env: buildEnv },
 );
 
 if (windows) {

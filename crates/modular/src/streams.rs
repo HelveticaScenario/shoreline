@@ -151,7 +151,7 @@ impl Streams {
 
     /// The devices these streams hold open: an ended stream holds none.
     pub(crate) fn open_device_ids(&self) -> impl Iterator<Item = &str> {
-        let output = Some(self.output_device_id.as_str()).filter(|_| !self.watchdog.has_died());
+        let output = (!self.watchdog.has_died()).then_some(self.output_device_id.as_str());
         let input = self
             .input_device_id
             .as_deref()

@@ -13,10 +13,12 @@ default-members = [
 
 [workspace.dependencies]
 profiling = "1.0"
-tracy-client = { version = "0.17", default-features = false }
 
 [workspace.lints.clippy]
 all = "deny"
+
+[workspace.lints.cargo]
+unused_dependencies = "deny"
 
 [profile.release]
 lto = true
@@ -25,11 +27,12 @@ lto = true
 # std::backtrace). Without this, `Backtrace::force_capture` writes only raw
 # addresses to the panic log.
 strip = "none"
-# `line-tables-only` emits `.debug_line` (address → file:line). Cargo's
-# per-platform default for `split-debuginfo` is used:
-#   - macOS:   `packed` → a `.dSYM` bundle next to the binary (bundle via
-#              forge `packageAfterCopy` + `scripts/copy-debuginfo.mjs` so
-#              std::backtrace can co-locate it at runtime).
+# `line-tables-only` emits `.debug_line` (address → file:line). Where it ends
+# up depends on `split-debuginfo`:
+#   - macOS:   `scripts/napi-build.mjs` sets `packed` → a `.dSYM` bundle next
+#              to the binary (bundled via forge `packageAfterCopy` +
+#              `scripts/copy-debuginfo.mjs` so std::backtrace can co-locate
+#              it at runtime). Cargo's own default leaves it in the objects.
 #   - Linux:   `off`    → DWARF embedded in the `.so` (no extra packaging).
 #   - Windows: `packed` → a `.pdb` next to the binary (not auto-bundled
 #              yet; ship the `.pdb` with the `.node` for file:line).

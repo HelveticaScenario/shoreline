@@ -64,7 +64,7 @@ pub fn estimate_bpm_from_audio(samples: &[f32], sample_rate: u32) -> Option<f64>
     )
     .ok()?;
 
-    for chunk in samples.chunks_exact(TEMPO_HOP_SIZE) {
+    for chunk in samples.as_chunks::<TEMPO_HOP_SIZE>().0 {
         tempo.do_result(chunk).ok()?;
     }
 

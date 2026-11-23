@@ -67,13 +67,15 @@ impl MetallicNoise for RingModNoise {
     #[inline(always)]
     fn next(&mut self) -> f32 {
         let mut out = 0.0;
-        for (pair, f) in self
+        for ([carrier, modulator], [carrier_f, modulator_f]) in self
             .oscillators
-            .chunks_exact_mut(2)
-            .zip(self.frequency.chunks_exact(2))
+            .as_chunks_mut::<2>()
+            .0
+            .iter_mut()
+            .zip(self.frequency.as_chunks::<2>().0)
         {
-            let square = pair[0].square(f[0]);
-            out += square * pair[1].saw(f[1]);
+            let square = carrier.square(*carrier_f);
+            out += square * modulator.saw(*modulator_f);
         }
         out
     }
