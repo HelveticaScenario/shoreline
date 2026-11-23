@@ -28,6 +28,9 @@ export interface PatchEditorProps {
     /** Ids of every open buffer; models of buffers not listed are disposed. */
     openFiles: string[];
     onChange: (value: string) => void;
+    /** Holds the editor from the moment it mounts, for handlers that can run
+     *  before `onEditorChange` has rendered. */
+    editorRef: React.RefObject<editor.IStandaloneCodeEditor | null>;
     /** Called with the editor instance when it mounts, and with null when
      *  it goes away (the last buffer closed). */
     onEditorChange: (editor: editor.IStandaloneCodeEditor | null) => void;
@@ -51,6 +54,7 @@ export function MonacoPatchEditor({
     viewStates,
     openFiles,
     onChange,
+    editorRef,
     onEditorChange,
     scopeViews = NO_SCOPE_VIEWS,
     scopeDecorations = null,
@@ -68,7 +72,10 @@ export function MonacoPatchEditor({
     }, []);
 
     const monaco = useCustomMonaco();
-    const { editor, handleMount } = useEditorInstance(onEditorChange);
+    const { editor, handleMount } = useEditorInstance(
+        editorRef,
+        onEditorChange,
+    );
 
     // Highlights the steps the running patch is playing, from the argument
     // and source spans its module states carry. They go on the running
