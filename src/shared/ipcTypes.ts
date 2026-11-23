@@ -286,7 +286,7 @@ export interface WorkspaceFolder {
 }
 
 export interface FileContextMenuOptions {
-    type: 'file' | 'directory' | 'unknown' | 'untitled';
+    type: 'file' | 'directory' | 'untitled';
     path?: string;
     bufferId?: string;
     isWorkspaceFile?: boolean;
