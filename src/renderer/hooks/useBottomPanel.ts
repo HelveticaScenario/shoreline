@@ -1,7 +1,7 @@
 import {
     type CSSProperties,
-    useCallback,
     useEffect,
+    useEffectEvent,
     useRef,
     useState,
 } from 'react';
@@ -75,7 +75,7 @@ export function useDraftHeight(
         commitRef.current = commit;
     }, [commit]);
 
-    const setHeight = useCallback((next: number | null) => {
+    const setHeight = (next: number | null) => {
         const height = next ?? DEFAULT_HEIGHT;
         setDraft(height);
         if (pending.current) window.clearTimeout(pending.current.timer);
@@ -85,7 +85,7 @@ export function useDraftHeight(
             setDraft(null);
         }, HEIGHT_WRITE_DELAY_MS);
         pending.current = { timer, height };
-    }, []);
+    };
 
     useEffect(
         () => () => {
@@ -127,40 +127,28 @@ export function useBottomPanel(
         setDocsTarget(null);
     }
 
-    // The commands are registered once and read the latest values here.
-    const current = useRef({ tab, docsLocation });
-    useEffect(() => {
-        current.current = { tab, docsLocation };
-    }, [tab, docsLocation]);
-
     // An undefined field survives IPC and clears the key from the file.
-    const show = useCallback(
-        (next: BottomTab | null) =>
-            changeConfig({ bottomPanel: next ?? undefined }),
-        [changeConfig],
-    );
+    const show = (next: BottomTab | null) =>
+        changeConfig({ bottomPanel: next ?? undefined });
 
-    const toggle = useCallback(
-        (next: BottomTab) => show(current.current.tab === next ? null : next),
-        [show],
-    );
+    const toggle = (next: BottomTab) => show(tab === next ? null : next);
 
-    const commitHeight = useCallback(
-        (next: number) => changeConfig({ bottomPanelHeight: next }),
-        [changeConfig],
-    );
+    const commitHeight = (next: number) =>
+        changeConfig({ bottomPanelHeight: next });
+
+    // The commands are registered once and read the latest values through these.
+    const toggleMixer = useEffectEvent(() => toggle('mixer'));
+    // Before the config file is read the docs have no place to open in.
+    const bringDocsForward = useEffectEvent((togglesAtBottom: boolean) => {
+        if (docsLocation === 'sidebar') setReveals((n) => n + 1);
+        else if (docsLocation === 'bottom') {
+            if (togglesAtBottom) toggle('docs');
+            else show('docs');
+        }
+    });
 
     useEffect(() => {
-        // Before the config file is read the docs have no place to open in.
-        const bringDocsForward = (togglesAtBottom: boolean) => {
-            const location = current.current.docsLocation;
-            if (location === 'sidebar') setReveals((n) => n + 1);
-            else if (location === 'bottom') {
-                if (togglesAtBottom) toggle('docs');
-                else show('docs');
-            }
-        };
-        registerCommand('shoreline.toggleMixer', () => toggle('mixer'), {
+        registerCommand('shoreline.toggleMixer', () => toggleMixer(), {
             label: 'Toggle Mixer',
             category: 'View',
         });
@@ -181,7 +169,7 @@ export function useBottomPanel(
             unregisterCommand('shoreline.toggleDocs');
             unregisterCommand(SHOW_DOCS_COMMAND);
         };
-    }, [show, toggle]);
+    }, []);
 
     return {
         tab,

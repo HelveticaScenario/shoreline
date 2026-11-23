@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type ReactNode } from 'react';
+import { useEffect, useEffectEvent, type ReactNode } from 'react';
 import Markdown, { type Components, type ExtraProps } from 'react-markdown';
 import {
     combineReleaseNotes,
@@ -107,27 +107,24 @@ export function ReleaseNotesDialog({
     actions,
     onClose,
 }: Props) {
-    const combined = useMemo(
-        () =>
-            liftBreaking
-                ? combineReleaseNotes(releases)
-                : { breaking: [], releases },
-        [releases, liftBreaking],
-    );
+    const combined = liftBreaking
+        ? combineReleaseNotes(releases)
+        : { breaking: [], releases };
     const footer = actions ?? [
         { label: 'Close', onClick: onClose, primary: true },
     ];
 
+    const onEscape = useEffectEvent(onClose);
     useEffect(() => {
         const onKeyDown = (event: KeyboardEvent) => {
             if (event.key === 'Escape') {
                 event.stopPropagation();
-                onClose();
+                onEscape();
             }
         };
         window.addEventListener('keydown', onKeyDown, true);
         return () => window.removeEventListener('keydown', onKeyDown, true);
-    }, [onClose]);
+    }, []);
 
     const isEmpty =
         combined.breaking.length === 0 && combined.releases.length === 0;

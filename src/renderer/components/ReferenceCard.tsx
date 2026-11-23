@@ -118,7 +118,11 @@ interface ReferenceCardProps {
     onTypeClick: (typeName: DslTypeName) => void;
 }
 
-/** The full Docs-panel view of one module or global. */
+/**
+ * The full Docs-panel view of one module or global. The virtualized list that
+ * mounts the cards renders on every scroll and is not compiled, so `memo`
+ * keeps a scroll from re-rendering them.
+ */
 export const ReferenceCard = memo<ReferenceCardProps>(
     ({ entry, onTypeClick }) => {
         const { docs } = entry;

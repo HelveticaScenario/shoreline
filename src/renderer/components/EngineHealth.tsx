@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AudioBudgetSnapshot } from '@modular/core';
 import electronAPI from '../electronAPI';
+import { useOverlayPanel } from '../hooks/useOverlayPanel';
 import './EngineHealth.css';
 
 interface EngineHealthProps {
@@ -24,7 +25,7 @@ function formatNs(ns: number): string {
 
 export function EngineHealth({ isOpen, onClose }: EngineHealthProps) {
     const [snapshot, setSnapshot] = useState<AudioBudgetSnapshot | null>(null);
-    const panelRef = useRef<HTMLDivElement>(null);
+    const panelRef = useOverlayPanel(isOpen, onClose);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -50,25 +51,6 @@ export function EngineHealth({ isOpen, onClose }: EngineHealthProps) {
             setSnapshot(null);
         };
     }, [isOpen]);
-
-    // Focus panel when opened
-    useEffect(() => {
-        if (!isOpen) return;
-        const rafId = requestAnimationFrame(() => {
-            panelRef.current?.focus();
-        });
-        return () => cancelAnimationFrame(rafId);
-    }, [isOpen]);
-
-    // Close on Escape
-    useEffect(() => {
-        if (!isOpen) return;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
 
     if (!isOpen) return null;
 
