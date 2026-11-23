@@ -586,9 +586,7 @@ impl MidiCv {
                 .set_state(TempGateState::Low, TempGateState::Low, 0);
         }
 
-        for i in 0..16 {
-            self.state.sustain[i] = false;
-        }
+        self.state.sustain.fill(false);
 
         Ok(())
     }

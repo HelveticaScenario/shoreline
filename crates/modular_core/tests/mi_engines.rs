@@ -480,8 +480,10 @@ fn matches_plaits_engines() {
     ))
     .expect("engines.f32: run scripts/mi-reference/build.sh, or git lfs pull");
     let floats: Vec<f32> = bytes
-        .chunks_exact(4)
-        .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|&b| f32::from_le_bytes(b))
         .collect();
     // The seed `engines.cc` starts Plaits' random generator from.
     modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
