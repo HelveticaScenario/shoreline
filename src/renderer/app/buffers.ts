@@ -188,3 +188,24 @@ export const renamedFileName = (oldPath: string, newName: string) => {
         ? newName.trim()
         : normalizeFileName(newName, extension);
 };
+
+/**
+ * The path a rename to `newName` gives `oldPath`'s file, in the same folder.
+ * Undefined when the name is empty or names the file as it is.
+ */
+export const renamedFilePath = (
+    oldPath: string,
+    newName: string,
+): string | undefined => {
+    if (!newName || newName === oldPath.split(/[/\\]/).pop()) {
+        return undefined;
+    }
+    const fileName = renamedFileName(oldPath, newName);
+    const separator = oldPath.includes('\\') ? '\\' : '/';
+    const lastSeparator = oldPath.lastIndexOf(separator);
+    const newPath =
+        lastSeparator === -1
+            ? fileName
+            : `${oldPath.substring(0, lastSeparator)}${separator}${fileName}`;
+    return newPath && newPath !== oldPath ? newPath : undefined;
+};
