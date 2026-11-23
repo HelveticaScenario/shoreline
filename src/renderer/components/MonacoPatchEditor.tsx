@@ -1,58 +1,24 @@
-import React, {
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
-import Editor, { type OnMount } from '@monaco-editor/react';
+import React, { useEffect, useState } from 'react';
+import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
 import { useTheme } from '../themes/ThemeContext';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import { configSchema } from '../configSchema';
 import { formatPath } from './monaco/monacoHelpers';
 import type { ScopeView, VideoPreviewZone } from '../types/editor';
-import { setupMonacoJavascript } from './monaco/monacoLanguage';
-import {
-    DEFAULT_PRETTIER_OPTIONS,
-    registerDslFormattingProvider,
-    resolvePrettierOptions,
-} from './monaco/formattingProvider';
 import { applyMonacoTheme } from './monaco/theme';
 import { registerConfigSchema } from './monaco/jsonSchema';
-import {
-    type ScopeViewZoneHandle,
-    createScopeViewZones,
-} from './monaco/scopeViewZones';
-import {
-    type VideoPreviewViewZoneHandle,
-    createVideoPreviewViewZones,
-} from './monaco/videoPreviewViewZones';
 import { startModuleStatePolling } from './monaco/moduleStateTracking';
-import { registerMidiCompletionProvider } from './monaco/midiCompletionProvider';
-import {
-    installWorkspacePathDrop,
-    registerWorkspacePathCompletionProvider,
-} from './monaco/workspacePathCompletion';
-import { trackCodeBacking } from './monaco/codeBacking';
-import { createModelValueSync } from './monaco/modelValueSync';
-import { registerControlQuickFixProvider } from './monaco/controlQuickFixProvider';
-import { registerRefactorProvider } from './monaco/refactorProvider';
-import { apiIndexFor } from '../dsl/apiSignatures';
-import { codeStyleFromPrettier } from '../dsl/listEdits';
-import { registerKeybindingsCompletionProvider } from './monaco/keybindingsCompletion';
-import { registerKeybindingsDiagnostics } from './monaco/keybindingsDiagnostics';
-import {
-    bindEditorContextConstants,
-    bindEditorFocus,
-    bindEditorWidgetVisibility,
-} from '../keybindings/contextKeyBootstrap';
 import electronAPI from '../electronAPI';
 import type { Schemas } from '../../shared/dsl/schemaTypeResolver';
-import { fontFamilyWithFallback } from '../../shared/fonts';
-import { buildEditorMenuItems } from '../keybindings/editorMenuItems';
-import { dispatchCommand, setActiveEditor } from '../keybindings/dispatch';
 import type { EditorViewStates } from '../app/editorViewStates';
+import { patchEditorOptions } from './patchEditor/editorOptions';
+import { useBufferModels } from './patchEditor/useBufferModels';
+import { useDslLanguageServices } from './patchEditor/useDslLanguageServices';
+import { useEditorBehaviours } from './patchEditor/useEditorBehaviours';
+import { useEditorContextMenu } from './patchEditor/useEditorContextMenu';
+import { useEditorInstance } from './patchEditor/useEditorInstance';
+import { useEditorViewZones } from './patchEditor/useEditorViewZones';
 
 export interface PatchEditorProps {
     value: string;
@@ -80,13 +46,8 @@ export interface PatchEditorProps {
     videoPreviewDecorations?: editor.IEditorDecorationsCollection | null;
 }
 
-/**
- * A line number in a box of its own, which Monaco places in the gutter as
- * markup. Over a picture the box carries the backing, so it is as tall as the
- * line and as wide as the digits.
- */
-const renderLineNumber = (lineNumber: number): string =>
-    `<span class="line-number-text">${lineNumber}</span>`;
+const NO_SCOPE_VIEWS: ScopeView[] = [];
+const NO_VIDEO_PREVIEW_ZONES: VideoPreviewZone[] = [];
 
 export function MonacoPatchEditor({
     value,
@@ -96,48 +57,31 @@ export function MonacoPatchEditor({
     onChange,
     editorRef,
     onEditorChange,
-    scopeViews = [],
+    scopeViews = NO_SCOPE_VIEWS,
     scopeDecorations = null,
     onRegisterScopeCanvas,
     onUnregisterScopeCanvas,
     runningBufferId,
-    videoPreviewZones = [],
+    videoPreviewZones = NO_VIDEO_PREVIEW_ZONES,
     videoPreviewDecorations = null,
 }: PatchEditorProps) {
-    // Fetch DSL lib source once at mount for Monaco autocomplete
     const [libSource, setLibSource] = useState<string | null>(null);
     const [schemas, setSchemas] = useState<Schemas>([]);
-
     useEffect(() => {
         electronAPI.getDslLibSource().then(setLibSource).catch(console.error);
         electronAPI.getSchemas().then(setSchemas).catch(console.error);
     }, []);
 
     const monaco = useCustomMonaco();
-    const [editor, setEditor] = useState<editor.IStandaloneCodeEditor | null>(
-        null,
+    const { editor, handleMount } = useEditorInstance(
+        editorRef,
+        onEditorChange,
     );
 
-    // Mirror the local `editor` state up to the parent (for the command
-    // palette etc.). Cleans up to `null` when the inner Monaco Editor
-    // unmounts (e.g., when the last buffer closes and `currentFile` goes
-    // falsy).
-    useEffect(() => {
-        onEditorChange?.(editor);
-        // Make this editor the dispatch target for window-level keybindings
-        // and the context menu (see keybindings/dispatch).
-        setActiveEditor(editor);
-        return () => {
-            onEditorChange?.(null);
-            setActiveEditor(null);
-        };
-    }, [editor, onEditorChange]);
-
-    // Poll module states for active step highlighting using the generic system
-    // This uses argument_spans from Rust to know where arguments are in the document,
-    // Combined with source_spans for internal highlighting (like mini-notation spans).
-    // The highlights go on the running buffer's model whether or not the editor
-    // shows it, so the performance window shows them too.
+    // Highlights the steps the running patch is playing, from the argument
+    // and source spans its module states carry. They go on the running
+    // buffer's model whether or not the editor shows it, so the performance
+    // window shows them too.
     useEffect(() => {
         if (!monaco || !runningBufferId) {
             return;
@@ -151,247 +95,27 @@ export function MonacoPatchEditor({
         });
     }, [monaco, runningBufferId]);
 
-    // Ref to hold the current scope view zone handle for repositioning
-    const scopeZoneHandleRef = useRef<ScopeViewZoneHandle | null>(null);
-
-    // Filter scope views to only those belonging to the active file
-    const activeScopeViews = useMemo(
-        () => scopeViews.filter((view) => view.file === currentFile),
-        [scopeViews, currentFile],
-    );
-
-    // Create / recreate scope view zones when the scope list changes
-    useEffect(() => {
-        if (!editor || !monaco) {
-            return;
-        }
-        const handle = createScopeViewZones({
-            editor,
-            monaco,
-            onRegisterScopeCanvas,
-            onUnregisterScopeCanvas,
-            scopeDecorations,
-            views: activeScopeViews,
-        });
-        scopeZoneHandleRef.current = handle;
-        return () => {
-            handle.dispose();
-            scopeZoneHandleRef.current = null;
-        };
-    }, [
+    useEditorViewZones({
+        currentFile,
         editor,
         monaco,
-        activeScopeViews,
-        scopeDecorations,
         onRegisterScopeCanvas,
         onUnregisterScopeCanvas,
-    ]);
-
-    const previewZoneHandleRef = useRef<VideoPreviewViewZoneHandle | null>(
-        null,
-    );
-    const activeVideoPreviewZones = useMemo(
-        () => videoPreviewZones.filter((zone) => zone.file === currentFile),
-        [videoPreviewZones, currentFile],
-    );
-
-    // Create / recreate the `$v.preview` panels when the preview list changes
-    useEffect(() => {
-        if (!editor) {
-            return;
-        }
-        const handle = createVideoPreviewViewZones({
-            decorations: videoPreviewDecorations,
-            editor,
-            zones: activeVideoPreviewZones,
-        });
-        previewZoneHandleRef.current = handle;
-        return () => {
-            handle.dispose();
-            previewZoneHandleRef.current = null;
-        };
-    }, [editor, activeVideoPreviewZones, videoPreviewDecorations]);
-
-    // On every content change, re-read positions from tracked decorations and
-    // reposition view zones if any scope or preview call has moved to a
-    // different line.
-    useEffect(() => {
-        if (!editor) {
-            return;
-        }
-        const disposable = editor.onDidChangeModelContent(() => {
-            scopeZoneHandleRef.current?.repositionZones();
-            previewZoneHandleRef.current?.repositionZones();
-        });
-        return () => disposable.dispose();
-    }, [editor]);
-
-    // Native editor context menu (right-click). Monaco's built-in menu is
-    // disabled (it hosts a "Command Palette" entry that bypasses our keymap),
-    // so we pop a native Electron menu built from the command registry and
-    // dispatch the chosen item through the shared command path.
-    useEffect(() => {
-        if (!editor) {
-            return;
-        }
-        const contextSub = editor.onContextMenu((e) => {
-            // Focus on every right-click (editor convention) so the native
-            // clipboard roles act on this editor.
-            editor.focus();
-            const position = e.target.position;
-            const selection = editor.getSelection();
-            // Right-clicking outside the current selection collapses the caret
-            // to the click point so paste lands where the user clicked; an
-            // existing selection is preserved so copy/cut act on it.
-            if (
-                position &&
-                (!selection || !selection.containsPosition(position))
-            ) {
-                editor.setPosition(position);
-            }
-            void electronAPI.showContextMenu({
-                type: 'editor',
-                items: buildEditorMenuItems(editor),
-            });
-        });
-        const disposeCommandSub = electronAPI.onContextMenuCommand((action) => {
-            if (action.command !== 'editor' || !action.commandId) {
-                return;
-            }
-            // Registry commands run via the registry; editor actions and core
-            // editor commands are triggered on this editor. Clipboard roles
-            // never round-trip — they are handled natively in the main process.
-            // Refocus first: the native menu took focus, and editor commands
-            // (Go to Definition, etc.) need the editor focused to act.
-            editor.focus();
-            dispatchCommand(action.commandId);
-        });
-        return () => {
-            contextSub.dispose();
-            disposeCommandSub();
-        };
-    }, [editor]);
-
-    // Each buffer keeps its own model (keepCurrentModel) so undo history
-    // survives switching. A closed buffer's model must be disposed: buffer ids
-    // are reused (a new untitled takes the lowest free number, a deleted file
-    // can be recreated), and the Editor adopts any existing model at a path
-    // over the buffer's content. Runs after the Editor's own effects, so the
-    // editor has already moved off a disposed model.
-    const openModelPathsRef = useRef(new Set<string>());
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        const paths = new Set(openFiles.map(formatPath));
-        for (const path of openModelPathsRef.current) {
-            if (!paths.has(path)) {
-                monaco.editor.getModel(monaco.Uri.parse(path))?.dispose();
-            }
-        }
-        openModelPathsRef.current = paths;
-    }, [monaco, openFiles]);
-
-    // View states live in `viewStates`, which follows buffers whose ids
-    // change, so the Editor's own store is off. A buffer's view state is saved
-    // here, before the Editor's passive effect swaps models, and restored
-    // below once it has.
-    useLayoutEffect(() => {
-        viewStates.beforeShow(editor, currentFile);
-    }, [editor, currentFile, viewStates]);
-
-    // The model, not `value`, is the source of truth for the active buffer:
-    // `value` is written into it only when it is text the editor did not
-    // emit, so a value that arrives after newer keystrokes never replaces
-    // them (or moves the caret). The Editor gets `defaultValue` alone, which
-    // seeds a model it creates for a new path.
-    const [valueSync] = useState(createModelValueSync);
-    const syncedModelRef = useRef<editor.ITextModel | null>(null);
-    const writingValueRef = useRef(false);
-    const handleEditorChange = (text: string | undefined) => {
-        if (writingValueRef.current) {
-            return;
-        }
-        valueSync.noteEmitted(text ?? '');
-        onChange(text ?? '');
-    };
-    useEffect(() => {
-        const model = editor?.getModel();
-        if (!editor || !model) {
-            return;
-        }
-        if (model !== syncedModelRef.current) {
-            syncedModelRef.current = model;
-            valueSync.reset();
-        }
-        if (!valueSync.shouldWrite(value, model.getValue())) {
-            return;
-        }
-        writingValueRef.current = true;
-        try {
-            editor.executeEdits('', [
-                {
-                    forceMoveMarkers: true,
-                    range: model.getFullModelRange(),
-                    text: value,
-                },
-            ]);
-            editor.pushUndoStop();
-        } finally {
-            writingValueRef.current = false;
-        }
-    }, [editor, value, currentFile, valueSync]);
-
-    // After the value write above, which moves the caret when a model adopts
-    // another buffer's text (an untitled buffer saved over an open file).
-    useEffect(() => {
-        viewStates.afterShow();
-    }, [editor, currentFile, value, viewStates]);
-
-    const handleMount: OnMount = (ed) => {
-        setEditor(ed);
-        editorRef.current = ed;
-        // When the inner <Editor> unmounts (e.g. the last buffer closes and
-        // currentFile goes falsy) Monaco disposes this editor. Drop our
-        // references so the mirror effect below clears the parent's
-        // paletteEditor and the dispatch target instead of leaving them
-        // pointing at a disposed editor.
-        ed.onDidDispose(() => {
-            setEditor((current) => (current === ed ? null : current));
-            if (editorRef.current === ed) {
-                editorRef.current = null;
-            }
-        });
-        // No editor-level keybindings are registered here: the capture-phase
-        // window keymap (keybindings/keymap) owns every shortcut and runs
-        // before Monaco, so it is the single source of truth. Hardcoding
-        // editor bindings here would shadow the keymap and could not be
-        // rebound or removed via keybindings.json.
-    };
-
-    useEffect(() => {
-        if (!monaco || !libSource) {
-            return;
-        }
-        return setupMonacoJavascript(monaco, libSource, {
-            quotes: () => quotesRef.current,
-            schemas,
-        });
-    }, [monaco, libSource, schemas]);
-
-    // Mirror Monaco focus and suggest/find widget visibility into the
-    // context-key service so when-clauses can react.
-    useEffect(() => {
-        if (!editor) return;
-        const stopFocus = bindEditorFocus(editor);
-        const stopWidgets = bindEditorWidgetVisibility(editor);
-        const stopConstants = bindEditorContextConstants(editor);
-        return () => {
-            stopFocus();
-            stopWidgets();
-            stopConstants();
-        };
-    }, [editor]);
+        scopeDecorations,
+        scopeViews,
+        videoPreviewDecorations,
+        videoPreviewZones,
+    });
+    useEditorContextMenu(editor);
+    const handleEditorChange = useBufferModels({
+        currentFile,
+        editor,
+        monaco,
+        onChange,
+        openFiles,
+        value,
+        viewStates,
+    });
 
     const {
         theme: appTheme,
@@ -402,148 +126,14 @@ export function MonacoPatchEditor({
         prettierConfig,
     } = useTheme();
 
-    const quotes = resolvePrettierOptions(prettierConfig).quotes;
-    const quotesRef = useRef(quotes);
-    useEffect(() => {
-        quotesRef.current = quotes;
-    }, [quotes]);
+    useDslLanguageServices({ libSource, monaco, prettierConfig, schemas });
+    useEditorBehaviours({
+        dslReady: monaco !== null && schemas.length > 0,
+        editor,
+        prettierConfig,
+    });
+
     const monacoThemeId = `theme-${appTheme.id}`;
-
-    // Open help for DSL symbols on Cmd+Click (not Cmd+Hover)
-    useEffect(() => {
-        if (!editor || !monaco || schemas.length === 0) {
-            return;
-        }
-        const disposable = editor.onMouseDown((e) => {
-            // Check for Cmd (Mac) / Ctrl (Win/Linux) + primary button click
-            if (!e.event.metaKey && !e.event.ctrlKey) {
-                return;
-            }
-            if (e.target.position == null) {
-                return;
-            }
-
-            const model = editor.getModel();
-            if (!model) {
-                return;
-            }
-
-            editor.focus();
-            editor.trigger('api', 'editor.action.peekDefinition', {});
-        });
-        return () => disposable.dispose();
-    }, [editor, monaco, schemas]);
-
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        const disposable = registerDslFormattingProvider(
-            monaco,
-            prettierConfig,
-        );
-        return () => disposable.dispose();
-    }, [monaco, prettierConfig]);
-
-    useEffect(() => {
-        if (!editor) {
-            return;
-        }
-        const apply = () => {
-            const model = editor.getModel();
-            if (model) {
-                model.updateOptions({
-                    insertSpaces: true,
-                    tabSize:
-                        prettierConfig.tabWidth ??
-                        DEFAULT_PRETTIER_OPTIONS.tabWidth,
-                });
-            }
-        };
-        apply();
-        const disposable = editor.onDidChangeModel(apply);
-        return () => disposable.dispose();
-    }, [editor, prettierConfig.tabWidth]);
-
-    useEffect(() => {
-        if (!editor) {
-            return;
-        }
-        return trackCodeBacking(editor);
-    }, [editor]);
-
-    // Register MIDI device autocomplete provider
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        const midiProvider = registerMidiCompletionProvider(monaco, () =>
-            electronAPI.midi.listInputs(),
-        );
-        return () => midiProvider.dispose();
-    }, [monaco]);
-
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        const provider = registerWorkspacePathCompletionProvider(monaco, () =>
-            electronAPI.filesystem.listFiles(),
-        );
-        return () => provider.dispose();
-    }, [monaco]);
-
-    const quote = codeStyleFromPrettier(
-        resolvePrettierOptions(prettierConfig),
-    ).quote;
-    useEffect(() => {
-        if (!editor) {
-            return;
-        }
-        const drop = installWorkspacePathDrop(editor, () => quote);
-        return () => drop.dispose();
-    }, [editor, quote]);
-
-    // Quick fix: turn an API param into a control call chosen from its
-    // metadata.
-    useEffect(() => {
-        if (!monaco || schemas.length === 0) {
-            return;
-        }
-        const formatOptions = resolvePrettierOptions(prettierConfig);
-        const provider = registerControlQuickFixProvider(
-            monaco,
-            () => ({ index: apiIndexFor(libSource), schemas }),
-            () => formatOptions,
-        );
-        return () => provider.dispose();
-    }, [monaco, schemas, libSource, prettierConfig]);
-
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        const formatOptions = resolvePrettierOptions(prettierConfig);
-        const provider = registerRefactorProvider(monaco, () => formatOptions);
-        return () => provider.dispose();
-    }, [monaco, prettierConfig]);
-
-    // Autocomplete command ids and `when` context keys in the keybindings.json
-    // buffer, and flag unsupported `when` operators as warnings. Both scope
-    // themselves to that model.
-    useEffect(() => {
-        if (!monaco) {
-            return;
-        }
-        const provider = registerKeybindingsCompletionProvider(monaco);
-        const diagnostics = registerKeybindingsDiagnostics(monaco);
-        return () => {
-            provider.dispose();
-            diagnostics.dispose();
-        };
-    }, [monaco]);
-
-    // Define Monaco theme from the current app theme
     useEffect(() => {
         if (!monaco) {
             return;
@@ -551,7 +141,7 @@ export function MonacoPatchEditor({
         applyMonacoTheme(monaco, appTheme, monacoThemeId);
     }, [monaco, appTheme, monacoThemeId]);
 
-    // Configure JSON schema for config files
+    // JSON schema for config files.
     useEffect(() => {
         if (!monaco) {
             return;
@@ -559,81 +149,27 @@ export function MonacoPatchEditor({
         registerConfigSchema(monaco, configSchema);
     }, [monaco]);
 
-    // Determine language based on file extension
-    const editorLanguage = useMemo(() => {
-        if (!currentFile) {
-            return 'javascript';
-        }
-        if (currentFile.endsWith('.json')) {
-            return 'json';
-        }
-        return 'javascript';
-    }, [currentFile]);
-
-    // Memoize options so the @monaco-editor/react wrapper's [options] effect
-    // does not fire on every parent render (App.tsx re-renders at ~60Hz via
-    // the scope-polling RAF loop, which would otherwise cause a constant
-    // editor.updateOptions storm). Also: fixedOverflowWidgets renders the
-    // overflowing widgets (suggest, hover, parameter hints) with
-    // position: fixed so they escape the .app-main { overflow: hidden }
-    // clipping ancestor. The widgets stay inside the editor's DOM node, so
-    // contextKeyBootstrap's widget-visibility observer still sees them.
-    const editorOptions = useMemo<editor.IStandaloneEditorConstructionOptions>(
-        () => ({
-            minimap: { enabled: false },
-            // The transparent editor background lets the scrolled lines bleed
-            // through a pinned sticky header as a ghosted duplicate, so the
-            // sticky-scroll feature is disabled here.
-            stickyScroll: { enabled: false },
-            lineNumbers: renderLineNumber,
-            folding: false,
-            matchBrackets: 'always',
-            automaticLayout: true,
-            // Monaco's built-in menu hosts a "Command Palette" entry that
-            // invokes `editor.action.quickCommand` directly, bypassing our
-            // keymap. Disable it; the native right-click menu wired up in the
-            // onContextMenu effect above replaces it.
-            contextmenu: false,
-            fontFamily: fontFamilyWithFallback(font),
-            fontLigatures: fontLigatures,
-            fontSize: fontSize,
-            // LineHeight: 1.6,
-            padding: { bottom: 8, top: 8 },
-            renderLineHighlight: 'line',
-            cursorBlinking: 'solid',
-            cursorStyle: cursorStyle,
-            scrollbar: {
-                horizontal: 'auto',
-                horizontalScrollbarSize: 8,
-                vertical: 'auto',
-                verticalScrollbarSize: 8,
-            },
-            overviewRulerBorder: false,
-            hideCursorInOverviewRuler: true,
-            renderLineHighlightOnlyWhenFocus: false,
-            guides: {
-                bracketPairs: false,
-                indentation: true,
-            },
-            fixedOverflowWidgets: true,
-        }),
-        [font, fontLigatures, fontSize, cursorStyle],
-    );
-
     return (
         <div className="patch-editor" style={{ height: '100%' }}>
             {currentFile && (
                 <Editor
                     height="100%"
                     path={formatPath(currentFile)}
-                    language={editorLanguage}
+                    language={
+                        currentFile.endsWith('.json') ? 'json' : 'javascript'
+                    }
                     theme={monacoThemeId}
                     defaultValue={value}
                     onChange={handleEditorChange}
                     onMount={handleMount}
                     keepCurrentModel
                     saveViewState={false}
-                    options={editorOptions}
+                    options={patchEditorOptions({
+                        cursorStyle,
+                        font,
+                        fontLigatures,
+                        fontSize,
+                    })}
                 />
             )}
         </div>
