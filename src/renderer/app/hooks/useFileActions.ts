@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent } from 'react';
 import electronAPI from '../../electronAPI';
-import type { EditorBuffer } from '../../types/editor';
+import type { FileBuffer } from '../../types/editor';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getBufferId } from '../buffers';
 import type { useEditorBuffers } from './useEditorBuffers';
@@ -71,8 +71,7 @@ export function useFileActions({
      */
     const settleAndSwitchWorkspace = async () => {
         const dirty = files.buffers.filter(
-            (b): b is Extract<EditorBuffer, { kind: 'file' }> =>
-                b.kind === 'file' && b.dirty,
+            (b): b is FileBuffer => b.kind === 'file' && b.dirty,
         );
         if (dirty.length > 0) {
             const response = await electronAPI.showUnsavedChangesDialog(

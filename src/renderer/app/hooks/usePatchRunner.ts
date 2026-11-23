@@ -120,7 +120,10 @@ export function usePatchRunner({
             return;
         }
 
-        const previousRunning = runningRef.current;
+        // While a queued update waits, the running marker already names its
+        // buffer; the patch that plays is the one that update would replace.
+        const previousRunning =
+            pendingRef.current?.previousRunning ?? runningRef.current;
         setIsClockRunning(true);
         setRunning({ bufferId: activeBufferId, sourceId });
         errors.clear();

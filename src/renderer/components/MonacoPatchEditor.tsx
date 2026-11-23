@@ -90,16 +90,8 @@ export function MonacoPatchEditor({
         theme: appTheme,
         themeId: monacoThemeId,
     });
-    const handleEditorChange = useBufferModels({
-        currentFile,
-        editor,
-        monaco,
-        onChange,
-        openFiles,
-        tabSize: codeFormat.tabSize,
-        value,
-        viewStates,
-    });
+    // Before useBufferModels: a buffer's view zones are in place when its
+    // view state is restored, so the restored scroll position counts them.
     useEditorViewZones({
         currentFile,
         editor,
@@ -110,6 +102,16 @@ export function MonacoPatchEditor({
         scopeViews,
         videoPreviewDecorations,
         videoPreviewZones,
+    });
+    const handleEditorChange = useBufferModels({
+        currentFile,
+        editor,
+        monaco,
+        onChange,
+        openFiles,
+        tabSize: codeFormat.tabSize,
+        value,
+        viewStates,
     });
     useCodeDecorations({ editor, monaco, runningBufferId });
     useEditorContextKeys(editor);
