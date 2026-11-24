@@ -1,3 +1,3 @@
 kind: Fixed
-body: The docs examples for `$lpf`, `$hpf`, `$unstable.filter.obxd2Hp` and `$unstable.filter.cutoffWarpAp` no longer clip the output when you run them.
+body: The docs examples for `$lpf` and `$hpf` no longer clip the output when you run them.
 time: 2026-11-23T21:15:25.035839-05:00
