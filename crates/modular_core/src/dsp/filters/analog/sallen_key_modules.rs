@@ -2,11 +2,11 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 
 use super::module_macro::analog_kind;
-use super::sallen_key::{SallenKey, SallenKeyOptions};
+use super::sallen_key::SallenKey;
 use crate::dsp::filters::resonant_svf::Response;
 
 /// One Sallen-Key filter: [`analog_kind`]'s kind, docs, name, type and
-/// response, with the `scream` param every one has.
+/// response.
 macro_rules! sallen_key_filter {
     (
         [$($kind:tt)*]
@@ -22,19 +22,10 @@ macro_rules! sallen_key_filter {
             ident = $ident,
             kernel = SallenKey,
             response = Response::$response,
-            params = {
-                #[input(
-                    "clips the signal inside the filter too; without it only the resonance clips"
-                )]
-                scream: bool,
-            },
-            options = |params| SallenKeyOptions {
-                scream: params.scream,
-                steady_resonance: params
-                    .resonance
-                    .as_ref()
-                    .is_none_or(|resonance| resonance.is_constant()),
-            },
+            options = |params| params
+                .resonance
+                .as_ref()
+                .is_none_or(|resonance| resonance.is_constant()),
         }
     };
 }

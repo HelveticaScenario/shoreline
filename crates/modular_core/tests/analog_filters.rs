@@ -306,10 +306,12 @@ fn drive_saturates_and_gives_back_half_its_gain() {
 }
 
 #[test]
-fn scream_clips_the_signal_inside_the_sallen_key() {
-    let clean = passband_peak("$lpfSk", 5.0, json!({ "drive": 5.0 }));
-    let scream = passband_peak("$lpfSk", 5.0, json!({ "drive": 5.0, "scream": true }));
-    assert!(scream < 0.5 * clean, "{scream} V against {clean} V");
+fn a_driven_sallen_key_passes_a_loud_input_unlimited_and_stays_bounded() {
+    // Only the feedback clips, so drive raises a loud input as it does a
+    // quiet one: +18 dB in, 9 dB back off.
+    let loud = passband_peak("$lpfSk", 5.0, json!({ "drive": 5.0 }))
+        / passband_peak("$lpfSk", 5.0, json!({}));
+    assert!((20.0 * loud.log10() - 9.03).abs() < 1.0, "{loud}×");
     for module_type in ["$lpfSk", "$hpfSk", "$bpfSk", "$notchSk"] {
         let out = render_with(
             module_type,
@@ -318,11 +320,11 @@ fn scream_clips_the_signal_inside_the_sallen_key() {
             cable("mod"),
             5.0,
             24_000,
-            json!({ "drive": 5.0, "scream": true }),
+            json!({ "drive": 5.0 }),
         );
         for (port, samples) in out {
             let peak = finite_peak(&samples);
-            assert!(peak < 60.0, "{module_type} {port}: {peak} V");
+            assert!(peak < 200.0, "{module_type} {port}: {peak} V");
         }
     }
 }
