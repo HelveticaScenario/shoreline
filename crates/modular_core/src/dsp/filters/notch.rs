@@ -13,10 +13,9 @@ const NOTCH_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Hollow sweep through a pad",
             code: r#"
-                chord: $saw('c3:m7').notch(
-                  $sine('0.2hz').range('c4', 'c7'),
-                  1,
-                )
+                chord: $saw('c3:m7')
+                  .notch($sine('0.2hz').range('c4', 'c7'), 1)
+                  .gain(4.5)
             "#,
         },
         DocExample {

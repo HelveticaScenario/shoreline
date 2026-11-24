@@ -298,7 +298,7 @@ const CUTOFF_WARP_AP_DOCS: ModuleDocs = ModuleDocs {
               drive: 'softClip',
               stages: 4,
             })
-            bass: $mix([saw, wet])
+            bass: $mix([saw, wet]).gain(4.5)
         "#,
     }],
 };

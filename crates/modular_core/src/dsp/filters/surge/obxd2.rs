@@ -188,11 +188,13 @@ const OBXD2_HP_DOCS: ModuleDocs = ModuleDocs {
     examples: &[DocExample {
         title: "Airy thinned pad",
         code: r#"
-            chord: $unstable.filter.obxd2Hp(
-              $saw('c3:M9'),
-              $sine('0.1hz').range('c3', 'c5'),
-              2,
-            )
+            chord: $unstable.filter
+              .obxd2Hp(
+                $saw('c3:M9'),
+                $sine('0.1hz').range('c3', 'c5'),
+                2,
+              )
+              .gain(4.5)
         "#,
     }],
 };
