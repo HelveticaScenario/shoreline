@@ -1,13 +1,14 @@
-import { editor } from 'monaco-editor';
+import type { editor, IRange } from 'monaco-editor';
 import { FIRST_LINE_COLUMN_OFFSET } from '../../shared/dsl/spanTypes';
 import type { VideoPreviewSite } from '../../shared/video/videoGraph';
 import type { VideoPreviewZone } from '../types/editor';
+import { type ModelRanges, createModelRanges } from './modelAnchors';
 import { resolveScopeCallRange } from './scopeCallRange';
 
 export interface VideoPreviewAnchors {
     zones: VideoPreviewZone[];
     /** Tracked ranges, one per resolvable zone; null when none resolved. */
-    decorations: editor.IEditorDecorationsCollection | null;
+    decorations: ModelRanges | null;
 }
 
 /**
@@ -25,7 +26,7 @@ export function createVideoPreviewAnchors(
     file: string,
 ): VideoPreviewAnchors {
     const model = editorInstance.getModel();
-    const descriptions: editor.IModelDeltaDecoration[] = [];
+    const ranges: IRange[] = [];
     const zones = sites.map((site): VideoPreviewZone => {
         const loc = site.sourceLocation;
         const range =
@@ -43,17 +44,10 @@ export function createVideoPreviewAnchors(
                   )
                 : null;
         if (range) {
-            descriptions.push({
-                options: {
-                    stickiness:
-                        editor.TrackedRangeStickiness
-                            .NeverGrowsWhenTypingAtEdges,
-                },
-                range,
-            });
+            ranges.push(range);
         }
         return {
-            decorationIndex: range ? descriptions.length - 1 : null,
+            decorationIndex: range ? ranges.length - 1 : null,
             file,
             index: site.index,
             view: site.view,
@@ -61,8 +55,8 @@ export function createVideoPreviewAnchors(
     });
     return {
         decorations:
-            descriptions.length > 0
-                ? editorInstance.createDecorationsCollection(descriptions)
+            model && ranges.length > 0
+                ? createModelRanges(model, ranges)
                 : null,
         zones,
     };

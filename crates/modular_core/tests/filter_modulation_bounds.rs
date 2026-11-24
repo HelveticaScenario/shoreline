@@ -2,14 +2,10 @@
 //! input may ring up to the filter's fixed-frequency resonant peak, never far
 //! past it.
 
-use std::collections::HashMap;
-
-use modular_core::patch::Patch;
-use modular_core::types::{ModuleSpec, PatchGraph};
 use serde_json::{Value, json};
 
 mod common;
-use common::from_graph;
+use common::{finite_peak, render_ports};
 
 const SAMPLE_RATE: f32 = 48_000.0;
 const FRAMES: usize = 24_000;
@@ -35,46 +31,10 @@ fn peak(module_type: &str, freq: Value, modulator: Option<(&str, Value)>) -> f32
     if let Some((t, p)) = modulator {
         modules.push(("mod", t, p));
     }
-    let graph = PatchGraph {
-        modules: modules
-            .into_iter()
-            .map(|(id, t, params)| ModuleSpec {
-                id: id.into(),
-                module_type: t.into(),
-                id_is_explicit: None,
-                skip_state_transfer: None,
-                params,
-            })
-            .collect(),
-        module_id_remaps: None,
-        scopes: vec![],
-        vu_meters: vec![],
-    };
-    let patch: Patch = from_graph(&graph, SAMPLE_RATE, 1, &HashMap::new()).unwrap();
-    let ports: &[&str] = if module_type == "$xover" {
-        &["low", "mid", "high"]
-    } else {
-        &["output"]
-    };
-    let filt = &patch.sampleables["filt"];
-    let mut peak = 0.0f32;
-    for _ in 0..FRAMES {
-        for m in patch.sampleables.values() {
-            m.start_block();
-        }
-        for m in patch.sampleables.values() {
-            m.ensure_processed();
-        }
-        for port in ports {
-            let v = filt.get_value_at(port, 0, 0);
-            peak = if v.is_finite() {
-                peak.max(v.abs())
-            } else {
-                f32::INFINITY
-            };
-        }
-    }
-    peak
+    render_ports(modules, SAMPLE_RATE, FRAMES, "filt")
+        .iter()
+        .map(|(_, samples)| finite_peak(samples))
+        .fold(0.0, f32::max)
 }
 
 #[test]

@@ -55,6 +55,10 @@ impl<'a> Tap<'a> {
         lane: usize,
     ) -> Option<Self> {
         let module = sampleables.get(module_id)?.as_ref();
+        debug_assert!(
+            module.output_connected(port),
+            "a tap reads {module_id}.{port}, which the patch settled as disconnected"
+        );
         Some(match module.port_view(port) {
             // An f64 port's lane starts with its nearest f32, which is
             // all a scope or meter needs.

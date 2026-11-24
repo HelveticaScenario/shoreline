@@ -281,6 +281,7 @@ pub(super) mod tests {
             _lane_count: 2,
             _channels: 2,
             _block_index: Default::default(),
+            _connected: Default::default(),
         };
         m.init(sample_rate);
         m

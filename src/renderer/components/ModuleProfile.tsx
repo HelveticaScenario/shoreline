@@ -1,60 +1,19 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ModuleProfileSample } from '@modular/core';
-import {
-    createColumnHelper,
-    flexRender,
-    getCoreRowModel,
-    getSortedRowModel,
-    useReactTable,
-    type SortingState,
-} from '@tanstack/react-table';
+import type { SortingState } from '@tanstack/react-table';
 import electronAPI from '../electronAPI';
+import { useOverlayPanel } from '../hooks/useOverlayPanel';
+import { ModuleProfileTable } from './moduleProfile/ModuleProfileTable';
+import {
+    profileColumns,
+    toDisplayRows,
+    type Unit,
+} from './moduleProfile/columns';
 import './ModuleProfile.css';
 
 interface ModuleProfileProps {
     isOpen: boolean;
     onClose: () => void;
-}
-
-type Unit = 'ns' | 'pct';
-
-interface DisplayRow {
-    moduleId: string;
-    mode: string;
-    selfNsPerSample: number;
-    paramsNsPerSample: number;
-    totalNsPerSample: number;
-}
-
-function nsPerSample(ns: number, samples: number): number {
-    return samples > 0 ? ns / samples : 0;
-}
-
-function formatValue(
-    valueNsPerSample: number,
-    unit: Unit,
-    sampleRateHz: number,
-): string {
-    const v = valueNsPerSample;
-    if (unit === 'pct') {
-        if (sampleRateHz <= 0) return '—';
-        // Share of the per-sample real-time budget (1e9 / sampleRateHz ns
-        // per sample). Buffer size cancels out of the callback-level ratio,
-        // so it has no effect here.
-        const pct = ((v * sampleRateHz) / 1e9) * 100;
-        if (pct >= 10) return `${pct.toFixed(1)}%`;
-        if (pct >= 0.01) return `${pct.toFixed(2)}%`;
-        return pct === 0 ? '0%' : '<0.01%';
-    }
-    if (v >= 10000) return `${(v / 1000).toFixed(1)} µs`;
-    if (v >= 100) return `${v.toFixed(0)} ns`;
-    if (v === 0) return '0 ns';
-    return `${v.toFixed(1)} ns`;
-}
-
-function formatBar(value: number, max: number): string {
-    if (max <= 0) return '0';
-    return `${Math.min(100, (value / max) * 100).toFixed(0)}%`;
 }
 
 const SAMPLE_RATE_OPTIONS = [
@@ -63,8 +22,6 @@ const SAMPLE_RATE_OPTIONS = [
     { label: '1 in 16', value: 16 },
     { label: '1 in 64', value: 64 },
 ];
-
-const columnHelper = createColumnHelper<DisplayRow>();
 
 export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
     const [rows, setRows] = useState<ModuleProfileSample[] | null>(null);
@@ -75,7 +32,7 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
     const [unit, setUnit] = useState<Unit>('ns');
     const [sampleRateHz, setSampleRateHz] = useState(48000);
     const [bufferSize, setBufferSize] = useState(256);
-    const panelRef = useRef<HTMLDivElement>(null);
+    const panelRef = useOverlayPanel(isOpen, onClose);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -104,9 +61,9 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
                 .catch(console.error);
         };
 
-        // Enable, then poll. Keyed on `isOpen` only so a sample-rate change
-        // (a display-only control, handled in the effect below) doesn't tear
-        // down and re-enable profiling. The enable refcounts on the Rust side
+        // Enable, then poll. Keyed on `isOpen` only: the sampling rate is
+        // set by the effect below, so changing it never tears down and
+        // re-enables profiling. The enable refcounts on the Rust side
         // (AudioState), so concurrent consumers remain safe if this re-runs.
         void (async () => {
             try {
@@ -132,9 +89,10 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
         };
     }, [isOpen]);
 
-    // Push sample-rate changes without disturbing the enable refcount or the
-    // polling loop — the dropdown is display-only, so it must not toggle
-    // profiling off/on (which would blip the global and flash "Loading…").
+    // The dropdown sets how many audio callbacks the engine times (1 in
+    // `sampleRate`). That setting is separate from the enable refcount and
+    // the polling loop, so a change never toggles profiling off and on
+    // (which would blip the global and flash "Loading…").
     useEffect(() => {
         if (!isOpen) return;
         electronAPI.synthesizer
@@ -142,136 +100,8 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
             .catch(console.error);
     }, [isOpen, sampleRate]);
 
-    useEffect(() => {
-        if (!isOpen) return;
-        const rafId = requestAnimationFrame(() => {
-            panelRef.current?.focus();
-        });
-        return () => cancelAnimationFrame(rafId);
-    }, [isOpen]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [isOpen, onClose]);
-
-    const data = useMemo<DisplayRow[]>(() => {
-        if (!rows) return [];
-        return rows.map((r) => {
-            const self = nsPerSample(r.selfNs, r.samplesProcessed);
-            const total = nsPerSample(r.totalNs, r.samplesProcessed);
-            // Clamp to 0: clock granularity and timer skew between
-            // push_frame and pop_frame can briefly push self past total.
-            const params = Math.max(0, total - self);
-            return {
-                moduleId: r.moduleId,
-                mode: r.mode,
-                selfNsPerSample: self,
-                paramsNsPerSample: params,
-                totalNsPerSample: total,
-            };
-        });
-    }, [rows]);
-
-    const maxSelfNsPerSample = useMemo(() => {
-        let m = 0;
-        for (const r of data) {
-            if (r.selfNsPerSample > m) m = r.selfNsPerSample;
-        }
-        return m;
-    }, [data]);
-
-    const columns = useMemo(
-        () => [
-            columnHelper.accessor('moduleId', {
-                id: 'module',
-                header: 'Module',
-                cell: (info) => (
-                    <span title={info.getValue()}>{info.getValue()}</span>
-                ),
-                sortingFn: (a, b) =>
-                    a.original.moduleId.localeCompare(b.original.moduleId),
-            }),
-            columnHelper.accessor('mode', {
-                id: 'mode',
-                header: 'Mode',
-                cell: (info) => {
-                    const m = info.getValue();
-                    return (
-                        <span
-                            className={`module-profile-mode module-profile-mode-${m}`}
-                            title={
-                                m === 'sample'
-                                    ? 'Sample mode: in a feedback cycle, processes one sample per ensure_processed_to call. Higher wrapper overhead per sample.'
-                                    : 'Block mode: acyclic subgraph, processes a full block per call. Lower per-sample overhead.'
-                            }
-                        >
-                            {m}
-                        </span>
-                    );
-                },
-                sortingFn: (a, b) =>
-                    a.original.mode.localeCompare(b.original.mode),
-            }),
-            columnHelper.accessor('selfNsPerSample', {
-                id: 'self',
-                header: 'Self',
-                cell: (info) => {
-                    const v = info.getValue();
-                    return (
-                        <div className="module-profile-cell">
-                            <span className="module-profile-bar">
-                                <span
-                                    className="module-profile-bar-fill"
-                                    style={{
-                                        width: formatBar(v, maxSelfNsPerSample),
-                                    }}
-                                />
-                            </span>
-                            <span>{formatValue(v, unit, sampleRateHz)}</span>
-                        </div>
-                    );
-                },
-                sortingFn: (a, b) =>
-                    a.original.selfNsPerSample - b.original.selfNsPerSample,
-            }),
-            columnHelper.accessor('paramsNsPerSample', {
-                id: 'params',
-                header: 'Params',
-                cell: (info) =>
-                    formatValue(info.getValue(), unit, sampleRateHz),
-                sortingFn: (a, b) =>
-                    a.original.paramsNsPerSample - b.original.paramsNsPerSample,
-            }),
-            columnHelper.accessor('totalNsPerSample', {
-                id: 'total',
-                header: 'Total',
-                cell: (info) =>
-                    formatValue(info.getValue(), unit, sampleRateHz),
-                sortingFn: (a, b) =>
-                    a.original.totalNsPerSample - b.original.totalNsPerSample,
-            }),
-        ],
-        [maxSelfNsPerSample, unit, sampleRateHz],
-    );
-
-    // TanStack Table's useReactTable() is flagged by the React Compiler as an
-    // incompatible library (it returns non-memoizable functions). Its return is
-    // not passed into other memoized hooks/components, so skipping memoization
-    // here is safe.
-    // eslint-disable-next-line react-hooks-js/incompatible-library
-    const table = useReactTable({
-        data,
-        columns,
-        state: { sorting },
-        onSortingChange: setSorting,
-        getCoreRowModel: getCoreRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-    });
+    const data = rows ? toDisplayRows(rows) : [];
+    const columns = profileColumns(data, unit, sampleRateHz);
 
     if (!isOpen) return null;
 
@@ -350,72 +180,12 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
                             No module activity yet.
                         </div>
                     ) : (
-                        <table className="module-profile-table">
-                            <colgroup>
-                                <col className="col-module" />
-                                <col className="col-mode" />
-                                <col className="col-self" />
-                                <col className="col-params" />
-                                <col className="col-total" />
-                            </colgroup>
-                            <thead>
-                                {table.getHeaderGroups().map((hg) => (
-                                    <tr key={hg.id}>
-                                        {hg.headers.map((header) => {
-                                            const isNumeric =
-                                                header.column.id === 'self' ||
-                                                header.column.id === 'params' ||
-                                                header.column.id === 'total';
-                                            const sortDir =
-                                                header.column.getIsSorted();
-                                            return (
-                                                <th
-                                                    key={header.id}
-                                                    onClick={header.column.getToggleSortingHandler()}
-                                                    className={`${isNumeric ? 'numeric' : ''} ${sortDir ? 'active' : ''}`}
-                                                >
-                                                    {flexRender(
-                                                        header.column.columnDef
-                                                            .header,
-                                                        header.getContext(),
-                                                    )}
-                                                    {sortDir === 'asc' && ' ▲'}
-                                                    {sortDir === 'desc' && ' ▼'}
-                                                </th>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </thead>
-                            <tbody>
-                                {table.getRowModel().rows.map((row) => (
-                                    <tr key={row.id}>
-                                        {row.getVisibleCells().map((cell) => {
-                                            const isNumeric =
-                                                cell.column.id === 'self' ||
-                                                cell.column.id === 'params' ||
-                                                cell.column.id === 'total';
-                                            return (
-                                                <td
-                                                    key={cell.id}
-                                                    className={
-                                                        isNumeric
-                                                            ? 'numeric'
-                                                            : ''
-                                                    }
-                                                >
-                                                    {flexRender(
-                                                        cell.column.columnDef
-                                                            .cell,
-                                                        cell.getContext(),
-                                                    )}
-                                                </td>
-                                            );
-                                        })}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                        <ModuleProfileTable
+                            data={data}
+                            columns={columns}
+                            sorting={sorting}
+                            onSortingChange={setSorting}
+                        />
                     )}
                 </div>
             </div>

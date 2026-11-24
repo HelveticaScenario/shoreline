@@ -1,7 +1,8 @@
 /**
  * `.concat` joins two collections of one type: their lanes, and a
  * multi-output module's outputs output by output, so the result still stands
- * for whichever output fits the input it feeds.
+ * for whichever output fits the input it feeds. A plain signal follows every
+ * output of such a module.
  */
 
 import { describe, expect, test } from 'vitest';
@@ -97,10 +98,29 @@ describe('concat', () => {
         ).toEqual(['0:trig:0']);
     });
 
-    test('a module with outputs does not join a plain signal', () => {
-        expect(() => run(`out: $enosc('c3').concat($sine('c'))`)).toThrow(
-            /same type/,
-        );
+    test('a plain signal follows every output of a module with outputs', () => {
+        const joined = (output: string) =>
+            wiring(
+                cables(
+                    `out: $mix($saw('c3').lpf('c5').concat($sine('c'))${output})`,
+                    '$mix',
+                    'inputs',
+                ).flat(),
+            );
+        expect(joined('._12db')).toEqual(['0:12db:0', '1:output:0']);
+        expect(joined('._24db')).toEqual(['0:24db:0', '1:output:0']);
+    });
+
+    test('a module with other outputs follows as the signal it stands for', () => {
+        expect(
+            wiring(
+                cables(
+                    `out: $mix($saw('c3').lpf('c5').concat($enosc('c3'))._24db)`,
+                    '$mix',
+                    'inputs',
+                ).flat(),
+            ),
+        ).toEqual(['0:24db:0', '1:all:0']);
     });
 
     test('a plain signal joins a module with outputs as its default', () => {

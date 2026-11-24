@@ -10,21 +10,22 @@ import {
 import type { VideoDocParam } from '../../shared/dsl/videoDocs';
 import { useQuoteExample } from '../hooks/useQuoteExample';
 
-/** Splits docs text into paragraphs and renders `code` spans. */
+/** Docs text with its `code` spans rendered. */
+const withCodeSpans = (text: string) =>
+    text
+        .split(/(`[^`]+`)/)
+        .map((part, i) =>
+            part.startsWith('`') ? (
+                <code key={i}>{part.slice(1, -1)}</code>
+            ) : (
+                part
+            ),
+        );
+
 const Prose: React.FC<{ text: string }> = ({ text }) => (
     <>
         {text.split('\n\n').map((paragraph) => (
-            <p key={paragraph}>
-                {paragraph
-                    .split(/(`[^`]+`)/)
-                    .map((part, i) =>
-                        part.startsWith('`') ? (
-                            <code key={i}>{part.slice(1, -1)}</code>
-                        ) : (
-                            part
-                        ),
-                    )}
-            </p>
+            <p key={paragraph}>{withCodeSpans(paragraph)}</p>
         ))}
     </>
 );
@@ -34,15 +35,7 @@ const ParamList: React.FC<{ params: VideoDocParam[] }> = ({ params }) => (
         {params.map((param) => (
             <li key={param.name}>
                 <strong>{param.name}</strong> &mdash;{' '}
-                {param.description
-                    .split(/(`[^`]+`)/)
-                    .map((part, i) =>
-                        part.startsWith('`') ? (
-                            <code key={i}>{part.slice(1, -1)}</code>
-                        ) : (
-                            part
-                        ),
-                    )}
+                {withCodeSpans(param.description)}
             </li>
         ))}
     </ul>

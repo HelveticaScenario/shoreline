@@ -254,14 +254,16 @@ impl Quantizer {
         .min(PORT_MAX_LANES);
         let mut notes = [ArrayVec::<f64, PORT_MAX_LANES>::new(), ArrayVec::new()];
         let mut any_active = [false; 2];
-        for i in 0..note_lanes {
+        for (i, trigger) in self
+            .state
+            .gate_triggers
+            .iter_mut()
+            .enumerate()
+            .take(note_lanes)
+        {
             let side = i % channels;
             let active = match gate {
-                Some(gate) => {
-                    self.state.gate_triggers[i]
-                        .process_with_edge(gate.get_value(i))
-                        .0
-                }
+                Some(gate) => trigger.process_with_edge(gate.get_value(i)).0,
                 None => true,
             };
             any_active[side] |= active;
@@ -358,6 +360,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
         }
     }
 

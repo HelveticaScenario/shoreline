@@ -82,9 +82,20 @@ pub fn assemble<'a>(
     modules: impl IntoIterator<Item = (&'a str, &'a str, Value, ProcessingMode)>,
     wavs: impl IntoIterator<Item = (&'a str, Arc<WavData>)>,
 ) -> Patch {
+    assemble_settled(modules, wavs, None)
+}
+
+/// [`assemble`], with its connections settled as the engine settles them
+/// when `taps` is set: only the outputs a cable or one of `taps` reads are
+/// connected.
+pub fn assemble_settled<'a>(
+    modules: impl IntoIterator<Item = (&'a str, &'a str, Value, ProcessingMode)>,
+    wavs: impl IntoIterator<Item = (&'a str, Arc<WavData>)>,
+    taps: Option<&[(&str, &str)]>,
+) -> Patch {
     let deserializers = get_params_deserializers();
     let mut patch = Patch::new();
-    patch
+    let mut settlement = patch
         .insert_modules(
             modules.into_iter().map(|(id, module_type, params, mode)| {
                 let cached = deserializers[module_type](params).unwrap();
@@ -104,6 +115,9 @@ pub fn assemble<'a>(
             BLOCK_SIZE,
         )
         .unwrap();
+    if let Some(taps) = taps {
+        patch.settle_connections(&mut settlement, taps.iter().copied());
+    }
     for (path, wav) in wavs {
         patch.wav_data.insert(path.into(), wav);
     }
@@ -309,6 +323,110 @@ pub fn check_swap_agrees(module_type: &str, before: Value, after: Value) {
             expected,
             "{module_type} {before} → {after}: steps {steps:?}"
         );
+    }
+}
+
+/// `src` and `lfo` feeding `dut`, a `module_type` with `params` whose
+/// outputs only `ports` read.
+fn build_reading(
+    dut_mode: ProcessingMode,
+    module_type: &str,
+    params: &Value,
+    ports: &[&str],
+) -> Patch {
+    let freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.3).collect();
+    let lfo_freqs: Vec<f32> = (0..LANES).map(|lane| lane as f32 * 0.2 - 3.0).collect();
+    let taps: Vec<(&str, &str)> = ports.iter().map(|&port| ("dut", port)).collect();
+    assemble_settled(
+        [
+            (
+                "src",
+                "$saw",
+                json!({ "freq": freqs }),
+                ProcessingMode::Block,
+            ),
+            (
+                "lfo",
+                "$sine",
+                json!({ "freq": lfo_freqs }),
+                ProcessingMode::Block,
+            ),
+            ("dut", module_type, params.clone(), dut_mode),
+        ],
+        [("table", wavetable())],
+        Some(&taps),
+    )
+}
+
+/// `BLOCKS` blocks of `patch` through `steps`: `dut`'s samples at each of
+/// `ports`, slot major then lane.
+fn render_ports(patch: &Patch, steps: &[usize], ports: &[&str]) -> Vec<Vec<f32>> {
+    let dut = &patch.sampleables["dut"];
+    let mut out = vec![Vec::new(); ports.len()];
+    for _ in 0..BLOCKS {
+        render_block(patch, steps);
+        for (port, samples) in ports.iter().zip(&mut out) {
+            for index in 0..BLOCK_SIZE {
+                samples.extend((0..LANES).map(|lane| dut.get_value_at(port, lane, index)));
+            }
+        }
+    }
+    out
+}
+
+/// Every subset of `ports` (`dut`'s outputs), none to all, read on its
+/// own: each output read renders exactly as it does with every output
+/// read, on the block and per-sample paths, and through a swap that
+/// connects the rest. An
+/// output connected by the swap rejoins the always-connected render: it is
+/// within `tolerance` of it from `settle` samples after the swap.
+pub fn check_connections_agree(
+    module_type: &str,
+    params: Value,
+    ports: &[&str],
+    tolerance: f32,
+    settle: usize,
+) {
+    for dut_mode in [ProcessingMode::Block, ProcessingMode::Sample] {
+        for steps in STEP_PATTERNS {
+            let all = build_reading(dut_mode, module_type, &params, ports);
+            let mut expected = render_ports(&all, steps, ports);
+            for (samples, more) in expected.iter_mut().zip(render_ports(&all, steps, ports)) {
+                samples.extend(more);
+            }
+            for subset in 0..(1u32 << ports.len()) {
+                let read: Vec<&str> = (0..ports.len())
+                    .filter(|i| subset & (1 << i) != 0)
+                    .map(|i| ports[i])
+                    .collect();
+                let old = build_reading(dut_mode, module_type, &params, &read);
+                let before = render_ports(&old, steps, ports);
+                let new = build_reading(dut_mode, module_type, &params, ports);
+                for (id, module) in &new.sampleables {
+                    module.transfer_state_from(old.sampleables[id].as_ref(), &SameIds);
+                }
+                new.connect_all();
+                let after = render_ports(&new, steps, ports);
+                let swap = before[0].len();
+                for (i, port) in ports.iter().enumerate() {
+                    let context =
+                        format!("{module_type} {dut_mode:?} {steps:?} reading {read:?}: {port}");
+                    if read.contains(port) {
+                        assert_eq!(before[i], expected[i][..swap], "{context}");
+                        assert_eq!(after[i], expected[i][swap..], "{context} after the swap");
+                        continue;
+                    }
+                    let rejoined = after[i].iter().zip(&expected[i][swap..]);
+                    for (k, (got, want)) in rejoined.enumerate().skip(settle * LANES) {
+                        assert!(
+                            (got - want).abs() <= tolerance,
+                            "{context}: {got} vs {want} at slot {} after connecting",
+                            k / LANES
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 

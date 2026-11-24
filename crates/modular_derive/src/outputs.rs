@@ -645,7 +645,56 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
         quote! { _inherit }
     };
 
+    let name_str = name.to_string();
+    let connected_name = format_ident!(
+        "{}Connected",
+        name_str.strip_suffix("Outputs").unwrap_or(&name_str)
+    );
+    let connected_fields: Vec<_> = outputs
+        .iter()
+        .map(|o| {
+            let field_name = &o.field_name;
+            quote! { pub #field_name: bool }
+        })
+        .collect();
+    let connected_inits: Vec<_> = outputs
+        .iter()
+        .enumerate()
+        .map(|(i, o)| {
+            let field_name = &o.field_name;
+            quote! { #field_name: mask & (1u64 << #i) != 0 }
+        })
+        .collect();
+    let connected_mask_param = if outputs.is_empty() {
+        quote! { _mask }
+    } else {
+        quote! { mask }
+    };
+
     let generated = quote! {
+        /// Which outputs something reads, one flag per output (see
+        /// [`OutputStruct::connected`](crate::types::OutputStruct::connected)).
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        #[allow(dead_code)]
+        pub struct #connected_name {
+            #(#connected_fields,)*
+        }
+
+        /// Every output connected, as for a module no patch has settled.
+        impl Default for #connected_name {
+            fn default() -> Self {
+                Self::connected_mask(u64::MAX)
+            }
+        }
+
+        impl #connected_name {
+            fn connected_mask(#connected_mask_param: u64) -> Self {
+                Self {
+                    #(#connected_inits,)*
+                }
+            }
+        }
+
         impl Default for #name {
             fn default() -> Self {
                 Self {
@@ -669,6 +718,12 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
                 #(#make_bounded_stmts)*
             }
 
+            type Connected = #connected_name;
+
+            fn connected(mask: u64) -> #connected_name {
+                #connected_name::connected_mask(mask)
+            }
+
             fn schemas() -> Vec<crate::types::OutputSchema> {
                 vec![
                     #(#schema_exprs,)*
@@ -680,7 +735,6 @@ pub fn impl_outputs_macro(ast: &DeriveInput) -> TokenStream {
     // -----------------------------------------------------------------------
     // Generate {Name}BlockOutputs
     // -----------------------------------------------------------------------
-    let name_str = name.to_string();
     let block_outputs_name = if name_str.ends_with("Outputs") {
         format_ident!("{}BlockOutputs", &name_str[..name_str.len() - 7])
     } else {

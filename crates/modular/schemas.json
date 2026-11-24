@@ -15801,7 +15801,7 @@
     "name": "$lpf",
     "docs": {
       "summary": "Resonant lowpass filter",
-      "description": "Removes the highs above the cutoff: the everyday filter for taming bright oscillators and for envelope-swept basses and pads. Resonance adds a ringing peak at the cutoff but never self-oscillates; reach for `$jup6f` when you want the filter to sing.",
+      "description": "Removes the highs above the cutoff: the everyday filter for taming bright oscillators and for envelope-swept basses and pads. Resonance adds a ringing peak at the cutoff but never self-oscillates; reach for `$lpfLadder` when you want the filter to sing.",
       "categories": [
         "filter"
       ],
@@ -15809,11 +15809,11 @@
       "examples": [
         {
           "title": "Plucky acid bass",
-          "code": "const seq = $`c2 c2 [eb2 c3] g1`\nmelody: $saw(seq).lpf(\n  $perc(seq, { decay: 0.2 }).range('c3', 'c7'),\n  4,\n)"
+          "code": "const seq = $`c2 c2 [eb2 c3] g1`\nmelody: $saw(seq)\n  .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)\n  .gain(4.5)"
         },
         {
           "title": "Slow pad sweep",
-          "code": "chord: $saw('c3:m7').lpf(\n  $sine('0.05hz').range('c4', 'c7'),\n  1,\n)"
+          "code": "chord: $saw('c3:m7')\n  .lpf($sine('0.05hz').range('c4', 'c7'), 1)\n  .gain(4.5)"
         }
       ]
     },
@@ -15923,11 +15923,21 @@
     },
     "outputs": [
       {
-        "name": "output",
-        "description": "filtered signal",
+        "name": "12db",
+        "description": "2-pole lowpass: 12 dB/oct",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole lowpass: 24 dB/oct, flat up to the cutoff at resonance 0",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
         "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
@@ -16259,7 +16269,7 @@
       "examples": [
         {
           "title": "Pad thinning out and back",
-          "code": "chord: $saw('c3:M7').hpf(\n  $sine('0.1hz').range('c3', 'c6'),\n  2,\n)"
+          "code": "chord: $saw('c3:M7')\n  .hpf($sine('0.1hz').range('c3', 'c6'), 2)\n  .gain(4)"
         },
         {
           "title": "Riser across each bar",
@@ -16372,11 +16382,21 @@
     },
     "outputs": [
       {
-        "name": "output",
-        "description": "filtered signal",
+        "name": "12db",
+        "description": "2-pole highpass: 12 dB/oct",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole highpass: 24 dB/oct, flat above the cutoff at resonance 0",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
         "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
@@ -16557,11 +16577,21 @@
     },
     "outputs": [
       {
-        "name": "output",
-        "description": "filtered signal",
+        "name": "12db",
+        "description": "2-pole bandpass: 6 dB/oct each side",
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole bandpass: 12 dB/oct each side, flat across the band",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
         "mono": false,
         "precision": "f32",
         "bounds": "unbounded"
@@ -16591,6 +16621,201 @@
       {
         "name": "resonance",
         "description": "higher narrows the band, and keeps narrowing past 5",
+        "paramType": "control",
+        "defaultValue": 1.0,
+        "minValue": 0.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$notch",
+    "docs": {
+      "summary": "Resonant notch filter",
+      "description": "Cuts a narrow band at the centre frequency and passes the rest. Sweep it for a phaser-like hollow moving through the sound, or park it to remove a hum or a harsh partial.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Hollow sweep through a pad",
+          "code": "chord: $saw('c3:m7')\n  .notch($sine('0.2hz').range('c4', 'c7'), 1)\n  .gain(4.5)"
+        },
+        {
+          "title": "Two nulls sweeping noise",
+          "code": "noise: $notch(\n  $noise('white'),\n  $sine('0.1hz').range('c4', 'c8'),\n  2,\n)._24db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "NotchFilterParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "higher narrows the cut, and keeps narrowing past 5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 1.0,
+            "minValue": 0.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "one null at the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "two nulls, half an octave either side of the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "higher narrows the cut, and keeps narrowing past 5",
         "paramType": "control",
         "defaultValue": 1.0,
         "minValue": 0.0,
@@ -17715,6 +17940,4356 @@
       }
     ],
     "experimental": false,
+    "stereo": "lift"
+  },
+  {
+    "name": "$lpfSk",
+    "docs": {
+      "summary": "Sallen-Key lowpass filter",
+      "description": "A snarling lowpass in the style of the Korg MS-20: resonance feeds back through a clipper, so it screams when pushed and a loud input chokes it. Turned up, it self-oscillates.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Screaming acid line",
+          "code": "const seq = $`c2 c2 [eb2 c3] g1`\nmelody: $saw(seq).lpfSk(\n  $perc(seq, { decay: 0.25 }).range('c3', 'c7'),\n  4.2,\n)"
+        },
+        {
+          "title": "Steeper, rounder bass",
+          "code": "bass: $pulse('c2').lpfSk('c5', 2)._24db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "LpfSkParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "2-pole lowpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole lowpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$hpfSk",
+    "docs": {
+      "summary": "Sallen-Key highpass filter",
+      "description": "A resonant highpass in the style of the Korg MS-20: resonance feeds back through a clipper, so it squeals at the cutoff when pushed. Patch it before `$lpfSk` for the classic pair.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Thin, squealing lead",
+          "code": "lead: $saw('c3').hpfSk($sine('0.2hz').range('c4', 'c7'), 4)"
+        },
+        {
+          "title": "Highpass into lowpass",
+          "code": "bass: $saw('c2').hpfSk('c3', 3).lpfSk('c6', 3.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "HpfSkParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "2-pole highpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole highpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$bpfSk",
+    "docs": {
+      "summary": "Sallen-Key bandpass filter",
+      "description": "A bandpass built on the Sallen-Key core: resonance narrows the band and feeds back through a clipper, so it rings hard and self-oscillates at the centre.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Vocal sweep",
+          "code": "bass: $saw('c2').bpfSk(\n  $sine('0.5hz').range('c4', 'c6'),\n  3.5,\n)"
+        },
+        {
+          "title": "Pinged noise band",
+          "code": "noise: $noise('white').bpfSk('c6', 4.3)._24db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "BpfSkParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "narrows the band; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "2-pole bandpass: 6 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole bandpass: 12 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "narrows the band; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$notchSk",
+    "docs": {
+      "summary": "Sallen-Key notch filter",
+      "description": "A notch built on the Sallen-Key core: it cuts a band at the centre, and resonance narrows the cut.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Hollow sweep with bite",
+          "code": "bass: $saw('c2').notchSk(\n  $sine('0.3hz').range('c4', 'c7'),\n  3,\n)"
+        },
+        {
+          "title": "Two nulls through noise",
+          "code": "noise: $noise('white').notchSk('c6', 2)._24db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "NotchSkParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "narrows the cut; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "one null at the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "two nulls, half an octave either side of the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "narrows the cut; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$lpfLadder",
+    "docs": {
+      "summary": "Transistor ladder lowpass filter",
+      "description": "The Moog-style four-pole lowpass: every stage saturates, so it thickens what passes through, and the bass thins as resonance rises. It self-oscillates into a sine at the cutoff.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Fat swept bass",
+          "code": "const seq = $`c1 c2 c1 [eb2 g1]`\nbass: $saw(seq).lpfLadder(\n  $perc(seq, { decay: 0.3 }).range('c3', 'c6'),\n  3,\n)"
+        },
+        {
+          "title": "Self-oscillating sine at A4",
+          "code": "sine: $lpfLadder(0, 'a4', 5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "LpfLadderParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "6db",
+        "description": "1-pole lowpass: 6 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "12db",
+        "description": "2-pole lowpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "18db",
+        "description": "3-pole lowpass: 18 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole lowpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$hpfLadder",
+    "docs": {
+      "summary": "Transistor ladder highpass filter",
+      "description": "A highpass mixed from the stages of a Moog-style ladder: the lows fall away while the ladder's resonance and saturation stay.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Resonant riser",
+          "code": "noise: $noise('white').hpfLadder(\n  $clock._ramp.range('c3', 'c8'),\n  3.5,\n)"
+        },
+        {
+          "title": "Gentler slope",
+          "code": "chord: $saw('c3:m7').hpfLadder('c5', 2)._12db.gain(4.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "HpfLadderParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "6db",
+        "description": "1-pole highpass: 6 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "12db",
+        "description": "2-pole highpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "18db",
+        "description": "3-pole highpass: 18 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole highpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$bpfLadder",
+    "docs": {
+      "summary": "Transistor ladder bandpass filter",
+      "description": "A bandpass mixed from the stages of a Moog-style ladder, with the ladder's resonance and saturation at the centre.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Wah bass",
+          "code": "bass: $saw('c2').bpfLadder(\n  $sine('1hz').range('c4', 'c6'),\n  3,\n)"
+        },
+        {
+          "title": "Wide band on a pad",
+          "code": "chord: $saw('c3:M7').bpfLadder('c5', 1)._12db.gain(4.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "BpfLadderParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "narrows the band; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "2-pole bandpass: 6 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole bandpass: 12 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "narrows the band; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$notchLadder",
+    "docs": {
+      "summary": "Transistor ladder notch filter",
+      "description": "A notch mixed from the stages of a Moog-style ladder. Resonance sharpens the filter around the cut and thins the lows, and the cut fills in as the ladder saturates.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Twin nulls sweeping a pad",
+          "code": "chord: $saw('c3:m7')\n  .notchLadder($sine('0.2hz').range('c4', 'c7'), 2)\n  .gain(4.5)"
+        },
+        {
+          "title": "Single null",
+          "code": "lead: $pulse('c3').notchLadder('c6', 1)._12db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "NotchLadderParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "sharpens the filter around the centre and thins the lows; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "one null at the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "two nulls, half an octave either side of the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "sharpens the filter around the centre and thins the lows; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$apfLadder",
+    "docs": {
+      "summary": "Transistor ladder allpass filter",
+      "description": "An allpass mixed from the stages of a Moog-style ladder: it shifts phase around the cutoff, so mixing it with the dry signal makes a phaser. Resonance sharpens the sweep.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Phaser",
+          "code": "chord: $saw('c3:m7')\n  .apfLadder($sine('0.3hz').range('c4', 'c7'), 2)\n  .wet(2.5)\n  .gain(4.5)"
+        },
+        {
+          "title": "One-notch phaser",
+          "code": "chord: $saw('c3:M7')\n  .apfLadder($sine('0.2hz').range('c5', 'c7'))\n  ._12db.wet(2.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "ApfLadderParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "sharpens the phase sweep; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "360° of phase shift across the cutoff, with a resonant peak there: one notch when mixed with the dry signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "720° of phase shift across the cutoff at a constant level: two notches when mixed with the dry signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "sharpens the phase sweep; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$lpfDiode",
+    "docs": {
+      "summary": "Diode ladder lowpass filter",
+      "description": "The TB-303-style lowpass: its stages load each other, so the slope is soft and starts well below the cutoff, and the resonance is rubbery and squelching.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Acid bass",
+          "code": "const seq = $`c2 c2 c3 [c2 eb2] c2 g2 c2 [bb1 c3]`\nbass: $saw(seq).lpfDiode(\n  $perc(seq, { decay: 0.15 }).range('c4', 'c7'),\n  4.2,\n)"
+        },
+        {
+          "title": "Slow squelch",
+          "code": "bass: $pulse('c2').lpfDiode(\n  $sine('0.1hz').range('c3', 'c6'),\n  3.8,\n)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "LpfDiodeParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "6db",
+        "description": "1-pole lowpass: 6 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "12db",
+        "description": "2-pole lowpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "18db",
+        "description": "3-pole lowpass: 18 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole lowpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$hpfDiode",
+    "docs": {
+      "summary": "Diode ladder highpass filter",
+      "description": "A highpass mixed from the stages of a diode ladder, keeping its rubbery resonance at the cutoff.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Squelchy hats from noise",
+          "code": "const seq = $`c5*8`\nhats: $noise('white')\n  .hpfDiode('c7', 4)\n  .amp($perc(seq, { decay: 0.04 }))"
+        },
+        {
+          "title": "Thinned saw",
+          "code": "lead: $saw('c3').hpfDiode('c5', 3)._12db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "HpfDiodeParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "6db",
+        "description": "1-pole highpass: 6 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "12db",
+        "description": "2-pole highpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "18db",
+        "description": "3-pole highpass: 18 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole highpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$bpfDiode",
+    "docs": {
+      "summary": "Diode ladder bandpass filter",
+      "description": "A bandpass mixed from the stages of a diode ladder, with its rubbery resonance at the centre.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Squelching sweep",
+          "code": "bass: $saw('c2').bpfDiode(\n  $sine('0.3hz').range('c4', 'c7'),\n  4,\n)"
+        },
+        {
+          "title": "Nasal pulse",
+          "code": "lead: $pulse('c3').bpfDiode('c6', 3)._12db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "BpfDiodeParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "narrows the band; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "2-pole bandpass: 6 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole bandpass: 12 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "narrows the band; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$notchDiode",
+    "docs": {
+      "summary": "Diode ladder notch filter",
+      "description": "A notch mixed from the stages of a diode ladder. Resonance brings its rubbery character to the cut and thins the lows.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Squelching hollow",
+          "code": "bass: $saw('c2').notchDiode(\n  $sine('0.25hz').range('c4', 'c7'),\n  3.5,\n)"
+        },
+        {
+          "title": "Single null",
+          "code": "lead: $saw('c3').notchDiode('c6', 2)._12db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "NotchDiodeParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "sharpens the filter around the centre and thins the lows; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "one null at the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "two nulls, half an octave either side of the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "sharpens the filter around the centre and thins the lows; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$lpfOta",
+    "docs": {
+      "summary": "OTA cascade lowpass filter",
+      "description": "The Roland-style four-pole lowpass built from OTA stages: clean and full in the bass, since the stages only saturate when the signal moves fast. It self- oscillates into a sine at the cutoff.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Breathing pad",
+          "code": "chord: $saw('c3:M9')\n  .lpfOta($sine('0.1hz').range('c4', 'c7'), 2.5)\n  .gain(4.5)"
+        },
+        {
+          "title": "Plucked bass",
+          "code": "const seq = $`c2 [c2 c3] eb2 [g1 bb1]`\nbass: $pulse(seq).lpfOta(\n  $perc(seq, { decay: 0.2 }).range('c3', 'c6'),\n  3.5,\n)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "LpfOtaParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "6db",
+        "description": "1-pole lowpass: 6 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "12db",
+        "description": "2-pole lowpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "18db",
+        "description": "3-pole lowpass: 18 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole lowpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$hpfOta",
+    "docs": {
+      "summary": "OTA cascade highpass filter",
+      "description": "A highpass mixed from the stages of an OTA cascade, as in the Oberheim Xpander: clean below resonance, with a singing peak at the cutoff.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Pad thinning out and back",
+          "code": "chord: $saw('c3:M7')\n  .hpfOta($sine('0.1hz').range('c3', 'c6'), 2)\n  .gain(4.5)"
+        },
+        {
+          "title": "Gentler slope",
+          "code": "lead: $saw('c4').hpfOta('c5', 3)._12db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "HpfOtaParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "6db",
+        "description": "1-pole highpass: 6 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "12db",
+        "description": "2-pole highpass: 12 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "18db",
+        "description": "3-pole highpass: 18 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole highpass: 24 dB/oct",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "resonant peak at the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$bpfOta",
+    "docs": {
+      "summary": "OTA cascade bandpass filter",
+      "description": "A bandpass mixed from the stages of an OTA cascade, as in the Oberheim Xpander, with a singing peak at the centre.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Auto-wah",
+          "code": "bass: $saw('c2').bpfOta($sine('2hz').range('c4', 'c6'), 3)"
+        },
+        {
+          "title": "Whistling wind",
+          "code": "noise: $noise('white').bpfOta(\n  $lorenz({ rate: 0.1 }).range('c5', 'c7'),\n  4.4,\n)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "BpfOtaParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "narrows the band; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "2-pole bandpass: 6 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "4-pole bandpass: 12 dB/oct each side",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "narrows the band; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$notchOta",
+    "docs": {
+      "summary": "OTA cascade notch filter",
+      "description": "A notch mixed from the stages of an OTA cascade, as in the Oberheim Xpander: a clean cut, which resonance sharpens while thinning the lows.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Twin nulls sweeping a pad",
+          "code": "chord: $saw('c3:M9')\n  .notchOta($sine('0.15hz').range('c4', 'c7'), 2)\n  .gain(4.5)"
+        },
+        {
+          "title": "Single null",
+          "code": "lead: $pulse('c3').notchOta('c6', 1)._12db"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "NotchOtaParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "center": {
+          "description": "centre frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "sharpens the filter around the centre and thins the lows; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "center"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "one null at the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "two nulls, half an octave either side of the centre",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "center",
+        "description": "centre frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "sharpens the filter around the centre and thins the lows; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "center"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
+    "name": "$apfOta",
+    "docs": {
+      "summary": "OTA cascade allpass filter",
+      "description": "An allpass mixed from the stages of an OTA cascade, as in the Oberheim Xpander: it shifts phase around the cutoff, so mixing it with the dry signal makes a clean phaser. Resonance sharpens the sweep.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Phaser",
+          "code": "chord: $saw('c3:M9')\n  .apfOta($sine('0.3hz').range('c4', 'c7'), 2)\n  .wet(2.5)\n  .gain(4.5)"
+        },
+        {
+          "title": "One-notch phaser",
+          "code": "chord: $saw('c3:m7')\n  .apfOta($sine('0.2hz').range('c5', 'c7'))\n  ._12db.wet(2.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "ApfOtaParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "sharpens the phase sweep; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "12db",
+        "description": "360° of phase shift across the cutoff, with a resonant peak there: one notch when mixed with the dry signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": false,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      },
+      {
+        "name": "24db",
+        "description": "720° of phase shift across the cutoff at a constant level: two notches when mixed with the dry signal",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "sharpens the phase sweep; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
     "stereo": "lift"
   },
   {
@@ -20334,7 +24909,7 @@
       "examples": [
         {
           "title": "Airy thinned pad",
-          "code": "chord: $unstable.filter.obxd2Hp(\n  $saw('c3:M9'),\n  $sine('0.1hz').range('c3', 'c5'),\n  2,\n)"
+          "code": "chord: $unstable.filter\n  .obxd2Hp(\n    $saw('c3:M9'),\n    $sine('0.1hz').range('c3', 'c5'),\n    2,\n  )\n  .gain(4.5)"
         }
       ]
     },
@@ -22118,7 +26693,7 @@
       "examples": [
         {
           "title": "Driven phase smear",
-          "code": "const saw = $saw('c2')\nconst sweep = $sine('0.2hz').range('c3', 'c6')\nconst wet = $unstable.filter.cutoffWarpAp(saw, sweep, 3, {\n  drive: 'softClip',\n  stages: 4,\n})\nbass: $mix([saw, wet])"
+          "code": "const saw = $saw('c2')\nconst sweep = $sine('0.2hz').range('c3', 'c6')\nconst wet = $unstable.filter.cutoffWarpAp(saw, sweep, 3, {\n  drive: 'softClip',\n  stages: 4,\n})\nbass: $mix([saw, wet]).gain(4.5)"
         }
       ]
     },

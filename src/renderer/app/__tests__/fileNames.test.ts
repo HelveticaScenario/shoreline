@@ -1,5 +1,9 @@
 import { describe, expect, test } from 'vitest';
-import { normalizeFileName, renamedFileName } from '../buffers';
+import {
+    normalizeFileName,
+    renamedFileName,
+    renamedFilePath,
+} from '../buffers';
 
 describe('normalizeFileName', () => {
     test('a name without a patch extension is saved as .sl', () => {
@@ -29,5 +33,20 @@ describe('renamedFileName', () => {
     test('any other file takes the new name as typed', () => {
         expect(renamedFileName('/w/kick.wav', 'snare')).toBe('snare');
         expect(renamedFileName('/w/kick.wav', ' snare.wav ')).toBe('snare.wav');
+    });
+});
+
+describe('renamedFilePath', () => {
+    test('the file stays in its folder under the new name', () => {
+        expect(renamedFilePath('/w/songs/old.mjs', 'new')).toBe(
+            '/w/songs/new.mjs',
+        );
+        expect(renamedFilePath('C:\\w\\old.sl', 'new')).toBe('C:\\w\\new.sl');
+    });
+
+    test('an empty or unchanged name renames nothing', () => {
+        expect(renamedFilePath('/w/old.sl', '')).toBeUndefined();
+        expect(renamedFilePath('/w/old.sl', 'old.sl')).toBeUndefined();
+        expect(renamedFilePath('/w/old.sl', 'old')).toBeUndefined();
     });
 });

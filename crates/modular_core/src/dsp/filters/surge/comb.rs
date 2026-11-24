@@ -18,6 +18,10 @@ use crate::reference_category::ReferenceCategory;
 /// Surge XT's longer-ringing combs). Must be a power of two.
 const COMB_SIZE: usize = 4096;
 
+/// Running sums in the interpolator's dot product; divides [`FIRIPOL_N`].
+const FIR_LANES: usize = 4;
+const _: () = assert!(FIRIPOL_N.is_multiple_of(FIR_LANES));
+
 /// Per-lane delay line + write position. `Default` allocates (module
 /// construction runs on the main thread) and primes the sinc table. The buffer
 /// carries [`FIRIPOL_N`] extra samples mirroring the start so the interpolator's
@@ -125,11 +129,21 @@ impl Filter for Comb {
         let rp =
             ((extra.wp as isize - dt - FIROFFSET as isize) & (COMB_SIZE as isize - 1)) as usize;
 
-        let taps = sinc::taps(se);
-        let mut db_read = 0.0f32;
-        for (i, tap) in taps.iter().enumerate() {
-            db_read += extra.delay[rp + i] * tap;
+        // Four running sums over fixed-size chunks, which the compiler turns
+        // into vector multiply-adds while the summation order stays fixed.
+        let window = &extra.delay[rp..rp + FIRIPOL_N];
+        let mut acc = [0.0f32; FIR_LANES];
+        for (d, t) in window
+            .as_chunks::<FIR_LANES>()
+            .0
+            .iter()
+            .zip(sinc::taps(se).as_chunks::<FIR_LANES>().0)
+        {
+            for k in 0..FIR_LANES {
+                acc[k] += d[k] * t[k];
+            }
         }
+        let db_read = (acc[0] + acc[1]) + (acc[2] + acc[3]);
 
         let d = softclip(x + db_read * c[1]);
         extra.delay[extra.wp] = d;

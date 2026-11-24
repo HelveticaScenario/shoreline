@@ -122,19 +122,13 @@ describe('$bus tracks', () => {
         ).not.toThrow();
     });
 
-    test('an output picked from a module with several is not a bus', () => {
+    test('a chained module with several outputs stays the bus, whole or by output', () => {
         expect(() =>
             run(`low: $bus().xover()._low
-                 dry: $saw('c3').track({ sends: low })`),
-        ).toThrow(/which is not a bus/);
-        expect(
-            () =>
-                run(`const b = $bus()
-                 verb: b.plate()
-                 env: b.motionFollower()
-                 dry: $saw('c3').track({ sends: verb })`),
-            // A track of its own, which reads the bus it sends to.
-        ).toThrow(/track env uses the audio of bus verb/);
+                 dark: $bus().lpf('c5')
+                 steep: $bus().lpf('c5')._24db.plate()
+                 dry: $saw('c3').track({ sends: [low, dark, steep] })`),
+        ).not.toThrow();
     });
 
     test('a second track name in a pair is a send, not a level', () => {

@@ -773,7 +773,8 @@ class BaseCollection<Plain = Collection, Ranged = CollectionWithRange> {
    * This collection's lanes followed by those of \`other\`, a collection of
    * the same type. A module with several outputs joins output by output: the
    * result has every output by name and still stands for whichever fits the
-   * input it is plugged into.
+   * input it is plugged into. It also takes a plain signal, whose lanes
+   * follow those of every output.
    *
    * \`\`\`js
    * const oscs = $enosc('c3').concat($enosc('g3'))
@@ -1040,10 +1041,10 @@ declare const __busRoot: unique symbol;
 
 /**
  * The signal of a send-return bus, from {@link $bus}: one stereo lane, the
- * mix of everything sent to it. Chain methods that give one signal keep it a
- * bus signal, so \`$bus().plate().wet(2)\` is one too; one output picked from
- * a module with several is an ordinary signal. The track labelling it is the bus's
- * track, whose name tracks send to.
+ * mix of everything sent to it. Chain methods keep it a bus signal, so
+ * \`$bus().plate().wet(2)\` is one too, and so is any output of a chained
+ * module with several (\`$bus().lpf('c5')._24db\`). The track labelling it
+ * is the bus's track, whose name tracks send to.
  */
 class BusSignal extends BaseCollection<BusSignal, RangedBusSignal> {
   private constructor();
@@ -1124,9 +1125,9 @@ declare const __groupRoot: unique symbol;
 
 /**
  * The signal of a group, from {@link $group}: one stereo lane, the sum of
- * the tracks that play into it. Chain methods that give one signal keep it a
- * group signal. The track labelling it is the group's track, whose name
- * other tracks' labels end in.
+ * the tracks that play into it. Chain methods keep it a group signal,
+ * whichever output of a chained module is read. The track labelling it is
+ * the group's track, whose name other tracks' labels end in.
  */
 class GroupSignal extends BaseCollection<GroupSignal, RangedGroupSignal> {
   private constructor();
@@ -1539,6 +1540,27 @@ export function qualifiedMultiOutputInterfaceName(moduleSchema: {
 }
 
 /**
+ * `type` as a chain from a receiver gives it: the receiver's own plain or
+ * ranged type for a collection, anything else unchanged.
+ */
+function receiverType(type: string, plain: string, ranged: string): string {
+    return { Collection: plain, CollectionWithRange: ranged }[type] ?? type;
+}
+
+/** Appended to a multi-output interface's name for its chained form. */
+const CHAINED_SUFFIX = 'Of';
+
+/**
+ * The qualified name of the type a multi-output module's chain method
+ * returns: the signal it was chained from with the module's outputs, each
+ * typed as that signal too, so a chain from a bus or group stays one
+ * through any output.
+ */
+export function chainedOutputsTypeName(moduleSchema: { name: string }): string {
+    return `${qualifiedMultiOutputInterfaceName(moduleSchema)}${CHAINED_SUFFIX}`;
+}
+
+/**
  * Generate interface name for multi-output modules
  */
 function getMultiOutputInterfaceName(moduleSchema: { name: string }): string {
@@ -1572,32 +1594,44 @@ function generateMultiOutputInterface(
     const baseType = getOutputType(outputs.find((o) => o.name === cvOutput)!);
 
     const interfaceName = getMultiOutputInterfaceName(moduleSchema);
+    // Chained from a bus or group, the module and each output keep the
+    // receiver's own type.
+    const chained = (type: string) => receiverType(type, 'Plain', 'Ranged');
+    const chainedName = `${interfaceName}${CHAINED_SUFFIX}`;
 
     const lines = jsDocComment(
         [
-            `Output type for ${moduleSchema.name} module.`,
-            'Used directly, it stands for the output that fits the input it',
-            `is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
-            'itself is always that output.',
+            `The outputs of ${moduleSchema.name} chained from a signal of type \`Plain\`, or \`Ranged\` where one has a range.`,
         ],
         indent,
     );
     lines.push(
-        `${indent}export interface ${interfaceName} extends ${baseType} {`,
+        `${indent}export type ${chainedName}<Plain, Ranged> = ${chained(baseType)} & {`,
+        `${indent}  /** This module's outputs, each followed by the lanes of \`other\`. */`,
+        `${indent}  concat(other: ${baseType}): ${chainedName}<Plain, Ranged>;`,
     );
-
     for (const output of outputs) {
-        const outputType = getOutputType(output);
-        const name = outputName(output.name);
-
         const doc = withMeta(output.description, formatOutputMeta(output));
         if (doc) {
             lines.push(`${indent}  /** ${doc} */`);
         }
-        lines.push(`${indent}  readonly _${name}: ${outputType};`);
+        lines.push(
+            `${indent}  readonly _${outputName(output.name)}: ${chained(getOutputType(output))};`,
+        );
     }
-
-    lines.push(`${indent}}`);
+    lines.push(`${indent}};`);
+    lines.push(
+        ...jsDocComment(
+            [
+                `Output type for ${moduleSchema.name} module.`,
+                'Used directly, it stands for the output that fits the input it',
+                `is plugged into (\`_${outputName(defaultOutput.name)}\` unless another fits better); an output named`,
+                'itself is always that output.',
+            ],
+            indent,
+        ),
+        `${indent}export interface ${interfaceName} extends ${chainedName}<Collection, CollectionWithRange> {}`,
+    );
     return lines;
 }
 
@@ -1900,10 +1934,8 @@ function renderChainMethod(
     // multi-output interface is named in full.
     const returnType =
         (moduleSchema.outputs ?? []).length > 1
-            ? qualifiedMultiOutputInterfaceName(moduleSchema)
-            : ({ Collection: plain, CollectionWithRange: ranged }[
-                  getFactoryReturnType(moduleSchema)
-              ] ?? getFactoryReturnType(moduleSchema));
+            ? `${chainedOutputsTypeName(moduleSchema)}<${plain}, ${ranged}>`
+            : receiverType(getFactoryReturnType(moduleSchema), plain, ranged);
     const lines: string[] = [];
     const declared = declaredRangeArgs(moduleSchema, args);
     if (declared && withDeclared) {

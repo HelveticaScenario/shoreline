@@ -630,6 +630,7 @@ function sliceRoot(
                       ...args: ModuleOutput[]
                   ) => AnyCollection)(...indices.map((i) => value.items[i]))
                 : value;
+        carrySignalRoot(values[name], value);
     }
     markRoot(sliced, {
         outputs: set.outputs,
@@ -640,33 +641,33 @@ function sliceRoot(
 
 /**
  * Make `joined` a root standing for the outputs of the root `a` and those of
- * `b`, each output's lanes those of `a` followed by those of `b`. When `a` is
- * no root, `b` joins as the output it stands for read as a signal.
+ * `b`, each output's lanes those of `a` followed by those of `b`. A `b` that
+ * is no root, or one with other outputs, follows every output of `a` as the
+ * signal it is. When `a` is no root, `b` joins as the output it stands for
+ * read as a signal.
  */
-function concatRoots(joined: object, a: object, b: object): void {
+function concatRoots(joined: object, a: object, b: AnyCollection): void {
     const set = outputSetOf(a);
     if (!set) {
         return;
     }
-    const otherSet = outputSetOf(b);
-    const other = otherSet?.values ?? {};
     const names = Object.keys(set.values);
-    const otherNames = Object.keys(other);
-    if (names.join() !== otherNames.join()) {
-        const list = (ns: string[]) =>
-            ns.length === 0 ? 'none' : ns.map((n) => `_${n}`).join(', ');
-        throw new Error(
-            `concat() takes a signal of the same type as the one it is called on: one has ${list(names)}, the other ${list(otherNames)}`,
-        );
-    }
+    const other = outputSetOf(b);
+    const matching =
+        other && names.join() === Object.keys(other.values).join()
+            ? other
+            : undefined;
     const values: Record<string, unknown> = {};
     for (const name of names) {
         const value = set.values[name] as AnyCollection;
-        values[name] = value.concat(other[name] as AnyCollection);
+        values[name] = value.concat(
+            matching ? (matching.values[name] as AnyCollection) : b,
+        );
+        carrySignalRoot(values[name], value);
     }
     markRoot(joined, {
         outputs: set.outputs,
-        parents: otherSet ? [set, otherSet] : [set],
+        parents: matching ? [set, matching] : [set],
         values,
     });
 }
@@ -2603,15 +2604,21 @@ function crossfadeMix(
         captureSourceLocation(),
         MIX_SLOT,
     ) as PolySignal;
-    return builder.getFactory('$crossfade')(
-        sumsLanes(builder, result) && original.items.length > 1
-            ? builder.getFactory('$mix')(
-                  original.items.map((item) => new Collection(item)),
-              )
-            : original,
-        result,
-        amount,
-    ) as Collection;
+    // The crossfade's legs have no site in the patch source, so it
+    // records neither.
+    return builder.outputResolver.withCall(
+        [],
+        () =>
+            builder.getFactory('$crossfade')(
+                sumsLanes(builder, result) && original.items.length > 1
+                    ? builder.getFactory('$mix')(
+                          original.items.map((item) => new Collection(item)),
+                      )
+                    : original,
+                result,
+                amount,
+            ) as Collection,
+    );
 }
 
 /**

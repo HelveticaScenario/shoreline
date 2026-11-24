@@ -1,4 +1,8 @@
-import type { EditorBuffer, UnsavedBufferSnapshot } from '../types/editor';
+import type {
+    EditorBuffer,
+    FileBuffer,
+    UnsavedBufferSnapshot,
+} from '../types/editor';
 import {
     isPatchPath,
     PATCH_EXTENSION,
@@ -107,7 +111,7 @@ export const withBufferContent = (
 
 /** Record that `savedContent` is what the buffer's file now holds on disk. */
 export const withSavedContent = (
-    buffer: EditorBuffer & { kind: 'file' },
+    buffer: FileBuffer,
     savedContent: string,
 ): EditorBuffer => ({
     ...buffer,
@@ -120,7 +124,7 @@ export const withSavedContent = (
  * content; a dirty one keeps its edits, and its next save reports a conflict.
  */
 export const withDiskChange = (
-    buffer: EditorBuffer & { kind: 'file' },
+    buffer: FileBuffer,
     diskContent: string,
 ): EditorBuffer => {
     if (buffer.content === diskContent || !buffer.dirty) {
@@ -187,4 +191,25 @@ export const renamedFileName = (oldPath: string, newName: string) => {
     return extension === undefined
         ? newName.trim()
         : normalizeFileName(newName, extension);
+};
+
+/**
+ * The path a rename to `newName` gives `oldPath`'s file, in the same folder.
+ * Undefined when the name is empty or names the file as it is.
+ */
+export const renamedFilePath = (
+    oldPath: string,
+    newName: string,
+): string | undefined => {
+    if (!newName || newName === oldPath.split(/[/\\]/).pop()) {
+        return undefined;
+    }
+    const fileName = renamedFileName(oldPath, newName);
+    const separator = oldPath.includes('\\') ? '\\' : '/';
+    const lastSeparator = oldPath.lastIndexOf(separator);
+    const newPath =
+        lastSeparator === -1
+            ? fileName
+            : `${oldPath.substring(0, lastSeparator)}${separator}${fileName}`;
+    return newPath && newPath !== oldPath ? newPath : undefined;
 };

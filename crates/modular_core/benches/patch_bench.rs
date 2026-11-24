@@ -51,9 +51,9 @@ impl BenchPatch {
     /// one slot per call.
     fn with_mode(modules: Vec<(String, &str, Value)>, mode: ProcessingMode) -> Self {
         let deserializers = get_params_deserializers();
-        let order = modules.iter().map(|(id, _, _)| id.clone()).collect();
+        let order: Vec<String> = modules.iter().map(|(id, _, _)| id.clone()).collect();
         let mut patch = Patch::new();
-        patch
+        let mut settlement = patch
             .insert_modules(
                 modules.into_iter().map(|(id, module_type, params)| {
                     let cached = deserializers[module_type](params).expect("deserialize");
@@ -73,6 +73,21 @@ impl BenchPatch {
                 BLOCK,
             )
             .expect("insert");
+        // Outputs a cable reads are connected, and so is every output of a
+        // module no cable reads, so a chain's last module renders them all.
+        let mut cables = Vec::new();
+        for module in patch.sampleables.values() {
+            module.collect_cables(&mut cables);
+        }
+        let sinks: Vec<(&str, &str)> = order
+            .iter()
+            .filter(|id| cables.iter().all(|cable| &cable.module != *id))
+            .flat_map(|id| {
+                let ports = patch.sampleables[id].port_names();
+                ports.iter().map(move |port| (id.as_str(), *port))
+            })
+            .collect();
+        patch.settle_connections(&mut settlement, sinks);
         patch.wav_data.insert("noise".into(), noise_wav());
         patch.wav_data.insert("table".into(), table_wav());
         for module in patch.sampleables.values() {
@@ -100,15 +115,15 @@ fn lpf_chain(lanes: usize) -> BenchPatch {
         json!({ "freq": poly(0.0, lanes) }),
     )];
     for i in 0..32 {
-        let prev = if i == 0 {
-            "src".to_string()
+        let (prev, port) = if i == 0 {
+            ("src".to_string(), "output")
         } else {
-            format!("f{}", i - 1)
+            (format!("f{}", i - 1), "12db")
         };
         modules.push((
             format!("f{i}"),
             "$lpf",
-            json!({ "input": poly_cable(&prev, "output", lanes), "cutoff": 2.0, "resonance": 1.0 }),
+            json!({ "input": poly_cable(&prev, port, lanes), "cutoff": 2.0, "resonance": 1.0 }),
         ));
     }
     BenchPatch::new(modules)
@@ -316,7 +331,7 @@ fn voices(lanes: usize) -> BenchPatch {
             id("vca"),
             "$amp",
             json!({
-                "input": poly_cable(&id("lpf"), "output", lanes),
+                "input": poly_cable(&id("lpf"), "12db", lanes),
                 "factor": poly_cable(&id("env"), "output", lanes),
             }),
         ));

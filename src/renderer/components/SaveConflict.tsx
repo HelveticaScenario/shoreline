@@ -1,7 +1,7 @@
 import { DiffEditor } from '@monaco-editor/react';
-import { useEffect, useRef } from 'react';
 
 import { fontFamilyWithFallback } from '../../shared/fonts';
+import { useOverlayPanel } from '../hooks/useOverlayPanel';
 import { useTheme } from '../themes/ThemeContext';
 import { applyMonacoTheme } from './monaco/theme';
 import './SaveConflict.css';
@@ -73,21 +73,10 @@ export function SaveConflictDiff({
     onRevertLocal,
     onClose,
 }: DiffProps) {
-    const panelRef = useRef<HTMLDivElement>(null);
+    const panelRef = useOverlayPanel(true, onClose);
     const { theme: appTheme, font, fontLigatures, fontSize } = useTheme();
     const monacoThemeId = `theme-${appTheme.id}`;
     const name = baseName(filePath);
-
-    useEffect(() => {
-        panelRef.current?.focus();
-        const handleKey = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                onClose();
-            }
-        };
-        window.addEventListener('keydown', handleKey);
-        return () => window.removeEventListener('keydown', handleKey);
-    }, [onClose]);
 
     return (
         <div className="save-conflict-overlay" onClick={onClose}>

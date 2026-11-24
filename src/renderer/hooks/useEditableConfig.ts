@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { AppConfig } from '../../shared/ipcTypes';
 import electronAPI from '../electronAPI';
 
@@ -25,10 +25,10 @@ export function useEditableConfig(
         return electronAPI.config.onChange(load);
     }, [active]);
 
-    const change = useCallback((partial: Partial<AppConfig>) => {
+    const change = (partial: Partial<AppConfig>) => {
         setConfig((prev) => ({ ...prev, ...partial }));
         electronAPI.config.write(partial).catch(console.error);
-    }, []);
+    };
 
     return [config, change, loaded];
 }
