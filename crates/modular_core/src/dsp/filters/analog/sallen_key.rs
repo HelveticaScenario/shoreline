@@ -1,6 +1,7 @@
 //! Sallen-Key: two one-pole lowpasses in series with positive feedback of
-//! their difference through a clipper, `u = x + tanh(k·(y1 − y2))`; with
-//! `scream` that sum clips again on its way into the first lowpass. The
+//! their difference through a clipper, `u = x + tanh(k·(y1 − y2))`. Only the
+//! feedback clips, so a loud input passes at full level and swamps the
+//! resonance rather than being limited with it. The
 //! 12 dB output is one such stage; the 24 dB output is its own pair of
 //! them: Butterworth-flat at resonance 0 for a lowpass or highpass, a
 //! Butterworth bandpass pair whose width follows the resonance, or for a
@@ -36,16 +37,13 @@ struct StageCoeffs {
     /// One-pole gain `g / (1 + g)`.
     gain: f32,
     k: f32,
-    /// Whether the summed input and feedback clip on their way in.
-    scream: bool,
 }
 
 impl StageCoeffs {
-    fn new(g: f32, k: f32, scream: bool) -> Self {
+    fn new(g: f32, k: f32) -> Self {
         Self {
             gain: g / (1.0 + g),
             k,
-            scream,
         }
     }
 
@@ -53,12 +51,7 @@ impl StageCoeffs {
     #[inline]
     fn drive(&self, x: f32, d: f32) -> (f32, f32) {
         let (feedback, slope) = tanh_and_slope(self.k * d);
-        if self.scream {
-            let (u, clip_slope) = tanh_and_slope(x + feedback);
-            (u, self.k * slope * clip_slope)
-        } else {
-            (x + feedback, self.k * slope)
-        }
+        (x + feedback, self.k * slope)
     }
 }
 
@@ -114,21 +107,13 @@ pub struct SallenKeyState {
     db24: [Stage; 2],
 }
 
-/// The Sallen-Key filters' non-signal settings.
-#[derive(Clone, Copy, PartialEq)]
-pub(crate) struct SallenKeyOptions {
-    /// Whether the forward path clips too.
-    pub scream: bool,
-    /// Whether resonance is a fixed value, not a signal that can move.
-    pub steady_resonance: bool,
-}
-
 #[derive(Clone, Copy, Default)]
 pub struct SallenKey;
 
 impl Kernel for SallenKey {
     type Response = Response;
-    type Options = SallenKeyOptions;
+    /// Whether resonance is a fixed value, not a signal that can move.
+    type Options = bool;
     type Coeffs = SallenKeyCoeffs;
     type State = SallenKeyState;
     const VOLTS: f32 = 12.0;
@@ -139,10 +124,7 @@ impl Kernel for SallenKey {
         resonance: f32,
         rates: Rates,
         taps: Taps,
-        SallenKeyOptions {
-            scream,
-            steady_resonance,
-        }: SallenKeyOptions,
+        steady_resonance: bool,
     ) -> SallenKeyCoeffs {
         let k = loop_gain(resonance, SELF_OSCILLATION);
         let g = rates.gain(cutoff);
@@ -152,7 +134,7 @@ impl Kernel for SallenKey {
             } else {
                 rates.gain(cutoff + octaves)
             };
-            StageCoeffs::new(g, k, scream)
+            StageCoeffs::new(g, k)
         };
         // The 24 dB pair's sections, their gains, and the feedback of the
         // more resonant one.
