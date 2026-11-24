@@ -284,10 +284,14 @@ test.describe('release notes', () => {
         const panel = window.locator('.release-notes-panel');
         await expect(panel).toContainText('Release Notes');
         // The list also holds every release in the bundled changelog, so the
-        // checks follow the stubbed version, not a fixed set of releases.
+        // checks follow the stubbed version.
         const release = (version: string) =>
             panel.locator('.release-notes-release').filter({
-                has: window.locator('h3', { hasText: `Version ${version}` }),
+                has: window.locator('h3', {
+                    hasText: new RegExp(
+                        `^Version ${version.replaceAll('.', '\\.')}(?![.\\d])`,
+                    ),
+                }),
             });
         await expect(release('0.2.0').locator('h3')).toHaveText(
             /Version 0\.2\.0\s*Not installed/,
@@ -302,8 +306,10 @@ test.describe('release notes', () => {
             .locator('.release-notes-release h3')
             .allInnerTexts();
         const versions = headings.map(
-            (heading) => heading.match(/Version (\d+\.\d+\.\d+)/)?.[1] ?? '',
+            (heading) =>
+                heading.match(/^Version (\d+\.\d+\.\d+)(?![-.\d])/)?.[1] ?? '',
         );
+        expect(versions).not.toContain('');
         expect(versions).toEqual(
             [...versions].sort((a, b) => compareVersions(b, a)),
         );
