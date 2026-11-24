@@ -15809,11 +15809,11 @@
       "examples": [
         {
           "title": "Plucky acid bass",
-          "code": "const seq = $`c2 c2 [eb2 c3] g1`\nmelody: $saw(seq).lpf(\n  $perc(seq, { decay: 0.2 }).range('c3', 'c7'),\n  4,\n)"
+          "code": "const seq = $`c2 c2 [eb2 c3] g1`\nmelody: $saw(seq)\n  .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)\n  .gain(4.5)"
         },
         {
           "title": "Slow pad sweep",
-          "code": "chord: $saw('c3:m7').lpf(\n  $sine('0.05hz').range('c4', 'c7'),\n  1,\n)"
+          "code": "chord: $saw('c3:m7')\n  .lpf($sine('0.05hz').range('c4', 'c7'), 1)\n  .gain(4.5)"
         }
       ]
     },
@@ -16269,7 +16269,7 @@
       "examples": [
         {
           "title": "Pad thinning out and back",
-          "code": "chord: $saw('c3:M7').hpf(\n  $sine('0.1hz').range('c3', 'c6'),\n  2,\n)"
+          "code": "chord: $saw('c3:M7')\n  .hpf($sine('0.1hz').range('c3', 'c6'), 2)\n  .gain(4)"
         },
         {
           "title": "Riser across each bar",
@@ -16659,7 +16659,7 @@
       "examples": [
         {
           "title": "Hollow sweep through a pad",
-          "code": "chord: $saw('c3:m7').notch(\n  $sine('0.2hz').range('c4', 'c7'),\n  1,\n)"
+          "code": "chord: $saw('c3:m7')\n  .notch($sine('0.2hz').range('c4', 'c7'), 1)\n  .gain(4.5)"
         },
         {
           "title": "Two nulls sweeping noise",
@@ -19153,7 +19153,7 @@
         },
         {
           "title": "Gentler slope",
-          "code": "chord: $saw('c3:m7').hpfLadder('c5', 2)._12db"
+          "code": "chord: $saw('c3:m7').hpfLadder('c5', 2)._12db.gain(4.5)"
         }
       ]
     },
@@ -19408,7 +19408,7 @@
         },
         {
           "title": "Wide band on a pad",
-          "code": "chord: $saw('c3:M7').bpfLadder('c5', 1)._12db"
+          "code": "chord: $saw('c3:M7').bpfLadder('c5', 1)._12db.gain(4.5)"
         }
       ]
     },
@@ -19639,7 +19639,7 @@
       "examples": [
         {
           "title": "Twin nulls sweeping a pad",
-          "code": "chord: $saw('c3:m7').notchLadder(\n  $sine('0.2hz').range('c4', 'c7'),\n  2,\n)"
+          "code": "chord: $saw('c3:m7')\n  .notchLadder($sine('0.2hz').range('c4', 'c7'), 2)\n  .gain(4.5)"
         },
         {
           "title": "Single null",
@@ -19874,11 +19874,11 @@
       "examples": [
         {
           "title": "Phaser",
-          "code": "chord: $saw('c3:m7')\n  .apfLadder($sine('0.3hz').range('c4', 'c7'), 2)\n  .wet(2.5)"
+          "code": "chord: $saw('c3:m7')\n  .apfLadder($sine('0.3hz').range('c4', 'c7'), 2)\n  .wet(2.5)\n  .gain(4.5)"
         },
         {
           "title": "One-notch phaser",
-          "code": "const pad = $saw('c3:M7')\nchord: $mix([\n  pad,\n  pad.apfLadder($sine('0.2hz').range('c5', 'c7'))._12db,\n])"
+          "code": "chord: $saw('c3:M7')\n  .apfLadder($sine('0.2hz').range('c5', 'c7'))\n  ._12db.wet(2.5)"
         }
       ]
     },
@@ -21089,7 +21089,7 @@
       "examples": [
         {
           "title": "Breathing pad",
-          "code": "chord: $saw('c3:M9').lpfOta(\n  $sine('0.1hz').range('c4', 'c7'),\n  2.5,\n)"
+          "code": "chord: $saw('c3:M9')\n  .lpfOta($sine('0.1hz').range('c4', 'c7'), 2.5)\n  .gain(4.5)"
         },
         {
           "title": "Plucked bass",
@@ -21344,7 +21344,7 @@
       "examples": [
         {
           "title": "Pad thinning out and back",
-          "code": "chord: $saw('c3:M7').hpfOta(\n  $sine('0.1hz').range('c3', 'c6'),\n  2,\n)"
+          "code": "chord: $saw('c3:M7')\n  .hpfOta($sine('0.1hz').range('c3', 'c6'), 2)\n  .gain(4.5)"
         },
         {
           "title": "Gentler slope",
@@ -21834,7 +21834,7 @@
       "examples": [
         {
           "title": "Twin nulls sweeping a pad",
-          "code": "chord: $saw('c3:M9').notchOta(\n  $sine('0.15hz').range('c4', 'c7'),\n  2,\n)"
+          "code": "chord: $saw('c3:M9')\n  .notchOta($sine('0.15hz').range('c4', 'c7'), 2)\n  .gain(4.5)"
         },
         {
           "title": "Single null",
@@ -22069,11 +22069,11 @@
       "examples": [
         {
           "title": "Phaser",
-          "code": "chord: $saw('c3:M9')\n  .apfOta($sine('0.3hz').range('c4', 'c7'), 2)\n  .wet(2.5)"
+          "code": "chord: $saw('c3:M9')\n  .apfOta($sine('0.3hz').range('c4', 'c7'), 2)\n  .wet(2.5)\n  .gain(4.5)"
         },
         {
           "title": "One-notch phaser",
-          "code": "const pad = $saw('c3:m7')\nchord: $mix([\n  pad,\n  pad.apfOta($sine('0.2hz').range('c5', 'c7'))._12db,\n])"
+          "code": "chord: $saw('c3:m7')\n  .apfOta($sine('0.2hz').range('c5', 'c7'))\n  ._12db.wet(2.5)"
         }
       ]
     },
@@ -24909,7 +24909,7 @@
       "examples": [
         {
           "title": "Airy thinned pad",
-          "code": "chord: $unstable.filter.obxd2Hp(\n  $saw('c3:M9'),\n  $sine('0.1hz').range('c3', 'c5'),\n  2,\n)"
+          "code": "chord: $unstable.filter\n  .obxd2Hp(\n    $saw('c3:M9'),\n    $sine('0.1hz').range('c3', 'c5'),\n    2,\n  )\n  .gain(4.5)"
         }
       ]
     },
@@ -26693,7 +26693,7 @@
       "examples": [
         {
           "title": "Driven phase smear",
-          "code": "const saw = $saw('c2')\nconst sweep = $sine('0.2hz').range('c3', 'c6')\nconst wet = $unstable.filter.cutoffWarpAp(saw, sweep, 3, {\n  drive: 'softClip',\n  stages: 4,\n})\nbass: $mix([saw, wet])"
+          "code": "const saw = $saw('c2')\nconst sweep = $sine('0.2hz').range('c3', 'c6')\nconst wet = $unstable.filter.cutoffWarpAp(saw, sweep, 3, {\n  drive: 'softClip',\n  stages: 4,\n})\nbass: $mix([saw, wet]).gain(4.5)"
         }
       ]
     },

@@ -59,7 +59,7 @@ const HPF_LADDER_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Gentler slope",
-            code: "chord: $saw('c3:m7').hpfLadder('c5', 2)._12db",
+            code: "chord: $saw('c3:m7').hpfLadder('c5', 2)._12db.gain(4.5)",
         },
     ],
 };
@@ -92,7 +92,7 @@ const BPF_LADDER_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Wide band on a pad",
-            code: "chord: $saw('c3:M7').bpfLadder('c5', 1)._12db",
+            code: "chord: $saw('c3:M7').bpfLadder('c5', 1)._12db.gain(4.5)",
         },
     ],
 };
@@ -118,10 +118,9 @@ const NOTCH_LADDER_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Twin nulls sweeping a pad",
             code: r#"
-                chord: $saw('c3:m7').notchLadder(
-                  $sine('0.2hz').range('c4', 'c7'),
-                  2,
-                )
+                chord: $saw('c3:m7')
+                  .notchLadder($sine('0.2hz').range('c4', 'c7'), 2)
+                  .gain(4.5)
             "#,
         },
         DocExample {
@@ -155,16 +154,15 @@ const APF_LADDER_DOCS: ModuleDocs = ModuleDocs {
                 chord: $saw('c3:m7')
                   .apfLadder($sine('0.3hz').range('c4', 'c7'), 2)
                   .wet(2.5)
+                  .gain(4.5)
             "#,
         },
         DocExample {
             title: "One-notch phaser",
             code: r#"
-                const pad = $saw('c3:M7')
-                chord: $mix([
-                  pad,
-                  pad.apfLadder($sine('0.2hz').range('c5', 'c7'))._12db,
-                ])
+                chord: $saw('c3:M7')
+                  .apfLadder($sine('0.2hz').range('c5', 'c7'))
+                  ._12db.wet(2.5)
             "#,
         },
     ],

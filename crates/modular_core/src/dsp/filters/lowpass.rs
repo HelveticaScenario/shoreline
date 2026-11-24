@@ -15,19 +15,17 @@ const LPF_DOCS: ModuleDocs = ModuleDocs {
             title: "Plucky acid bass",
             code: r#"
                 const seq = $`c2 c2 [eb2 c3] g1`
-                melody: $saw(seq).lpf(
-                  $perc(seq, { decay: 0.2 }).range('c3', 'c7'),
-                  4,
-                )
+                melody: $saw(seq)
+                  .lpf($perc(seq, { decay: 0.2 }).range('c3', 'c7'), 4)
+                  .gain(4.5)
             "#,
         },
         DocExample {
             title: "Slow pad sweep",
             code: r#"
-                chord: $saw('c3:m7').lpf(
-                  $sine('0.05hz').range('c4', 'c7'),
-                  1,
-                )
+                chord: $saw('c3:m7')
+                  .lpf($sine('0.05hz').range('c4', 'c7'), 1)
+                  .gain(4.5)
             "#,
         },
     ],
