@@ -435,42 +435,15 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.waveshaper"
         | "$mi.zOsc" => json!({ "freq": 0.0 }),
         "$pSine" | "$pSaw" | "$pPulse" => json!({ "phase": 0.0 }),
-        "$lpf" | "$hpf" | "$jup6f" | "$multimode" | "$apf" => {
+        "$lpf" | "$hpf" | "$jup6f" | "$multimode" | "$apf" | "$lpfSk" | "$hpfSk" | "$lpfLadder"
+        | "$hpfLadder" | "$apfLadder" | "$lpfDiode" | "$hpfDiode" | "$lpfOta" | "$hpfOta"
+        | "$apfOta" => {
             json!({ "input": 0.0, "cutoff": 0.0 })
         }
-        "$unstable.filter.lp"
-        | "$unstable.filter.hp"
-        | "$unstable.filter.bp"
-        | "$unstable.filter.notch"
-        | "$unstable.filter.ap"
-        | "$unstable.filter.legacyLadder"
-        | "$unstable.filter.diodeLadder"
-        | "$unstable.filter.vintageLadder"
-        | "$unstable.filter.k35Lp"
-        | "$unstable.filter.k35Hp"
-        | "$unstable.filter.obxd2Lp"
-        | "$unstable.filter.obxd2Bp"
-        | "$unstable.filter.obxd2Hp"
-        | "$unstable.filter.obxd2Notch"
-        | "$unstable.filter.obxd4"
-        | "$unstable.filter.xpander"
-        | "$unstable.filter.cutoffWarpLp"
-        | "$unstable.filter.cutoffWarpHp"
-        | "$unstable.filter.cutoffWarpBp"
-        | "$unstable.filter.cutoffWarpNotch"
-        | "$unstable.filter.cutoffWarpAp"
-        | "$unstable.filter.resWarpLp"
-        | "$unstable.filter.resWarpHp"
-        | "$unstable.filter.resWarpBp"
-        | "$unstable.filter.resWarpNotch"
-        | "$unstable.filter.resWarpAp"
-        | "$unstable.filter.tripole"
-        | "$unstable.filter.fastSvf"
-        | "$unstable.filter.sah"
-        | "$unstable.filter.comb" => {
-            json!({ "input": 0.0, "cutoff": 0.0 })
+        "$bpf" | "$bpfSk" | "$bpfLadder" | "$bpfDiode" | "$bpfOta" | "$notch" | "$notchSk"
+        | "$notchLadder" | "$notchDiode" | "$notchOta" => {
+            json!({ "input": 0.0, "center": 0.0 })
         }
-        "$bpf" => json!({ "input": 0.0, "center": 0.0 }),
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
         "$comp" => json!({ "input": 0.0, "threshold": 0.0 }),
         "$erratic" => json!({ "input": 0.0, "amount": 1.0 }),
@@ -842,7 +815,7 @@ fn from_graph_multi_module_osc_to_filter_to_mix() {
             "$mix",
             json!({
                 "inputs": [
-                    [{ "type": "cable", "module": "filt", "port": "output", "lane": 0 }]
+                    [{ "type": "cable", "module": "filt", "port": "12db", "lane": 0 }]
                 ]
             }),
         ),

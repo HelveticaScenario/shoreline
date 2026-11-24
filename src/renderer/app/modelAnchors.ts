@@ -4,7 +4,7 @@
  * back; an editor's own decoration collection is dropped when its model is
  * detached.
  */
-import type { editor } from 'monaco-editor';
+import type { editor, IRange, Range } from 'monaco-editor';
 
 export interface ModelAnchors {
     /** The current offset of anchor `index`, or null when it has none. */
@@ -49,6 +49,44 @@ export function createModelAnchors(
                     ? null
                     : model.getDecorationRange(id);
             return range ? model.getOffsetAt(range.getStartPosition()) : null;
+        },
+    };
+}
+
+/** Ranges in a text model that follow the user's edits. */
+export interface ModelRanges {
+    /** The current range of entry `index`, or null when it has none. */
+    getRange(index: number): Range | null;
+    clear(): void;
+}
+
+/** One tracked range per entry of `ranges`, which typing at an edge leaves. */
+export function createModelRanges(
+    model: editor.ITextModel,
+    ranges: readonly IRange[],
+): ModelRanges {
+    let ids = model.deltaDecorations(
+        [],
+        ranges.map((range) => ({
+            options: {
+                // NeverGrowsWhenTypingAtEdges
+                stickiness: 1,
+            },
+            range,
+        })),
+    );
+    return {
+        clear() {
+            if (!model.isDisposed()) {
+                model.deltaDecorations(ids, []);
+            }
+            ids = [];
+        },
+        getRange(index) {
+            const id = ids.at(index);
+            return id === undefined || model.isDisposed()
+                ? null
+                : model.getDecorationRange(id);
         },
     };
 }

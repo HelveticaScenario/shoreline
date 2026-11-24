@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import electronAPI from '../electronAPI';
 import './AudioPanicDialog.css';
 
@@ -55,9 +55,8 @@ export function AudioPanicDialog() {
             setPanicked(stillPanicked);
         } catch (e) {
             setRestartError(e instanceof Error ? e.message : String(e));
-        } finally {
-            setRestarting(false);
         }
+        setRestarting(false);
     };
 
     if (!panicked) return null;

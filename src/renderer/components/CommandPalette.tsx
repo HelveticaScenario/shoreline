@@ -6,7 +6,7 @@
  * registry commands plus, when an editor exists, every supported Monaco
  * editor action.
  */
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import { Command } from 'cmdk';
 import type { editor } from 'monaco-editor';
 
@@ -45,12 +45,7 @@ export function CommandPalette({
     // Rebuild on every open so the registry and editor actions reflect the
     // current frame. The build is cheap (linear in command count) and only
     // runs when the user actually opens the palette.
-    const items = useMemo(() => {
-        if (!open) {
-            return [];
-        }
-        return buildPaletteItems(editor);
-    }, [open, editor]);
+    const items = open ? buildPaletteItems(editor) : [];
 
     const listRef = useRef<HTMLDivElement>(null);
 

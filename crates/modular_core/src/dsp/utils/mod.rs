@@ -6,6 +6,7 @@ pub mod fade;
 pub mod halfband;
 pub mod one_pole;
 pub mod rng;
+pub mod saturation;
 pub mod unison_phase;
 pub mod unison_voices;
 
@@ -45,6 +46,11 @@ pub fn changed(a: f32, b: f32) -> bool {
     // NaN is used as a sentinel for "never computed" in filter state,
     // so any NaN argument must be treated as a change.
     a.is_nan() || b.is_nan() || (a - b).abs() > 1e-6
+}
+
+/// The serde and deserr default of a flag that is on unless set.
+pub fn default_true() -> bool {
+    true
 }
 
 /// `sin(2π · turns)` for `turns` in `[0, 1)`, accurate to about 1e-7 and

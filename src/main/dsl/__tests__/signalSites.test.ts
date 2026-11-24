@@ -150,7 +150,11 @@ describe('static resolution', () => {
             hints(
                 `const seq = $('1 2')\n$sine('c').lpf('c').wet(seq)\n$sine('c').pipeMix((x) => x, seq)`,
             ),
-        ).toEqual(["'c').wet(seq‹cv›", 'x) => x, seq‹cv›']);
+        ).toEqual([
+            "c').lpf('c')‹12db›",
+            "'c').wet(seq‹cv›",
+            'x) => x, seq‹cv›',
+        ]);
     });
 
     test('a chain method option resolves by its own class', () => {
@@ -336,7 +340,7 @@ describe('fold sites', () => {
             '$stereo(0, 1)‹.mono()›',
         ]);
         expect(folds(`${wide}out$0m: wide.lpf('c5')`)).toEqual([
-            "wide.lpf('c5')‹.mono()›",
+            "wide.lpf('c5')‹._12db.mono()›",
         ]);
     });
 

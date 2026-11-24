@@ -84,13 +84,9 @@ struct SupersawParams {
     #[input(
         "each new saw stays silent until it first crosses zero, so its starting phase cannot click"
     )]
-    #[serde(default = "default_true")]
-    #[deserr(default = default_true())]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
     wait_for_zero_cross: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -630,6 +626,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 2,
             _block_index: Default::default(),
+            _connected: Default::default(),
             state: SupersawState::default(),
             lane_state: Box::default(),
         };

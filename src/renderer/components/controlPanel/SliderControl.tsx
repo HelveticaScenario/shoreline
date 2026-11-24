@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import type { SliderView } from '../../app/controlBinding';
 import {
     positionToVolts,
@@ -33,17 +33,14 @@ export function SliderControl({
         setPrevValue(slider.value);
     }
 
-    const handleInput = useCallback(
-        (e: React.ChangeEvent<HTMLInputElement>) => {
-            const newValue = positionToVolts(
-                parseInt(e.currentTarget.value, 10),
-                slider,
-            );
-            setLocalValue(newValue);
-            onChange(slider.callStart, newValue);
-        },
-        [slider, onChange],
-    );
+    const handleInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = positionToVolts(
+            parseInt(e.currentTarget.value, 10),
+            slider,
+        );
+        setLocalValue(newValue);
+        onChange(slider.callStart, newValue);
+    };
 
     const formatValue = (v: number): string => {
         if (slider.unit === 'hz') {

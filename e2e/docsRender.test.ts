@@ -22,7 +22,6 @@ import {
     type DocContent,
     type ReferenceEntry,
 } from '../src/shared/dsl/referenceDocs';
-import { resolvePrettierOptions } from '../src/renderer/components/monaco/formattingProvider';
 import { requote } from '../src/renderer/dsl/requote';
 import {
     processSchemas,
@@ -59,7 +58,7 @@ const LEAKS: [string, RegExp][] = [
     ['object', /\[object /],
 ];
 
-/** The chain path after `.`, e.g. `unstable.filter.lp` for `$unstable.filter.lp`. */
+/** The chain path after `.`, e.g. `unstable.shape.fold` for `$unstable.shape.fold`. */
 function chainPath(name: string): string {
     return name.replace(/^\$/, '');
 }
@@ -392,38 +391,48 @@ test.describe('docs render', () => {
 
     // At the bottom the docs share the editor column, so a wider sidebar
     // narrows them; in the sidebar they take its width.
-    for (const { label, docsLocation, sidebarWidth, wide } of [
+    // Each width also takes a quote style; `single` is the one the schema's
+    // sources are written in, so its cards must show them exactly.
+    for (const { label, docsLocation, sidebarWidth, wide, quotes } of [
         {
             label: 'wide',
             docsLocation: 'bottom',
+            quotes: 'single',
             sidebarWidth: 160,
             wide: true,
         },
         {
             label: 'narrow',
             docsLocation: 'bottom',
+            quotes: 'backtick',
             sidebarWidth: 1320,
             wide: false,
         },
         {
             label: 'sidebar',
             docsLocation: 'sidebar',
+            quotes: 'double',
             sidebarWidth: 160,
             wide: false,
         },
     ] as const) {
         test(`docs cards at ${label} width`, async ({ window }) => {
             await window.evaluate(
-                async ({ location, width }) => {
+                async ({ location, quoteStyle, width }) => {
                     await window.electronAPI.config.write({
                         docsLocation: location,
+                        prettier: { quotes: quoteStyle },
                     });
                     localStorage.setItem(
                         'modular_sidebar_width',
                         String(width),
                     );
                 },
-                { location: docsLocation, width: sidebarWidth },
+                {
+                    location: docsLocation,
+                    quoteStyle: quotes,
+                    width: sidebarWidth,
+                },
             );
             await window.setViewportSize({ height: 1000, width: 1600 });
             await window.reload();
@@ -431,11 +440,6 @@ test.describe('docs render', () => {
             await window.getByRole('button', { name: 'Docs' }).click();
             const docs = window.locator('.docs-panel');
             const search = docs.locator('input[type="search"], input').first();
-            // Cards quote each example in the profile's quote style.
-            const config = await window.evaluate(() =>
-                window.electronAPI.config.read(),
-            );
-            const quotes = resolvePrettierOptions(config.prettier).quotes;
 
             const failures: string[] = [];
             for (const { tab, cards } of TABS) {
@@ -498,7 +502,9 @@ test.describe('docs render', () => {
                     if (!colored) {
                         failures.push(`${spec.name}: examples not colourized`);
                     }
-                    const codes = examples.map((e) => requote(e.code, quotes));
+                    const codes = examples.map((e) =>
+                        quotes === 'single' ? e.code : requote(e.code, quotes),
+                    );
                     const texts = await card.evaluate((el) =>
                         [...el.querySelectorAll('pre')].map((pre) =>
                             pre.innerText.trimEnd(),

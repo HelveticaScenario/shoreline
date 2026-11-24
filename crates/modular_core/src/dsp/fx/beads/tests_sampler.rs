@@ -74,6 +74,7 @@ fn construct_from(
         _lane_count: lanes,
         _channels: 2,
         _block_index: Default::default(),
+        _connected: Default::default(),
     };
     m.init(SR);
     m.prepare_resources_impl(wav, SR);

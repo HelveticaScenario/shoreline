@@ -6,7 +6,8 @@
  * - File buffers are identified by absolute path everywhere, including a
  *   just-saved untitled buffer (the save dialog returns workspace-relative
  *   paths for in-workspace saves), so one disk file can never be open as two
- *   divergent buffers.
+ *   divergent buffers. Opening a file again while its first read is in
+ *   flight shares that read.
  * - Saving only marks a buffer clean if its content still equals the snapshot
  *   that reached disk; keystrokes landing during the async write stay dirty
  *   and are never reverted.
@@ -19,6 +20,7 @@
  *   its file, a dirty one keeps its edits.
  * - Closing a dirty untitled buffer via the Save choice closes the tab under
  *   the buffer's post-save id; cancelling the save dialog keeps the tab open.
+ * - Deleting the file shown in the editor shows the tab closing it would.
  */
 
 import { act, createElement, useEffect } from 'react';
@@ -72,8 +74,8 @@ function renderBuffersHook() {
     return hookRef;
 }
 
-/** Let pending timers (performCloseBuffer defers by 50 ms) and IPC settle. */
-async function flush(ms = 80) {
+/** Let pending IPC promises settle. */
+async function flush(ms = 0) {
     await act(async () => {
         await new Promise((resolve) => setTimeout(resolve, ms));
     });
@@ -150,6 +152,63 @@ describe('buffer identity is the absolute file path', () => {
         expect(hookRef.current.buffers).toHaveLength(1);
         expect(hookRef.current.activeBufferId).toBe(`${WORKSPACE}/newfile.mjs`);
         expect(api.filesystem.readFile).not.toHaveBeenCalled();
+    });
+});
+
+describe('a file is open in one buffer', () => {
+    test('opening a file again before its read finishes shares the read', async () => {
+        let resolveRead: (content: string) => void = () => {};
+        api.filesystem.readFile.mockImplementation(
+            () =>
+                new Promise<string>((resolve) => {
+                    resolveRead = resolve;
+                }),
+        );
+
+        const hookRef = renderBuffersHook();
+        let opens: Promise<void>[] = [];
+        act(() => {
+            opens = [
+                hookRef.current.openFile('a.mjs', { preview: true }),
+                hookRef.current.openFile('a.mjs', { preview: false }),
+            ];
+        });
+        await act(async () => {
+            resolveRead('content');
+            await Promise.all(opens);
+        });
+
+        expect(api.filesystem.readFile).toHaveBeenCalledTimes(1);
+        expect(hookRef.current.buffers).toHaveLength(1);
+        expect(hookRef.current.buffers[0].isPreview).toBe(false);
+        expect(hookRef.current.activeBufferId).toBe(`${WORKSPACE}/a.mjs`);
+    });
+});
+
+describe('deleting the file shown in the editor', () => {
+    test('shows the next tab, with another update pending', async () => {
+        vi.spyOn(window, 'confirm').mockReturnValue(true);
+        api.filesystem.deleteFile.mockResolvedValue({ success: true });
+        api.filesystem.readFile.mockResolvedValue('content');
+
+        const hookRef = renderBuffersHook();
+        for (const name of ['a.mjs', 'b.mjs', 'c.mjs']) {
+            await act(async () => {
+                await hookRef.current.openFile(name);
+            });
+        }
+        act(() => hookRef.current.setActiveBufferId(`${WORKSPACE}/b.mjs`));
+
+        await act(async () => {
+            const deleted = hookRef.current.deleteFile();
+            hookRef.current.keepBuffer(`${WORKSPACE}/a.mjs`);
+            await deleted;
+        });
+
+        expect(
+            hookRef.current.buffers.map((b) => b.kind === 'file' && b.filePath),
+        ).toEqual([`${WORKSPACE}/a.mjs`, `${WORKSPACE}/c.mjs`]);
+        expect(hookRef.current.activeBufferId).toBe(`${WORKSPACE}/c.mjs`);
     });
 });
 

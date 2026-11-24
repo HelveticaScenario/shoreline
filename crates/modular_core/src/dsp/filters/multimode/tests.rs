@@ -29,6 +29,7 @@ fn make(high_res: bool, cutoff_hz: f32, resonance: f32, mode: f32) -> Multimode 
         _lane_count: 1,
         _channels: 1,
         _block_index: Default::default(),
+        _connected: Default::default(),
         state: MultimodeState::default(),
         lane_state: vec![GroupState::default(); 1].into_boxed_slice(),
     };
@@ -64,6 +65,7 @@ fn make_lanes(high_res: bool, lanes: &[(f32, f32, f32)]) -> Multimode {
         _lane_count: n,
         _channels: 1,
         _block_index: Default::default(),
+        _connected: Default::default(),
         state: MultimodeState::default(),
         lane_state: vec![GroupState::default(); n].into_boxed_slice(),
     };

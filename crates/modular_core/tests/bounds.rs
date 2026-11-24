@@ -573,7 +573,11 @@ fn a_declared_range_is_the_signals_whatever_its_value() {
         (
             "unranged",
             "$signal",
-            json!({ "value": cable("filter"), "min": 0.0, "max": 10.0 }),
+            json!({
+                "value": { "type": "cable", "module": "filter", "port": "12db", "lane": 0 },
+                "min": 0.0,
+                "max": 10.0,
+            }),
             ProcessingMode::Block,
         ),
         (

@@ -39,13 +39,9 @@ struct ChebyParams {
     #[deserr(default)]
     freq: Option<PolySignal>,
     #[input("remove the DC offset the even harmonics add, keeping the output centred")]
-    #[serde(rename = "blockDC", default = "default_true")]
-    #[deserr(rename = "blockDC", default = default_true())]
+    #[serde(rename = "blockDC", default = "crate::dsp::utils::default_true")]
+    #[deserr(rename = "blockDC", default = crate::dsp::utils::default_true())]
     block_dc: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -185,6 +181,7 @@ mod tests {
             _lane_count: 1,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             state: ChebyState::default(),
             lane_state: vec![LaneState::default(); 1].into_boxed_slice(),
         };

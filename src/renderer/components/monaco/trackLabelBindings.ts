@@ -398,10 +398,16 @@ function bindingTypes(
         if (type.getSymbol()?.name === 'Track') {
             [type] = checker.getTypeArguments(type as TS.TypeReference);
         }
-        const name = type?.getSymbol()?.name;
-        return name === 'GroupSignal' || name === 'RangedGroupSignal'
+        // A chained module with several outputs is its receiver's type
+        // joined with those outputs.
+        const names = (type?.isIntersection() ? type.types : [type]).map(
+            (part) => part?.getSymbol()?.name,
+        );
+        const is = (...signals: string[]) =>
+            names.some((name) => name !== undefined && signals.includes(name));
+        return is('GroupSignal', 'RangedGroupSignal')
             ? 'GroupTap'
-            : name === 'BusSignal' || name === 'RangedBusSignal'
+            : is('BusSignal', 'RangedBusSignal')
               ? 'BusTap'
               : 'TrackTap';
     };

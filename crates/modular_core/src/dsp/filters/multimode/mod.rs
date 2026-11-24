@@ -31,7 +31,7 @@ use crate::{
 };
 
 use controls::{ControlInputs, update_controls};
-use group::{GroupOutputs, GroupState, Tables, process_block_group, process_group, step};
+use group::{GroupOutputs, GroupState, Tables, Taps, process_block_group, process_group, step};
 use simd::{HalfbandDown, SIMD_WIDTH, f32x4};
 
 #[params]
@@ -85,13 +85,9 @@ struct MultimodeParams {
     #[input(
         "run at twice the engine rate: less aliasing from clipping, folding and self-oscillation, and a truer highpass at high cutoffs; false costs less CPU"
     )]
-    #[serde(default = "default_true")]
-    #[deserr(default = default_true())]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
     high_res: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -193,6 +189,11 @@ impl Multimode {
         }
     }
 
+    fn taps(&self) -> Taps {
+        let c = self.connected();
+        [c.sample, c.lp, c.bp, c.hp]
+    }
+
     fn core_rate(&self) -> f32 {
         if self.params.high_res {
             2.0 * self.state.sample_rate
@@ -205,16 +206,22 @@ impl Multimode {
         let lanes = self.lane_count();
         let (rate, high_res) = (self.core_rate(), self.params.high_res);
         let tables = Tables::get();
+        let taps = self.taps();
         let (p, outputs) = (&self.params, &mut self.outputs);
         let write =
             |outputs: &mut MultimodeOutputs, base: usize, active: usize, out: GroupOutputs| {
-                let [sample, lp, bp, hp] = out;
-                for element in 0..active {
-                    let lane = base + element;
-                    outputs.sample.set(lane, sample[element]);
-                    outputs.lp.set(lane, lp[element]);
-                    outputs.bp.set(lane, bp[element]);
-                    outputs.hp.set(lane, hp[element]);
+                let ports = [
+                    &mut outputs.sample,
+                    &mut outputs.lp,
+                    &mut outputs.bp,
+                    &mut outputs.hp,
+                ];
+                for ((port, values), _) in
+                    ports.into_iter().zip(out).zip(taps).filter(|(_, tap)| *tap)
+                {
+                    for (element, &value) in values.iter().take(active).enumerate() {
+                        port.set(base + element, value);
+                    }
                 }
             };
         // A single lane runs on element 0 alone, without three dead elements.
@@ -222,7 +229,7 @@ impl Multimode {
             let state = &mut self.lane_state[0];
             update_controls::<f32>(&mut state.controls, &ControlInputs::read(p, 0, 1), 1, rate);
             let input = elements(0, 1, |lane| p.input.get_value(lane));
-            let out = step::<f32>(state, input, 1, high_res, tables);
+            let out = step::<f32>(state, input, 1, high_res, tables, taps);
             write(outputs, 0, 1, out);
             return;
         }
@@ -236,7 +243,7 @@ impl Multimode {
             let active = (lanes - base).min(SIMD_WIDTH);
             let controls = ControlInputs::read(p, base, active);
             let input = elements(base, active, |lane| p.input.get_value(lane));
-            let group = (active, high_res, rate, tables);
+            let group = (active, high_res, rate, tables, taps);
             // A group's one live lane runs on element 0 as well.
             let out = if active == 1 {
                 process_group::<f32>(state, &controls, input, group)
@@ -256,6 +263,7 @@ impl Multimode {
         let lanes = self.lane_count();
         let (rate, high_res) = (self.core_rate(), self.params.high_res);
         let tables = Tables::get();
+        let taps = self.taps();
         let mut scratch = Default::default();
         let inputs = self
             .params
@@ -268,7 +276,7 @@ impl Multimode {
         {
             let base = group * SIMD_WIDTH;
             let active = (lanes - base).min(SIMD_WIDTH);
-            let group = (base, active, high_res, rate, tables);
+            let group = (base, active, high_res, rate, tables, taps);
             // A group's one live lane runs on element 0, as in `update`.
             if active == 1 {
                 process_block_group::<f32>(state, &inputs, outputs, range.clone(), group);

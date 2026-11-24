@@ -24,10 +24,6 @@ use oscillator::PdOscillator;
 /// Plaits' output gain for this engine, at ±5 V full scale.
 const OUTPUT_GAIN: f32 = -0.7 * 5.0;
 
-fn default_true() -> bool {
-    true
-}
-
 #[params]
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
@@ -62,8 +58,8 @@ struct PhaseDistortionParams {
     #[input(
         "restart the distorting oscillator every cycle, for a stable, resonant-filter-like sweep; off, it runs free, beating and inharmonic between the harmonic ratios"
     )]
-    #[serde(default = "default_true")]
-    #[deserr(default = default_true())]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
     sync: bool,
     #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",

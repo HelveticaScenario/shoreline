@@ -81,7 +81,7 @@ fn render(patch: &Patch, order: &[&str], blocks: usize) -> Vec<f32> {
         }
         for index in 0..BLOCK_SIZE {
             for lane in 0..LANES {
-                out.push(dst.get_value_at("output", lane, index));
+                out.push(dst.get_value_at("12db", lane, index));
             }
         }
     }

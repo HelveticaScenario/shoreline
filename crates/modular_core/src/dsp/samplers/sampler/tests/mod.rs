@@ -141,6 +141,7 @@ fn make_direct(params_json: serde_json::Value, wav_data: Arc<WavData>) -> Sample
         _lane_count: 1,
         _channels: 1,
         _block_index: Default::default(),
+        _connected: Default::default(),
     };
     sampler.init(SAMPLE_RATE);
     sampler.on_patch_update();

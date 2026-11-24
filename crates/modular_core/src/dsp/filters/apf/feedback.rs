@@ -1,9 +1,6 @@
 //! The loop feeding a lane's output back into its input.
 
-use crate::dsp::{
-    filters::surge::fastmath::fasttanh_clamped,
-    utils::{changed, rng::LcgRng, sanitize},
-};
+use crate::dsp::utils::{changed, rng::LcgRng, sanitize};
 
 use super::stage::{Stage, StageCoeffs};
 
@@ -141,4 +138,15 @@ impl FeedbackLoop {
         self.last = sanitize(out);
         self.last
     }
+}
+
+/// Rational approximation of `tanh`, with its input clamped to the
+/// approximation's ±5 validity range.
+#[inline]
+fn fasttanh_clamped(x: f32) -> f32 {
+    let x = x.clamp(-5.0, 5.0);
+    let x2 = x * x;
+    let numerator = x * (135135.0 + x2 * (17325.0 + x2 * (378.0 + x2)));
+    let denominator = 135135.0 + x2 * (62370.0 + x2 * (3150.0 + 28.0 * x2));
+    numerator / denominator
 }

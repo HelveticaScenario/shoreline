@@ -62,13 +62,9 @@ struct SawOscillatorParams {
     #[input(
         "a new voice stays silent until its wave first crosses zero, so a phase offset cannot start it with a click"
     )]
-    #[serde(default = "default_true")]
-    #[deserr(default = default_true())]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
     wait_for_zero_cross: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -428,6 +424,7 @@ mod tests {
             _lane_count: lanes,
             _channels: 1,
             _block_index: Default::default(),
+            _connected: Default::default(),
             lane_state: vec![LaneState::default(); lanes].into_boxed_slice(),
         }
     }

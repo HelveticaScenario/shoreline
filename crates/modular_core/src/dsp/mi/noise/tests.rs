@@ -121,6 +121,7 @@ fn outputs_are_the_lane_through_the_output_gain() {
         _lane_count: 1,
         _channels: 1,
         _block_index: Default::default(),
+        _connected: Default::default(),
     };
     module.init(48000.0);
     crate::dsp::utils::rng::TEST_SEED_BASE.set(Some(0x5eed));
