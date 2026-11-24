@@ -1,9 +1,8 @@
 //! The macros that stamp the analog filter modules.
 
-/// Stamps one analog filter module from its kernel and response. `params`
-/// lists the topology's own params and `options` builds its
-/// `Kernel::Options` from the params struct; both may be left out together.
-/// `freq` names the cutoff param. Each output is
+/// Stamps one analog filter module from its kernel and response. `options`
+/// builds its `Kernel::Options` from the params struct, and may be left out
+/// for a kernel without any. `freq` names the cutoff param. Each output is
 /// `field[tap] = "name": "description"`, one of them followed by
 /// `, default`, where `tap` is its place in `Taps`.
 macro_rules! analog_filter {
@@ -21,7 +20,6 @@ macro_rules! analog_filter {
             ident = $Struct,
             kernel = $Kernel,
             response = $response,
-            params = {},
             options = |_params| (),
             freq = $($rest)*
         }
@@ -32,7 +30,6 @@ macro_rules! analog_filter {
         ident = $Struct:ident,
         kernel = $Kernel:ty,
         response = $response:expr,
-        params = { $( $(#[$param_meta:meta])* $param:ident: $param_type:ty ),* $(,)? },
         options = |$p:ident| $options:expr,
         freq = $freq:ident,
         freq_doc = $freq_doc:literal,
@@ -62,12 +59,6 @@ macro_rules! analog_filter {
                 )]
                 #[deserr(default)]
                 drive: Option<crate::poly::PolySignal>,
-                $(
-                    $(#[$param_meta])*
-                    #[serde(default)]
-                    #[deserr(default)]
-                    $param: $param_type,
-                )*
                 #[input(
                     "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU"
                 )]

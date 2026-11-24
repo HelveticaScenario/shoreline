@@ -18020,11 +18020,6 @@
             "controlMax": 5.0
           }
         },
-        "scream": {
-          "description": "clips the signal inside the filter too; without it only the resonance clips",
-          "type": "boolean",
-          "default": false
-        },
         "highRes": {
           "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
@@ -18259,11 +18254,6 @@
             "controlMin": 0.0,
             "controlMax": 5.0
           }
-        },
-        "scream": {
-          "description": "clips the signal inside the filter too; without it only the resonance clips",
-          "type": "boolean",
-          "default": false
         },
         "highRes": {
           "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
@@ -18500,11 +18490,6 @@
             "controlMax": 5.0
           }
         },
-        "scream": {
-          "description": "clips the signal inside the filter too; without it only the resonance clips",
-          "type": "boolean",
-          "default": false
-        },
         "highRes": {
           "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
@@ -18739,11 +18724,6 @@
             "controlMin": 0.0,
             "controlMax": 5.0
           }
-        },
-        "scream": {
-          "description": "clips the signal inside the filter too; without it only the resonance clips",
-          "type": "boolean",
-          "default": false
         },
         "highRes": {
           "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
