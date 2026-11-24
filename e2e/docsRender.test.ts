@@ -51,6 +51,7 @@ const LEAKS: [string, RegExp][] = [
     ['heading', /(^|\n)\s*#{1,6}\s/],
     ['code fence', /```/],
     ['bold marker', /\*\*/],
+    ['backtick outside code', /`/],
     ['raw link tag', /\{@link/],
     ['undefined', /\bundefined\b/],
     ['NaN', /\bNaN\b/],
@@ -114,6 +115,11 @@ async function widgetText(page: Page, selector: string): Promise<string> {
             clone
                 .querySelectorAll('pre, .monaco-tokenized-source')
                 .forEach((n) => n.remove());
+            // Code may hold backticks of its own; any left after this sit
+            // outside code.
+            clone.querySelectorAll('code').forEach((n) => {
+                n.textContent = n.textContent.replaceAll('`', '');
+            });
             return clone.innerText;
         });
 }
@@ -465,6 +471,9 @@ test.describe('docs render', () => {
                         clone
                             .querySelectorAll('pre')
                             .forEach((n) => n.remove());
+                        clone.querySelectorAll('code').forEach((n) => {
+                            n.textContent = n.textContent.replaceAll('`', '');
+                        });
                         return clone.innerText;
                     });
                     if (!text.includes(spec.docs.summary)) {
@@ -532,9 +541,13 @@ test.describe('docs render', () => {
                     if (found.length > 0) {
                         failures.push(`${spec.name}: ${found.join(', ')}`);
                     }
+                    // Cards render inline code and keep numbers on the line
+                    // of their unit, so the text has no backticks and a
+                    // no-break space before each unit.
+                    const spaced = text.replaceAll('\u00a0', ' ');
                     for (const meta of spec.metas) {
-                        const bare = meta.slice(1, -1);
-                        if (!text.includes(bare)) {
+                        const bare = meta.slice(1, -1).replaceAll('`', '');
+                        if (!spaced.includes(bare)) {
                             failures.push(`${spec.name}: missing ${bare}`);
                         }
                     }
