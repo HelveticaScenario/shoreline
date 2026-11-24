@@ -14,7 +14,6 @@ pub mod lpg;
 pub mod multimode;
 pub mod notch;
 pub mod resonant_svf;
-pub mod surge;
 pub mod svf_core;
 mod svf_module;
 
@@ -29,7 +28,6 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     multimode::Multimode::install_constructor(map);
     eq::ParametricEq::install_constructor(map);
     analog::install_constructors(map);
-    surge::install_constructors(map);
 }
 
 /// Register the per-module editor-state builders for this category.
@@ -51,7 +49,6 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     multimode::Multimode::install_params_deserializer(map);
     eq::ParametricEq::install_params_deserializer(map);
     analog::install_params_deserializers(map);
-    surge::install_params_deserializers(map);
 }
 
 pub fn schemas() -> Vec<ModuleSchema> {
@@ -67,6 +64,5 @@ pub fn schemas() -> Vec<ModuleSchema> {
         eq::ParametricEq::get_schema(),
     ];
     schemas.extend(analog::schemas());
-    schemas.extend(surge::schemas());
     schemas
 }
