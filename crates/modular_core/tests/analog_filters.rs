@@ -1,7 +1,7 @@
-//! `$lpf`, `$hpf`, `$bpf`, `$notch` and their Sallen-Key, ladder, diode and
-//! OTA counterparts: each output has its response, the analog models
-//! self-oscillate in tune and stay bounded, and an output renders the same
-//! whichever others are read.
+//! `$lpf`, `$hpf`, `$bpf`, `$notch`, their Sallen-Key, ladder, diode and
+//! OTA counterparts and `$lpfLeapfrog`: each output has its response, the
+//! analog models self-oscillate in tune and stay bounded, and an output
+//! renders the same whichever others are read.
 
 use modular_core::dsp::schema;
 use modular_core::dsp::utils::rng::TEST_SEED_BASE;
@@ -105,7 +105,7 @@ fn frequency(samples: &[f32]) -> f32 {
 }
 
 const CLEAN: [&str; 4] = ["$lpf", "$hpf", "$bpf", "$notch"];
-const ANALOG: [&str; 18] = [
+const ANALOG: [&str; 19] = [
     "$lpfSk",
     "$hpfSk",
     "$bpfSk",
@@ -124,6 +124,7 @@ const ANALOG: [&str; 18] = [
     "$bpfOta",
     "$notchOta",
     "$apfOta",
+    "$lpfLeapfrog",
 ];
 
 fn all() -> impl Iterator<Item = &'static str> {
@@ -251,10 +252,10 @@ fn a_loud_input_passes_an_allpass_at_its_own_level() {
 #[test]
 fn analog_filters_self_oscillate_in_tune() {
     // A notch, and the 24 dB allpass, null their own oscillation, leaving
-    // the harmonics.
+    // the harmonics. The leapfrog sings below its cutoff.
     for module_type in ANALOG
         .into_iter()
-        .filter(|module_type| !module_type.starts_with("$notch"))
+        .filter(|module_type| !module_type.starts_with("$notch") && *module_type != "$lpfLeapfrog")
     {
         for cutoff in [250.0, 1000.0, 4000.0] {
             let out = render(module_type, 110.0, 0.001, json!(hz(cutoff)), 5.0, 48_000);
@@ -288,7 +289,13 @@ fn passband_peak(module_type: &str, level: f32, extra: Value) -> f32 {
 
 #[test]
 fn drive_saturates_and_gives_back_half_its_gain() {
-    for module_type in ["$lpfSk", "$lpfLadder", "$lpfDiode", "$lpfOta"] {
+    for module_type in [
+        "$lpfSk",
+        "$lpfLadder",
+        "$lpfDiode",
+        "$lpfOta",
+        "$lpfLeapfrog",
+    ] {
         // A quiet signal stays linear: +18 dB in, 9 dB back off.
         let quiet = passband_peak(module_type, 0.01, json!({ "drive": 5.0 }))
             / passband_peak(module_type, 0.01, json!({}));
@@ -298,7 +305,7 @@ fn drive_saturates_and_gives_back_half_its_gain() {
         );
     }
     // A loud one runs into the stages' saturation and gains far less.
-    for module_type in ["$lpfLadder", "$lpfDiode"] {
+    for module_type in ["$lpfLadder", "$lpfDiode", "$lpfLeapfrog"] {
         let loud = passband_peak(module_type, 5.0, json!({ "drive": 5.0 }))
             / passband_peak(module_type, 5.0, json!({}));
         assert!(loud < 1.7, "{module_type}: {loud}×");
@@ -412,5 +419,45 @@ fn outputs_render_the_same_whichever_others_are_read() {
         for params in variants {
             check_connections_agree(module_type, params, &ports, 2e-2, 192);
         }
+    }
+}
+
+#[test]
+fn the_leapfrog_is_a_rippling_brick_wall_with_nulls_at_2_and_3_times_the_cutoff() {
+    let gain = |ratio| gain_db("$lpfLeapfrog", ratio)[0];
+    // The passband ripples between its peaks, at 2/3 of the cutoff and at
+    // the cutoff, and the troughs between them.
+    for ratio in [0.05, 2.0 / 3.0, 1.0] {
+        assert!(gain(ratio).abs() < 0.25, "{ratio}×: {} dB", gain(ratio));
+    }
+    for ratio in [0.25, 0.5, 0.8, 0.9] {
+        let db = gain(ratio);
+        assert!((-2.5..-0.5).contains(&db), "{ratio}×: {db} dB");
+    }
+    assert!(gain(1.25) < -20.0, "1.25×: {} dB", gain(1.25));
+    assert!(gain(1.5) < -36.0, "1.5×: {} dB", gain(1.5));
+    for ratio in [2.5, 4.0, 8.0] {
+        assert!(gain(ratio) < -60.0, "{ratio}×: {} dB", gain(ratio));
+    }
+    for ratio in [2.0, 3.0] {
+        assert!(gain(ratio) < -80.0, "{ratio}×: {} dB", gain(ratio));
+    }
+}
+
+#[test]
+fn the_leapfrog_self_oscillates_at_0_73_of_its_cutoff() {
+    for cutoff in [250.0, 1000.0, 4000.0] {
+        let quiet = render("$lpfLeapfrog", 110.0, 0.001, json!(hz(cutoff)), 4.4, 48_000);
+        assert!(
+            peak(&quiet[0].1) < 0.05,
+            "{cutoff} Hz: {} V",
+            peak(&quiet[0].1)
+        );
+        let out = render("$lpfLeapfrog", 110.0, 0.001, json!(hz(cutoff)), 5.0, 48_000);
+        let (volts, freq) = (peak(&out[0].1), frequency(&out[0].1));
+        assert!(
+            (0.2..16.0).contains(&volts) && (freq / cutoff / 0.73 - 1.0).abs() < 0.025,
+            "{cutoff} Hz: {volts} V at {freq} Hz"
+        );
     }
 }

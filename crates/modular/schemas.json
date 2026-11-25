@@ -22293,6 +22293,231 @@
     "stereo": "lift"
   },
   {
+    "name": "$lpfLeapfrog",
+    "docs": {
+      "summary": "Leapfrog brick-wall lowpass filter",
+      "description": "The North Coast Synthesis Leapfrog's five-pole near-elliptic lowpass: almost a brick wall above the cutoff, with nulls at twice and three times the cutoff and a rippling passband that rings on sharp edges. Resonance feeds the output back through a clipper until the filter sings, about a fourth below the cutoff.",
+      "categories": [
+        "filter"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Brick-wall sweep",
+          "code": "chord: $saw('c2:m7')\n  .lpfLeapfrog($sine('0.1hz').range('c4', 'c7'))\n  .gain(4.5)"
+        },
+        {
+          "title": "Ringing bass",
+          "code": "const seq = $`c2 c2 [eb2 c3] g1`\nbass: $pulse(seq).lpfLeapfrog(\n  $perc(seq, { decay: 0.25 }).range('c3', 'c6'),\n  3.5,\n)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "LpfLeapfrogParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "the sound to filter",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "cutoff": {
+          "description": "cutoff frequency: the last peak before the wall; tops out just under half the sample rate",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "frequency",
+            "minValue": -3.71
+          }
+        },
+        "resonance": {
+          "description": "feedback around the filter, raising a peak below the cutoff; self-oscillates from about 4.5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "drive": {
+          "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "highRes": {
+          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "type": "boolean",
+          "default": true
+        }
+      },
+      "required": [
+        "input",
+        "cutoff"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "5-pole near-elliptic lowpass",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "the sound to filter",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "cutoff",
+        "description": "cutoff frequency: the last peak before the wall; tops out just under half the sample rate",
+        "paramType": "frequency",
+        "minValue": -3.71,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "resonance",
+        "description": "feedback around the filter, raising a peak below the cutoff; self-oscillates from about 4.5",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "drive",
+        "description": "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      },
+      {
+        "name": "cutoff"
+      },
+      {
+        "name": "resonance"
+      }
+    ],
+    "experimental": true,
+    "stereo": "lift"
+  },
+  {
     "name": "$pWarp",
     "docs": {
       "summary": "Phase warp",
