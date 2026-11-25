@@ -1,6 +1,6 @@
 //! Analog-modelled filters: Sallen-Key, transistor ladder, diode ladder and
 //! OTA cascade, each as a module per response with an output per slope, and
-//! the leapfrog, a module per response.
+//! the leapfrog lowpass.
 //!
 //! Each topology is a [`kernel::Kernel`]: its circuit's structure
 //! discretised with trapezoidal integrators, its delay-free feedback loop
@@ -14,7 +14,6 @@ mod diode_modules;
 mod kernel;
 mod ladder_modules;
 mod leapfrog;
-mod leapfrog_modules;
 mod module_macro;
 mod ota_modules;
 mod runner;
@@ -48,9 +47,7 @@ macro_rules! for_each_module {
             ota_modules::BpfOta,
             ota_modules::NotchOta,
             ota_modules::ApfOta,
-            leapfrog_modules::LpfLeapfrog,
-            leapfrog_modules::NotchLeapfrog,
-            leapfrog_modules::ApfLeapfrog
+            leapfrog::LpfLeapfrog
         )
     };
 }

@@ -1,5 +1,5 @@
 //! `$lpf`, `$hpf`, `$bpf`, `$notch`, their Sallen-Key, ladder, diode and
-//! OTA counterparts and the leapfrog filters: each output has its response, the
+//! OTA counterparts and `$lpfLeapfrog`: each output has its response, the
 //! analog models self-oscillate in tune and stay bounded, and an output
 //! renders the same whichever others are read.
 
@@ -105,7 +105,7 @@ fn frequency(samples: &[f32]) -> f32 {
 }
 
 const CLEAN: [&str; 4] = ["$lpf", "$hpf", "$bpf", "$notch"];
-const ANALOG: [&str; 21] = [
+const ANALOG: [&str; 19] = [
     "$lpfSk",
     "$hpfSk",
     "$bpfSk",
@@ -125,8 +125,6 @@ const ANALOG: [&str; 21] = [
     "$notchOta",
     "$apfOta",
     "$lpfLeapfrog",
-    "$notchLeapfrog",
-    "$apfLeapfrog",
 ];
 
 fn all() -> impl Iterator<Item = &'static str> {
@@ -194,9 +192,7 @@ fn the_clean_24db_outputs_are_butterworth_flat() {
 
 #[test]
 fn notches_null_at_the_centre_or_half_an_octave_either_side() {
-    for module_type in all()
-        .filter(|module_type| module_type.starts_with("$notch") && *module_type != "$notchLeapfrog")
-    {
+    for module_type in all().filter(|module_type| module_type.starts_with("$notch")) {
         let centre = gain_db(module_type, 1.0);
         assert!(centre[0] < -25.0, "{module_type} 12db: {} dB", centre[0]);
         for ratio in [0.5f32.sqrt(), 2.0f32.sqrt()] {
@@ -256,10 +252,11 @@ fn a_loud_input_passes_an_allpass_at_its_own_level() {
 #[test]
 fn analog_filters_self_oscillate_in_tune() {
     // A notch, and the 24 dB allpass, null their own oscillation, leaving
-    // the harmonics. The leapfrog sings away from its cutoff.
-    for module_type in ANALOG.into_iter().filter(|module_type| {
-        !module_type.starts_with("$notch") && !module_type.ends_with("Leapfrog")
-    }) {
+    // the harmonics. The leapfrog sings below its cutoff.
+    for module_type in ANALOG
+        .into_iter()
+        .filter(|module_type| !module_type.starts_with("$notch") && *module_type != "$lpfLeapfrog")
+    {
         for cutoff in [250.0, 1000.0, 4000.0] {
             let out = render(module_type, 110.0, 0.001, json!(hz(cutoff)), 5.0, 48_000);
             let nulled = |port: &str| module_type.starts_with("$apf") && port == "24db";
@@ -292,13 +289,7 @@ fn passband_peak(module_type: &str, level: f32, extra: Value) -> f32 {
 
 #[test]
 fn drive_saturates_and_gives_back_half_its_gain() {
-    for module_type in [
-        "$lpfSk",
-        "$lpfLadder",
-        "$lpfDiode",
-        "$lpfOta",
-        "$lpfLeapfrog",
-    ] {
+    for module_type in ["$lpfSk", "$lpfLadder", "$lpfDiode", "$lpfOta"] {
         // A quiet signal stays linear: +18 dB in, 9 dB back off.
         let quiet = passband_peak(module_type, 0.01, json!({ "drive": 5.0 }))
             / passband_peak(module_type, 0.01, json!({}));
@@ -308,7 +299,7 @@ fn drive_saturates_and_gives_back_half_its_gain() {
         );
     }
     // A loud one runs into the stages' saturation and gains far less.
-    for module_type in ["$lpfLadder", "$lpfDiode", "$lpfLeapfrog"] {
+    for module_type in ["$lpfLadder", "$lpfDiode"] {
         let loud = passband_peak(module_type, 5.0, json!({ "drive": 5.0 }))
             / passband_peak(module_type, 5.0, json!({}));
         assert!(loud < 1.7, "{module_type}: {loud}×");
@@ -460,58 +451,6 @@ fn the_leapfrog_self_oscillates_at_0_73_of_its_cutoff() {
         let (volts, freq) = (peak(&out[0].1), frequency(&out[0].1));
         assert!(
             (0.2..16.0).contains(&volts) && (freq / cutoff / 0.73 - 1.0).abs() < 0.025,
-            "{cutoff} Hz: {volts} V at {freq} Hz"
-        );
-    }
-}
-
-#[test]
-fn the_leapfrog_notch_nulls_a_quarter_octave_either_side_and_never_self_oscillates() {
-    let gain = |ratio, resonance| gain_db_at("$notchLeapfrog", ratio, resonance)[0];
-    for ratio in [0.8286, 1.2068] {
-        assert!(
-            gain(ratio, 0.0) < -40.0,
-            "{ratio}×: {} dB",
-            gain(ratio, 0.0)
-        );
-    }
-    for ratio in [1.0 / 32.0, 4.0] {
-        for resonance in [0.0, 4.0] {
-            let db = gain(ratio, resonance);
-            assert!(db.abs() < 0.5, "{ratio}× resonance {resonance}: {db} dB");
-        }
-    }
-    // Resonance narrows the nulls, so more passes beside them.
-    for ratio in [0.7, 0.9, 1.1] {
-        assert!(
-            gain(ratio, 4.0) > gain(ratio, 0.0) + 1.5,
-            "{ratio}×: {} dB to {} dB",
-            gain(ratio, 0.0),
-            gain(ratio, 4.0)
-        );
-    }
-    let out = render(
-        "$notchLeapfrog",
-        110.0,
-        0.001,
-        json!(hz(1000.0)),
-        5.0,
-        48_000,
-    );
-    assert!(peak(&out[0].1) < 0.05, "{} V", peak(&out[0].1));
-}
-
-#[test]
-fn the_leapfrog_allpass_keeps_the_level_and_self_oscillates_below_its_cutoff() {
-    for ratio in [0.125, 0.5, 0.7, 1.0, 1.1, 2.0] {
-        let db = gain_db("$apfLeapfrog", ratio)[0];
-        assert!(db.abs() < 0.5, "{ratio}×: {db} dB");
-    }
-    for cutoff in [250.0, 1000.0, 4000.0] {
-        let out = render("$apfLeapfrog", 110.0, 0.001, json!(hz(cutoff)), 5.0, 48_000);
-        let (volts, freq) = (peak(&out[0].1), frequency(&out[0].1));
-        assert!(
-            (0.2..16.0).contains(&volts) && (freq / cutoff / 0.712 - 1.0).abs() < 0.025,
             "{cutoff} Hz: {volts} V at {freq} Hz"
         );
     }

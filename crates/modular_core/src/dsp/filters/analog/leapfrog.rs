@@ -1,21 +1,28 @@
 //! The North Coast Synthesis MSK 007 Leapfrog: five integrators in a row,
 //! each integrating the difference between its two neighbours, whose
 //! outputs a fixed mixer sums into a near-elliptic fifth-order lowpass.
-//! Other weights on the mixer, which can also take the core's input, put
-//! other zeros over the same five poles: a notch and an allpass.
 //!
 //! The filter's own response has no resonance. A VCA feeds the mixer's
-//! output back, inverted, to the input through a Zener clipper, and the loop
-//! self-oscillates where the response turns the phase 180° at a level the
-//! feedback gain can make up. Each sample solves the trapezoidal integrators and that loop
-//! together, with the clipper's gain linearised around the previous
-//! sample's output, so the feedback path carries no delay.
+//! output back to the input buffer, which inverts it, through a Zener
+//! clipper, and the loop self-oscillates at the frequency where the
+//! response turns the phase 180°. Each sample solves the trapezoidal
+//! integrators and that loop together, with the clipper's gain linearised
+//! around the previous sample's output, so the feedback path carries no
+//! delay.
+
+use crate::module_docs::{DocExample, ModuleDocs};
+use crate::reference_category::ReferenceCategory;
 
 use super::kernel::{DB24, Kernel, Rates, Taps, loop_gain};
+use super::runner::{AnalogLane, AnalogPorts, AnalogState, CoeffKey, Inputs, run};
+use crate::dsp::filters::resonant_svf::FilterParams;
 use crate::dsp::utils::sanitize;
+use crate::poly::{PolyOutput, PolySignal};
+use crate::types::{OutputStruct, PatchUpdateHandler};
 
-/// Each integrator's time constant, in seconds with the lowpass's cutoff,
-/// the last peak of its passband, at 1 rad/s.
+/// Each integrator's time constant, in seconds at a cutoff of 1 rad/s. The
+/// cutoff is the last peak of the passband; the nulls sit at 2 and 3 times
+/// it.
 const TAU: [f32; 5] = [
     1.301_466_6,
     1.510_573_6,
@@ -24,85 +31,18 @@ const TAU: [f32; 5] = [
     1.398_601_4,
 ];
 
-/// The feedback gain at which the lowpass self-oscillates: the inverse of
-/// its level where its phase reaches 180°, at 0.73 of the cutoff.
-const LOWPASS_SELF_OSCILLATION: f32 = 1.0 / 0.956_850_6;
+/// The output mixer's weight on each integrator.
+const ALPHA: [f32; 5] = [
+    0.004_474_30,
+    -0.004_831_24,
+    0.193_072_99,
+    -0.171_015_98,
+    0.978_299_9,
+];
 
-/// What the output mixer makes of the core.
-#[derive(Clone, Copy)]
-pub(crate) enum LeapfrogResponse {
-    /// Nulls at 2 and 3 times the cutoff.
-    Lowpass,
-    /// The zeros of both resonant pole pairs moved onto the frequency
-    /// axis: two nulls, at the pairs' own frequencies.
-    Notch,
-    /// The zeros of both resonant pole pairs mirrored across the frequency
-    /// axis, and the real pole cancelled: 720° of phase shift.
-    Allpass,
-}
-
-struct Mixer {
-    /// Weights on the core's input and the five integrators.
-    weights: [f32; 6],
-    /// The frequency, as a multiple of the lowpass's cutoff, that the
-    /// module's frequency param sets: the lowpass's cutoff, the geometric
-    /// centre of the notch's nulls, and where the allpass has turned the
-    /// phase 360°.
-    tuning: f32,
-    /// The feedback gain at a resonance of 4.5.
-    self_oscillation: f32,
-    /// How much of the level the feedback takes away from the passband
-    /// comes back.
-    makeup: f32,
-}
-
-impl LeapfrogResponse {
-    const fn mixer(self) -> Mixer {
-        match self {
-            Self::Lowpass => Mixer {
-                weights: [
-                    0.0,
-                    0.004_474_30,
-                    -0.004_831_24,
-                    0.193_072_99,
-                    -0.171_015_98,
-                    0.978_299_9,
-                ],
-                tuning: 1.0,
-                self_oscillation: LOWPASS_SELF_OSCILLATION,
-                makeup: 0.5,
-            },
-            // A notch's phase never reaches 180°, so it takes the lowpass's
-            // feedback gain and only sharpens.
-            Self::Notch => Mixer {
-                weights: [
-                    1.0,
-                    -0.619_496,
-                    0.361_423,
-                    -0.034_782_913,
-                    -0.295_734_76,
-                    0.588_590_6,
-                ],
-                tuning: 0.848_241_9,
-                self_oscillation: LOWPASS_SELF_OSCILLATION,
-                makeup: 1.0,
-            },
-            Self::Allpass => Mixer {
-                weights: [
-                    1.0,
-                    -1.238_992,
-                    0.890_873,
-                    -0.255_045,
-                    -0.870_015_9,
-                    1.473_179_8,
-                ],
-                tuning: 0.952_996_4,
-                self_oscillation: 1.0,
-                makeup: 1.0,
-            },
-        }
-    }
-}
+/// The feedback gain at which the loop self-oscillates: the inverse of the
+/// response's level where its phase reaches 180°, at 0.73 of the cutoff.
+const SELF_OSCILLATION: f32 = 1.0 / 0.956_850_6;
 
 /// Volts at which the input buffer's, an integrator's or the mixer's op amp
 /// reaches its supply.
@@ -133,16 +73,12 @@ pub struct LeapfrogCoeffs {
     /// The tridiagonal solve's pivots and upper factors.
     inv: [f32; 5],
     upper: [f32; 4],
-    /// The mixer's weights on the core's input and the integrators.
-    weights: [f32; 6],
     /// Each integrator's voltage, and the mixer's, per volt at the core's
     /// input.
     q: [f32; 5],
     yq: f32,
-    /// Feedback gain, and the output gain that makes up the passband level
-    /// the feedback takes away.
+    /// Feedback gain.
     k: f32,
-    makeup: f32,
 }
 
 impl LeapfrogCoeffs {
@@ -159,13 +95,11 @@ impl LeapfrogCoeffs {
         }
         v
     }
+}
 
-    /// The mixer's output for the integrator voltages `v`, less its share
-    /// of the core's input.
-    #[inline]
-    fn mix(&self, v: &[f32; 5]) -> f32 {
-        self.weights[1..].iter().zip(v).map(|(a, v)| a * v).sum()
-    }
+#[inline]
+fn mix(v: &[f32; 5]) -> f32 {
+    ALPHA.iter().zip(v).map(|(a, v)| a * v).sum()
 }
 
 #[derive(Clone, Copy, Default)]
@@ -181,22 +115,14 @@ pub struct LeapfrogState {
 pub struct Leapfrog;
 
 impl Kernel for Leapfrog {
-    type Response = LeapfrogResponse;
+    type Response = ();
     type Options = ();
     type Coeffs = LeapfrogCoeffs;
     type State = LeapfrogState;
     const VOLTS: f32 = 1.0;
 
-    fn coeffs(
-        response: LeapfrogResponse,
-        cutoff: f32,
-        resonance: f32,
-        rates: Rates,
-        _: Taps,
-        _: (),
-    ) -> LeapfrogCoeffs {
-        let mixer = response.mixer();
-        let gain = rates.gain(cutoff) / mixer.tuning;
+    fn coeffs(_: (), cutoff: f32, resonance: f32, rates: Rates, _: Taps, _: ()) -> LeapfrogCoeffs {
+        let gain = rates.gain(cutoff);
         let g = TAU.map(|tau| gain / tau);
         // Integrator `i` solves `v[i] = s[i] + g[i]·(v[i−1] − v[i+1])`; the
         // first reads the core's input for `v[i−1]` and the last its own
@@ -215,41 +141,183 @@ impl Kernel for Leapfrog {
             g,
             inv,
             upper,
-            weights: mixer.weights,
             ..Default::default()
         };
         c.q = c.solve([g[0], 0.0, 0.0, 0.0, 0.0]);
-        c.yq = c.weights[0] + c.mix(&c.q);
-        c.k = loop_gain(resonance, mixer.self_oscillation);
-        c.makeup = 1.0 + mixer.makeup * c.k;
+        c.yq = mix(&c.q);
+        c.k = loop_gain(resonance, SELF_OSCILLATION);
         c
     }
 
     #[inline]
-    fn step(
-        _: LeapfrogResponse,
-        c: &LeapfrogCoeffs,
-        state: &mut LeapfrogState,
-        x: f32,
-        taps: Taps,
-    ) -> [f32; 4] {
+    fn step(_: (), c: &LeapfrogCoeffs, state: &mut LeapfrogState, x: f32, taps: Taps) -> [f32; 4] {
         let mut v = c.solve(state.s);
-        // The core's input `u = x − k·y`, with `y` the mix of `u` and
-        // `v + q·u`.
+        // The core's input `u = x − k·y`, with `y` the mix of `v + q·u`.
         let k = c.k * clip_ratio(c.k * state.y);
-        let u = ((x - k * c.mix(&v)) / (1.0 + k * c.yq)).clamp(-RAIL, RAIL);
+        let u = ((x - k * mix(&v)) / (1.0 + k * c.yq)).clamp(-RAIL, RAIL);
         for i in 0..5 {
             let ideal = v[i] + c.q[i] * u;
             v[i] = ideal.clamp(-RAIL, RAIL);
             // An integrator at its rail keeps integrating from there.
             state.s[i] = sanitize(v[i] + ideal - state.s[i]);
         }
-        let y = sanitize((c.weights[0] * u + c.mix(&v)).clamp(-RAIL, RAIL));
+        let y = sanitize(mix(&v).clamp(-RAIL, RAIL));
         state.y = y;
         let mut out = [0.0; 4];
         if taps[DB24] {
-            out[DB24] = c.makeup * y;
+            out[DB24] = y;
         }
         out
     }
 }
+
+const LPF_LEAPFROG_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Leapfrog brick-wall lowpass filter",
+    description: "The North Coast Synthesis Leapfrog's five-pole near-elliptic lowpass: almost \
+                  a brick wall above the cutoff, with nulls at twice and three times the cutoff \
+                  and a rippling passband that rings on sharp edges. Resonance feeds the output \
+                  back through a clipper until the filter sings, about a fourth below the \
+                  cutoff.",
+    categories: &[ReferenceCategory::Filter],
+    sections: &[],
+    examples: &[
+        DocExample {
+            title: "Brick-wall sweep",
+            code: r#"
+                chord: $saw('c2:m7')
+                  .lpfLeapfrog($sine('0.1hz').range('c4', 'c7'))
+                  .gain(4.5)
+            "#,
+        },
+        DocExample {
+            title: "Ringing bass",
+            code: r#"
+                const seq = $`c2 c2 [eb2 c3] g1`
+                bass: $pulse(seq).lpfLeapfrog(
+                  $perc(seq, { decay: 0.25 }).range('c3', 'c6'),
+                  3.5,
+                )
+            "#,
+        },
+    ],
+};
+
+#[params]
+#[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase, deny_unknown_fields)]
+struct LpfLeapfrogParams {
+    #[input("the sound to filter", type = audio)]
+    input: PolySignal,
+    #[input(
+        "cutoff frequency: the last peak before the wall; tops out just under half the sample rate",
+        type = frequency,
+        range = (-3.71, ..),
+    )]
+    cutoff: PolySignal,
+    #[input(
+        "feedback around the filter: a peak rises below the cutoff as the level under it falls; self-oscillates from about 4.5",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    resonance: Option<PolySignal>,
+    #[input(
+        "run at twice the engine rate: less aliasing from clipping and self-oscillation, and truer nulls at high cutoffs; false costs less CPU"
+    )]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
+    high_res: bool,
+}
+
+#[derive(Outputs, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct LpfLeapfrogOutputs {
+    #[output("output", "5-pole near-elliptic lowpass", type = cv, default)]
+    output: PolyOutput,
+}
+
+impl AnalogPorts for LpfLeapfrogOutputs {
+    fn taps(connected: &<Self as OutputStruct>::Connected) -> Taps {
+        let mut taps = [false; 4];
+        taps[DB24] = connected.output;
+        taps
+    }
+
+    fn ports(&mut self) -> [Option<&mut PolyOutput>; 4] {
+        let mut ports = [None, None, None, None];
+        ports[DB24] = Some(&mut self.output);
+        ports
+    }
+}
+
+#[module(
+    name = "$lpfLeapfrog",
+    docs = LPF_LEAPFROG_DOCS,
+    args(input, cutoff, resonance),
+    has_init,
+    patch_update,
+    experimental
+)]
+pub struct LpfLeapfrog {
+    outputs: LpfLeapfrogOutputs,
+    state: AnalogState<Leapfrog>,
+    lane_state: Box<[AnalogLane<Leapfrog>]>,
+    params: LpfLeapfrogParams,
+}
+
+impl LpfLeapfrog {
+    fn init(&mut self, _sample_rate: f32) {
+        let base = crate::dsp::utils::rng::seed_base(self);
+        for (lane, state) in self.lane_state.iter_mut().enumerate() {
+            state.seed(base, lane);
+        }
+    }
+
+    /// The connected output and `highRes`.
+    fn key(&self) -> CoeffKey<Leapfrog> {
+        (
+            LpfLeapfrogOutputs::taps(&self.connected()),
+            self.params.high_res,
+            (),
+        )
+    }
+
+    fn update(&mut self, sample_rate: f32) {
+        let lanes = self.lane_count();
+        let key = self.key();
+        run::<Leapfrog>(
+            (),
+            lanes,
+            &Inputs {
+                input: &self.params.input,
+                filter: FilterParams {
+                    cutoff: &self.params.cutoff,
+                    resonance: &self.params.resonance,
+                    default_resonance: 0.0,
+                },
+                drive: &None,
+            },
+            key,
+            sample_rate,
+            &mut self.state,
+            &mut self.lane_state,
+            self.outputs.ports(),
+        );
+    }
+}
+
+impl PatchUpdateHandler for LpfLeapfrog {
+    fn on_patch_update(&mut self) {
+        let key = self.key();
+        self.state.on_patch_update(
+            key,
+            &self.params.cutoff,
+            &self.params.resonance,
+            &mut self.lane_state,
+        );
+    }
+}
+
+message_handlers!(impl LpfLeapfrog {});

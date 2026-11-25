@@ -437,11 +437,11 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$pSine" | "$pSaw" | "$pPulse" => json!({ "phase": 0.0 }),
         "$lpf" | "$hpf" | "$jup6f" | "$multimode" | "$apf" | "$lpfSk" | "$hpfSk" | "$lpfLadder"
         | "$hpfLadder" | "$apfLadder" | "$lpfDiode" | "$hpfDiode" | "$lpfOta" | "$hpfOta"
-        | "$apfOta" | "$lpfLeapfrog" | "$apfLeapfrog" => {
+        | "$apfOta" | "$lpfLeapfrog" => {
             json!({ "input": 0.0, "cutoff": 0.0 })
         }
         "$bpf" | "$bpfSk" | "$bpfLadder" | "$bpfDiode" | "$bpfOta" | "$notch" | "$notchSk"
-        | "$notchLadder" | "$notchDiode" | "$notchOta" | "$notchLeapfrog" => {
+        | "$notchLadder" | "$notchDiode" | "$notchOta" => {
             json!({ "input": 0.0, "center": 0.0 })
         }
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
