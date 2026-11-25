@@ -1893,32 +1893,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kabelsalat/core@npm:0.4.0":
-  version: 0.4.0
-  resolution: "@kabelsalat/core@npm:0.4.0"
-  checksum: 10c0/76c26f00ff4d61a7be938c6b96153f1afc21497ee091bcf79764b6e8846c1fc00f3f785020aa91277db18656f20ea84fe036dff2991369e708f449159d786ef2
-  languageName: node
-  linkType: hard
-
-"@kabelsalat/lib@npm:0.4.1":
-  version: 0.4.1
-  resolution: "@kabelsalat/lib@npm:0.4.1"
-  dependencies:
-    "@kabelsalat/core": "npm:0.4.0"
-  checksum: 10c0/12ae89419cb88a32854e2e29a286104d41d6e8b5959abc1c153ede1270023563ac58fe28e057ef23cdf7ff55d106aa42fe3475844849bd31ca06521acc658a9b
-  languageName: node
-  linkType: hard
-
-"@kabelsalat/web@npm:^0.4.1":
-  version: 0.4.1
-  resolution: "@kabelsalat/web@npm:0.4.1"
-  dependencies:
-    "@kabelsalat/core": "npm:0.4.0"
-    "@kabelsalat/lib": "npm:0.4.1"
-  checksum: 10c0/ab82149b2d6401422a1048059df6673a10b5e6a8a97793a20229c08590b66c0f514589177c2891c1a7a79ac99e26618786ee942875fb852efdf3d9b4a3887e75
-  languageName: node
-  linkType: hard
-
 "@listr2/prompt-adapter-inquirer@npm:^2.0.22":
   version: 2.0.22
   resolution: "@listr2/prompt-adapter-inquirer@npm:2.0.22"
@@ -2015,8 +1989,8 @@ __metadata:
     "@fontsource/victor-mono": "npm:^5.3.0"
     "@monaco-editor/react": "npm:^4.7.0"
     "@playwright/test": "npm:^1.65.1"
-    "@strudel/core": "npm:1.2.6"
-    "@strudel/mini": "npm:1.2.6"
+    "@strudel/core": "npm:1.2.5"
+    "@strudel/mini": "npm:1.2.5"
     "@stylistic/eslint-plugin": "npm:^6.0.1"
     "@tanstack/react-table": "npm:^8.21.3"
     "@tanstack/react-virtual": "npm:^3.14.28"
@@ -4045,22 +4019,21 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@strudel/core@npm:1.2.6":
-  version: 1.2.6
-  resolution: "@strudel/core@npm:1.2.6"
+"@strudel/core@npm:1.2.5":
+  version: 1.2.5
+  resolution: "@strudel/core@npm:1.2.5"
   dependencies:
-    "@kabelsalat/web": "npm:^0.4.1"
     fraction.js: "npm:^5.2.1"
-  checksum: 10c0/6a7440cccafae4d256987e2d78aa94478ba5f9afaa03cdc67fbb81708228f728a3d282ecd741e8d0e9281030012e5f45d624c13f3bae3beeca0c6bb82325fc98
+  checksum: 10c0/b5fc9cc2fe3fb02f1a9c0246ab80dd75bfd6265205d380d9b6584f6d77a932219d5767672bb4c266ff99721d8c42bdbeb9dc3a54a389a93c2abada06c06aa957
   languageName: node
   linkType: hard
 
-"@strudel/mini@npm:1.2.6":
-  version: 1.2.6
-  resolution: "@strudel/mini@npm:1.2.6"
+"@strudel/mini@npm:1.2.5":
+  version: 1.2.5
+  resolution: "@strudel/mini@npm:1.2.5"
   dependencies:
-    "@strudel/core": "npm:1.2.6"
-  checksum: 10c0/432b536314bbd566c141b199aa944393ca6ff423947f221f3b615c8c5703bab305755a9b73b54cf911fba95f9dcfe76f03ffcab15d70be834f6a3b04195aed68
+    "@strudel/core": "npm:1.2.5"
+  checksum: 10c0/9312a2e8d951004a7e745a60112e396cfdcdaa991268998dfba15b1dece3002d009463a12596d33b77117342cddc949ede712095938082511415d340aee27923
   languageName: node
   linkType: hard
 
