@@ -22,6 +22,7 @@ pub mod quant_noise;
 pub mod reverb;
 pub mod reverb2;
 pub mod segment;
+pub mod spectral;
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     fold::Fold::install_constructor(map);
@@ -34,6 +35,8 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     reverb::Reverb::install_constructor(map);
     reverb2::Reverb2::install_constructor(map);
     segment::Segment::install_constructor(map);
+    spectral::SpectralWash::install_constructor(map);
+    spectral::SpectralEcho::install_constructor(map);
     beads::BeadsReverb::install_constructor(map);
     beads::Granular::install_constructor(map);
     beads::GranularSampler::install_constructor(map);
@@ -52,6 +55,8 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     reverb::Reverb::install_params_deserializer(map);
     reverb2::Reverb2::install_params_deserializer(map);
     segment::Segment::install_params_deserializer(map);
+    spectral::SpectralWash::install_params_deserializer(map);
+    spectral::SpectralEcho::install_params_deserializer(map);
     beads::BeadsReverb::install_params_deserializer(map);
     beads::Granular::install_params_deserializer(map);
     beads::GranularSampler::install_params_deserializer(map);
@@ -71,6 +76,8 @@ pub fn schemas() -> Vec<ModuleSchema> {
         reverb::Reverb::get_schema(),
         reverb2::Reverb2::get_schema(),
         segment::Segment::get_schema(),
+        spectral::SpectralWash::get_schema(),
+        spectral::SpectralEcho::get_schema(),
         beads::BeadsReverb::get_schema(),
         beads::Granular::get_schema(),
         beads::GranularSampler::get_schema(),

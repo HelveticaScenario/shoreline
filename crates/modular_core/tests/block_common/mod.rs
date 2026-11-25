@@ -470,15 +470,23 @@ pub fn allocations_while_rendering(module_type: &str, params: Value) -> usize {
         .iter()
         .map(|&(src_mode, dut_mode)| build(src_mode, dut_mode, module_type, params.clone()))
         .collect();
-    ALLOCATIONS.with(|n| n.set(0));
-    COUNTING.with(|c| c.set(true));
-    for patch in &patches {
-        for steps in STEP_PATTERNS {
-            for _ in 0..BLOCKS {
-                render_block(patch, steps);
+    allocations_while(|| {
+        for patch in &patches {
+            for steps in STEP_PATTERNS {
+                for _ in 0..BLOCKS {
+                    render_block(patch, steps);
+                }
             }
         }
-    }
+    })
+}
+
+/// Heap allocations and frees this thread makes while `render` runs.
+/// Requires the binary's global allocator to be [`CountingAllocator`].
+pub fn allocations_while(render: impl FnOnce()) -> usize {
+    ALLOCATIONS.with(|n| n.set(0));
+    COUNTING.with(|c| c.set(true));
+    render();
     COUNTING.with(|c| c.set(false));
     ALLOCATIONS.with(Cell::get)
 }

@@ -17,6 +17,8 @@ const EFFECTS: &[&str] = &[
     "$plate",
     "$unstable.reverb",
     "$unstable.reverb2",
+    "$spectralReverb.wash",
+    "$spectralReverb.echo",
     "$reverb",
     "$mi.chorus",
 ];
@@ -25,6 +27,8 @@ const EFFECTS: &[&str] = &[
 const SIDED: &[&str] = &[
     "$unstable.reverb",
     "$unstable.reverb2",
+    "$spectralReverb.wash",
+    "$spectralReverb.echo",
     "$reverb",
     "$mi.chorus",
 ];

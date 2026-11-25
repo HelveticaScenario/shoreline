@@ -10573,6 +10573,635 @@
     "stereo": "lift"
   },
   {
+    "name": "$spectralReverb.wash",
+    "docs": {
+      "summary": "Smooth, echo-free spectral reverb",
+      "description": "A reverb that holds the level of every frequency it hears and lets each fade on its own, so the tail is a seamless wash with no echoes that can ring for a minute or freeze in place. The tail swells in over about 85 ms. Output is fully wet, so blend it with `.wet(mix)` or send to it from a bus.",
+      "categories": [
+        "effect"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Plucks melting into a pad",
+          "code": "const notes = $`c5 g4 eb5 ~`\nmelody: $sine(notes)\n  .amp($perc(notes, { decay: 0.15 }))\n  .spectralReverb.wash({ decay: 4, damping: 2 })\n  .wet(3)"
+        },
+        {
+          "title": "Rising, dissolving tail",
+          "code": "const notes = $`c4 ~ ~ eb4 ~ ~ g4 ~`\nmelody: $saw(notes)\n  .amp($perc(notes, { decay: 0.3 }))\n  .spectralReverb.wash({ decay: 3.5, blur: 2, shimmer: 1 })\n  .wet(2.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SpectralWashParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "decay": {
+          "description": "how long the tail rings: 0 about 0.2 s, 2.5 about 3.5 s, 5 about a minute",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "damping": {
+          "description": "tilts the decay: positive values let the treble die first, negative the bass",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": -5.0,
+            "maxValue": 5.0,
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "blur": {
+          "description": "smears the tail across neighbouring frequencies, dissolving its pitch into noise",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "shimmer": {
+          "description": "slides the tail's pitch as it rings: up to an octave a second, upward when positive",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": -5.0,
+            "maxValue": 5.0,
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "freeze": {
+          "description": "while high, the tail stops decaying and the input is shut out",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "gate"
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "LaneSum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "stereo reverb, fully wet, as one stereo lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": true
+      },
+      {
+        "name": "decay",
+        "description": "how long the tail rings: 0 about 0.2 s, 2.5 about 3.5 s, 5 about a minute",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "damping",
+        "description": "tilts the decay: positive values let the treble die first, negative the bass",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "blur",
+        "description": "smears the tail across neighbouring frequencies, dissolving its pitch into noise",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "shimmer",
+        "description": "slides the tail's pitch as it rings: up to an octave a second, upward when positive",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "freeze",
+        "description": "while high, the tail stops decaying and the input is shut out",
+        "paramType": "gate",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "lanes": 1,
+    "experimental": true,
+    "stereo": "stereo"
+  },
+  {
+    "name": "$spectralReverb.echo",
+    "docs": {
+      "summary": "Spectral reverb of scattered echoes",
+      "description": "A reverb where every frequency repeats at its own pace, so a note comes back as a shimmering scatter of echoes that thickens into a resonant tail, and can freeze in place. No echo arrives sooner than a tenth of a second after the input. Output is fully wet, so blend it with `.wet(mix)` or send to it from a bus.",
+      "categories": [
+        "effect"
+      ],
+      "sections": [],
+      "examples": [
+        {
+          "title": "Plucks scattering into echoes",
+          "code": "const notes = $`c5 g4 eb5 ~`\nmelody: $sine(notes)\n  .amp($perc(notes, { decay: 0.15 }))\n  .spectralReverb.echo({ decay: 4, size: 3.5 })\n  .wet(3)"
+        },
+        {
+          "title": "Climbing, hazy repeats",
+          "code": "const notes = $`c4 ~ ~ eb4 ~ ~ g4 ~`\nmelody: $saw(notes)\n  .amp($perc(notes, { decay: 0.3 }))\n  .spectralReverb.echo({ decay: 3.5, blur: 2, shimmer: 2 })\n  .wet(2.5)"
+        }
+      ]
+    },
+    "paramsSchema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "title": "SpectralEchoParams",
+      "type": "object",
+      "properties": {
+        "input": {
+          "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
+          "$ref": "#/$defs/PolySignal",
+          "x-signal": {
+            "paramType": "audio"
+          }
+        },
+        "decay": {
+          "description": "how long the tail rings: 0 about 0.2 s, 2.5 about 3.5 s, 5 about a minute",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "size": {
+          "description": "how far apart the echoes fall: the slowest pitches repeat every 0.1 s at 0, every 1.4 s at 5",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 2.5,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "damping": {
+          "description": "tilts the decay: positive values let the treble die first, negative the bass",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": -5.0,
+            "maxValue": 5.0,
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "blur": {
+          "description": "scrambles each echo a little more than the last, softening the repeats into a haze",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 5.0,
+            "controlMin": 0.0,
+            "controlMax": 5.0
+          }
+        },
+        "shimmer": {
+          "description": "steps each echo's pitch from the last: up to an octave a second, upward when positive",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": -5.0,
+            "maxValue": 5.0,
+            "controlMin": -5.0,
+            "controlMax": 5.0
+          }
+        },
+        "freeze": {
+          "description": "while high, the echoes stop decaying and the input is shut out",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LaneSum"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "gate"
+          }
+        }
+      },
+      "required": [
+        "input"
+      ],
+      "$defs": {
+        "PolySignal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        },
+        "Signal": {
+          "anyOf": [
+            {
+              "type": "number",
+              "format": "double"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "#/$defs/SignalTaggedSchema"
+            }
+          ]
+        },
+        "SignalTaggedSchema": {
+          "oneOf": [
+            {
+              "type": "object",
+              "properties": {
+                "module": {
+                  "type": "string"
+                },
+                "port": {
+                  "type": "string"
+                },
+                "lane": {
+                  "type": "integer",
+                  "format": "uint",
+                  "minimum": 0,
+                  "default": 0
+                },
+                "type": {
+                  "type": "string",
+                  "const": "cable"
+                }
+              },
+              "required": [
+                "type",
+                "module",
+                "port"
+              ]
+            }
+          ]
+        },
+        "LaneSum": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Signal"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/Signal"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "outputs": [
+      {
+        "name": "output",
+        "description": "stereo reverb, fully wet, as one stereo lane",
+        "outputType": "cv",
+        "polyphonic": true,
+        "default": true,
+        "mono": false,
+        "precision": "f32",
+        "bounds": "unbounded"
+      }
+    ],
+    "bufferOutputs": [],
+    "signalParams": [
+      {
+        "name": "input",
+        "description": "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
+        "paramType": "audio",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": true
+      },
+      {
+        "name": "decay",
+        "description": "how long the tail rings: 0 about 0.2 s, 2.5 about 3.5 s, 5 about a minute",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "size",
+        "description": "how far apart the echoes fall: the slowest pitches repeat every 0.1 s at 0, every 1.4 s at 5",
+        "paramType": "control",
+        "defaultValue": 2.5,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "damping",
+        "description": "tilts the decay: positive values let the treble die first, negative the bass",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "blur",
+        "description": "scrambles each echo a little more than the last, softening the repeats into a haze",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 5.0,
+        "controlMin": 0.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "shimmer",
+        "description": "steps each echo's pitch from the last: up to an octave a second, upward when positive",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": -5.0,
+        "maxValue": 5.0,
+        "controlMin": -5.0,
+        "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      },
+      {
+        "name": "freeze",
+        "description": "while high, the echoes stop decaying and the input is shut out",
+        "paramType": "gate",
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": true,
+        "readsSides": false
+      }
+    ],
+    "nestedFolds": [],
+    "positionalArgs": [
+      {
+        "name": "input"
+      }
+    ],
+    "lanes": 1,
+    "experimental": true,
+    "stereo": "stereo"
+  },
+  {
     "name": "$reverb",
     "docs": {
       "summary": "Beads reverb",
