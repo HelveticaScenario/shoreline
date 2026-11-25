@@ -154,6 +154,29 @@ impl BlepOscillator {
         2.0 * this_sample - 1.0
     }
 
+    /// Advances the square a sample without rendering it. The band-limiting
+    /// step it would carry into the next sample is dropped.
+    #[inline(always)]
+    pub fn skip_square(&mut self, frequency: f32) {
+        self.advance(frequency);
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+        }
+        self.high = self.phase >= 0.5;
+        self.next_sample = if self.high { 1.0 } else { 0.0 };
+    }
+
+    /// Advances the saw a sample without rendering it, as
+    /// [`skip_square`](Self::skip_square) does the square.
+    #[inline(always)]
+    pub fn skip_saw(&mut self, frequency: f32) {
+        self.advance(frequency);
+        if self.phase >= 1.0 {
+            self.phase -= 1.0;
+        }
+        self.next_sample = self.phase;
+    }
+
     /// One sample of the rising saw, from −1 to 1, at `frequency` cycles per
     /// sample.
     #[inline(always)]

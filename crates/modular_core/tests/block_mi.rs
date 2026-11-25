@@ -74,7 +74,6 @@ fn allocation_free() {
         "$mi.noise",
         "$mi.particles",
         "$mi.phaseDistortion",
-        "$mi.ringHat",
         "$mi.sixOp",
         "$mi.snare",
         "$mi.speak",
@@ -177,8 +176,10 @@ fn drum_allocation_free() {
         ),
         ("$mi.snare", &["tone", "decay", "snappy", "accent"]),
         ("$mi.synthSnare", &["attackFm", "decay", "snappy", "accent"]),
-        ("$mi.hiHat", &["tone", "decay", "noisiness", "accent"]),
-        ("$mi.ringHat", &["tone", "decay", "noisiness", "accent"]),
+        (
+            "$mi.hiHat",
+            &["tone", "decay", "noisiness", "accent", "mix"],
+        ),
     ] {
         let mut params =
             json!({ "freq": poly_cable("lfo", LANES), "trigger": poly_cable("src", LANES) });
@@ -237,12 +238,21 @@ fn resonator_instances_draw_their_own_grains() {
 /// Two noisy drones with the same settings draw their own noise.
 #[test]
 fn drum_instances_draw_their_own_noise() {
-    for (module, params) in [
-        ("$mi.synthKick", json!({ "freq": 0.0, "dirt": 5.0 })),
-        ("$mi.snare", json!({ "freq": 0.0, "snappy": 5.0 })),
-        ("$mi.synthSnare", json!({ "freq": 0.0, "snappy": 5.0 })),
-        ("$mi.hiHat", json!({ "freq": 0.0, "noisiness": 5.0 })),
-        ("$mi.ringHat", json!({ "freq": 0.0, "noisiness": 5.0 })),
+    let noisy_hat = json!({ "freq": 0.0, "noisiness": 5.0 });
+    for (module, params, port) in [
+        (
+            "$mi.synthKick",
+            json!({ "freq": 0.0, "dirt": 5.0 }),
+            "output",
+        ),
+        ("$mi.snare", json!({ "freq": 0.0, "snappy": 5.0 }), "output"),
+        (
+            "$mi.synthSnare",
+            json!({ "freq": 0.0, "snappy": 5.0 }),
+            "output",
+        ),
+        ("$mi.hiHat", noisy_hat.clone(), "square"),
+        ("$mi.hiHat", noisy_hat, "ring"),
     ] {
         let a = build(
             ProcessingMode::Block,
@@ -251,11 +261,11 @@ fn drum_instances_draw_their_own_noise() {
             params.clone(),
         );
         let b = build(ProcessingMode::Block, ProcessingMode::Block, module, params);
-        let a = render_ports(&a, "output", 64);
-        let b = render_ports(&b, "output", 64);
+        let a = render_ports(&a, port, 64);
+        let b = render_ports(&b, port, 64);
         assert!(
             a.iter().zip(&b).any(|(x, y)| x != y),
-            "{module}: identical noise"
+            "{module} {port}: identical noise"
         );
     }
 }
@@ -313,7 +323,8 @@ fn resonator_outputs_stay_in_range() {
 }
 
 /// The modules with Plaits' main and aux outputs, and the two outputs' names.
-const MAIN_AND_AUX: [(&str, &str, &str); 16] = [
+const MAIN_AND_AUX: [(&str, &str, &str); 17] = [
+    ("$mi.hiHat", "square", "ring"),
     ("$mi.va", "dual", "sync"),
     ("$mi.vcf", "lowpass", "highpass"),
     ("$mi.noise", "filtered", "bands"),
@@ -461,5 +472,76 @@ fn blend_glides_when_mix_changes() {
                 "{module} lane {lane}"
             );
         }
+    }
+}
+
+/// Each of `$mi.hiHat`'s hats renders the same whichever outputs are read,
+/// and one nothing hears rejoins within a few milliseconds of being read.
+#[test]
+fn hi_hat_outputs_render_the_same_whichever_others_are_read() {
+    modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
+    let ports = ["blend", "square", "ring"];
+    for mix in [json!(0.0), json!(2.5), json!(5.0), cable("lfo", 1)] {
+        for trigger in [Some(poly_cable("src", LANES)), None] {
+            let mut params = json!({
+                "freq": poly_cable("lfo", LANES),
+                "tone": cable("lfo", 0),
+                "noisiness": 2.0,
+                "mix": mix,
+            });
+            if let Some(trigger) = trigger {
+                params["trigger"] = trigger;
+            }
+            check_connections_agree("$mi.hiHat", params, &ports, 1e-3, 240);
+        }
+    }
+}
+
+/// A side added by a patch update draws noise of its own for each hat.
+#[test]
+fn hi_hat_sides_added_by_a_patch_update_get_their_own_noise() {
+    use modular_core::dsp::{get_constructors, get_params_deserializers};
+    use modular_core::params::DeserializedParams;
+    modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
+    let make = |channels: usize| {
+        let cached =
+            get_params_deserializers()["$mi.hiHat"](json!({ "freq": 0.0, "noisiness": 5.0 }))
+                .unwrap();
+        get_constructors()["$mi.hiHat"](
+            "dut",
+            48000.0,
+            DeserializedParams {
+                params: cached.params,
+                lane_count: cached.lane_count * channels,
+                f64_inputs: false,
+                channels,
+            },
+            1,
+            ProcessingMode::Block,
+        )
+        .unwrap()
+    };
+    let old = make(1);
+    old.on_patch_update();
+    for _ in 0..480 {
+        old.start_block();
+        old.ensure_processed();
+    }
+    let new = make(2);
+    new.transfer_state_from(old.as_ref(), &SameIds);
+    new.on_patch_update();
+    for port in ["square", "ring"] {
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        for _ in 0..4800 {
+            new.start_block();
+            new.ensure_processed();
+            a.push(new.get_value_at(port, 0, 0));
+            b.push(new.get_value_at(port, 1, 0));
+        }
+        assert!(a.iter().any(|v| *v != 0.0), "{port} silent");
+        assert!(
+            a.iter().zip(&b).any(|(x, y)| x != y),
+            "{port}: sides share noise"
+        );
     }
 }

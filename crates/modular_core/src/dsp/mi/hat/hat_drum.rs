@@ -52,7 +52,7 @@ pub trait Model {
     fn vca(s: f32, gain: f32) -> f32;
 }
 
-/// `$mi.hiHat`: `HiHat<SquareNoise, SwingVCA, true, false>`.
+/// `$mi.hiHat`'s `square` hat: `HiHat<SquareNoise, SwingVCA, true, false>`.
 #[derive(Clone, Copy)]
 pub struct SquareHat;
 
@@ -71,7 +71,7 @@ impl Model for SquareHat {
     }
 }
 
-/// `$mi.ringHat`: `HiHat<RingModNoise, LinearVCA, false, true>`.
+/// `$mi.hiHat`'s `ring` hat: `HiHat<RingModNoise, LinearVCA, false, true>`.
 #[derive(Clone, Copy)]
 pub struct RingHat;
 
@@ -189,32 +189,68 @@ impl<M: Model> HiHat<M> {
         rates: &HatRates,
     ) -> f32 {
         self.controls(f0, knobs, rates);
+        self.strike(trigger, knobs);
+        let metallic = self.coloration.band_pass(self.metallic.next());
+        let noise_sample = self.clock_noise(random);
+        let noise = metallic + self.noisiness * (noise_sample - metallic);
+        let gain = self.gain(sustain, knobs);
+        self.hpf.high_pass(M::vca(noise, gain))
+    }
+
+    /// Advances the hat a sample as [`render`](Self::render) does, keeping
+    /// its envelope, oscillators and noise where a render would leave them,
+    /// without running its filters. They resume from where they stopped,
+    /// settling within a few milliseconds.
+    #[inline(always)]
+    pub fn skip(
+        &mut self,
+        sustain: bool,
+        trigger: bool,
+        f0: f32,
+        knobs: &HatKnobs,
+        random: &mut Random,
+        rates: &HatRates,
+    ) {
+        self.controls(f0, knobs, rates);
+        self.strike(trigger, knobs);
+        self.metallic.skip();
+        self.clock_noise(random);
+        self.gain(sustain, knobs);
+    }
+
+    #[inline(always)]
+    fn strike(&mut self, trigger: bool, knobs: &HatKnobs) {
         if trigger {
             self.envelope = (1.5 + 0.5 * (1.0 - knobs.decay)) * (0.3 + 0.7 * knobs.accent);
         }
-        let metallic = self.coloration.band_pass(self.metallic.next());
+    }
 
-        // Not part of the 808: noise clocked at 16 to 32 times the pitch,
-        // blended into the oscillators.
+    /// Not part of the 808: noise clocked at 16 to 32 times the pitch,
+    /// blended into the oscillators.
+    #[inline(always)]
+    fn clock_noise(&mut self, random: &mut Random) -> f32 {
         self.noise_clock += self.noise_f;
         if self.noise_clock >= 1.0 {
             self.noise_clock -= 1.0;
             self.noise_sample = random.float() - 0.5;
         }
-        let noise = metallic + self.noisiness * (self.noise_sample - metallic);
+        self.noise_sample
+    }
 
+    /// The VCA's gain this sample, decaying the envelope.
+    #[inline(always)]
+    fn gain(&mut self, sustain: bool, knobs: &HatKnobs) -> f32 {
         self.sustain_gain.set(knobs.accent * knobs.decay, Some(1.0));
         self.envelope *= if self.envelope > 0.5 || !M::TWO_STAGE {
             self.envelope_decay
         } else {
             self.cut_decay
         };
-        let gain = if sustain {
+        if sustain {
             self.sustain_gain.next_value()
         } else {
             self.envelope
-        };
-        self.hpf.high_pass(M::vca(noise, gain))
+        }
     }
 }
 

@@ -20,9 +20,28 @@ impl Blend {
         (mix, mark): (f32, GlideMark),
         sample_rate: f32,
     ) -> f32 {
+        let t = self.position((mix, mark), sample_rate);
+        crossfade(main, aux, t)
+    }
+
+    /// Where `mix` volts sits between the main sound, 0, and the aux, 1.
+    #[inline(always)]
+    pub fn position(&mut self, (mix, mark): (f32, GlideMark), sample_rate: f32) -> f32 {
         self.mix.update(mix.clamp(0.0, 5.0), mark, sample_rate);
-        let t = *self.mix * 0.2;
-        main * (1.0 - t) + aux * t
+        *self.mix * 0.2
+    }
+}
+
+/// `main` crossfaded into `aux` at a [`Blend::position`]: `main` itself at 0
+/// and `aux` itself at 1, whatever the other holds.
+#[inline(always)]
+pub fn crossfade(main: f32, aux: f32, position: f32) -> f32 {
+    if position == 0.0 {
+        main
+    } else if position == 1.0 {
+        aux
+    } else {
+        main * (1.0 - position) + aux * position
     }
 }
 
