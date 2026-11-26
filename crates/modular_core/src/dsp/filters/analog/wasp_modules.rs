@@ -35,9 +35,10 @@ macro_rules! wasp_filter {
 const LPF_WASP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wasp lowpass filter",
     description: "The lowpass of the EDP Wasp, a filter built from logic-chip inverters \
-                  standing in for amplifiers: grainy and lopsided when pushed, with a \
-                  resonance that whistles on the verge of oscillation and squashes as it \
-                  gets loud. It never self-oscillates.",
+                  standing in for amplifiers. `drive` overloads the inverter at its input, \
+                  which squares the sound up into a fat, lopsided buzz, and the resonance \
+                  whistles on the verge of oscillation and squashes as it gets loud. It \
+                  never self-oscillates.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
@@ -188,7 +189,7 @@ const APF_WASP_DOCS: ModuleDocs = ModuleDocs {
     description: "An allpass mixed from the three outputs of the EDP Wasp's inverter \
                   filter: it shifts phase around the cutoff and keeps the level, so mixing it \
                   with the dry signal makes a phaser with the filter's grit when driven. Near \
-                  full resonance the level dips at the cutoff.",
+                  full resonance the level strays at the cutoff.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
@@ -218,6 +219,6 @@ wasp_filter! {
     ident = ApfWasp,
     response = Allpass,
     freq = cutoff: "cutoff frequency; tops out just under half the sample rate",
-    resonance = "sharpens the phase sweep; toward 5 the level dips at the cutoff",
+    resonance = "sharpens the phase sweep; toward 5 the level strays at the cutoff",
     output = "360° of phase shift across the cutoff: one notch when mixed with the dry signal",
 }

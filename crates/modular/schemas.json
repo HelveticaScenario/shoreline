@@ -22296,7 +22296,7 @@
     "name": "$lpfWasp",
     "docs": {
       "summary": "Wasp lowpass filter",
-      "description": "The lowpass of the EDP Wasp, a filter built from logic-chip inverters standing in for amplifiers: grainy and lopsided when pushed, with a resonance that whistles on the verge of oscillation and squashes as it gets loud. It never self-oscillates.",
+      "description": "The lowpass of the EDP Wasp, a filter built from logic-chip inverters standing in for amplifiers. `drive` overloads the inverter at its input, which squares the sound up into a fat, lopsided buzz, and the resonance whistles on the verge of oscillation and squashes as it gets loud. It never self-oscillates.",
       "categories": [
         "filter"
       ],
@@ -23196,7 +23196,7 @@
     "name": "$apfWasp",
     "docs": {
       "summary": "Wasp allpass filter",
-      "description": "An allpass mixed from the three outputs of the EDP Wasp's inverter filter: it shifts phase around the cutoff and keeps the level, so mixing it with the dry signal makes a phaser with the filter's grit when driven. Near full resonance the level dips at the cutoff.",
+      "description": "An allpass mixed from the three outputs of the EDP Wasp's inverter filter: it shifts phase around the cutoff and keeps the level, so mixing it with the dry signal makes a phaser with the filter's grit when driven. Near full resonance the level strays at the cutoff.",
       "categories": [
         "filter"
       ],
@@ -23233,7 +23233,7 @@
           }
         },
         "resonance": {
-          "description": "sharpens the phase sweep; toward 5 the level dips at the cutoff",
+          "description": "sharpens the phase sweep; toward 5 the level strays at the cutoff",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -23375,7 +23375,7 @@
       },
       {
         "name": "resonance",
-        "description": "sharpens the phase sweep; toward 5 the level dips at the cutoff",
+        "description": "sharpens the phase sweep; toward 5 the level strays at the cutoff",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,

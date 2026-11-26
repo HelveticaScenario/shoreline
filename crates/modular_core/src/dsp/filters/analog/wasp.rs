@@ -12,6 +12,11 @@
 //! since the inverters' threshold sits above half the rail, and that bias
 //! sets the highest Q the loop reaches.
 //!
+//! Ahead of the loop sits one more inverter of the same chip, wired as a
+//! unity-gain amplifier and biased by its own feedback. It is what a hot
+//! input overdrives: the signal squares up against its rails and reaches
+//! the loop at half their swing, which leaves the resonance its headroom.
+//!
 //! Voltages are deviations from the circuit at rest, in volts; currents
 //! are in mA and conductances in mS. Each sample solves the five node
 //! equations with Newton's method from the previous sample's voltages.
@@ -33,9 +38,12 @@ const VT_P: f64 = 1.5 - (THRESHOLD - MID_RAIL);
 const BETA: f64 = 0.8;
 const LAMBDA: f64 = 0.065;
 
-/// Summer resistors R29, R30 and R31, with the input resistor their equal
-/// for unity gain.
+/// Summer resistors R29, R30 and R31, which the input amplifier's two
+/// resistors match.
 const G_SUM: f64 = 1.0 / 33.0;
+/// The loop's input resistor, twice the summer's: the input amplifier's
+/// full swing is half the rail in the loop.
+const G_INPUT: f64 = 0.5 * G_SUM;
 /// The Q pot VR6.
 const R_POT: f64 = 100.0;
 /// Rotation the pot's end resistance leaves at full resonance.
@@ -133,6 +141,8 @@ impl Stage {
     }
 }
 
+/// The input amplifier, which its feedback biases at its own threshold.
+const INPUT: Stage = Stage::new(THRESHOLD);
 const SUMMER: Stage = Stage::new(MID_RAIL);
 const BANDPASS: Stage = Stage::new(MID_RAIL);
 const LOWPASS: Stage = Stage::new(LOWPASS_REST);
@@ -149,6 +159,41 @@ const G_BANDPASS_LOAD: f64 = G_OTA_INPUT + 1.0 / R_POT;
 /// The two integrators' gains together.
 const INTEGRATOR_GAINS: f64 = integrator_gain(&BANDPASS, G_BANDPASS_LOAD + 0.5 * G_DIODE_FEED)
     * integrator_gain(&LOWPASS, G_SUM);
+
+/// The input amplifier's gain for a quiet signal, which its low open-loop
+/// gain leaves short of the unity it is wired for.
+const INPUT_GAIN: f64 = {
+    let (gm, go) = INPUT.conductances();
+    (gm - G_SUM) / (gm + 2.0 * go + G_SUM + 2.0 * G_INPUT)
+};
+/// Brings the loop's outputs back to the level of the module's input.
+const OUTPUT_GAIN: f64 = G_SUM / (G_INPUT * INPUT_GAIN);
+
+/// The input amplifier's output for the input `x`, by Newton's method from
+/// its previous output. Its input node sits halfway between the two, and
+/// its equation falls monotonically in the output.
+#[inline]
+fn input_amplifier(x: f64, previous: f64) -> f64 {
+    let mut o = previous;
+    for _ in 0..MAX_ITERATIONS {
+        let n = 0.5 * (x + o);
+        let (i, di_dn, di_do) = INPUT.current(n, o);
+        let residual = i - G_SUM * (o - n) - G_INPUT * o;
+        let slope = 0.5 * di_dn + di_do - 0.5 * G_SUM - G_INPUT;
+        let step = residual / slope;
+        o -= step;
+        if step.abs() < TOLERANCE {
+            break;
+        }
+    }
+    o
+}
+
+/// The diode pair's slope at rest, in mS, and the bandpass's weight in the
+/// summer through R27 and the pair at that slope.
+const DIODE_REST_SLOPE: f64 = 0.0022238285481571713;
+const DIODE_REST_DAMPING: f64 =
+    G_DIODE_FEED * DIODE_REST_SLOPE / (2.0 * G_DIODE_FEED + DIODE_REST_SLOPE) / G_SUM;
 
 /// The diode pair's current beyond its rest current at a deviation `v`
 /// from its rest bias, and its slope.
@@ -234,7 +279,8 @@ pub(crate) enum WaspResponse {
     Bandpass,
     /// The highpass and lowpass summed.
     Notch,
-    /// The notch less the bandpass at the weight the Q pot feeds it back.
+    /// The notch less the bandpass at the weight the Q pot and the resting
+    /// diodes feed it back.
     Allpass,
 }
 
@@ -255,7 +301,8 @@ pub struct WaspCoeffs {
     /// Brings the highpass to the level of the lowpass, which the summer's
     /// low gain leaves it short of.
     highpass_gain: f64,
-    /// The bandpass's weight in the summer beside the lowpass's.
+    /// The bandpass's weight in the summer beside the lowpass's, for a quiet
+    /// signal.
     damping: f64,
 }
 
@@ -269,6 +316,8 @@ pub struct WaspState {
     drive: [f64; 2],
     /// The previous sample's voltage across C11.
     lead: f64,
+    /// The input amplifier's previous output.
+    input: f64,
 }
 
 /// The node equations' residuals and their Jacobian at `v`, for the input
@@ -294,7 +343,7 @@ fn equations(
     let lead = c.lead * (lp - n1 - state.lead);
     let residual = [
         G_DIODE_FEED * (bp - nd) - G_DIODE_FEED * nd - diode,
-        G_SUM * (x - n1) + G_SUM * (hp - n1) + G_SUM * (lp - n1) + lead + c.wiper_bandpass * bp
+        G_INPUT * (x - n1) + G_SUM * (hp - n1) + G_SUM * (lp - n1) + lead + c.wiper_bandpass * bp
             - c.wiper * n1
             + diode,
         i_hp - G_SUM * (hp - n1) - G_OTA_INPUT * hp,
@@ -309,7 +358,7 @@ fn equations(
     jacobian[0][N1] = -2.0 * G_DIODE_FEED;
     jacobian[0][BP] = G_DIODE_FEED;
     jacobian[0][VD] = -2.0 * G_DIODE_FEED - diode_slope;
-    jacobian[1][N1] = -(3.0 * G_SUM + c.lead + c.wiper);
+    jacobian[1][N1] = -(G_INPUT + 2.0 * G_SUM + c.lead + c.wiper);
     jacobian[1][HP] = G_SUM;
     jacobian[1][BP] = c.wiper_bandpass;
     jacobian[1][LP] = G_SUM + c.lead;
@@ -334,7 +383,8 @@ impl Kernel for Wasp {
     type Options = ();
     type Coeffs = WaspCoeffs;
     type State = WaspState;
-    /// A 5 V input swings a quarter of the rail either way.
+    /// A 5 V input swings the input amplifier a quarter of the rail either
+    /// way.
     const VOLTS: f32 = 4.0;
 
     fn coeffs(
@@ -350,8 +400,8 @@ impl Kernel for Wasp {
         // The summer's low gain leaves its output short of the sum it is
         // wired for.
         let (gm, go) = SUMMER.conductances();
-        let summer_gain =
-            G_SUM / (G_SUM + (go + G_SUM + G_OTA_INPUT) * (3.0 * G_SUM + wiper) / (gm - G_SUM));
+        let summer_gain = G_SUM
+            / (G_SUM + (go + G_SUM + G_OTA_INPUT) * (G_INPUT + 2.0 * G_SUM + wiper) / (gm - G_SUM));
         // The loop resonates at the OTAs' rate times the root of the gain
         // around it, so the OTAs run faster by as much.
         let g = rates.gain(cutoff) as f64 / (summer_gain * INTEGRATOR_GAINS).sqrt();
@@ -364,7 +414,7 @@ impl Kernel for Wasp {
             wiper,
             wiper_bandpass: wiper * rotation,
             highpass_gain: 1.0 / summer_gain,
-            damping: wiper * rotation / G_SUM,
+            damping: wiper * rotation / G_SUM + DIODE_REST_DAMPING,
         }
     }
 
@@ -376,7 +426,7 @@ impl Kernel for Wasp {
         x: f32,
         _: Taps,
     ) -> [f32; 4] {
-        let x = x as f64;
+        let x = input_amplifier(x as f64, state.input);
         let mut v = state.v;
         for _ in 0..MAX_ITERATIONS {
             let (residual, jacobian) = equations(c, state, x, &v);
@@ -404,8 +454,10 @@ impl Kernel for Wasp {
         state.drive = drive;
         state.lead = v[LP] - v[N1];
         state.v = v;
-        // The summer inverts, so each output is taken upside down.
-        let (hp, bp, lp) = (-c.highpass_gain * v[HP], -v[BP], -v[LP]);
+        state.input = x;
+        // The input amplifier and the summer each invert, so the outputs
+        // come out the right way up.
+        let (hp, bp, lp) = (c.highpass_gain * v[HP], v[BP], v[LP]);
         let y = match response {
             WaspResponse::Lowpass => lp,
             WaspResponse::Highpass => hp,
@@ -414,7 +466,7 @@ impl Kernel for Wasp {
             WaspResponse::Allpass => hp + lp - c.damping * bp,
         };
         let mut out = [0.0; 4];
-        out[DB12] = y as f32;
+        out[DB12] = (OUTPUT_GAIN * y) as f32;
         out
     }
 }
@@ -425,7 +477,9 @@ mod tests {
 
     #[test]
     fn the_circuit_rests_at_its_bias_point() {
-        assert!(diodes(0.0).0.abs() < 1e-9, "{}", diodes(0.0).0);
+        let (current, slope) = diodes(0.0);
+        assert!(current.abs() < 1e-9, "{current}");
+        assert!((slope / DIODE_REST_SLOPE - 1.0).abs() < 1e-9, "{slope}");
         let rates = Rates {
             engine: 48_000.0,
             core: 96_000.0,

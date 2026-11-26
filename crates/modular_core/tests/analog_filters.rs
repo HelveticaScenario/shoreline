@@ -314,7 +314,7 @@ fn wasp_filters_have_their_responses() {
         let db = wasp_gain_db("$notchWasp", ratio, 0.1, 0.0);
         assert!(db.abs() < 1.0, "$notchWasp at {ratio}×: {db} dB");
     }
-    // Toward full resonance the allpass dips at the cutoff.
+    // At full resonance the diodes' swing moves the level at the cutoff.
     for resonance in [0.0, 2.5, 4.0] {
         for ratio in [1.0 / 32.0, 0.5, 1.0, 2.0, 32.0] {
             let db = wasp_gain_db("$apfWasp", ratio, 0.1, resonance);
@@ -349,6 +349,35 @@ fn wasp_resonance_peaks_in_tune_and_squashes_as_it_gets_loud() {
     let quiet = wasp_gain_db("$bpfWasp", 1.0, 0.01, 5.0);
     let loud = wasp_gain_db("$bpfWasp", 1.0, 2.0, 5.0);
     assert!(loud < quiet - 6.0, "{quiet} dB quiet, {loud} dB loud");
+}
+
+#[test]
+fn wasp_drive_squares_a_loud_input_up_without_losing_level() {
+    let render = |drive: f32| {
+        let out = render_with(
+            "$lpfWasp",
+            100.0,
+            5.0,
+            json!(hz(8000.0)),
+            0.0,
+            9600,
+            json!({ "drive": drive }),
+        );
+        let tail = out[0].1[4800..].to_vec();
+        let rms = (tail.iter().map(|v| v * v).sum::<f32>() / tail.len() as f32).sqrt();
+        (rms, peak(&tail) / rms)
+    };
+    let (clean, clean_crest) = render(0.0);
+    let (driven, driven_crest) = render(5.0);
+    assert!(
+        (0.7..2.0).contains(&(driven / clean)),
+        "{clean} V clean, {driven} V driven"
+    );
+    // A sine's crest factor is √2 and a square's 1.
+    assert!(
+        clean_crest > 1.35 && driven_crest < 1.15,
+        "crest {clean_crest} clean, {driven_crest} driven"
+    );
 }
 
 #[test]
@@ -402,7 +431,7 @@ fn passband_peak(module_type: &str, level: f32, extra: Value) -> f32 {
 
 #[test]
 fn drive_saturates_and_gives_back_half_its_gain() {
-    for module_type in ["$lpfSk", "$lpfLadder", "$lpfDiode", "$lpfOta"] {
+    for module_type in ["$lpfSk", "$lpfLadder", "$lpfDiode", "$lpfOta", "$lpfWasp"] {
         // A quiet signal stays linear: +18 dB in, 9 dB back off.
         let quiet = passband_peak(module_type, 0.01, json!({ "drive": 5.0 }))
             / passband_peak(module_type, 0.01, json!({}));
