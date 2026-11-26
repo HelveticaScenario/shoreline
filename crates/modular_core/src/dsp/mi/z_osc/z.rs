@@ -1,9 +1,10 @@
 //! `plaits::ZOscillator`: a sine at the cutoff frequency, restarted every half
 //! carrier cycle and multiplied by a falling ramp and a carrier contour, which
-//! sounds like a resonant filter swept by a waveform.
+//! sounds like a resonant filter swept by a waveform. A phase offset moves the
+//! carrier through time; the formant restarts with it, so it follows.
 
 use crate::dsp::mi::core::control::Ramp;
-use crate::dsp::mi::core::phase::{fraction, wrap_below};
+use crate::dsp::mi::core::phase::{fraction, wrap, wrap_below};
 use crate::dsp::mi::core::polyblep::{next_blep_sample, this_blep_sample};
 use crate::dsp::mi::core::sine::sine;
 
@@ -41,6 +42,23 @@ impl ZOscillator {
     #[inline(always)]
     pub fn settled(&self) -> bool {
         self.formant_frequency.settled() && self.shape.settled() && self.mode.settled()
+    }
+
+    /// Starts a fresh oscillator `offset` of a carrier cycle into its waveform,
+    /// with the formant where a carrier at `f0` would have left it since its
+    /// last restart.
+    pub fn seed(&mut self, offset: f32, f0: f32) {
+        self.carrier_phase = offset;
+        self.discontinuity_phase = wrap(2.0 * offset);
+        let since_restart = self.discontinuity_phase / (2.0 * f0.abs());
+        self.formant_phase = fraction(since_restart * self.formant_frequency.subsample(0.0));
+        self.next_sample = z(
+            self.carrier_phase,
+            self.discontinuity_phase,
+            self.formant_phase,
+            self.shape.subsample(0.0),
+            self.mode.subsample(0.0),
+        );
     }
 
     /// One sample at carrier frequency `f0` (cycles per sample, finite;
