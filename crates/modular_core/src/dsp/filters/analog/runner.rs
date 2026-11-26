@@ -22,8 +22,8 @@ const DRIVE_OCTAVES: f32 = 0.6;
 struct Drive {
     glide: SwapGlide,
     last: f32,
-    /// Volts to kernel units going in, and back coming out with the
-    /// kernel's makeup for the drive's gain.
+    /// Volts to kernel units going in, and back coming out with half the
+    /// drive's gain taken off.
     input: f32,
     output: f32,
 }
@@ -41,14 +41,7 @@ impl Default for Drive {
 
 impl Drive {
     #[inline]
-    fn update(
-        &mut self,
-        drive: &Option<PolySignal>,
-        lane: usize,
-        volts: f32,
-        makeup: fn(f32) -> f32,
-        sample_rate: f32,
-    ) {
+    fn update(&mut self, drive: &Option<PolySignal>, lane: usize, volts: f32, sample_rate: f32) {
         self.glide.update(
             drive.value_or(lane, 0.0),
             drive.glide_mark(lane),
@@ -58,7 +51,7 @@ impl Drive {
         if changed(value, self.last) {
             let gain = (DRIVE_OCTAVES * value.clamp(0.0, 5.0)).exp2();
             self.input = gain / volts;
-            self.output = volts * makeup(gain);
+            self.output = volts / gain.sqrt();
             self.last = value;
         }
     }
@@ -134,8 +127,7 @@ pub(crate) fn run<K: Kernel>(
     });
     for (i, lane) in lane_state.iter_mut().enumerate().take(lanes) {
         let c = state.coeffs(lane);
-        lane.drive
-            .update(inputs.drive, i, K::VOLTS, K::drive_makeup, sample_rate);
+        lane.drive.update(inputs.drive, i, K::VOLTS, sample_rate);
         let x = sanitize(inputs.input.get_value(i)) * lane.drive.input
             + NOISE_LEVEL * lane.noise.next_bipolar();
         let y = if high_res {

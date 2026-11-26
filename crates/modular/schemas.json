@@ -22296,7 +22296,7 @@
     "name": "$lpfWasp",
     "docs": {
       "summary": "Wasp lowpass filter",
-      "description": "The lowpass of the EDP Wasp's filter as Doepfer's A-124 builds it: logic-chip inverters standing in for amplifiers, modelled part by part from measurements of the chips. `drive` overloads the inverter at its input, which squares the sound up into a fat, lopsided buzz, and the resonance whistles on the verge of oscillation and turns erratic when a loud signal meets it. It never self-oscillates, and like the hardware it passes no DC.",
+      "description": "The lowpass of the EDP Wasp's filter as Doepfer's A-124 builds it: logic-chip inverters standing in for amplifiers, modelled part by part from measurements of the chips. A loud input pushes the inverters toward their rails, which dirties the sound and makes the resonance erratic, so turn the input down for a cleaner tone. It never self-oscillates, and like the hardware it passes no DC.",
       "categories": [
         "filter"
       ],
@@ -22307,8 +22307,8 @@
           "code": "const seq = $`c2 c2 [eb2 c3] g1`\nbass: $saw(seq).lpfWasp(\n  $perc(seq, { decay: 0.25 }).range('c3', 'c7'),\n  4,\n)"
         },
         {
-          "title": "Driven into the rails",
-          "code": "lead: $pulse('c3').lpfWasp('c6', 3, { drive: 4 })"
+          "title": "Whistling lead",
+          "code": "lead: $pulse('c3').lpfWasp('c6', 4.6)"
         }
       ]
     },
@@ -22334,25 +22334,6 @@
         },
         "resonance": {
           "description": "resonant peak at the cutoff, most of it past 4 and less of it at high cutoffs; whistles at 5 without self-oscillating",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 5.0,
-            "controlMin": 0.0,
-            "controlMax": 5.0
-          }
-        },
-        "drive": {
-          "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -22486,20 +22467,6 @@
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": false
-      },
-      {
-        "name": "drive",
-        "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
       }
     ],
     "nestedFolds": [],
@@ -22521,7 +22488,7 @@
     "name": "$hpfWasp",
     "docs": {
       "summary": "Wasp highpass filter",
-      "description": "The highpass of the EDP Wasp's inverter filter: thin and wiry, with a resonance that whistles at the cutoff without self-oscillating and grit when driven.",
+      "description": "The highpass of the EDP Wasp's inverter filter: thin and wiry, with a resonance that whistles at the cutoff without self-oscillating and grit from a loud input.",
       "categories": [
         "filter"
       ],
@@ -22559,25 +22526,6 @@
         },
         "resonance": {
           "description": "resonant peak at the cutoff, most of it past 4 and less of it at high cutoffs; whistles at 5 without self-oscillating",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 5.0,
-            "controlMin": 0.0,
-            "controlMax": 5.0
-          }
-        },
-        "drive": {
-          "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -22711,20 +22659,6 @@
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": false
-      },
-      {
-        "name": "drive",
-        "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
       }
     ],
     "nestedFolds": [],
@@ -22784,25 +22718,6 @@
         },
         "resonance": {
           "description": "narrows the band and raises its level, most of all past 4; whistles at 5 without self-oscillating",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 5.0,
-            "controlMin": 0.0,
-            "controlMax": 5.0
-          }
-        },
-        "drive": {
-          "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -22936,20 +22851,6 @@
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": false
-      },
-      {
-        "name": "drive",
-        "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
       }
     ],
     "nestedFolds": [],
@@ -23009,25 +22910,6 @@
         },
         "resonance": {
           "description": "narrows the cut; it fills back in toward 5",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 5.0,
-            "controlMin": 0.0,
-            "controlMax": 5.0
-          }
-        },
-        "drive": {
-          "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -23161,20 +23043,6 @@
         "boundsNeedConstant": false,
         "fold": false,
         "readsSides": false
-      },
-      {
-        "name": "drive",
-        "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
       }
     ],
     "nestedFolds": [],
@@ -23196,7 +23064,7 @@
     "name": "$apfWasp",
     "docs": {
       "summary": "Wasp allpass filter",
-      "description": "An allpass mixed from the three outputs of the EDP Wasp's inverter filter: it shifts phase around the cutoff and keeps the level, so mixing it with the dry signal makes a phaser with the filter's grit when driven. Near full resonance the level strays at the cutoff.",
+      "description": "An allpass mixed from the three outputs of the EDP Wasp's inverter filter: it shifts phase around the cutoff and keeps the level, so mixing it with the dry signal makes a phaser with the filter's grit on a loud input. Near full resonance the level strays at the cutoff.",
       "categories": [
         "filter"
       ],
@@ -23234,25 +23102,6 @@
         },
         "resonance": {
           "description": "sharpens the phase sweep; toward 5 the level strays at the cutoff",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 5.0,
-            "controlMin": 0.0,
-            "controlMax": 5.0
-          }
-        },
-        "drive": {
-          "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
           "anyOf": [
             {
               "$ref": "#/$defs/PolySignal"
@@ -23376,20 +23225,6 @@
       {
         "name": "resonance",
         "description": "sharpens the phase sweep; toward 5 the level strays at the cutoff",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 5.0,
-        "controlMin": 0.0,
-        "controlMax": 5.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
-      },
-      {
-        "name": "drive",
-        "description": "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
         "paramType": "control",
         "defaultValue": 0.0,
         "minValue": 0.0,

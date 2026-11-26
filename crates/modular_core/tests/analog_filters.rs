@@ -305,8 +305,14 @@ fn wasp_filters_have_their_responses() {
             };
             assert!(db < slope, "{module_type} at {ratio}×: {db} dB");
         }
+        // The summer's low gain leaves the highpass a little over 2 dB
+        // short of the lowpass.
+        let nominal = if module_type == "$hpfWasp" { -2.3 } else { 0.0 };
         let db = wasp_gain_db(module_type, passband, 0.1, 0.0);
-        assert!(db.abs() < 1.0, "{module_type} passes its band at {db} dB");
+        assert!(
+            (db - nominal).abs() < 1.0,
+            "{module_type} passes its band at {db} dB"
+        );
     }
     let null = wasp_gain_db("$notchWasp", 1.0, 0.1, 0.0);
     assert!(null < -25.0, "$notchWasp: {null} dB");
@@ -362,52 +368,6 @@ fn wasp_resonance_peaks_in_tune_and_squashes_as_it_gets_loud() {
 }
 
 #[test]
-fn wasp_drive_squares_a_loud_input_up_and_never_turns_it_down() {
-    // RMS of the lowpass's output for a 100 Hz sine of `level` volts, and
-    // its third harmonic beside its fundamental.
-    let render = |level: f32, drive: f32| {
-        let out = render_with(
-            "$lpfWasp",
-            100.0,
-            level,
-            json!(hz(8000.0)),
-            0.0,
-            9600,
-            json!({ "drive": drive }),
-        );
-        let tail = &out[0].1[4800..];
-        let rms = (tail.iter().map(|v| v * v).sum::<f32>() / tail.len() as f32).sqrt();
-        let harmonic = |n: f32| {
-            let (mut re, mut im) = (0.0f32, 0.0f32);
-            for (i, v) in tail.iter().enumerate() {
-                let phase = std::f32::consts::TAU * n * 100.0 * i as f32 / SAMPLE_RATE;
-                re += v * phase.cos();
-                im += v * phase.sin();
-            }
-            re.hypot(im)
-        };
-        (rms, harmonic(3.0) / harmonic(1.0))
-    };
-    // A loud input holds its level until it reaches the rails and is
-    // louder past them.
-    let levels: Vec<f32> = (0..=5).map(|drive| render(5.0, drive as f32).0).collect();
-    for pair in levels.windows(2) {
-        assert!(pair[1] > 0.95 * pair[0], "{levels:?}");
-    }
-    assert!((1.2..2.5).contains(&(levels[5] / levels[0])), "{levels:?}");
-    // A square's third harmonic is a third of its fundamental.
-    let (clean_third, driven_third) = (render(5.0, 0.0).1, render(5.0, 5.0).1);
-    assert!(
-        clean_third < 0.03 && driven_third > 0.15,
-        "third harmonic {clean_third} clean, {driven_third} driven"
-    );
-    // A quiet one keeps the gain past where a loud one meets the rails:
-    // +18 dB in, 6 dB back off.
-    let quiet = render(0.01, 5.0).0 / render(0.01, 0.0).0;
-    assert!((20.0 * quiet.log10() - 12.04).abs() < 0.5, "{quiet}×");
-}
-
-#[test]
 fn wasp_filters_never_self_oscillate() {
     for module_type in WASP {
         for cutoff in [100.0, 1000.0, 8000.0] {
@@ -419,22 +379,14 @@ fn wasp_filters_never_self_oscillate() {
 }
 
 #[test]
-fn wasp_filters_stay_bounded_when_driven_under_audio_rate_modulation() {
+fn wasp_filters_stay_bounded_under_audio_rate_modulation() {
     for module_type in WASP {
-        for (resonance, drive) in [(0.0, 0.0), (5.0, 0.0), (2.5, 5.0), (5.0, 5.0)] {
-            let out = render_with(
-                module_type,
-                110.0,
-                5.0,
-                cable("mod"),
-                resonance,
-                24_000,
-                json!({ "drive": drive }),
-            );
+        for (resonance, level) in [(0.0, 5.0), (5.0, 5.0), (2.5, 20.0), (5.0, 20.0)] {
+            let out = render(module_type, 110.0, level, cable("mod"), resonance, 24_000);
             let peak = finite_peak(&out[0].1);
             assert!(
                 peak < 40.0,
-                "{module_type} resonance {resonance} drive {drive}: {peak} V"
+                "{module_type} resonance {resonance} at {level} V: {peak} V"
             );
         }
     }

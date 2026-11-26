@@ -44,12 +44,6 @@ pub(crate) trait Kernel: Copy + Default {
     /// Input volts per unit of the kernel's saturation curve.
     const VOLTS: f32;
 
-    /// The output gain that goes with `drive` raising the input by `gain`:
-    /// half of it taken back, in dB.
-    fn drive_makeup(gain: f32) -> f32 {
-        1.0 / gain.sqrt()
-    }
-
     /// Coefficients for the outputs in `taps`.
     fn coeffs(
         response: Self::Response,

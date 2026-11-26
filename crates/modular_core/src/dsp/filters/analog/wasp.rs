@@ -13,11 +13,6 @@
 //! feedback damps the loop more the higher it is tuned. The signal enters
 //! and leaves through coupling capacitors, so the filter passes no DC.
 //!
-//! Ahead of the loop sits one more inverter of the same chip, wired as a
-//! unity-gain amplifier. It is what a hot input overdrives: the signal
-//! squares up against its rails, and the level pot after it keeps that
-//! full swing inside what the loop passes cleanly.
-//!
 //! Voltages are in volts above ground, currents in mA, conductances in mS,
 //! resistances in kΩ and capacitances in mF. Each sample solves the node
 //! equations with Newton's method from the previous sample's voltages.
@@ -25,8 +20,7 @@
 use super::kernel::{DB12, Kernel, Rates, Taps};
 use super::wasp_circuit::{
     BP, C_INPUT, C_INTEGRATOR, C_LEAD, C_POT, Companions, G_DIODE_FEED, G_OTA_INPUT, G_SUM, HP,
-    History, INPUT_REST, LEVEL, LP, MAX_ITERATIONS, N1, N2, N3, Network, R_INPUT, UNKNOWNS,
-    branches, input_amplifier, newton,
+    History, LP, MAX_ITERATIONS, N1, N2, N3, Network, R_INPUT, UNKNOWNS, branches, newton,
 };
 use super::wasp_parts::{OTA_REFERENCE, Ota};
 
@@ -34,10 +28,8 @@ use super::wasp_parts::{OTA_REFERENCE, Ota};
 const OUTPUT_CORNER: f64 = 0.16;
 
 /// Small-signal transconductance and output conductance of the inverters
-/// at rest: the input amplifier, the summer and the bandpass integrator,
-/// which share a bias, and the lowpass integrator.
-const INPUT_GM: f64 = 5.256;
-const INPUT_GO: f64 = 0.354;
+/// at rest: the summer and the bandpass integrator, which share a bias,
+/// and the lowpass integrator.
 const GM: f64 = 5.207;
 const GO: f64 = 0.357;
 const LOWPASS_GM: f64 = 5.34;
@@ -48,16 +40,6 @@ const LOWPASS_REST: f64 = 5.0;
 /// The circuit at rest with the resonance pot halfway, where the solve
 /// for any other setting starts.
 const REST_GUESS: [f64; UNKNOWNS] = [5.6007, 6.0, 5.6021, 6.0, 5.6753, 4.9921, 0.1987];
-
-/// The input amplifier's gain for a quiet signal, which its low open-loop
-/// gain leaves short of the unity it is wired for.
-const INPUT_GAIN: f64 = (INPUT_GM - G_SUM) / (INPUT_GM + 2.0 * INPUT_GO + 3.0 * G_SUM);
-/// Brings the loop's outputs back to the level of the module's input,
-/// past the input amplifier and the level pot.
-const OUTPUT_GAIN: f64 = 1.0 / (INPUT_GAIN * LEVEL * 27.0 / R_INPUT);
-/// The drive gain at which a 5 V input starts to square up against the
-/// input amplifier's rails.
-const RAIL_GAIN: f32 = 2.0;
 
 /// A companion conductance that holds the pot's capacitor still.
 const SIGNAL_GROUND: f64 = 1.0e12;
@@ -82,9 +64,8 @@ pub struct WaspCoeffs {
     otas: Ota,
     /// The resonance pot's rotation.
     rotation: f64,
-    /// Brings the highpass to the level of the lowpass, which the summer's
-    /// low gain leaves it short of.
-    highpass_gain: f64,
+    /// Brings the highpass to the level of the lowpass.
+    highpass_match: f64,
     /// The bandpass's weight in the summer beside the lowpass's, for a
     /// quiet signal.
     damping: f64,
@@ -102,8 +83,6 @@ pub struct WaspState {
     v: [f64; UNKNOWNS],
     moved: [f64; UNKNOWNS],
     history: History,
-    /// The input amplifier's previous output, above its rest.
-    input: f64,
     /// The output capacitor's charge.
     output: f64,
 }
@@ -129,7 +108,6 @@ impl WaspState {
                 integrator: [(v[N2] - v[BP], 0.0), (v[N3] - v[LP], 0.0)],
                 pot: (pot, 0.0),
             },
-            input: 0.0,
             output: c.mix(response, &v),
         }
     }
@@ -139,17 +117,19 @@ impl WaspCoeffs {
     /// The response's mix of the loop's outputs, each against its rest.
     #[inline]
     fn mix(&self, response: WaspResponse, v: &[f64; UNKNOWNS]) -> f64 {
-        // The input amplifier and the summer each invert, so the outputs
-        // come out the right way up.
-        let hp = self.highpass_gain * (v[HP] - OTA_REFERENCE);
-        let bp = v[BP] - OTA_REFERENCE;
-        let lp = v[LP] - LOWPASS_REST;
+        // The summer inverts, so each output is taken upside down.
+        let hp = OTA_REFERENCE - v[HP];
+        let bp = OTA_REFERENCE - v[BP];
+        let lp = LOWPASS_REST - v[LP];
+        // The summer's low gain leaves the highpass short of the lowpass,
+        // and the two cancel at the cutoff only once matched.
+        let matched = self.highpass_match * hp;
         match response {
             WaspResponse::Lowpass => lp,
             WaspResponse::Highpass => hp,
             WaspResponse::Bandpass => bp,
-            WaspResponse::Notch => hp + lp,
-            WaspResponse::Allpass => hp + lp - self.damping * bp,
+            WaspResponse::Notch => matched + lp,
+            WaspResponse::Allpass => matched + lp - self.damping * bp,
         }
     }
 }
@@ -162,15 +142,8 @@ impl Kernel for Wasp {
     type Options = ();
     type Coeffs = WaspCoeffs;
     type State = WaspState;
-    /// A 5 V input swings the input amplifier a little under half the way
-    /// to its rails.
-    const VOLTS: f32 = 2.0;
-
-    /// The level holds while `drive` carries a 5 V input up to the input
-    /// amplifier's rails, and nothing more comes off once it is there.
-    fn drive_makeup(gain: f32) -> f32 {
-        1.0 / gain.min(RAIL_GAIN)
-    }
+    /// The circuit takes the module's volts as they come.
+    const VOLTS: f32 = 1.0;
 
     fn coeffs(
         _: WaspResponse,
@@ -212,7 +185,7 @@ impl Kernel for Wasp {
             },
             otas: Ota::new(Ota::bias_for(g * integrator)),
             rotation,
-            highpass_gain: 1.0 / summer_gain,
+            highpass_match: 1.0 / summer_gain,
             // The pot's share, and C2's, which grows with the cutoff.
             damping: signal.wiper[1] + radians * C_LEAD / G_SUM,
             output: 1.0 - (-std::f64::consts::TAU * OUTPUT_CORNER / core).exp(),
@@ -230,13 +203,12 @@ impl Kernel for Wasp {
         if !state.settled {
             *state = WaspState::at_rest(response, c);
         }
-        let amplified = input_amplifier(x as f64, state.input + INPUT_REST) - INPUT_REST;
+        let source = x as f64;
         let k = &c.companions;
         // The solve starts where the last two samples point.
         let start = std::array::from_fn(|i| state.v[i] + state.moved[i]);
-        let source = LEVEL * amplified;
         let solved = newton(k, &c.otas, &state.history, source, start, MAX_ITERATIONS)
-            .filter(|v| amplified.is_finite() && v.iter().all(|value| value.is_finite()));
+            .filter(|v| source.is_finite() && v.iter().all(|value| value.is_finite()));
         let Some(v) = solved else {
             *state = WaspState::default();
             return [0.0; 4];
@@ -256,11 +228,10 @@ impl Kernel for Wasp {
         );
         state.moved = std::array::from_fn(|i| v[i] - state.v[i]);
         state.v = v;
-        state.input = amplified;
         let mixed = c.mix(response, &v);
         state.output += c.output * (mixed - state.output);
         let mut out = [0.0; 4];
-        out[DB12] = ((mixed - state.output) * OUTPUT_GAIN) as f32;
+        out[DB12] = (mixed - state.output) as f32;
         out
     }
 }
@@ -319,9 +290,6 @@ mod tests {
 
     #[test]
     fn the_rest_constants_are_the_models_own() {
-        let (current, gm, go) = inverter(INPUT_REST, INPUT_REST);
-        assert!(current.abs() < 1e-9, "{current}");
-        assert!((-gm / INPUT_GM - 1.0).abs() < 0.01 && (-go / INPUT_GO - 1.0).abs() < 0.01);
         let rest = WaspState::at_rest(WaspResponse::Lowpass, &coeffs(2.5)).v;
         for (value, guess) in rest.iter().zip(REST_GUESS) {
             assert!((value - guess).abs() < 1e-3, "{rest:?}");

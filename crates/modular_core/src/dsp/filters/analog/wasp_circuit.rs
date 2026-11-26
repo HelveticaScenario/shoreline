@@ -6,11 +6,8 @@
 
 use super::wasp_parts::{OTA_REFERENCE, Ota, diodes, inverter};
 
-/// How far up the 50 kΩ level pot sits, and what it and R1 put between
-/// the input amplifier and the summer: the amplifier's full swing reaches
-/// the loop at 0.4 of it, inside what the loop passes cleanly.
-pub(super) const LEVEL: f64 = 0.58;
-pub(super) const R_INPUT: f64 = 27.0 + LEVEL * (1.0 - LEVEL) * 50.0;
+/// R1 from the level pot, fully up.
+pub(super) const R_INPUT: f64 = 27.0;
 /// The summer's R2, R3 and R4.
 pub(super) const G_SUM: f64 = 1.0 / 27.0;
 /// An OTA's input network as its inverter's load: 47 kΩ into 1 kΩ and the
@@ -31,9 +28,6 @@ pub(super) const C_INPUT: f64 = 0.22e-3;
 pub(super) const C_LEAD: f64 = 100.0e-9;
 pub(super) const C_INTEGRATOR: f64 = 330.0e-9;
 pub(super) const C_POT: f64 = 0.22e-3;
-
-/// Where the input amplifier rests, biased by its own feedback.
-pub(super) const INPUT_REST: f64 = 5.628_774_290_354_321;
 
 pub(super) const MAX_ITERATIONS: usize = 12;
 /// Volts a Newton step must fall under to end the solve. Each step
@@ -364,24 +358,4 @@ pub(super) fn newton(
         }
     }
     Some(v)
-}
-
-/// The input amplifier's output for the input `x` above its rest, by
-/// Newton's method from its previous output. Its input node sits halfway
-/// between the two, and its equation falls monotonically in the output.
-#[inline]
-pub(super) fn input_amplifier(x: f64, previous: f64) -> f64 {
-    let mut o = previous;
-    for _ in 0..MAX_ITERATIONS {
-        let n = 0.5 * (INPUT_REST + x + o);
-        let (i, di_dn, di_do) = inverter(n, o);
-        let residual = i - G_SUM * (o - n) - G_SUM * (o - INPUT_REST);
-        let slope = 0.5 * di_dn + di_do - 1.5 * G_SUM;
-        let step = (residual / slope).clamp(-NODE_STEP, NODE_STEP);
-        o -= step;
-        if step.abs() < TOLERANCE {
-            break;
-        }
-    }
-    o
 }

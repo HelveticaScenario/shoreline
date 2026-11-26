@@ -23,7 +23,7 @@ macro_rules! wasp_filter {
             kernel = Wasp,
             response = WaspResponse::$response,
             options = |_params| (),
-            drive_doc = "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
+            drive = [],
             freq = $freq,
             freq_doc = $freq_doc,
             resonance_doc = $resonance_doc,
@@ -38,10 +38,10 @@ const LPF_WASP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wasp lowpass filter",
     description: "The lowpass of the EDP Wasp's filter as Doepfer's A-124 builds it: \
                   logic-chip inverters standing in for amplifiers, modelled part by part from \
-                  measurements of the chips. `drive` overloads the inverter at its input, \
-                  which squares the sound up into a fat, lopsided buzz, and the resonance \
-                  whistles on the verge of oscillation and turns erratic when a loud signal \
-                  meets it. It never self-oscillates, and like the hardware it passes no DC.",
+                  measurements of the chips. A loud input pushes the inverters toward their \
+                  rails, which dirties the sound and makes the resonance erratic, so turn the \
+                  input down for a cleaner tone. It never self-oscillates, and like the \
+                  hardware it passes no DC.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
@@ -56,8 +56,8 @@ const LPF_WASP_DOCS: ModuleDocs = ModuleDocs {
             "#,
         },
         DocExample {
-            title: "Driven into the rails",
-            code: "lead: $pulse('c3').lpfWasp('c6', 3, { drive: 4 })",
+            title: "Whistling lead",
+            code: "lead: $pulse('c3').lpfWasp('c6', 4.6)",
         },
     ],
 };
@@ -76,7 +76,7 @@ const HPF_WASP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wasp highpass filter",
     description: "The highpass of the EDP Wasp's inverter filter: thin and wiry, with a \
                   resonance that whistles at the cutoff without self-oscillating and grit \
-                  when driven.",
+                  from a loud input.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
@@ -191,7 +191,7 @@ const APF_WASP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wasp allpass filter",
     description: "An allpass mixed from the three outputs of the EDP Wasp's inverter \
                   filter: it shifts phase around the cutoff and keeps the level, so mixing it \
-                  with the dry signal makes a phaser with the filter's grit when driven. Near \
+                  with the dry signal makes a phaser with the filter's grit on a loud input. Near \
                   full resonance the level strays at the cutoff.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
