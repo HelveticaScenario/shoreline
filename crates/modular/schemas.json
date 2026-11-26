@@ -35668,6 +35668,10 @@
         {
           "title": "Sweeping vowel bass",
           "code": "const vowel = $sine('0.1hz').range(0, 2)\nbass: $mi.formant('c2', { formant: vowel })"
+        },
+        {
+          "title": "Unison lead",
+          "code": "lead: $super('a2', (freq, { phaseOffset }) =>\n  $mi.formant(freq, { formant: 1, ratio: 3, phaseOffset }),\n)"
         }
       ]
     },
@@ -35734,6 +35738,25 @@
             "maxValue": 5.0,
             "controlMin": 0.0,
             "controlMax": 5.0
+          }
+        },
+        "phaseOffset": {
+          "description": "shifts the whole waveform in time, in cycles; wraps around",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolySignal"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "x-signal": {
+            "paramType": "control",
+            "defaultValue": 0.0,
+            "minValue": 0.0,
+            "maxValue": 1.0,
+            "controlMin": 0.0,
+            "controlMax": 1.0
           }
         },
         "fm": {
@@ -35897,6 +35920,20 @@
         "maxValue": 5.0,
         "controlMin": 0.0,
         "controlMax": 5.0,
+        "carriesBounds": false,
+        "boundsNeedConstant": false,
+        "fold": false,
+        "readsSides": false
+      },
+      {
+        "name": "phaseOffset",
+        "description": "shifts the whole waveform in time, in cycles; wraps around",
+        "paramType": "control",
+        "defaultValue": 0.0,
+        "minValue": 0.0,
+        "maxValue": 1.0,
+        "controlMin": 0.0,
+        "controlMax": 1.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,

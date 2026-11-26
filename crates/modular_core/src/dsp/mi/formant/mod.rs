@@ -11,7 +11,7 @@ use crate::{
     dsp::{
         mi::core::{
             filter::{OnePole, tan_dirty},
-            phase::{limit_frequency, max_frequency},
+            phase::{limit_frequency, max_frequency, wrap},
         },
         oscillators::{FmMode, apply_fm},
         utils::{changed, voct_to_hz},
@@ -56,6 +56,14 @@ struct FormantParams {
     #[deserr(default)]
     width: Option<PolySignal>,
     #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
+    #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero plays each grain's window backward",
         type = audio,
     )]
@@ -81,13 +89,23 @@ const FORMANT_DOCS: ModuleDocs = ModuleDocs {
                   resonant timbres whose formants stay put as the pitch moves.",
     categories: &[ReferenceCategory::Oscillator],
     sections: &[],
-    examples: &[DocExample {
-        title: "Sweeping vowel bass",
-        code: r#"
-            const vowel = $sine('0.1hz').range(0, 2)
-            bass: $mi.formant('c2', { formant: vowel })
-        "#,
-    }],
+    examples: &[
+        DocExample {
+            title: "Sweeping vowel bass",
+            code: r#"
+                const vowel = $sine('0.1hz').range(0, 2)
+                bass: $mi.formant('c2', { formant: vowel })
+            "#,
+        },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.formant(freq, { formant: 1, ratio: 3, phaseOffset }),
+                )
+            "#,
+        },
+    ],
 };
 
 #[module(name = "$mi.formant", docs = FORMANT_DOCS, args(freq), has_init, block)]
@@ -128,6 +146,12 @@ struct Voice {
     formant: SwapGlide,
     ratio: SwapGlide,
     width: SwapGlide,
+    phase_offset: SwapGlide,
+    /// The last finite phase offset, in `[0, 1)`.
+    offset: f32,
+    /// Whether the oscillator has started at its phase offset; a voice carried
+    /// across a patch update keeps running from where it is.
+    seeded: bool,
     /// Formant frequencies and bleed for the cached `formant`/`ratio` pair;
     /// `NaN` = never computed.
     last_formant: f32,
@@ -137,7 +161,7 @@ struct Voice {
     /// Pitch the DC blocker is tuned to; `NaN` = never tuned.
     last_f0: f32,
     /// The raw pitch and knobs of the last `control`; `NaN` = never set.
-    last_inputs: [f32; 4],
+    last_inputs: [f32; 5],
 }
 
 impl Default for Voice {
@@ -149,12 +173,15 @@ impl Default for Voice {
             formant: SwapGlide::default(),
             ratio: SwapGlide::default(),
             width: SwapGlide::default(),
+            phase_offset: SwapGlide::default(),
+            offset: FormantParams::PHASE_OFFSET_DEFAULT,
+            seeded: false,
             last_formant: f32::NAN,
             last_ratio: f32::NAN,
             formants: [0.0; 2],
             bleed: 0.0,
             last_f0: f32::NAN,
-            last_inputs: [f32::NAN; 4],
+            last_inputs: [f32::NAN; 5],
         }
     }
 }
@@ -164,6 +191,7 @@ struct Knobs {
     formant: (f32, GlideMark),
     ratio: (f32, GlideMark),
     width: (f32, GlideMark),
+    offset: (f32, GlideMark),
 }
 
 impl Voice {
@@ -179,12 +207,19 @@ impl Voice {
         state: &FormantState,
     ) {
         // Unchanged inputs on settled ramps would leave every control as it is.
-        let inputs = [f0, knobs.formant.0, knobs.ratio.0, knobs.width.0];
+        let inputs = [
+            f0,
+            knobs.formant.0,
+            knobs.ratio.0,
+            knobs.width.0,
+            knobs.offset.0,
+        ];
         if inputs == self.last_inputs
             && self.osc.settled()
             && !self.formant.will_glide(knobs.formant.1)
             && !self.ratio.will_glide(knobs.ratio.1)
             && !self.width.will_glide(knobs.width.1)
+            && !self.phase_offset.will_glide(knobs.offset.1)
         {
             return;
         }
@@ -197,6 +232,12 @@ impl Voice {
             .follow(knobs.formant.0, knobs.formant.1, sample_rate);
         let ratio = self.ratio.follow(knobs.ratio.0, knobs.ratio.1, sample_rate);
         let width = self.width.follow(knobs.width.0, knobs.width.1, sample_rate);
+        let offset = self
+            .phase_offset
+            .follow(knobs.offset.0, knobs.offset.1, sample_rate);
+        if offset.is_finite() {
+            self.offset = wrap(offset);
+        }
 
         // A NaN or infinite knob holds the formants where they are.
         if (changed(formant, self.last_formant) || changed(ratio, self.last_ratio))
@@ -236,7 +277,15 @@ impl Voice {
     #[inline(always)]
     fn step(&mut self, f0: f32, state: &FormantState) -> f32 {
         let f0 = limit_frequency(f0, state.max_carrier);
-        OUTPUT_GAIN * self.dc_blocker.high_pass(self.osc.step(f0))
+        // At offset 0 a fresh voice starts as Plaits' does.
+        if !self.seeded {
+            if self.offset != 0.0 {
+                self.osc.seed(self.offset, f0);
+            }
+            self.seeded = true;
+        }
+        let out = self.osc.step(f0, self.offset, state.max_carrier);
+        OUTPUT_GAIN * self.dc_blocker.high_pass(out)
     }
 }
 
@@ -267,6 +316,11 @@ impl Formant {
                     p.width.value_or(lane, FormantParams::WIDTH_DEFAULT),
                     p.width.glide_mark(lane),
                 ),
+                offset: (
+                    p.phase_offset
+                        .value_or(lane, FormantParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
+                ),
             };
             voice.control(f0, knobs, 1.0, sample_rate, &self.state);
             self.outputs.sample.set(lane, voice.step(f0, &self.state));
@@ -289,6 +343,7 @@ impl Formant {
                 p.formant.glide_mark(lane),
                 p.ratio.glide_mark(lane),
                 p.width.glide_mark(lane),
+                p.phase_offset.glide_mark(lane),
             );
             for i in range.clone() {
                 let f0 = apply_fm(inputs.freq.row(i)[lane], inputs.fm.row(i)[lane], p.fm_mode)
@@ -297,6 +352,7 @@ impl Formant {
                     formant: (inputs.formant.row(i)[lane], marks.0),
                     ratio: (inputs.ratio.row(i)[lane], marks.1),
                     width: (inputs.width.row(i)[lane], marks.2),
+                    offset: (inputs.phase_offset.row(i)[lane], marks.3),
                 };
                 voice.control(f0, knobs, 1.0, sample_rate, state);
                 outputs.sample.slot_mut(i)[lane] = voice.step(f0, state);
