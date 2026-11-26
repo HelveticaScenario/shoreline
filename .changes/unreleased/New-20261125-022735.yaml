@@ -1,0 +1,3 @@
+kind: New
+body: 'Wasp filters, modelled on the circuit of the EDP Wasp: `$lpfWasp`, `$hpfWasp`, `$bpfWasp`, `$notchWasp` and `$apfWasp`. Built from logic-chip inverters, they turn grainy and lopsided when pushed with `drive`, and their resonance whistles on the verge of oscillation and squashes as it gets loud, without ever self-oscillating.'
+time: 2026-11-25T02:27:35.398791-05:00
