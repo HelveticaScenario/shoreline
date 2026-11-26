@@ -122,29 +122,29 @@ describe('computeControlQuickFixes — wrap chain module arguments', () => {
 describe('computeControlQuickFixes — namespaced modules', () => {
     test('direct dotted factory call resolves', () => {
         const { source, fixes } = fixesAt(
-            `$unstable.filter.lp($sine(0), '100hz', 2.|5).track();`,
+            `$unstable.shape.digital($sine(0), 2.|5).track();`,
         );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('resonance', 2.5, `);
+        expect(fix.title).toBe(`Wrap 'drive' in $slider`);
+        expect(apply(source, fix)).toContain(`$slider('drive', 2.5, `);
     });
 
     test('dotted chain path resolves', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).unstable.filter.lp('100hz', 2.|5).track();`,
+            `$sine(0).unstable.shape.digital(2.|5).track();`,
         );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('resonance', 2.5, `);
+        expect(fix.title).toBe(`Wrap 'drive' in $slider`);
+        expect(apply(source, fix)).toContain(`$slider('drive', 2.5, `);
     });
 
     test('a dotted factory split across lines resolves', () => {
         const { source, fixes } = fixesAt(
-            `$unstable.filter\n  // comment\n  .lp($sine(0), '100hz', 2.|5).track();`,
+            `$unstable.shape\n  // comment\n  .digital($sine(0), 2.|5).track();`,
         );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'resonance' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('resonance', 2.5, `);
+        expect(fix.title).toBe(`Wrap 'drive' in $slider`);
+        expect(apply(source, fix)).toContain(`$slider('drive', 2.5, `);
     });
 
     test('a namespaced drum call broken across lines resolves', () => {
@@ -156,9 +156,9 @@ describe('computeControlQuickFixes — namespaced modules', () => {
 
     test('comments between segments do not break resolution', () => {
         const { fixes } = fixesAt(
-            `$unstable /* filters */ .filter.lp($sine(0), '100hz', 2.|5).track();`,
+            `$unstable /* shapers */ .shape.digital($sine(0), 2.|5).track();`,
         );
-        expect(wrapFix(fixes).title).toBe(`Wrap 'resonance' in $slider`);
+        expect(wrapFix(fixes).title).toBe(`Wrap 'drive' in $slider`);
     });
 });
 

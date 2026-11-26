@@ -1,7 +1,7 @@
 /**
  * Resolve a DSL call expression to the params its arguments set.
  *
- * Module calls — direct factories (`$saw(...)`, `$unstable.filter.lp(...)`)
+ * Module calls — direct factories (`$saw(...)`, `$tr808.kick(...)`)
  * and chain modules on audio signals (`.lpf(...)`) — resolve through the module
  * schemas, which carry each param's signal type, range, and default. Every
  * other API call — functions (`$setMainGain`, `$phase.bend`, `$v.osc`),

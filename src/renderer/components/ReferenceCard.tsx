@@ -98,7 +98,11 @@ const Examples: React.FC<{ examples: DocExample[] }> = ({ examples }) => {
 };
 
 const Meta: React.FC<{ meta?: string }> = ({ meta }) =>
-    meta ? <span className="param-meta">{meta}</span> : null;
+    meta ? (
+        <span className="param-meta">
+            <InlineDoc text={meta} />
+        </span>
+    ) : null;
 
 /** An output or a returned member: its name, a note such as `(default)`,
  *  its description and range. */

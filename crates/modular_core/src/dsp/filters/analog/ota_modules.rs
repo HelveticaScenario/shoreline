@@ -17,10 +17,9 @@ const LPF_OTA_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Breathing pad",
             code: r#"
-                chord: $saw('c3:M9').lpfOta(
-                  $sine('0.1hz').range('c4', 'c7'),
-                  2.5,
-                )
+                chord: $saw('c3:M9')
+                  .lpfOta($sine('0.1hz').range('c4', 'c7'), 2.5)
+                  .gain(4.5)
             "#,
         },
         DocExample {
@@ -56,10 +55,9 @@ const HPF_OTA_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Pad thinning out and back",
             code: r#"
-                chord: $saw('c3:M7').hpfOta(
-                  $sine('0.1hz').range('c3', 'c6'),
-                  2,
-                )
+                chord: $saw('c3:M7')
+                  .hpfOta($sine('0.1hz').range('c3', 'c6'), 2)
+                  .gain(4.5)
             "#,
         },
         DocExample {
@@ -122,10 +120,9 @@ const NOTCH_OTA_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Twin nulls sweeping a pad",
             code: r#"
-                chord: $saw('c3:M9').notchOta(
-                  $sine('0.15hz').range('c4', 'c7'),
-                  2,
-                )
+                chord: $saw('c3:M9')
+                  .notchOta($sine('0.15hz').range('c4', 'c7'), 2)
+                  .gain(4.5)
             "#,
         },
         DocExample {
@@ -159,16 +156,15 @@ const APF_OTA_DOCS: ModuleDocs = ModuleDocs {
                 chord: $saw('c3:M9')
                   .apfOta($sine('0.3hz').range('c4', 'c7'), 2)
                   .wet(2.5)
+                  .gain(4.5)
             "#,
         },
         DocExample {
             title: "One-notch phaser",
             code: r#"
-                const pad = $saw('c3:m7')
-                chord: $mix([
-                  pad,
-                  pad.apfOta($sine('0.2hz').range('c5', 'c7'))._12db,
-                ])
+                chord: $saw('c3:m7')
+                  .apfOta($sine('0.2hz').range('c5', 'c7'))
+                  ._12db.wet(2.5)
             "#,
         },
     ],
