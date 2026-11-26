@@ -4,6 +4,7 @@
 
 use super::control::Ramp;
 use super::dsp::constrain;
+use super::phase::wrap;
 use super::polyblep::{
     edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
     this_integrated_blep_sample,
@@ -15,6 +16,8 @@ pub struct SlopeOscillator {
     next_sample: f32,
     /// Whether the phase is past the peak.
     high: bool,
+    /// The phase offset travelled so far, in `[0, 1)`.
+    offset: f32,
     /// Plaits' one-sample `ParameterInterpolator`s, which land a hair off
     /// their target; kept so the oscillator matches Plaits bit for bit.
     frequency: Ramp,
@@ -31,6 +34,7 @@ impl Default for SlopeOscillator {
             phase: 0.5,
             next_sample: 0.0,
             high: true,
+            offset: 0.0,
             frequency,
             pw,
         }
@@ -38,13 +42,30 @@ impl Default for SlopeOscillator {
 }
 
 impl SlopeOscillator {
+    /// Starts a fresh oscillator `offset` (in `[0, 1)`) of a cycle further into
+    /// its waveform, with the peak at `pw`.
+    pub fn seed(&mut self, offset: f32, pw: f32) {
+        self.phase = wrap(self.phase + offset);
+        self.offset = offset;
+        // A phase on the peak has yet to cross it.
+        self.high = self.phase <= pw;
+    }
+
     /// One sample, from −1 to 1, at `frequency` cycles per sample (finite;
-    /// negative runs backward) with the peak at `pw`.
+    /// negative runs backward) with the peak at `pw`. The phase travels to
+    /// `offset` (in `[0, 1)`) as extra frequency, by the shortest way and as
+    /// fast as ±`max` cycles per sample allows, so every corner stays
+    /// band-limited and an oscillator that moves to an offset plays as one
+    /// seeded there does.
     #[inline(always)]
-    pub fn step(&mut self, frequency: f32, pw: f32) -> f32 {
+    pub fn step(&mut self, frequency: f32, pw: f32, offset: f32, max: f32) -> f32 {
         self.frequency.set(frequency, Some(1.0));
         self.pw.set(pw, Some(1.0));
         let frequency = self.frequency.next_value();
+        let behind = offset - self.offset;
+        let shift = (behind - behind.round()).clamp(-max - frequency, max - frequency);
+        self.offset = wrap(self.offset + shift);
+        let frequency = frequency + shift;
         // Past 0.25 cycles per sample, reachable at engine rates below 48 kHz,
         // the bounds would pin the peak to an edge and make a slope infinite.
         let speed = frequency.abs().min(0.25);
