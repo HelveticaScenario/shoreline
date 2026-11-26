@@ -14,7 +14,6 @@ use crate::dsp::utils::{SchmittTrigger, sanitize, sin_turns};
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::reference_category::ReferenceCategory;
-use crate::types::PatchUpdateHandler;
 
 /// Power gain that brings a held sine back out at its input level when the
 /// build-up is fully compensated: random phases add the overlapping frames
@@ -270,7 +269,6 @@ const SPECTRAL_WASH_DOCS: ModuleDocs = ModuleDocs {
     docs = SPECTRAL_WASH_DOCS,
     lanes = 1,
     has_init,
-    patch_update,
     args(input),
     experimental
 )]
@@ -284,12 +282,16 @@ impl SpectralWash {
     /// Allocate the transform and the per-bin tables, all sized by the
     /// sample rate alone. Main thread.
     fn init(&mut self, sample_rate: f32) {
+        // Seeded once: a patch update swaps the running streams into the
+        // rebuilt module, so the phases never repeat.
+        let seed = seed_base(self);
         let state = &mut self.state;
         state.stft.allocate(sample_rate);
         let bins = state.stft.bins();
         state.hop_seconds = state.stft.hop() as f32 / sample_rate;
         state.bin_hz = sample_rate / state.stft.size() as f32;
-        for side in &mut state.sides {
+        for (i, side) in state.sides.iter_mut().enumerate() {
+            side.rng.seed(seed, i);
             side.held = vec![0.0; bins].into_boxed_slice();
             side.moved = vec![0.0; bins].into_boxed_slice();
         }
@@ -330,21 +332,13 @@ impl SpectralWash {
     }
 }
 
-impl PatchUpdateHandler for SpectralWash {
-    fn on_patch_update(&mut self) {
-        let seed = seed_base(self);
-        for (i, side) in self.state.sides.iter_mut().enumerate() {
-            side.rng.seed(seed, i);
-        }
-    }
-}
-
 message_handlers!(impl SpectralWash {});
 
 #[cfg(test)]
 mod tests {
     use super::super::test_support::*;
     use super::*;
+    use crate::dsp::utils::rng::LcgRng;
     use crate::poly::{PairSignal, PolySignal};
     use crate::types::{OutputStruct, Signal};
 
@@ -391,7 +385,6 @@ mod tests {
             _connected: Default::default(),
         };
         module.init(sample_rate);
-        module.on_patch_update();
         module
     }
 
@@ -552,5 +545,66 @@ mod tests {
                 assert!(rms(&left[48_000..]) > 0.0, "the tail survives a NaN input");
             }
         }
+    }
+
+    #[test]
+    fn held_notes_settle_at_the_longest_decay() {
+        for (blur, shimmer) in [(0.0, 0.0), (5.0, 0.0), (5.0, 5.0), (5.0, -5.0)] {
+            let mut module = wash(Knobs {
+                decay: Some(5.0),
+                blur: Some(blur),
+                shimmer: Some(shimmer),
+                ..Default::default()
+            });
+            let (left, right) = run(&mut module, 1_920_000, tone, None);
+            for side in [&left, &right] {
+                let (settled, late) = (rms(&side[960_000..1_440_000]), rms(&side[1_440_000..]));
+                assert!(
+                    late < settled * 1.3 && peak(side) < 50.0,
+                    "blur {blur}, shimmer {shimmer}: settled {settled}, late {late}, peak {}",
+                    peak(side)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_frozen_blurred_tail_never_grows() {
+        for shimmer in [-5.0, 0.0, 5.0] {
+            let mut module = wash(Knobs {
+                blur: Some(5.0),
+                shimmer: Some(shimmer),
+                ..Default::default()
+            });
+            let (left, _) = run(&mut module, 1_440_000, noise_burst(), Some(BURST + 4_096));
+            let (early, late) = (rms(&left[48_000..144_000]), rms(&left[1_344_000..]));
+            assert!(
+                late <= early * 1.01,
+                "shimmer {shimmer}: early {early}, late {late}"
+            );
+        }
+    }
+
+    #[test]
+    fn controls_swept_every_frame_stay_bounded() {
+        let mut module = wash(Knobs::default());
+        let mut rng = LcgRng::default();
+        rng.seed(11, 0);
+        let mut out = Vec::with_capacity(1_920_000);
+        for n in 0..960_000 {
+            if n % 1_024 == 0 {
+                let params = &mut module.params;
+                params.decay = control(rng.next_unit() * 5.0);
+                params.damping = control(rng.next_bipolar() * 5.0);
+                params.blur = control(rng.next_unit() * 5.0);
+                params.shimmer = control(rng.next_bipolar() * 5.0);
+                params.freeze = control(if rng.next_unit() < 0.2 { 5.0 } else { 0.0 });
+            }
+            module.set_input(PairSignal::from_mono(PolySignal::mono(Signal::Volts(
+                tone(n),
+            ))));
+            out.extend(module.step());
+        }
+        assert!(peak(&out) < 50.0, "peak {}", peak(&out));
     }
 }

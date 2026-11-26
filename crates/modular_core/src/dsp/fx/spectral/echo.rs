@@ -13,7 +13,6 @@ use crate::dsp::utils::{SchmittTrigger, sanitize, sin_turns};
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 use crate::reference_category::ReferenceCategory;
-use crate::types::PatchUpdateHandler;
 
 /// Frames of spectrum each side keeps: covers [`MAX_SPAN_SECONDS`] at the
 /// shortest hop any engine rate gives.
@@ -209,8 +208,6 @@ impl EchoSide {
         let bins = spectrum.len();
         let last = bins - 1;
         let blur = controls.blur.clamp(0.0, 5.0) / 5.0;
-        // Amplitude weights that keep the power when the three bins are out
-        // of step, as the random turn makes them.
         let share = MAX_BLUR_SHARE * blur;
         let (own, lent) = ((1.0 - share).sqrt(), (0.5 * share).sqrt());
         let write = self.row * bins;
@@ -230,15 +227,25 @@ impl EchoSide {
                     let step = 1 + (source as f32 * MAX_BLUR_REACH * blur) as usize;
                     let below = row * bins + source.saturating_sub(step);
                     let above = row * bins + (source + step).min(last);
-                    let neighbours = self.history[below] + self.history[above];
+                    let (below, above) = (self.history[below], self.history[above]);
+                    // The mix sets the phase; the level is the three bins'
+                    // power at these weights, which never exceeds the
+                    // loudest of them, so in-step neighbours cannot add up
+                    // past the feedback gain.
+                    let mixed = fed * own + (below + above) * lent;
+                    let power = (1.0 - share) * fed.norm_sqr()
+                        + 0.5 * share * (below.norm_sqr() + above.norm_sqr());
+                    let mixed_power = mixed.norm_sqr();
+                    if mixed_power > f32::MIN_POSITIVE {
+                        fed = mixed * (power / mixed_power).sqrt();
+                    }
                     let turns = (self.rng.next_bipolar() * MAX_BLUR_TURNS * blur).rem_euclid(1.0);
                     let quarter_on = if turns < 0.75 {
                         turns + 0.25
                     } else {
                         turns - 0.75
                     };
-                    fed = (fed * own + neighbours * lent)
-                        * Complex::new(sin_turns(quarter_on), sin_turns(turns));
+                    fed *= Complex::new(sin_turns(quarter_on), sin_turns(turns));
                 }
             }
             let kept = if controls.frozen {
@@ -290,7 +297,6 @@ const SPECTRAL_ECHO_DOCS: ModuleDocs = ModuleDocs {
     docs = SPECTRAL_ECHO_DOCS,
     lanes = 1,
     has_init,
-    patch_update,
     args(input),
     experimental
 )]
@@ -304,12 +310,16 @@ impl SpectralEcho {
     /// Allocate the transform, the spectrum histories and the per-bin
     /// tables, all sized by the sample rate alone. Main thread.
     fn init(&mut self, sample_rate: f32) {
+        // Seeded once: a patch update swaps the running streams into the
+        // rebuilt module, so the phases never repeat.
+        let seed = seed_base(self);
         let state = &mut self.state;
         state.stft.allocate(sample_rate);
         let bins = state.stft.bins();
         state.hop_seconds = state.stft.hop() as f32 / sample_rate;
         state.bin_hz = sample_rate / state.stft.size() as f32;
-        for side in &mut state.sides {
+        for (i, side) in state.sides.iter_mut().enumerate() {
+            side.rng.seed(seed, i);
             side.history = vec![Complex::default(); bins * HISTORY_FRAMES].into_boxed_slice();
             side.tables = EchoTables {
                 delay: vec![0; bins].into_boxed_slice(),
@@ -349,15 +359,6 @@ impl SpectralEcho {
                 side.frame(spectrum, &controls);
             });
             self.outputs.sample.set(i, out);
-        }
-    }
-}
-
-impl PatchUpdateHandler for SpectralEcho {
-    fn on_patch_update(&mut self) {
-        let seed = seed_base(self);
-        for (i, side) in self.state.sides.iter_mut().enumerate() {
-            side.rng.seed(seed, i);
         }
     }
 }
@@ -416,7 +417,6 @@ mod tests {
             _connected: Default::default(),
         };
         module.init(sample_rate);
-        module.on_patch_update();
         module
     }
 
@@ -573,6 +573,103 @@ mod tests {
         };
         let (sharp, blurred) = (spread_after(0.0), spread_after(5.0));
         assert!(blurred > sharp * 1.5, "blurred {blurred}, sharp {sharp}");
+    }
+
+    #[test]
+    fn blurred_and_shimmering_tails_still_decay() {
+        for (size, blur, shimmer) in [
+            (0.39, 0.86, -0.49),
+            (0.0, 5.0, 0.0),
+            (0.0, 2.0, 3.0),
+            (5.0, 5.0, -5.0),
+        ] {
+            let mut module = echo(Knobs {
+                decay: Some(3.46),
+                size: Some(size),
+                blur: Some(blur),
+                shimmer: Some(shimmer),
+                ..Default::default()
+            });
+            let (left, _) = run(&mut module, 480_000, burst, None);
+            let (early, late) = (rms(&left[48_000..96_000]), rms(&left[432_000..]));
+            assert!(
+                late < early,
+                "size {size}, blur {blur}, shimmer {shimmer}: early {early}, late {late}"
+            );
+        }
+    }
+
+    #[test]
+    fn held_notes_settle_at_the_longest_decay() {
+        // A minute-long decay settles within about 20 s; after that the
+        // level only wanders with the blur's random phase.
+        for (size, blur, shimmer, freq) in [
+            (0.0, 0.0, 0.0, 110.0),
+            (0.0, 5.0, 0.0, 110.0),
+            (0.0, 5.0, 5.0, 437.3),
+            (5.0, 5.0, -5.0, 2_011.0),
+        ] {
+            let mut module = echo(Knobs {
+                decay: Some(5.0),
+                size: Some(size),
+                blur: Some(blur),
+                shimmer: Some(shimmer),
+                ..Default::default()
+            });
+            let sine = |n: usize| (std::f32::consts::TAU * freq * n as f32 / SAMPLE_RATE).sin();
+            let (left, right) = run(&mut module, 1_920_000, sine, None);
+            for side in [&left, &right] {
+                let (settled, late) = (rms(&side[960_000..1_440_000]), rms(&side[1_440_000..]));
+                assert!(
+                    late < settled * 1.3 && peak(side) < 50.0,
+                    "{freq} Hz, size {size}, blur {blur}, shimmer {shimmer}: \
+                     settled {settled}, late {late}, peak {}",
+                    peak(side)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_frozen_blurred_tail_never_grows() {
+        for shimmer in [-5.0, 0.0, 5.0] {
+            let mut module = echo(Knobs {
+                size: Some(0.0),
+                blur: Some(5.0),
+                shimmer: Some(shimmer),
+                ..Default::default()
+            });
+            let (left, _) = run(&mut module, 1_440_000, noise_burst(), Some(BURST + 4_096));
+            let (early, late) = (rms(&left[48_000..144_000]), rms(&left[1_344_000..]));
+            assert!(
+                late <= early * 1.01,
+                "shimmer {shimmer}: early {early}, late {late}"
+            );
+        }
+    }
+
+    #[test]
+    fn controls_swept_every_frame_stay_bounded() {
+        let mut module = echo(Knobs::default());
+        let mut rng = LcgRng::default();
+        rng.seed(11, 0);
+        let mut out = Vec::with_capacity(960_000);
+        for n in 0..960_000 {
+            if n % 1_024 == 0 {
+                let params = &mut module.params;
+                params.decay = control(rng.next_unit() * 5.0);
+                params.size = control(rng.next_unit() * 5.0);
+                params.damping = control(rng.next_bipolar() * 5.0);
+                params.blur = control(rng.next_unit() * 5.0);
+                params.shimmer = control(rng.next_bipolar() * 5.0);
+                params.freeze = control(if rng.next_unit() < 0.2 { 5.0 } else { 0.0 });
+            }
+            module.set_input(PairSignal::from_mono(PolySignal::mono(Signal::Volts(
+                tone(n),
+            ))));
+            out.extend(module.step());
+        }
+        assert!(peak(&out) < 50.0, "peak {}", peak(&out));
     }
 
     #[test]
