@@ -11,6 +11,7 @@
 pub(super) const SUPPLY: f64 = 12.0;
 /// The level the OTAs' inputs are biased to, half the supply.
 pub(super) const OTA_REFERENCE: f64 = 0.5 * SUPPLY;
+/// In volts.
 const THERMAL_VOLTAGE: f64 = 0.025;
 
 /// A polynomial in rising powers at `x`, and its slope there.
@@ -102,10 +103,12 @@ pub(super) fn inverter(vin: f64, vout: f64) -> (f64, f64, f64) {
     (i_p - i_n, p_gate - n_gate, -p_drain - n_drain)
 }
 
-/// Volts across an OTA's inputs per volt its input network is driven
-/// above [`OTA_REFERENCE`]: 47 kΩ into 1 kΩ and the 27 kΩ bias pair, into
-/// the inverting input.
-const OTA_INPUT: f64 = -1.0 / 61.5;
+/// An OTA's input network, in kΩ: 47 kΩ into the 1 kΩ across its inputs
+/// and on into the 27 kΩ bias pair.
+pub(super) const R_OTA_INPUT: f64 = 47.0 + 1.0 + 13.5;
+/// Volts across an OTA's inputs, the inverting one positive, per volt its
+/// input network is driven above [`OTA_REFERENCE`]: the 1 kΩ's share.
+const OTA_INPUT: f64 = -1.0 / R_OTA_INPUT;
 /// Scales of the OTA's `tanh` law: its current, and its input voltage.
 const OTA_CURRENT_SCALE: f64 = 0.8635;
 const OTA_INPUT_SCALE: f64 = 0.9408;
@@ -123,7 +126,8 @@ const LOW_RAIL_SHARPNESS: f64 = 30.14;
 const HIGH_RAIL_AT: f64 = 10.8105;
 const HIGH_RAIL_SHARPNESS: f64 = 16.0255;
 
-/// `tanh(x)` and `1 − tanh²(x)`, exact where `tanh` has reached ±1.
+/// `tanh(x)` and `1 − tanh²(x)`, without the call where `tanh` has
+/// reached ±1.
 #[inline]
 fn tanh_and_slope(x: f64) -> (f64, f64) {
     if x.abs() > 20.0 {
@@ -199,7 +203,8 @@ const DIODE_NVT: f64 = 1.752 * THERMAL_VOLTAGE;
 const DIODE_LIMIT: f64 = 1.2;
 
 /// Current through the antiparallel diode pair at `v` across it, and its
-/// slope.
+/// slope, which holds past the limit so that the diode node's equation
+/// always weighs the diode voltage.
 #[inline]
 pub(super) fn diodes(v: f64) -> (f64, f64) {
     let e = (v.clamp(-DIODE_LIMIT, DIODE_LIMIT) / DIODE_NVT).exp();

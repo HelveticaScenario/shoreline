@@ -13,17 +13,16 @@
 //! feedback damps the loop more the higher it is tuned. The signal enters
 //! and leaves through coupling capacitors, so the filter passes no DC.
 //!
-//! Voltages are in volts above ground, currents in mA, conductances in mS,
-//! resistances in kΩ and capacitances in mF. Each sample solves the node
-//! equations with Newton's method from the previous sample's voltages.
+//! Each sample solves the circuit's node equations with Newton's method,
+//! from where the last samples' voltages point.
 
 use super::kernel::{DB12, Kernel, Rates, Taps};
 use super::wasp_circuit::{
-    BP, C_INPUT, C_INTEGRATOR, C_LEAD, C_POT, Companions, G_DIODE_FEED, G_OTA_INPUT, G_SUM, HP,
-    History, LP, MAX_ITERATIONS, N1, N2, N3, R_INPUT, Sample, UNKNOWNS, branches, newton,
+    BP, C_LEAD, Companions, G_DIODE_FEED, G_OTA_INPUT, G_SUM, HP, History, LP, Network, R_INPUT,
+    Sources, UNKNOWNS,
 };
-use super::wasp_network::Network;
 use super::wasp_parts::{OTA_REFERENCE, Ota};
+use super::wasp_solve::{MAX_ITERATIONS, newton};
 
 /// Corner of the 10 µF output capacitors into a 100 kΩ load, in Hz.
 const OUTPUT_CORNER: f64 = 0.16;
@@ -35,9 +34,6 @@ const GM: f64 = 5.207;
 const GO: f64 = 0.357;
 const LOWPASS_GM: f64 = 5.34;
 const LOWPASS_GO: f64 = 0.349;
-/// The lowpass output at rest with the resonance pot halfway, which the
-/// output is taken against.
-const LOWPASS_REST: f64 = 5.0;
 /// The circuit at rest with the resonance pot halfway, where the solve
 /// for any other setting starts.
 const REST_GUESS: [f64; UNKNOWNS] = [5.6007, 6.0, 5.6021, 6.0, 5.6753, 4.9921, 0.1987];
@@ -45,6 +41,7 @@ const REST_GUESS: [f64; UNKNOWNS] = [5.6007, 6.0, 5.6021, 6.0, 5.6753, 4.9921, 0
 /// A companion conductance that holds the pot's capacitor still.
 const SIGNAL_GROUND: f64 = 1.0e12;
 
+/// Steps the solve for the circuit at rest may take.
 const MAX_REST_ITERATIONS: usize = 60;
 /// Most the solve's starting point is carried ahead of the last solution,
 /// in volts.
@@ -79,9 +76,9 @@ pub struct WaspCoeffs {
 
 #[derive(Clone, Copy, Default)]
 pub struct WaspState {
-    /// Whether the circuit has settled at rest and the rest holds a
-    /// solution.
-    settled: bool,
+    /// Whether the capacitors are charged; unset, the next sample starts
+    /// the circuit at rest.
+    charged: bool,
     /// The previous sample's solution, how far it moved from the one
     /// before, and how far that move changed from the one before it.
     v: [f64; UNKNOWNS],
@@ -96,34 +93,29 @@ impl WaspState {
     /// The circuit at rest for `c`'s resonance, every capacitor charged.
     fn at_rest(response: WaspResponse, c: &WaspCoeffs) -> Self {
         let dc = Companions::dc(c.rotation);
-        let silent = Sample::new(&dc, &History::default(), 0.0);
+        let silent = Sources::new(&dc, &History::default(), 0.0);
         let v = newton(&dc, &c.otas, &silent, REST_GUESS, MAX_REST_ITERATIONS)
             .map_or(REST_GUESS, |(v, _)| v);
-        let pot = branches(&dc, &silent, &v).pot;
         Self {
-            settled: true,
+            charged: true,
             v,
             moved: [0.0; UNKNOWNS],
             bent: [0.0; UNKNOWNS],
-            history: History {
-                input: (-v[N1], 0.0),
-                lead: v[LP] - v[N1],
-                integrator: [(v[N2] - v[BP], 0.0), (v[N3] - v[LP], 0.0)],
-                pot: (pot, 0.0),
-            },
+            history: History::at_rest(&dc, &v),
             output: c.mix(response, &v),
         }
     }
 }
 
 impl WaspCoeffs {
-    /// The response's mix of the loop's outputs, each against its rest.
+    /// The response's mix of the loop's outputs, each about the OTAs'
+    /// reference; the output capacitor takes off what DC that leaves.
     #[inline]
     fn mix(&self, response: WaspResponse, v: &[f64; UNKNOWNS]) -> f64 {
         // The summer inverts, so each output is taken upside down.
         let hp = OTA_REFERENCE - v[HP];
         let bp = OTA_REFERENCE - v[BP];
-        let lp = LOWPASS_REST - v[LP];
+        let lp = OTA_REFERENCE - v[LP];
         // The summer's low gain leaves the highpass short of the lowpass,
         // and the two cancel at the cutoff only once matched.
         let matched = self.highpass_match * hp;
@@ -145,7 +137,7 @@ impl Kernel for Wasp {
     type Options = ();
     type Coeffs = WaspCoeffs;
     type State = WaspState;
-    /// The circuit takes the module's volts as they come.
+    /// The circuit works in volts.
     const VOLTS: f32 = 1.0;
 
     fn coeffs(
@@ -158,9 +150,7 @@ impl Kernel for Wasp {
     ) -> WaspCoeffs {
         let rotation = resonance.clamp(0.0, 5.0) as f64 / 5.0;
         let core = rates.core as f64;
-        let pot = 2.0 * C_POT * core;
-        let network = Network::new(rotation, pot);
-        let input_step = 1.0 / (2.0 * C_INPUT * core);
+        let companions = Companions::at(rotation, core);
         // For a signal the pot's capacitor is a ground: the wiper as a
         // weight on the summer's input node and on the bandpass.
         let signal = Network::new(rotation, SIGNAL_GROUND);
@@ -174,24 +164,18 @@ impl Kernel for Wasp {
             1.0 / ((1.0 + (GO + bandpass_load) / GM) * (1.0 + (LOWPASS_GO + G_SUM) / LOWPASS_GM));
         // The loop resonates at the OTAs' rate times the root of the gain
         // around it, so the OTAs run faster by as much.
-        let g = rates.gain(cutoff) as f64 / (summer_gain * integrator_gains).sqrt();
-        let integrator = 2.0 * C_INTEGRATOR * core;
-        let radians = 2.0 * core * rates.gain(cutoff) as f64;
+        let g = rates.gain(cutoff) as f64;
+        let ota_g = g / (summer_gain * integrator_gains).sqrt();
         WaspCoeffs {
-            companions: Companions::new(
-                1.0 / (R_INPUT + input_step),
-                input_step,
-                C_LEAD * core,
-                integrator,
-                pot,
-                network,
-            ),
-            otas: Ota::new(Ota::bias_for(g * integrator)),
+            otas: Ota::new(Ota::bias_for(ota_g * companions.integrator)),
+            companions,
             rotation,
             highpass_match: 1.0 / summer_gain,
-            // The pot's share, and C2's, which grows with the cutoff.
-            damping: signal.wiper[1] + radians * C_LEAD / G_SUM,
-            output: 1.0 - (-std::f64::consts::TAU * OUTPUT_CORNER / core).exp(),
+            // The pot's share, and C2's, which grows with the cutoff: its
+            // conductance at the cutoff, `2 · rate · g` radians a second.
+            damping: signal.wiper[1] + 2.0 * core * g * C_LEAD / G_SUM,
+            // A one-pole's coefficient for a corner far below the rate.
+            output: std::f64::consts::TAU * OUTPUT_CORNER / core,
         }
     }
 
@@ -201,45 +185,30 @@ impl Kernel for Wasp {
         c: &WaspCoeffs,
         state: &mut WaspState,
         x: f32,
-        _: Taps,
+        taps: Taps,
     ) -> [f32; 4] {
-        if !state.settled {
+        if !state.charged {
             *state = WaspState::at_rest(response, c);
         }
-        let source = x as f64;
         let k = &c.companions;
-        // The solve starts where the last three samples point, unless they
-        // point across a jump, and falls back to where the last one was.
+        let sources = Sources::new(k, &state.history, x as f64);
+        let from_last = || newton(k, &c.otas, &sources, state.v, MAX_ITERATIONS);
+        // The solve starts where the last three samples point, and from
+        // the last one where they point across a jump or lead it astray.
         let ahead: [f64; UNKNOWNS] = std::array::from_fn(|i| state.moved[i] + state.bent[i]);
-        let smooth = ahead.iter().all(|step| step.abs() < PREDICTED_STEP);
-        let start = if smooth {
-            std::array::from_fn(|i| state.v[i] + ahead[i])
+        let solved = if ahead.iter().all(|step| step.abs() < PREDICTED_STEP) {
+            let start = std::array::from_fn(|i| state.v[i] + ahead[i]);
+            newton(k, &c.otas, &sources, start, MAX_ITERATIONS)
+                .filter(|&(_, settled)| settled)
+                .or_else(from_last)
         } else {
-            state.v
+            from_last()
         };
-        let sample = Sample::new(k, &state.history, source);
-        let solved = newton(k, &c.otas, &sample, start, MAX_ITERATIONS)
-            .filter(|&(_, settled)| settled)
-            .or_else(|| newton(k, &c.otas, &sample, state.v, MAX_ITERATIONS))
-            .map(|(v, _)| v)
-            .filter(|_| source.is_finite());
-        let Some(v) = solved else {
+        let Some((v, _)) = solved else {
             *state = WaspState::default();
             return [0.0; 4];
         };
-        let branches = branches(k, &sample, &v);
-        let history = &mut state.history;
-        history.input.0 += k.input_step * (branches.input + history.input.1);
-        history.input.1 = branches.input;
-        history.lead = v[LP] - v[N1];
-        history.integrator = [
-            (v[N2] - v[BP], branches.integrator[0]),
-            (v[N3] - v[LP], branches.integrator[1]),
-        ];
-        history.pot = (
-            branches.pot,
-            k.pot * (branches.pot - history.pot.0) - history.pot.1,
-        );
+        state.history.advance(k, &sources, &v);
         let moved: [f64; UNKNOWNS] = std::array::from_fn(|i| v[i] - state.v[i]);
         state.bent = std::array::from_fn(|i| moved[i] - state.moved[i]);
         state.moved = moved;
@@ -247,14 +216,16 @@ impl Kernel for Wasp {
         let mixed = c.mix(response, &v);
         state.output += c.output * (mixed - state.output);
         let mut out = [0.0; 4];
-        out[DB12] = (mixed - state.output) as f32;
+        if taps[DB12] {
+            out[DB12] = (mixed - state.output) as f32;
+        }
         out
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::wasp_circuit::{equations, solve};
+    use super::super::wasp_circuit::{N1, N3};
     use super::super::wasp_parts::inverter;
     use super::*;
 
@@ -283,30 +254,11 @@ mod tests {
     }
 
     #[test]
-    fn the_solve_satisfies_every_equation() {
-        let c = coeffs(4.0);
-        let state = WaspState::at_rest(WaspResponse::Lowpass, &c);
-        // Mid-swing, and with the bandpass integrator's OTA at a rail.
-        for v in [
-            [5.4, 7.0, 5.9, 4.0, 5.5, 6.5, 0.3],
-            [5.7, 2.0, 0.55, 11.5, 5.6, 5.0, -0.2],
-        ] {
-            let sample = Sample::new(&c.companions, &state.history, 0.3);
-            let (b, a) = equations(&c.companions, &c.otas, &sample, &v);
-            let x = solve(&a, &b).unwrap();
-            for (row, (sum, b)) in a.times(&x).into_iter().zip(b).enumerate() {
-                assert!((sum - b).abs() < 1e-9, "row {row}: {sum} vs {b}");
-            }
-        }
-    }
-
-    #[test]
     fn the_rest_constants_are_the_models_own() {
         let rest = WaspState::at_rest(WaspResponse::Lowpass, &coeffs(2.5)).v;
         for (value, guess) in rest.iter().zip(REST_GUESS) {
             assert!((value - guess).abs() < 1e-3, "{rest:?}");
         }
-        assert!((rest[LP] - LOWPASS_REST).abs() < 0.01);
         let (_, gm, go) = inverter(rest[N1], rest[HP]);
         assert!((-gm / GM - 1.0).abs() < 0.01 && (-go / GO - 1.0).abs() < 0.01);
         let (_, gm, go) = inverter(rest[N3], rest[LP]);

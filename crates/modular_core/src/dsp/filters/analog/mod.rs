@@ -21,8 +21,8 @@ mod sallen_key_modules;
 mod wasp;
 mod wasp_circuit;
 mod wasp_modules;
-mod wasp_network;
 mod wasp_parts;
+mod wasp_solve;
 
 use std::collections::HashMap;
 

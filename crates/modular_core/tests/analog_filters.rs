@@ -143,16 +143,22 @@ fn gain_db(module_type: &str, ratio: f32) -> Vec<f32> {
 
 /// [`gain_db`] at `resonance`.
 fn gain_db_at(module_type: &str, ratio: f32, resonance: f32) -> Vec<f32> {
+    gains_db(module_type, ratio, 0.1, resonance, 9600)
+}
+
+/// Gain in dB of every output of a filter tuned to 1 kHz, in slope order,
+/// for a sine of `level` volts at `ratio` × 1 kHz, over `frames` samples.
+fn gains_db(module_type: &str, ratio: f32, level: f32, resonance: f32, frames: usize) -> Vec<f32> {
     render(
         module_type,
         1000.0 * ratio,
-        0.1,
+        level,
         json!(hz(1000.0)),
         resonance,
-        9600,
+        frames,
     )
     .into_iter()
-    .map(|(_, samples)| 20.0 * (peak(&samples) / 0.1).log10())
+    .map(|(_, samples)| 20.0 * (peak(&samples) / level).log10())
     .collect()
 }
 
@@ -275,35 +281,31 @@ fn analog_filters_self_oscillate_in_tune() {
     }
 }
 
-/// Gain in dB of a Wasp filter at 1 kHz for a sine of `level` volts
-/// `ratio` × that.
+/// [`gains_db`] of a Wasp filter's one output, over long enough for its
+/// resonance to settle.
 fn wasp_gain_db(module_type: &str, ratio: f32, level: f32, resonance: f32) -> f32 {
-    let out = render(
-        module_type,
-        1000.0 * ratio,
-        level,
-        json!(hz(1000.0)),
-        resonance,
-        19_200,
-    );
-    20.0 * (peak(&out[0].1) / level).log10()
+    gains_db(module_type, ratio, level, resonance, 19_200)[0]
 }
+
+/// A ratio well above the cutoff whose sine the samples catch at its
+/// peaks, which they do not at a sixth of the sample rate.
+const WELL_ABOVE: f32 = 7.3;
 
 #[test]
 fn wasp_filters_have_their_responses() {
     for (module_type, stopband, passband) in [
         ("$lpfWasp", vec![8.0], 0.125),
-        ("$hpfWasp", vec![0.125], 7.3),
+        ("$hpfWasp", vec![0.125], WELL_ABOVE),
         ("$bpfWasp", vec![0.125, 8.0], 1.0),
     ] {
         for ratio in stopband {
             let db = wasp_gain_db(module_type, ratio, 0.1, 0.0);
-            let slope = if module_type == "$bpfWasp" {
+            let ceiling = if module_type == "$bpfWasp" {
                 -15.0
             } else {
                 -30.0
             };
-            assert!(db < slope, "{module_type} at {ratio}×: {db} dB");
+            assert!(db < ceiling, "{module_type} at {ratio}×: {db} dB");
         }
         // The summer's low gain leaves the highpass a little over 2 dB
         // short of the lowpass.
@@ -316,14 +318,16 @@ fn wasp_filters_have_their_responses() {
     }
     let null = wasp_gain_db("$notchWasp", 1.0, 0.1, 0.0);
     assert!(null < -25.0, "$notchWasp: {null} dB");
-    // The input capacitor takes the lows off from about 27 Hz.
-    for ratio in [1.0 / 8.0, 7.3] {
+    // Either side of the cut plays at one level, down to where the input
+    // capacitor takes the lows off.
+    for ratio in [1.0 / 8.0, WELL_ABOVE] {
         let db = wasp_gain_db("$notchWasp", ratio, 0.1, 0.0);
         assert!(db.abs() < 1.0, "$notchWasp at {ratio}×: {db} dB");
     }
-    // At full resonance the diodes' swing moves the level at the cutoff.
+    // Resonance 5 is left out: there the diodes' swing moves the level at
+    // the cutoff.
     for resonance in [0.0, 2.5, 4.0] {
-        for ratio in [1.0 / 8.0, 0.5, 1.0, 2.0, 7.3] {
+        for ratio in [1.0 / 8.0, 0.5, 1.0, 2.0, WELL_ABOVE] {
             let db = wasp_gain_db("$apfWasp", ratio, 0.1, resonance);
             assert!(
                 db.abs() < 1.0,

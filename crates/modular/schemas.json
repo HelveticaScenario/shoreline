@@ -18021,7 +18021,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -18256,7 +18256,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -18491,7 +18491,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -18726,7 +18726,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -18961,7 +18961,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -19216,7 +19216,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -19471,7 +19471,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -19706,7 +19706,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -19941,7 +19941,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -20176,7 +20176,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -20431,7 +20431,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -20686,7 +20686,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -20921,7 +20921,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -21156,7 +21156,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -21411,7 +21411,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -21666,7 +21666,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -21901,7 +21901,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -22136,7 +22136,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -22296,7 +22296,7 @@
     "name": "$lpfWasp",
     "docs": {
       "summary": "Wasp lowpass filter",
-      "description": "The lowpass of the EDP Wasp's filter as Doepfer's A-124 builds it: logic-chip inverters standing in for amplifiers, modelled part by part from measurements of the chips. A loud input pushes the inverters toward their rails, which dirties the sound and makes the resonance erratic, so turn the input down for a cleaner tone. It never self-oscillates, and like the hardware it passes no DC.",
+      "description": "The lowpass of the EDP Wasp's filter as Doepfer's A-124 builds it: logic-chip inverters standing in for amplifiers. A loud input pushes the inverters toward their rails, which dirties the sound and makes the resonance erratic, so turn the input down for a cleaner tone. It never self-oscillates, and like the hardware it passes no DC.",
       "categories": [
         "filter"
       ],
@@ -22352,7 +22352,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -22544,7 +22544,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -22736,7 +22736,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -22928,7 +22928,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
@@ -23120,7 +23120,7 @@
           }
         },
         "highRes": {
-          "description": "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU",
+          "description": "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU",
           "type": "boolean",
           "default": true
         }
