@@ -2,7 +2,8 @@
 
 /// Stamps one analog filter module from its kernel and response. `options`
 /// builds its `Kernel::Options` from the params struct, and may be left out
-/// for a kernel without any. `freq` names the cutoff param. Each output is
+/// for a kernel without any. `drive_doc` describes the drive param of a
+/// kernel with its own `drive_makeup`. `freq` names the cutoff param. Each output is
 /// `field[tap] = "name": "description"`, one of them followed by
 /// `, default`, where `tap` is its place in `Taps`.
 macro_rules! analog_filter {
@@ -31,6 +32,27 @@ macro_rules! analog_filter {
         kernel = $Kernel:ty,
         response = $response:expr,
         options = |$p:ident| $options:expr,
+        freq = $($rest:tt)*
+    ) => {
+        $crate::dsp::filters::analog::module_macro::analog_filter! {
+            docs = $docs,
+            name = $name,
+            ident = $Struct,
+            kernel = $Kernel,
+            response = $response,
+            options = |$p| $options,
+            drive_doc = "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+            freq = $($rest)*
+        }
+    };
+    (
+        docs = $docs:path,
+        name = $name:literal,
+        ident = $Struct:ident,
+        kernel = $Kernel:ty,
+        response = $response:expr,
+        options = |$p:ident| $options:expr,
+        drive_doc = $drive_doc:literal,
         freq = $freq:ident,
         freq_doc = $freq_doc:literal,
         resonance_doc = $resonance_doc:literal,
@@ -52,7 +74,7 @@ macro_rules! analog_filter {
                 #[deserr(default)]
                 resonance: Option<crate::poly::PolySignal>,
                 #[input(
-                    "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
+                    $drive_doc,
                     type = control,
                     default = 0.0,
                     range = (0.0, 5.0),

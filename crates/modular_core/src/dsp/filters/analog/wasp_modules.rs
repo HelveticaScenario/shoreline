@@ -22,6 +22,8 @@ macro_rules! wasp_filter {
             ident = $ident,
             kernel = Wasp,
             response = WaspResponse::$response,
+            options = |_params| (),
+            drive_doc = "level into the inverter ahead of the filter, up to +18 dB, squaring the sound up against its rails; the output holds its level until they are reached",
             freq = $freq,
             freq_doc = $freq_doc,
             resonance_doc = $resonance_doc,
@@ -34,11 +36,12 @@ macro_rules! wasp_filter {
 
 const LPF_WASP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wasp lowpass filter",
-    description: "The lowpass of the EDP Wasp, a filter built from logic-chip inverters \
-                  standing in for amplifiers. `drive` overloads the inverter at its input, \
+    description: "The lowpass of the EDP Wasp's filter as Doepfer's A-124 builds it: \
+                  logic-chip inverters standing in for amplifiers, modelled part by part from \
+                  measurements of the chips. `drive` overloads the inverter at its input, \
                   which squares the sound up into a fat, lopsided buzz, and the resonance \
-                  whistles on the verge of oscillation and squashes as it gets loud. It \
-                  never self-oscillates.",
+                  whistles on the verge of oscillation and turns erratic when a loud signal \
+                  meets it. It never self-oscillates, and like the hardware it passes no DC.",
     categories: &[ReferenceCategory::Filter],
     sections: &[],
     examples: &[
@@ -65,7 +68,7 @@ wasp_filter! {
     ident = LpfWasp,
     response = Lowpass,
     freq = cutoff: "cutoff frequency; tops out just under half the sample rate",
-    resonance = "resonant peak at the cutoff; whistles at 5 without self-oscillating",
+    resonance = "resonant peak at the cutoff, most of it past 4 and less of it at high cutoffs; whistles at 5 without self-oscillating",
     output = "2-pole lowpass: 12 dB/oct",
 }
 
@@ -103,7 +106,7 @@ wasp_filter! {
     ident = HpfWasp,
     response = Highpass,
     freq = cutoff: "cutoff frequency; tops out just under half the sample rate",
-    resonance = "resonant peak at the cutoff; whistles at 5 without self-oscillating",
+    resonance = "resonant peak at the cutoff, most of it past 4 and less of it at high cutoffs; whistles at 5 without self-oscillating",
     output = "2-pole highpass: 12 dB/oct",
 }
 
@@ -142,7 +145,7 @@ wasp_filter! {
     ident = BpfWasp,
     response = Bandpass,
     freq = center: "centre frequency; tops out just under half the sample rate",
-    resonance = "narrows the band and raises its level; whistles at 5 without self-oscillating",
+    resonance = "narrows the band and raises its level, most of all past 4; whistles at 5 without self-oscillating",
     output = "2-pole bandpass: 6 dB/oct each side",
 }
 

@@ -1,275 +1,68 @@
-//! The EDP Wasp's filter: a state-variable loop whose three amplifiers are
-//! unbuffered CMOS inverters on a 5 V rail, a summer and two integrators
-//! each fed by an OTA.
+//! The EDP Wasp's filter as Doepfer's A-124 builds it: a state-variable
+//! loop whose three amplifiers are unbuffered CMOS inverters on a single
+//! 12 V supply, a summer and two integrators each fed by an OTA.
 //!
-//! The circuit is solved as it is wired. Each inverter is a complementary
-//! pair of square-law MOSFETs, so its gain is low, its input node wanders
-//! with its output, and it runs out of drive toward either rail. The
-//! integrating capacitors sit between an inverter's input and output. The
-//! Q pot feeds the bandpass back to the summer, and beside it a pair of
-//! diodes adds damping as the bandpass swings further, which holds the
-//! resonance on the verge of oscillation. The diodes rest slightly biased,
-//! since the inverters' threshold sits above half the rail, and that bias
-//! sets the highest Q the loop reaches.
+//! The circuit, its component values and the models of its parts follow
+//! Köper, Holters, Esqueda and Parker, "A Virtual Analog Model of the EDP
+//! Wasp VCF" (DAFx 2022); [`super::wasp_parts`] holds the parts. The
+//! inverters' low gain lets their input nodes wander, and the integrating
+//! capacitors sit between those nodes and the outputs, so an OTA whose
+//! output is carried to a rail stops integrating and pulls back. The
+//! resonance pot feeds the bandpass to the summer against a capacitor to
+//! ground, beside a pair of diodes; a small capacitor across the lowpass's
+//! feedback damps the loop more the higher it is tuned. The signal enters
+//! and leaves through coupling capacitors, so the filter passes no DC.
 //!
 //! Ahead of the loop sits one more inverter of the same chip, wired as a
-//! unity-gain amplifier and biased by its own feedback. It is what a hot
-//! input overdrives: the signal squares up against its rails and reaches
-//! the loop at half their swing, which leaves the resonance its headroom.
+//! unity-gain amplifier. It is what a hot input overdrives: the signal
+//! squares up against its rails, and the level pot after it keeps that
+//! full swing inside what the loop passes cleanly.
 //!
-//! Voltages are deviations from the circuit at rest, in volts; currents
-//! are in mA and conductances in mS. Each sample solves the five node
+//! Voltages are in volts above ground, currents in mA, conductances in mS,
+//! resistances in kΩ and capacitances in mF. Each sample solves the node
 //! equations with Newton's method from the previous sample's voltages.
 
 use super::kernel::{DB12, Kernel, Rates, Taps};
+use super::wasp_circuit::{
+    BP, C_INPUT, C_INTEGRATOR, C_LEAD, C_POT, Companions, G_DIODE_FEED, G_OTA_INPUT, G_SUM, HP,
+    History, INPUT_REST, LEVEL, LP, MAX_ITERATIONS, N1, N2, N3, Network, R_INPUT, UNKNOWNS,
+    branches, input_amplifier, newton,
+};
+use super::wasp_parts::{OTA_REFERENCE, Ota};
 
-/// The inverters' supply.
-const VDD: f64 = 5.0;
-/// The inverters' input and the summer's and bandpass's outputs at rest:
-/// the threshold that puts the lowpass output at its typical 3 V.
-const THRESHOLD: f64 = 2.667;
-const MID_RAIL: f64 = 0.5 * VDD;
-const LOWPASS_REST: f64 = 3.0;
-/// Gate thresholds of the N and P devices, which set [`THRESHOLD`].
-const VT_N: f64 = 1.5 + (THRESHOLD - MID_RAIL);
-const VT_P: f64 = 1.5 - (THRESHOLD - MID_RAIL);
-/// Transconductance parameter in mA/V², and channel-length modulation per
-/// volt: 1 mA of output drive at 5 V and an open-loop gain near 30.
-const BETA: f64 = 0.8;
-const LAMBDA: f64 = 0.065;
+/// Corner of the 10 µF output capacitors into a 100 kΩ load, in Hz.
+const OUTPUT_CORNER: f64 = 0.16;
 
-/// Summer resistors R29, R30 and R31, which the input amplifier's two
-/// resistors match.
-const G_SUM: f64 = 1.0 / 33.0;
-/// The loop's input resistor, twice the summer's: the input amplifier's
-/// full swing is half the rail in the loop.
-const G_INPUT: f64 = 0.5 * G_SUM;
-/// The Q pot VR6.
-const R_POT: f64 = 100.0;
-/// Rotation the pot's end resistance leaves at full resonance.
-const POT_END: f64 = 0.01;
-/// R27 and R28, from the bandpass to the diodes and on to AC ground.
-const G_DIODE_FEED: f64 = 1.0 / 100.0;
-/// An OTA's input network as its inverter's load: 100 kΩ into 1 kΩ and the
-/// 33 kΩ bias pair.
-const G_OTA_INPUT: f64 = 1.0 / 117.5;
-/// `tanh` argument per volt at an OTA's input network.
-const OTA_SCALE: f64 = 1.0 / (117.5 * 2.0 * 0.025_85);
-/// Limits of an integrator's input node, where its OTA's output runs out
-/// of swing.
-const NODE_MIN: f64 = 0.6 - THRESHOLD;
-const NODE_MAX: f64 = 3.5 - THRESHOLD;
-
-/// 1N4148 saturation current in mA and emission coefficient × thermal
-/// voltage.
-const DIODE_IS: f64 = 2.52e-6;
-const DIODE_NVT: f64 = 1.752 * 0.025_85;
-/// The diodes' bias at rest.
-const DIODE_REST: f64 = MID_RAIL - THRESHOLD;
-/// Most a Newton step moves the diode voltage.
-const DIODE_STEP: f64 = 0.1;
-
-/// Integrator capacitors C12 and C13 (1 nF), and C11 across the lowpass
-/// feedback (68 pF), in mF so that one times a rate in Hz is in mS.
-const C_INTEGRATOR: f64 = 1.0e-6;
-const C_LEAD: f64 = 68.0e-9;
-
-const MAX_ITERATIONS: usize = 8;
-/// Volts a Newton step must fall under to end the solve.
-const TOLERANCE: f64 = 1.0e-5;
-
-/// Drain current of a MOSFET and its slopes in `vgs` and `vds`.
-const fn mosfet(vgs: f64, vds: f64, vt: f64) -> (f64, f64, f64) {
-    let vov = vgs - vt;
-    if vov <= 0.0 {
-        return (0.0, 0.0, 0.0);
-    }
-    let modulation = 1.0 + LAMBDA * vds;
-    if vds < vov {
-        let a = vov * vds - 0.5 * vds * vds;
-        (
-            BETA * a * modulation,
-            BETA * vds * modulation,
-            BETA * ((vov - vds) * modulation + a * LAMBDA),
-        )
-    } else {
-        let a = 0.5 * vov * vov;
-        (
-            BETA * a * modulation,
-            BETA * vov * modulation,
-            BETA * a * LAMBDA,
-        )
-    }
-}
-
-/// Current an inverter sources into its output at absolute input and
-/// output voltages, and its slopes in each.
-const fn inverter(vin: f64, vout: f64) -> (f64, f64, f64) {
-    let (i_n, gm_n, go_n) = mosfet(vin, vout, VT_N);
-    let (i_p, gm_p, go_p) = mosfet(VDD - vin, VDD - vout, VT_P);
-    (i_p - i_n, -gm_p - gm_n, -go_p - go_n)
-}
-
-/// One of the three inverters, resting with its output at `rest`.
-#[derive(Clone, Copy)]
-struct Stage {
-    rest: f64,
-    /// Current it sources at rest.
-    idle: f64,
-}
-
-impl Stage {
-    const fn new(rest: f64) -> Self {
-        Self {
-            rest,
-            idle: inverter(THRESHOLD, rest).0,
-        }
-    }
-
-    /// Current sourced beyond the rest current for input and output
-    /// deviations `n` and `o`, and its slopes in each.
-    #[inline]
-    fn current(&self, n: f64, o: f64) -> (f64, f64, f64) {
-        let (i, di_dn, di_do) = inverter(THRESHOLD + n, self.rest + o);
-        (i - self.idle, di_dn, di_do)
-    }
-
-    /// Small-signal transconductance and output conductance at rest.
-    const fn conductances(&self) -> (f64, f64) {
-        let (_, gm, go) = inverter(THRESHOLD, self.rest);
-        (-gm, -go)
-    }
-}
-
-/// The input amplifier, which its feedback biases at its own threshold.
-const INPUT: Stage = Stage::new(THRESHOLD);
-const SUMMER: Stage = Stage::new(MID_RAIL);
-const BANDPASS: Stage = Stage::new(MID_RAIL);
-const LOWPASS: Stage = Stage::new(LOWPASS_REST);
-
-/// How far an integrator's low gain scales its output: `1 / (1 + load / gm)`.
-const fn integrator_gain(stage: &Stage, load: f64) -> f64 {
-    let (gm, go) = stage.conductances();
-    1.0 / (1.0 + (go + load) / gm)
-}
-
-/// Loads on the bandpass inverter beside the diode feed: the second OTA's
-/// input and the Q pot.
-const G_BANDPASS_LOAD: f64 = G_OTA_INPUT + 1.0 / R_POT;
-/// The two integrators' gains together.
-const INTEGRATOR_GAINS: f64 = integrator_gain(&BANDPASS, G_BANDPASS_LOAD + 0.5 * G_DIODE_FEED)
-    * integrator_gain(&LOWPASS, G_SUM);
+/// Small-signal transconductance and output conductance of the inverters
+/// at rest: the input amplifier, the summer and the bandpass integrator,
+/// which share a bias, and the lowpass integrator.
+const INPUT_GM: f64 = 5.256;
+const INPUT_GO: f64 = 0.354;
+const GM: f64 = 5.207;
+const GO: f64 = 0.357;
+const LOWPASS_GM: f64 = 5.34;
+const LOWPASS_GO: f64 = 0.349;
+/// The lowpass output at rest with the resonance pot halfway, which the
+/// output is taken against.
+const LOWPASS_REST: f64 = 5.0;
+/// The circuit at rest with the resonance pot halfway, where the solve
+/// for any other setting starts.
+const REST_GUESS: [f64; UNKNOWNS] = [5.6007, 6.0, 5.6021, 6.0, 5.6753, 4.9921, 0.1987];
 
 /// The input amplifier's gain for a quiet signal, which its low open-loop
 /// gain leaves short of the unity it is wired for.
-const INPUT_GAIN: f64 = {
-    let (gm, go) = INPUT.conductances();
-    (gm - G_SUM) / (gm + 2.0 * go + G_SUM + 2.0 * G_INPUT)
-};
-/// Brings the loop's outputs back to the level of the module's input.
-const OUTPUT_GAIN: f64 = G_SUM / (G_INPUT * INPUT_GAIN);
+const INPUT_GAIN: f64 = (INPUT_GM - G_SUM) / (INPUT_GM + 2.0 * INPUT_GO + 3.0 * G_SUM);
+/// Brings the loop's outputs back to the level of the module's input,
+/// past the input amplifier and the level pot.
+const OUTPUT_GAIN: f64 = 1.0 / (INPUT_GAIN * LEVEL * 27.0 / R_INPUT);
+/// The drive gain at which a 5 V input starts to square up against the
+/// input amplifier's rails.
+const RAIL_GAIN: f32 = 2.0;
 
-/// The input amplifier's output for the input `x`, by Newton's method from
-/// its previous output. Its input node sits halfway between the two, and
-/// its equation falls monotonically in the output.
-#[inline]
-fn input_amplifier(x: f64, previous: f64) -> f64 {
-    let mut o = previous;
-    for _ in 0..MAX_ITERATIONS {
-        let n = 0.5 * (x + o);
-        let (i, di_dn, di_do) = INPUT.current(n, o);
-        let residual = i - G_SUM * (o - n) - G_INPUT * o;
-        let slope = 0.5 * di_dn + di_do - 0.5 * G_SUM - G_INPUT;
-        let step = residual / slope;
-        o -= step;
-        if step.abs() < TOLERANCE {
-            break;
-        }
-    }
-    o
-}
+/// A companion conductance that holds the pot's capacitor still.
+const SIGNAL_GROUND: f64 = 1.0e12;
 
-/// The diode pair's slope at rest, in mS, and the bandpass's weight in the
-/// summer through R27 and the pair at that slope.
-const DIODE_REST_SLOPE: f64 = 0.0022238285481571713;
-const DIODE_REST_DAMPING: f64 =
-    G_DIODE_FEED * DIODE_REST_SLOPE / (2.0 * G_DIODE_FEED + DIODE_REST_SLOPE) / G_SUM;
-
-/// The diode pair's current beyond its rest current at a deviation `v`
-/// from its rest bias, and its slope.
-#[inline]
-fn diodes(v: f64) -> (f64, f64) {
-    /// What the pair carries at [`DIODE_REST`].
-    const REST_CURRENT: f64 = -1.005_892_310_166_743_7e-4;
-    let e = ((v + DIODE_REST) / DIODE_NVT).exp();
-    let inverse = 1.0 / e;
-    (
-        DIODE_IS * (e - inverse) - REST_CURRENT,
-        DIODE_IS * (e + inverse) / DIODE_NVT,
-    )
-}
-
-/// An OTA's `tanh` of the voltage at its input network, and the slope of
-/// that `tanh` in its argument.
-#[inline]
-fn ota(volts: f64) -> (f64, f64) {
-    let x = OTA_SCALE * volts;
-    let x2 = x * x;
-    if x2 < 9.0 {
-        let root = (9.0 - x2) / (9.0 + 3.0 * x2);
-        (x * (27.0 + x2) / (27.0 + 9.0 * x2), root * root)
-    } else {
-        (x.signum(), 0.0)
-    }
-}
-
-/// The unknowns: the summer's input node, the three inverter outputs and
-/// the voltage across the diodes.
-const N1: usize = 0;
-const HP: usize = 1;
-const BP: usize = 2;
-const LP: usize = 3;
-const VD: usize = 4;
-const UNKNOWNS: usize = 5;
-
-/// Solves `a · x = b` for the node equations' Jacobian, by eliminating the
-/// diode voltage, the highpass and the bandpass in turn. Their pivots are
-/// each a sum of conductances out of one node, so none can vanish.
-#[inline]
-fn solve(a: &[[f64; UNKNOWNS]; UNKNOWNS], b: &[f64; UNKNOWNS]) -> [f64; UNKNOWNS] {
-    // The diode voltage out of the summer's and the bandpass's equations.
-    let diode = 1.0 / a[0][VD];
-    let (f1, f3) = (a[1][VD] * diode, a[3][VD] * diode);
-    let (s_n1, s_bp, s_b) = (
-        a[1][N1] - f1 * a[0][N1],
-        a[1][BP] - f1 * a[0][BP],
-        b[1] - f1 * b[0],
-    );
-    let (b_n1, b_bp, b_b) = (
-        a[3][N1] - f3 * a[0][N1],
-        a[3][BP] - f3 * a[0][BP],
-        b[3] - f3 * b[0],
-    );
-    // The highpass, from its own inverter's equation.
-    let highpass = 1.0 / a[2][HP];
-    let (h_n1, h_b) = (a[2][N1] * highpass, b[2] * highpass);
-    let (s_n1, s_b) = (s_n1 - a[1][HP] * h_n1, s_b - a[1][HP] * h_b);
-    let (b_n1, b_b) = (b_n1 - a[3][HP] * h_n1, b_b - a[3][HP] * h_b);
-    // The bandpass, leaving the summer's and the lowpass's equations in
-    // the summer's input node and the lowpass.
-    let bandpass = 1.0 / b_bp;
-    let (p_n1, p_b) = (b_n1 * bandpass, b_b * bandpass);
-    let (s_n1, s_b) = (s_n1 - s_bp * p_n1, s_b - s_bp * p_b);
-    let (l_n1, l_b) = (a[4][N1] - a[4][BP] * p_n1, b[4] - a[4][BP] * p_b);
-    let (s_lp, l_lp) = (a[1][LP], a[4][LP]);
-    let determinant = 1.0 / (s_n1 * l_lp - s_lp * l_n1);
-    let n1 = (s_b * l_lp - s_lp * l_b) * determinant;
-    let lp = (s_n1 * l_b - s_b * l_n1) * determinant;
-    let bp = p_b - p_n1 * n1;
-    let hp = h_b - h_n1 * n1;
-    let vd = (b[0] - a[0][N1] * n1 - a[0][BP] * bp) * diode;
-    [n1, hp, bp, lp, vd]
-}
+const MAX_REST_ITERATIONS: usize = 60;
 
 /// What a Wasp filter module mixes from the loop's three outputs.
 #[derive(Clone, Copy)]
@@ -279,100 +72,86 @@ pub(crate) enum WaspResponse {
     Bandpass,
     /// The highpass and lowpass summed.
     Notch,
-    /// The notch less the bandpass at the weight the Q pot and the resting
-    /// diodes feed it back.
+    /// The notch less the bandpass at the weight the loop feeds it back.
     Allpass,
 }
 
 #[derive(Clone, Copy, Default)]
 pub struct WaspCoeffs {
-    /// Integrator gain per unit of an OTA's `tanh`, in volts.
-    step: f64,
-    /// Integrator gain as a slope in the OTA's input voltage.
-    g: f64,
-    /// An OTA's bias current: what it drives into its inverter per unit of
-    /// its `tanh`.
-    bias: f64,
-    /// C11 as a conductance over one sample.
-    lead: f64,
-    /// The Q pot's wiper to the summer, and that times the pot's rotation.
-    wiper: f64,
-    wiper_bandpass: f64,
+    companions: Companions,
+    otas: Ota,
+    /// The resonance pot's rotation.
+    rotation: f64,
     /// Brings the highpass to the level of the lowpass, which the summer's
     /// low gain leaves it short of.
     highpass_gain: f64,
-    /// The bandpass's weight in the summer beside the lowpass's, for a quiet
-    /// signal.
+    /// The bandpass's weight in the summer beside the lowpass's, for a
+    /// quiet signal.
     damping: f64,
+    /// The output capacitor's one-pole coefficient.
+    output: f64,
 }
 
 #[derive(Clone, Copy, Default)]
 pub struct WaspState {
-    /// The previous sample's solution.
+    /// Whether the circuit has settled at rest and the rest holds a
+    /// solution.
+    settled: bool,
+    /// The previous sample's solution, and how far it moved from the one
+    /// before.
     v: [f64; UNKNOWNS],
-    /// Voltage across each integrator's capacitor, input side positive.
-    q: [f64; 2],
-    /// The previous sample's OTA `tanh`s.
-    drive: [f64; 2],
-    /// The previous sample's voltage across C11.
-    lead: f64,
-    /// The input amplifier's previous output.
+    moved: [f64; UNKNOWNS],
+    history: History,
+    /// The input amplifier's previous output, above its rest.
     input: f64,
+    /// The output capacitor's charge.
+    output: f64,
 }
 
-/// The node equations' residuals and their Jacobian at `v`, for the input
-/// `x` and the capacitors' history in `state`.
-#[inline]
-fn equations(
-    c: &WaspCoeffs,
-    state: &WaspState,
-    x: f64,
-    v: &[f64; UNKNOWNS],
-) -> ([f64; UNKNOWNS], [[f64; UNKNOWNS]; UNKNOWNS]) {
-    let (n1, hp, bp, lp, vd) = (v[N1], v[HP], v[BP], v[LP], v[VD]);
-    let (diode, diode_slope) = diodes(vd);
-    let (drive_hp, slope_hp) = ota(hp);
-    let (drive_bp, slope_bp) = ota(bp);
-    let q_bp = state.q[0] - c.step * (drive_hp + state.drive[0]);
-    let q_lp = state.q[1] - c.step * (drive_bp + state.drive[1]);
-    let (i_hp, hp_dn, hp_do) = SUMMER.current(n1, hp);
-    let (i_bp, bp_dn, bp_do) = BANDPASS.current(bp + q_bp, bp);
-    let (i_lp, lp_dn, lp_do) = LOWPASS.current(lp + q_lp, lp);
-    // The node between R27, R28 and the diodes.
-    let nd = n1 + vd;
-    let lead = c.lead * (lp - n1 - state.lead);
-    let residual = [
-        G_DIODE_FEED * (bp - nd) - G_DIODE_FEED * nd - diode,
-        G_INPUT * (x - n1) + G_SUM * (hp - n1) + G_SUM * (lp - n1) + lead + c.wiper_bandpass * bp
-            - c.wiper * n1
-            + diode,
-        i_hp - G_SUM * (hp - n1) - G_OTA_INPUT * hp,
-        i_bp - c.bias * drive_hp - G_BANDPASS_LOAD * bp - G_DIODE_FEED * (bp - nd),
-        i_lp - c.bias * drive_bp - G_SUM * (lp - n1) - lead,
-    ];
-    // An OTA's reach into its integrator: the capacitor's voltage moves the
-    // inverter's input, and its bias current loads the output.
-    let ota_bp = -(bp_dn * c.g + c.bias * OTA_SCALE) * slope_hp;
-    let ota_lp = -(lp_dn * c.g + c.bias * OTA_SCALE) * slope_bp;
-    let mut jacobian = [[0.0; UNKNOWNS]; UNKNOWNS];
-    jacobian[0][N1] = -2.0 * G_DIODE_FEED;
-    jacobian[0][BP] = G_DIODE_FEED;
-    jacobian[0][VD] = -2.0 * G_DIODE_FEED - diode_slope;
-    jacobian[1][N1] = -(G_INPUT + 2.0 * G_SUM + c.lead + c.wiper);
-    jacobian[1][HP] = G_SUM;
-    jacobian[1][BP] = c.wiper_bandpass;
-    jacobian[1][LP] = G_SUM + c.lead;
-    jacobian[1][VD] = diode_slope;
-    jacobian[2][N1] = hp_dn + G_SUM;
-    jacobian[2][HP] = hp_do - G_SUM - G_OTA_INPUT;
-    jacobian[3][N1] = G_DIODE_FEED;
-    jacobian[3][HP] = ota_bp;
-    jacobian[3][BP] = bp_dn + bp_do - G_BANDPASS_LOAD - G_DIODE_FEED;
-    jacobian[3][VD] = G_DIODE_FEED;
-    jacobian[4][N1] = G_SUM + c.lead;
-    jacobian[4][BP] = ota_lp;
-    jacobian[4][LP] = lp_dn + lp_do - G_SUM - c.lead;
-    (residual, jacobian)
+impl WaspState {
+    /// The circuit at rest for `c`'s resonance, every capacitor charged.
+    fn at_rest(response: WaspResponse, c: &WaspCoeffs) -> Self {
+        let dc = Companions {
+            network: Network::new(c.rotation, 0.0),
+            ..Companions::default()
+        };
+        let none = History::default();
+        let v =
+            newton(&dc, &c.otas, &none, 0.0, REST_GUESS, MAX_REST_ITERATIONS).unwrap_or(REST_GUESS);
+        let pot = branches(&dc, &none, 0.0, &v).pot;
+        Self {
+            settled: true,
+            v,
+            moved: [0.0; UNKNOWNS],
+            history: History {
+                input: (-v[N1], 0.0),
+                lead: v[LP] - v[N1],
+                integrator: [(v[N2] - v[BP], 0.0), (v[N3] - v[LP], 0.0)],
+                pot: (pot, 0.0),
+            },
+            input: 0.0,
+            output: c.mix(response, &v),
+        }
+    }
+}
+
+impl WaspCoeffs {
+    /// The response's mix of the loop's outputs, each against its rest.
+    #[inline]
+    fn mix(&self, response: WaspResponse, v: &[f64; UNKNOWNS]) -> f64 {
+        // The input amplifier and the summer each invert, so the outputs
+        // come out the right way up.
+        let hp = self.highpass_gain * (v[HP] - OTA_REFERENCE);
+        let bp = v[BP] - OTA_REFERENCE;
+        let lp = v[LP] - LOWPASS_REST;
+        match response {
+            WaspResponse::Lowpass => lp,
+            WaspResponse::Highpass => hp,
+            WaspResponse::Bandpass => bp,
+            WaspResponse::Notch => hp + lp,
+            WaspResponse::Allpass => hp + lp - self.damping * bp,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Default)]
@@ -383,9 +162,15 @@ impl Kernel for Wasp {
     type Options = ();
     type Coeffs = WaspCoeffs;
     type State = WaspState;
-    /// A 5 V input swings the input amplifier a quarter of the rail either
-    /// way.
-    const VOLTS: f32 = 4.0;
+    /// A 5 V input swings the input amplifier a little under half the way
+    /// to its rails.
+    const VOLTS: f32 = 2.0;
+
+    /// The level holds while `drive` carries a 5 V input up to the input
+    /// amplifier's rails, and nothing more comes off once it is there.
+    fn drive_makeup(gain: f32) -> f32 {
+        1.0 / gain.min(RAIL_GAIN)
+    }
 
     fn coeffs(
         _: WaspResponse,
@@ -395,26 +180,42 @@ impl Kernel for Wasp {
         _: Taps,
         _: (),
     ) -> WaspCoeffs {
-        let rotation = 1.0 - (1.0 - POT_END) * (resonance.clamp(0.0, 5.0) as f64 / 5.0);
-        let wiper = 1.0 / (1.0 / G_SUM + rotation * (1.0 - rotation) * R_POT);
-        // The summer's low gain leaves its output short of the sum it is
-        // wired for.
-        let (gm, go) = SUMMER.conductances();
-        let summer_gain = G_SUM
-            / (G_SUM + (go + G_SUM + G_OTA_INPUT) * (G_INPUT + 2.0 * G_SUM + wiper) / (gm - G_SUM));
+        let rotation = resonance.clamp(0.0, 5.0) as f64 / 5.0;
+        let core = rates.core as f64;
+        let pot = 2.0 * C_POT * core;
+        let network = Network::new(rotation, pot);
+        let input_step = 1.0 / (2.0 * C_INPUT * core);
+        // For a signal the pot's capacitor is a ground: the wiper as a
+        // weight on the summer's input node and on the bandpass.
+        let signal = Network::new(rotation, SIGNAL_GROUND);
+        // The summer's and the integrators' low gains leave each short of
+        // what it is wired for.
+        let summer_load = 1.0 / R_INPUT + 2.0 * G_SUM + G_SUM * (1.0 - signal.wiper[0]);
+        let summer_gain = G_SUM / (G_SUM + (GO + G_SUM + G_OTA_INPUT) * summer_load / (GM - G_SUM));
+        let bandpass_load =
+            G_OTA_INPUT + G_DIODE_FEED + signal.to_bandpass * (1.0 - signal.wiper[1]);
+        let integrator_gains =
+            1.0 / ((1.0 + (GO + bandpass_load) / GM) * (1.0 + (LOWPASS_GO + G_SUM) / LOWPASS_GM));
         // The loop resonates at the OTAs' rate times the root of the gain
         // around it, so the OTAs run faster by as much.
-        let g = rates.gain(cutoff) as f64 / (summer_gain * INTEGRATOR_GAINS).sqrt();
-        let core = rates.core as f64;
+        let g = rates.gain(cutoff) as f64 / (summer_gain * integrator_gains).sqrt();
+        let integrator = 2.0 * C_INTEGRATOR * core;
+        let radians = 2.0 * core * rates.gain(cutoff) as f64;
         WaspCoeffs {
-            step: g / OTA_SCALE,
-            g,
-            bias: 2.0 * C_INTEGRATOR * core * g / OTA_SCALE,
-            lead: C_LEAD * core,
-            wiper,
-            wiper_bandpass: wiper * rotation,
+            companions: Companions {
+                input: 1.0 / (R_INPUT + input_step),
+                input_step,
+                lead: C_LEAD * core,
+                integrator,
+                pot,
+                network,
+            },
+            otas: Ota::new(Ota::bias_for(g * integrator)),
+            rotation,
             highpass_gain: 1.0 / summer_gain,
-            damping: wiper * rotation / G_SUM + DIODE_REST_DAMPING,
+            // The pot's share, and C2's, which grows with the cutoff.
+            damping: signal.wiper[1] + radians * C_LEAD / G_SUM,
+            output: 1.0 - (-std::f64::consts::TAU * OUTPUT_CORNER / core).exp(),
         }
     }
 
@@ -426,69 +227,109 @@ impl Kernel for Wasp {
         x: f32,
         _: Taps,
     ) -> [f32; 4] {
-        let x = input_amplifier(x as f64, state.input);
-        let mut v = state.v;
-        for _ in 0..MAX_ITERATIONS {
-            let (residual, jacobian) = equations(c, state, x, &v);
-            let mut delta = solve(&jacobian, &residual);
-            delta[VD] = delta[VD].clamp(-DIODE_STEP, DIODE_STEP);
-            let mut largest = 0.0f64;
-            for (value, step) in v.iter_mut().zip(delta) {
-                *value -= step;
-                largest = largest.max(step.abs());
-            }
-            if largest < TOLERANCE {
-                break;
-            }
+        if !state.settled {
+            *state = WaspState::at_rest(response, c);
         }
-        if !v.iter().all(|value| value.is_finite()) {
+        let amplified = input_amplifier(x as f64, state.input + INPUT_REST) - INPUT_REST;
+        let k = &c.companions;
+        // The solve starts where the last two samples point.
+        let start = std::array::from_fn(|i| state.v[i] + state.moved[i]);
+        let source = LEVEL * amplified;
+        let solved = newton(k, &c.otas, &state.history, source, start, MAX_ITERATIONS)
+            .filter(|v| amplified.is_finite() && v.iter().all(|value| value.is_finite()));
+        let Some(v) = solved else {
             *state = WaspState::default();
             return [0.0; 4];
-        }
-        let drive = [ota(v[HP]).0, ota(v[BP]).0];
-        for (i, out) in [v[BP], v[LP]].into_iter().enumerate() {
-            let q = state.q[i] - c.step * (drive[i] + state.drive[i]);
-            // An OTA at the end of its swing stops charging its capacitor.
-            state.q[i] = (out + q).clamp(NODE_MIN, NODE_MAX) - out;
-        }
-        state.drive = drive;
-        state.lead = v[LP] - v[N1];
-        state.v = v;
-        state.input = x;
-        // The input amplifier and the summer each invert, so the outputs
-        // come out the right way up.
-        let (hp, bp, lp) = (c.highpass_gain * v[HP], v[BP], v[LP]);
-        let y = match response {
-            WaspResponse::Lowpass => lp,
-            WaspResponse::Highpass => hp,
-            WaspResponse::Bandpass => bp,
-            WaspResponse::Notch => hp + lp,
-            WaspResponse::Allpass => hp + lp - c.damping * bp,
         };
+        let branches = branches(k, &state.history, source, &v);
+        let history = &mut state.history;
+        history.input.0 += k.input_step * (branches.input + history.input.1);
+        history.input.1 = branches.input;
+        history.lead = v[LP] - v[N1];
+        history.integrator = [
+            (v[N2] - v[BP], branches.integrator[0]),
+            (v[N3] - v[LP], branches.integrator[1]),
+        ];
+        history.pot = (
+            branches.pot,
+            k.pot * (branches.pot - history.pot.0) - history.pot.1,
+        );
+        state.moved = std::array::from_fn(|i| v[i] - state.v[i]);
+        state.v = v;
+        state.input = amplified;
+        let mixed = c.mix(response, &v);
+        state.output += c.output * (mixed - state.output);
         let mut out = [0.0; 4];
-        out[DB12] = (OUTPUT_GAIN * y) as f32;
+        out[DB12] = ((mixed - state.output) * OUTPUT_GAIN) as f32;
         out
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::wasp_circuit::{equations, solve};
+    use super::super::wasp_parts::inverter;
     use super::*;
+
+    const RATES: Rates = Rates {
+        engine: 48_000.0,
+        core: 96_000.0,
+    };
+
+    fn coeffs(resonance: f32) -> WaspCoeffs {
+        Wasp::coeffs(WaspResponse::Lowpass, 0.0, resonance, RATES, [true; 4], ())
+    }
 
     #[test]
     fn the_circuit_rests_at_its_bias_point() {
-        let (current, slope) = diodes(0.0);
-        assert!(current.abs() < 1e-9, "{current}");
-        assert!((slope / DIODE_REST_SLOPE - 1.0).abs() < 1e-9, "{slope}");
-        let rates = Rates {
-            engine: 48_000.0,
-            core: 96_000.0,
-        };
-        let c = Wasp::coeffs(WaspResponse::Lowpass, 0.0, 2.5, rates, [true; 4], ());
-        let mut state = WaspState::default();
-        for _ in 0..1000 {
-            let y = Wasp::step(WaspResponse::Lowpass, &c, &mut state, 0.0, [true; 4]);
-            assert!(y[DB12].abs() < 1e-6, "{}", y[DB12]);
+        for resonance in [0.0, 1.0, 2.5, 4.0, 5.0] {
+            let c = coeffs(resonance);
+            let mut state = WaspState::default();
+            for _ in 0..2000 {
+                let y = Wasp::step(WaspResponse::Lowpass, &c, &mut state, 0.0, [true; 4]);
+                assert!(y[DB12].abs() < 1e-6, "resonance {resonance}: {}", y[DB12]);
+            }
+            // The OTAs hold the summer and the bandpass at their reference.
+            assert!((state.v[HP] - OTA_REFERENCE).abs() < 1e-6);
+            assert!((state.v[BP] - OTA_REFERENCE).abs() < 1e-6);
         }
+    }
+
+    #[test]
+    fn the_solve_satisfies_every_equation() {
+        let c = coeffs(4.0);
+        let state = WaspState::at_rest(WaspResponse::Lowpass, &c);
+        // Mid-swing, and with the bandpass integrator's OTA at a rail.
+        for v in [
+            [5.4, 7.0, 5.9, 4.0, 5.5, 6.5, 0.3],
+            [5.7, 2.0, 0.55, 11.5, 5.6, 5.0, -0.2],
+        ] {
+            let (b, a) = equations(&c.companions, &c.otas, &state.history, 0.3, &v);
+            let x = solve(&a, &b).unwrap();
+            for row in 0..UNKNOWNS {
+                let sum: f64 = (0..UNKNOWNS).map(|k| a[row][k] * x[k]).sum();
+                assert!(
+                    (sum - b[row]).abs() < 1e-9,
+                    "row {row}: {sum} vs {}",
+                    b[row]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_rest_constants_are_the_models_own() {
+        let (current, gm, go) = inverter(INPUT_REST, INPUT_REST);
+        assert!(current.abs() < 1e-9, "{current}");
+        assert!((-gm / INPUT_GM - 1.0).abs() < 0.01 && (-go / INPUT_GO - 1.0).abs() < 0.01);
+        let rest = WaspState::at_rest(WaspResponse::Lowpass, &coeffs(2.5)).v;
+        for (value, guess) in rest.iter().zip(REST_GUESS) {
+            assert!((value - guess).abs() < 1e-3, "{rest:?}");
+        }
+        assert!((rest[LP] - LOWPASS_REST).abs() < 0.01);
+        let (_, gm, go) = inverter(rest[N1], rest[HP]);
+        assert!((-gm / GM - 1.0).abs() < 0.01 && (-go / GO - 1.0).abs() < 0.01);
+        let (_, gm, go) = inverter(rest[N3], rest[LP]);
+        assert!((-gm / LOWPASS_GM - 1.0).abs() < 0.01 && (-go / LOWPASS_GO - 1.0).abs() < 0.01);
     }
 }

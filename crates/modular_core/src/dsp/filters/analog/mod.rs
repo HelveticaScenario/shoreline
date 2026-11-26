@@ -19,7 +19,9 @@ mod runner;
 mod sallen_key;
 mod sallen_key_modules;
 mod wasp;
+mod wasp_circuit;
 mod wasp_modules;
+mod wasp_parts;
 
 use std::collections::HashMap;
 
