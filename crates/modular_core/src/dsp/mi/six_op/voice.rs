@@ -75,8 +75,6 @@ struct Operator {
 /// patch clears every key.
 #[derive(Clone, Copy, Debug)]
 struct Cache {
-    /// The patch (by address) everything below is for.
-    patch: usize,
     /// The input frequency, and its note number.
     note_f0: f32,
     note_number: f32,
@@ -115,7 +113,6 @@ struct Cache {
 impl Default for Cache {
     fn default() -> Self {
         Self {
-            patch: 0,
             note_f0: f32::NAN,
             note_number: 48.0,
             pitch_mod: f32::NAN,
@@ -151,7 +148,9 @@ fn moved(a: f32, b: f32) -> bool {
 
 #[derive(Clone, Copy, Debug)]
 pub struct FmVoice {
-    patch: Option<&'static Patch>,
+    patch: Option<Patch>,
+    /// The loaded patch's id (`Dx7Voice::id`).
+    patch_id: u64,
     pub lfo: Lfo,
     pub parameters: Parameters,
     gate: bool,
@@ -168,6 +167,7 @@ impl Default for FmVoice {
     fn default() -> Self {
         Self {
             patch: None,
+            patch_id: 0,
             lfo: Lfo::default(),
             parameters: Parameters::default(),
             gate: false,
@@ -217,11 +217,13 @@ fn render_chain<const N: usize, const SOURCE: i32>(
 impl FmVoice {
     /// `FMVoice::LoadPatch`: a different patch takes over the operators and
     /// LFO settings, keeping their phases and the envelopes' stages.
-    pub fn load_patch(&mut self, patch: &'static Patch, rates: &Rates) {
-        if self.patch.is_some_and(|p| std::ptr::eq(p, patch)) {
+    pub fn load_patch(&mut self, patch: &Patch, id: u64, rates: &Rates) {
+        if self.patch.is_some() && self.patch_id == id {
             return;
         }
-        self.patch = Some(patch);
+        self.patch = Some(*patch);
+        self.patch_id = id;
+        self.cache = Cache::default();
         self.lfo.set(&patch.lfo, rates.one_hz);
     }
 
@@ -233,17 +235,10 @@ impl FmVoice {
     /// One sample of the voice; silent until a patch loads.
     #[inline(always)]
     pub fn render(&mut self, rates: &Rates) -> f32 {
-        let Some(patch) = self.patch else {
+        let Some(patch) = &self.patch else {
             return 0.0;
         };
         let p = self.parameters;
-        let patch_id = patch as *const Patch as usize;
-        if patch_id != self.cache.patch {
-            self.cache = Cache {
-                patch: patch_id,
-                ..Cache::default()
-            };
-        }
         let cache = &mut self.cache;
         let scale = rates.envelope_scale;
         let gate_duration = rates.gate_duration;

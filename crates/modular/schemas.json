@@ -38540,7 +38540,7 @@
     "name": "$mi.sixOp",
     "docs": {
       "summary": "Six-operator DX7 FM voice",
-      "description": "Mutable Instruments Plaits' six-operator FM: the DX7's algorithms, envelopes and LFO playing Plaits' three banks of 32 patches, for electric pianos, basses, bells and brass. Leave `gate` unpatched for a drone whose `envelope` picks the moment in the note it holds.",
+      "description": "Mutable Instruments Plaits' six-operator FM: the DX7's algorithms, envelopes and LFO playing any voice from a DX7 `.syx` file, for electric pianos, basses, bells and brass. Plaits' 96 voices are built in under `builtin/dx7/plaits/`. Leave `gate` unpatched for a drone whose `envelope` picks the moment in the note it holds.",
       "categories": [
         "oscillator"
       ],
@@ -38548,11 +38548,11 @@
       "examples": [
         {
           "title": "Electric piano",
-          "code": "const seq = $`c3 [eb3 g3] <bb3 f3> ~`\nmelody: $mi.sixOp(seq, { gate: seq, bank: 1 })"
+          "code": "const seq = $`c3 [eb3 g3] <bb3 f3> ~`\nmelody: $mi.sixOp(seq, 'builtin/dx7/plaits/e-piano-1.syx', {\n  gate: seq,\n})"
         },
         {
           "title": "Frozen pad",
-          "code": "bass: $mi.sixOp('c2', { bank: 2, patch: 11, envelope: 3 })"
+          "code": "bass: $mi.sixOp('c2', 'builtin/dx7/plaits/m1-pads.syx', {\n  envelope: 3,\n})"
         }
       ]
     },
@@ -38568,6 +38568,10 @@
             "paramType": "pitch"
           }
         },
+        "voice": {
+          "description": "the DX7 voice: a `.syx` file, then `#` and a voice name to pick one of several; a held note keeps its voice until the next note-on",
+          "$ref": "#/$defs/Dx7Voice"
+        },
         "gate": {
           "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
           "anyOf": [
@@ -38580,44 +38584,6 @@
           ],
           "x-signal": {
             "paramType": "gate"
-          }
-        },
-        "bank": {
-          "description": "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 2.0,
-            "controlMin": 0.0,
-            "controlMax": 2.0
-          }
-        },
-        "patch": {
-          "description": "which patch of the bank; a held note keeps its patch until the next note-on",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/PolySignal"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "x-signal": {
-            "paramType": "control",
-            "defaultValue": 0.0,
-            "minValue": 0.0,
-            "maxValue": 31.0,
-            "controlMin": 0.0,
-            "controlMax": 31.0
           }
         },
         "brightness": {
@@ -38698,7 +38664,8 @@
         }
       },
       "required": [
-        "freq"
+        "freq",
+        "voice"
       ],
       "$defs": {
         "PolySignal": {
@@ -38758,6 +38725,31 @@
             }
           ]
         },
+        "Dx7Voice": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "dx7_voice"
+            },
+            "path": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{256}$"
+            }
+          },
+          "required": [
+            "type",
+            "path",
+            "name",
+            "data"
+          ]
+        },
         "FmMode": {
           "description": "FM synthesis mode for oscillators.",
           "oneOf": [
@@ -38809,34 +38801,6 @@
         "name": "gate",
         "description": "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
         "paramType": "gate",
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
-      },
-      {
-        "name": "bank",
-        "description": "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 2.0,
-        "controlMin": 0.0,
-        "controlMax": 2.0,
-        "carriesBounds": false,
-        "boundsNeedConstant": false,
-        "fold": false,
-        "readsSides": false
-      },
-      {
-        "name": "patch",
-        "description": "which patch of the bank; a held note keeps its patch until the next note-on",
-        "paramType": "control",
-        "defaultValue": 0.0,
-        "minValue": 0.0,
-        "maxValue": 31.0,
-        "controlMin": 0.0,
-        "controlMax": 31.0,
         "carriesBounds": false,
         "boundsNeedConstant": false,
         "fold": false,
@@ -38898,6 +38862,9 @@
     "positionalArgs": [
       {
         "name": "freq"
+      },
+      {
+        "name": "voice"
       }
     ],
     "experimental": false,

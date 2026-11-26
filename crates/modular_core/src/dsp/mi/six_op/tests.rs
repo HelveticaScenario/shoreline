@@ -7,14 +7,27 @@ fn mark() -> GlideMark {
     PolySignal::mono(Signal::Volts(0.0)).glide_mark(0)
 }
 
-fn knobs(bank: f32, patch: f32, brightness: f32, envelope: f32, accent: f32) -> Knobs {
+fn knobs(brightness: f32, envelope: f32, accent: f32) -> Knobs {
     Knobs {
-        bank,
-        patch,
         brightness: (brightness, mark()),
         envelope: (envelope, mark()),
         accent: (accent, mark()),
     }
+}
+
+/// Plaits' patch `patch` of `bank`, from the builtin files.
+fn voice(bank: f32, patch: f32) -> &'static Dx7Voice {
+    static VOICES: std::sync::LazyLock<Vec<Dx7Voice>> = std::sync::LazyLock::new(|| {
+        test_voices::PLAITS_VOICES
+            .iter()
+            .map(|path| {
+                let bytes = std::fs::read(test_voices::asset(path)).unwrap();
+                let v = parse_syx(&bytes).unwrap().remove(0);
+                Dx7Voice::new(path.to_string(), v.name, v.packed)
+            })
+            .collect()
+    });
+    &VOICES[bank as usize * 32 + patch as usize]
 }
 
 fn new_lane(seed: u32) -> Lane {
@@ -46,8 +59,9 @@ fn matches_plaits() {
         };
         let out = lane.step(
             record[1],
-            knobs(record[6], record[7], record[2], record[3], record[4]),
+            knobs(record[2], record[3], record[4]),
             gate,
+            voice(record[6], record[7]),
             &state,
         );
         actual.push(out);
@@ -84,8 +98,9 @@ fn render(
             let gate = gated.then_some(n < samples / 2);
             lane.step(
                 hz / sample_rate,
-                knobs(bank, patch, 2.5, envelope, 4.0),
+                knobs(2.5, envelope, 4.0),
                 gate,
+                voice(bank, patch),
                 &state,
             )
         })
@@ -154,7 +169,7 @@ fn runs_backward() {
         let render = |f0: f32| {
             let mut lane = new_lane(1);
             (0..4800)
-                .map(|_| lane.step(f0, knobs(bank, patch, 2.5, 2.5, 4.0), None, &state))
+                .map(|_| lane.step(f0, knobs(2.5, 2.5, 4.0), None, voice(bank, patch), &state))
                 .collect::<Vec<_>>()
         };
         let forward = render(0.004);
@@ -186,8 +201,8 @@ fn non_finite_knobs_hold() {
             _ => 2.0,
         };
         let gate = Some(n % 1000 < 700);
-        let a = held.step(0.005, knobs(2.0, 2.0, 2.0, 2.0, 2.0), gate, &state);
-        let b = glitched.step(0.005, knobs(v, v, v, v, v), gate, &state);
+        let a = held.step(0.005, knobs(2.0, 2.0, 2.0), gate, voice(2.0, 2.0), &state);
+        let b = glitched.step(0.005, knobs(v, v, v), gate, voice(2.0, 2.0), &state);
         assert_eq!(a, b, "sample {n}");
     }
 }
@@ -213,8 +228,9 @@ fn stays_finite() {
                     let gate = (bank != 2).then_some(n % 400 < 250);
                     let out = lane.step(
                         f0,
-                        knobs(bank as f32, patch as f32, knob, 5.0 - knob, 5.0),
+                        knobs(knob, 5.0 - knob, 5.0),
                         gate,
+                        voice(bank as f32, patch as f32),
                         &state,
                     );
                     assert!(
@@ -275,15 +291,21 @@ fn envelope_knob_runs_from_snappy_to_slow() {
 }
 
 /// Unpatching the gate forgets its last state, so a gate patched again while
-/// high still rises: the note it starts loads the patch selected then.
+/// high still rises: the note it starts loads the voice set then.
 #[test]
 fn a_gate_patched_again_rises() {
     let state = SixOpState::new(48000.0);
     let mut lane = new_lane(1);
     for _ in 0..100 {
-        lane.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), Some(true), &state);
+        lane.step(
+            0.005,
+            knobs(2.5, 2.5, 4.0),
+            Some(true),
+            voice(0.0, 0.0),
+            &state,
+        );
     }
     assert!(lane.gate);
-    lane.step(0.005, knobs(0.0, 0.0, 2.5, 2.5, 4.0), None, &state);
+    lane.step(0.005, knobs(2.5, 2.5, 4.0), None, voice(0.0, 0.0), &state);
     assert!(!lane.gate);
 }

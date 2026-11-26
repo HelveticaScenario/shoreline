@@ -8,7 +8,10 @@ import {
     registerWorkspacePathCompletionProvider,
     stringLiteralAt,
     assetPaths,
+    workspaceSuggestions,
 } from './workspacePathCompletion';
+import { createWorkspaceAssetIndex } from './workspaceAssetIndex';
+import { BUILTIN_DX7_VOICES } from '../../../shared/builtinDx7';
 import {
     BUILTIN_PREFIX,
     BUILTIN_WAVETABLES,
@@ -59,6 +62,17 @@ const TREE: FileTreeEntry[] = [
         path: 'clips/loop.mp4',
         type: 'file',
         fileType: 'video',
+    },
+    {
+        name: 'dx7',
+        path: 'dx7',
+        type: 'directory',
+        children: ['rom1a', 'lone', 'broken'].map((name) => ({
+            name: `${name}.syx`,
+            path: `dx7/${name}.syx`,
+            type: 'file' as const,
+            fileType: 'syx' as const,
+        })),
     },
 ];
 
@@ -213,8 +227,16 @@ test('assetPaths lists every asset with its kind, rooted at /', () => {
         { path: '/wavs/pads/warm.wav', kind: 'wav' },
         { path: '/pictures/photo.png', kind: 'image' },
         { path: '/clips/loop.mp4', kind: 'video' },
+        { path: '/dx7/rom1a.syx', kind: 'syx' },
+        { path: '/dx7/lone.syx', kind: 'syx' },
+        { path: '/dx7/broken.syx', kind: 'syx' },
     ]);
 });
+
+const VOICES = [
+    { path: '/dx7/rom1a.syx', names: ['E.PIANO 1', 'BASS    3', 'E.PIANO 1'] },
+    { path: '/dx7/lone.syx', names: ['BRASS 1'] },
+];
 
 function makeProvider(): languages.CompletionItemProvider {
     let captured: languages.CompletionItemProvider | undefined;
@@ -231,7 +253,9 @@ function makeProvider(): languages.CompletionItemProvider {
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
-    registerWorkspacePathCompletionProvider(monaco, async () => TREE);
+    registerWorkspacePathCompletionProvider(monaco, async () =>
+        workspaceSuggestions(TREE, VOICES),
+    );
     return captured!;
 }
 
@@ -249,8 +273,39 @@ async function complete(line: string, column: number) {
 }
 
 describe('workspace path completion', () => {
+    test('offers each voice of a .syx file, and a lone voice as its file', async () => {
+        const list = await complete("$mi.sixOp('c3', '/dx7/')", 23);
+        const syx = list?.suggestions.filter((s) =>
+            (s.label as string).startsWith('/dx7/'),
+        );
+        expect(syx?.map((s) => [s.insertText, s.detail])).toEqual([
+            ["'/dx7/rom1a.syx'", 'DX7 voices: the first, E.PIANO 1'],
+            ["'/dx7/rom1a.syx#E.PIANO 1'", 'DX7 voice 1 of 3'],
+            ["'/dx7/rom1a.syx#BASS    3'", 'DX7 voice 2 of 3'],
+            ["'/dx7/rom1a.syx#@2'", 'DX7 voice 3 of 3'],
+            ["'/dx7/lone.syx'", 'DX7 voice BRASS 1'],
+            ["'/dx7/broken.syx'", 'DX7 voices'],
+        ]);
+    });
+
+    test('offers the bundled DX7 voices by file', async () => {
+        const list = await complete("$mi.sixOp('c3', 'builtin/dx7')", 29);
+        expect(list?.suggestions).toContainEqual(
+            expect.objectContaining({
+                insertText: `'${BUILTIN_DX7_VOICES[0].path}'`,
+                detail: `DX7 voice ${BUILTIN_DX7_VOICES[0].name}`,
+            }),
+        );
+    });
+
     test('offers every asset in a literal starting with /, replacing the literal', async () => {
-        const list = await complete("$sampler('/wa', 5)", 13);
+        const all = await complete("$sampler('/wa', 5)", 13);
+        // The .syx files have a test of their own.
+        const list = all && {
+            suggestions: all.suggestions.filter(
+                (s) => !(s.label as string).startsWith('/dx7/'),
+            ),
+        };
         expect(list?.suggestions.map((s) => s.insertText)).toEqual([
             "'/wavs/kick.wav'",
             `"/wavs/don't.wav"`,
@@ -302,7 +357,7 @@ describe('workspace path completion', () => {
                 },
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
-            async () => tree,
+            async () => workspaceSuggestions(tree, []),
         );
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const any = {} as any;
@@ -326,7 +381,9 @@ describe('workspace path completion', () => {
     });
 
     test('offers the bundled files in a literal starting with builtin/ or part of it', async () => {
-        const builtins = BUILTIN_WAVETABLES.map((a) => `'${a.path}'`);
+        const builtins = [...BUILTIN_WAVETABLES, ...BUILTIN_DX7_VOICES].map(
+            (a) => `'${a.path}'`,
+        );
         for (const typed of ['b', 'builtin', 'builtin/', 'builtin/tables/be']) {
             const line = `$wavetable('c3', '${typed}')`;
             const list = await complete(line, 19 + typed.length);
@@ -442,5 +499,57 @@ describe('dropping a workspace path', () => {
         expect(dropOnto('$sampler(, 5)', 10)).toBe(
             "$sampler('/wavs/kick.wav', 5)",
         );
+    });
+});
+
+describe('the workspace asset index', () => {
+    function source() {
+        const calls = { listFiles: 0, listSyxVoices: 0 };
+        let changed: () => void = () => {};
+        return {
+            calls,
+            change: () => changed(),
+            source: {
+                listFiles: async () => {
+                    calls.listFiles++;
+                    return TREE;
+                },
+                listSyxVoices: async (paths: string[]) => {
+                    calls.listSyxVoices++;
+                    return VOICES.filter((v) => paths.includes(v.path));
+                },
+                onTreeChange: (callback: () => void) => {
+                    changed = callback;
+                    return () => {};
+                },
+            },
+        };
+    }
+
+    test('reads the workspace once until its files change', async () => {
+        const { calls, change, source: s } = source();
+        const index = createWorkspaceAssetIndex(s);
+        const first = await index.suggestions();
+        expect(await index.suggestions()).toBe(first);
+        expect(calls).toEqual({ listFiles: 1, listSyxVoices: 1 });
+        expect(first.map((x) => x.path)).toContain('/dx7/rom1a.syx#BASS    3');
+        change();
+        await index.suggestions();
+        expect(calls).toEqual({ listFiles: 2, listSyxVoices: 2 });
+    });
+
+    test('a failed read is tried again', async () => {
+        const { source: s } = source();
+        let fail = true;
+        const index = createWorkspaceAssetIndex({
+            ...s,
+            listFiles: async () => {
+                if (fail) throw new Error('gone');
+                return TREE;
+            },
+        });
+        expect(await index.suggestions()).toEqual([]);
+        fail = false;
+        expect((await index.suggestions()).length).toBeGreaterThan(0);
     });
 });

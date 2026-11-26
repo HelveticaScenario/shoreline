@@ -11,6 +11,7 @@ import { setupMonacoJavascript } from '../monaco/monacoLanguage';
 import { registerDslFormattingProvider } from '../monaco/formattingProvider';
 import { registerMidiCompletionProvider } from '../monaco/midiCompletionProvider';
 import { registerWorkspacePathCompletionProvider } from '../monaco/workspacePathCompletion';
+import { createWorkspaceAssetIndex } from '../monaco/workspaceAssetIndex';
 import { registerControlQuickFixProvider } from '../monaco/controlQuickFixProvider';
 import { registerRefactorProvider } from '../monaco/refactorProvider';
 import { registerKeybindingsCompletionProvider } from '../monaco/keybindingsCompletion';
@@ -94,10 +95,15 @@ export function useMonacoRegistrations({
         if (!monaco) {
             return;
         }
-        const provider = registerWorkspacePathCompletionProvider(monaco, () =>
-            electronAPI.filesystem.listFiles(),
+        const index = createWorkspaceAssetIndex(electronAPI.filesystem);
+        const provider = registerWorkspacePathCompletionProvider(
+            monaco,
+            index.suggestions,
         );
-        return () => provider.dispose();
+        return () => {
+            provider.dispose();
+            index.dispose();
+        };
     }, [monaco]);
 
     // Quick fix: turn an API param into a control call chosen from its

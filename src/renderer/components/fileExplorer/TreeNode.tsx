@@ -4,6 +4,7 @@ import {
     Folder,
     FolderOpen,
     Image,
+    KeyboardMusic,
     Parentheses,
     type LucideIcon,
 } from 'lucide-react';
@@ -18,6 +19,7 @@ const FILE_ICONS: Record<NonNullable<FileTreeEntry['fileType']>, LucideIcon> = {
     wav: AudioLines,
     image: Image,
     video: Film,
+    syx: KeyboardMusic,
 };
 
 interface TreeNodeProps {

@@ -40,7 +40,7 @@ mod wav_metadata;
 #[global_allocator]
 static GLOBAL_ALLOC: alloc_detector::AudioAllocDetector = alloc_detector::AudioAllocDetector;
 
-use napi::bindgen_prelude::Float32Array;
+use napi::bindgen_prelude::{Buffer, Float32Array};
 use std::{collections::HashMap, sync::Arc};
 
 use modular_core::{
@@ -429,7 +429,7 @@ impl WavCache {
             return file_inside(&self.builtin_path, relative, Links::Contained).map_err(|e| {
                 napi::Error::from_reason(match e {
                     FileInsideError::Outside => {
-                        format!("WAV path must name a built-in file: {path}")
+                        format!("path must name a built-in file: {path}")
                     }
                     FileInsideError::Unreadable(e) => format!("no built-in file {path} ({e})"),
                 })
@@ -442,7 +442,7 @@ impl WavCache {
         }
         let outside = || {
             napi::Error::from_reason(format!(
-                "WAV path must name a file inside the workspace folder: {path}"
+                "path must name a file inside the workspace folder: {path}"
             ))
         };
         let relative = path.strip_prefix('/').ok_or_else(outside)?;
@@ -649,6 +649,30 @@ pub struct WavCuePointInfo {
 pub struct WavTimeSignature {
     pub num: u32,
     pub den: u32,
+}
+
+/// The DX7 voices in the bytes of a `.syx` file, in file order.
+/// This is a pure function: no audio hardware or Synthesizer instance needed.
+#[napi]
+pub fn parse_syx(bytes: Buffer) -> Result<Vec<SyxVoiceInfo>> {
+    syx_voices(&bytes).map_err(napi::Error::from_reason)
+}
+
+fn syx_voices(bytes: &[u8]) -> std::result::Result<Vec<SyxVoiceInfo>, String> {
+    Ok(modular_core::dsp::mi::six_op::parse_syx(bytes)?
+        .into_iter()
+        .map(|v| SyxVoiceInfo {
+            name: v.name,
+            data: v.packed.iter().map(|b| format!("{b:02x}")).collect(),
+        })
+        .collect())
+}
+
+/// One voice of a `.syx` file: its name, and its 128 packed bytes as hex.
+#[napi(object)]
+pub struct SyxVoiceInfo {
+    pub name: String,
+    pub data: String,
 }
 
 #[napi(object)]
@@ -1052,6 +1076,16 @@ impl Synthesizer {
     #[napi]
     pub fn load_media_audio(&mut self, path: String) -> Result<Option<WavLoadInfo>> {
         self.wav_cache.load_media_audio(&path)
+    }
+
+    /// The DX7 voices of a `.syx` file, in file order. `path` is a workspace
+    /// (`/...`) or bundled (`builtin/...`) path.
+    #[napi]
+    pub fn load_syx(&self, path: String) -> Result<Vec<SyxVoiceInfo>> {
+        let file = self.wav_cache.asset_file(&path)?;
+        let bytes = std::fs::read(&file)
+            .map_err(|e| napi::Error::from_reason(format!("cannot read {path} ({e})")))?;
+        syx_voices(&bytes).map_err(|e| napi::Error::from_reason(format!("{path}: {e}")))
     }
 
     /// Set the workspace root directory for WAV file loading.

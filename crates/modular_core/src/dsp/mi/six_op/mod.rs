@@ -1,9 +1,14 @@
 mod algorithms;
+mod dx7_voice;
 mod envelope;
 mod lfo;
 mod patch;
+mod syx;
 mod units;
 mod voice;
+
+pub use dx7_voice::Dx7Voice;
+pub use syx::{SyxVoice, parse_syx};
 
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -24,7 +29,6 @@ use crate::{
     types::{GlideMark, SwapGlide},
 };
 
-use patch::{BANKS, PATCH_BANKS, PATCHES, Patch};
 use voice::{FmVoice, Rates};
 
 /// Plaits' output gain for this engine, at ±5 V full scale, after its
@@ -42,27 +46,15 @@ struct SixOpParams {
     #[input("the note's pitch", type = pitch)]
     freq: PolySignal,
     #[input(
+        "the DX7 voice: a `.syx` file, then `#` and a voice name to pick one of several; a held note keeps its voice until the next note-on"
+    )]
+    voice: Dx7Voice,
+    #[input(
         "holds the note: the envelopes attack and decay while high and release when it falls; a new note restarts them from where they are. Unpatched, the note sounds continuously and `envelope` scrubs through its envelopes",
         type = gate,
     )]
     #[deserr(default)]
     gate: Option<PolySignal>,
-    #[input(
-        "which of Plaits' three banks of 32 DX7 patches: basses, leads and synths (0), keys, mallets and percussion (1), organs, pads, strings and brass (2)",
-        type = control,
-        default = 0.0,
-        range = (0.0, 2.0),
-    )]
-    #[deserr(default)]
-    bank: Option<PolySignal>,
-    #[input(
-        "which patch of the bank; a held note keeps its patch until the next note-on",
-        type = control,
-        default = 0.0,
-        range = (0.0, 31.0),
-    )]
-    #[deserr(default)]
-    patch: Option<PolySignal>,
     #[input(
         "the level of the modulating operators: darker (0) to brighter and harsher (5)",
         type = control,
@@ -109,8 +101,9 @@ struct SixOpOutputs {
 const SIX_OP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Six-operator DX7 FM voice",
     description: "Mutable Instruments Plaits' six-operator FM: the DX7's \
-                  algorithms, envelopes and LFO playing Plaits' three banks of \
-                  32 patches, for electric pianos, basses, bells and brass. \
+                  algorithms, envelopes and LFO playing any voice from a DX7 \
+                  `.syx` file, for electric pianos, basses, bells and brass. \
+                  Plaits' 96 voices are built in under `builtin/dx7/plaits/`. \
                   Leave `gate` unpatched for a drone whose `envelope` picks \
                   the moment in the note it holds.",
     categories: &[ReferenceCategory::Oscillator],
@@ -120,17 +113,23 @@ const SIX_OP_DOCS: ModuleDocs = ModuleDocs {
             title: "Electric piano",
             code: r#"
                 const seq = $`c3 [eb3 g3] <bb3 f3> ~`
-                melody: $mi.sixOp(seq, { gate: seq, bank: 1 })
+                melody: $mi.sixOp(seq, 'builtin/dx7/plaits/e-piano-1.syx', {
+                  gate: seq,
+                })
             "#,
         },
         DocExample {
             title: "Frozen pad",
-            code: "bass: $mi.sixOp('c2', { bank: 2, patch: 11, envelope: 3 })",
+            code: r#"
+                bass: $mi.sixOp('c2', 'builtin/dx7/plaits/m1-pads.syx', {
+                  envelope: 3,
+                })
+            "#,
         },
     ],
 };
 
-#[module(name = "$mi.sixOp", docs = SIX_OP_DOCS, args(freq), has_init, patch_update)]
+#[module(name = "$mi.sixOp", docs = SIX_OP_DOCS, args(freq, voice), has_init, patch_update)]
 pub struct SixOp {
     outputs: SixOpOutputs,
     state: SixOpState,
@@ -158,8 +157,6 @@ impl SixOpState {
 /// The inputs for a sample, in volts, with the glide marks of the knobs that
 /// glide.
 struct Knobs {
-    bank: f32,
-    patch: f32,
     brightness: (f32, GlideMark),
     envelope: (f32, GlideMark),
     accent: (f32, GlideMark),
@@ -186,9 +183,6 @@ struct Lane {
     /// The last finite brightness, envelope and accent, which a NaN or
     /// infinite knob holds.
     held: [f32; 3],
-    /// The last finite bank and patch selection.
-    bank: usize,
-    patch: usize,
     /// Whether `random` has its per-instance seed. Transfers with the
     /// lane, so its LFOs stay continuous across patch updates.
     #[seed_side(keep)]
@@ -211,16 +205,9 @@ impl Default for Lane {
                 SixOpParams::ENVELOPE_DEFAULT,
                 plaits_volts(SixOpParams::ACCENT_DEFAULT),
             ],
-            bank: 0,
-            patch: 0,
             seeded: false,
         }
     }
-}
-
-/// A selector in volts as the nearest of `count` indices; `None` when NaN.
-fn select(volts: f32, count: usize) -> Option<usize> {
-    (!volts.is_nan()).then(|| volts.round().clamp(0.0, (count - 1) as f32) as usize)
 }
 
 impl Lane {
@@ -228,7 +215,14 @@ impl Lane {
     /// output stage, before the output gain. `gate` is `None` when unpatched,
     /// to scrub the envelopes.
     #[inline(always)]
-    fn step(&mut self, f0: f32, knobs: Knobs, gate: Option<bool>, state: &SixOpState) -> f32 {
+    fn step(
+        &mut self,
+        f0: f32,
+        knobs: Knobs,
+        gate: Option<bool>,
+        voice_param: &Dx7Voice,
+        state: &SixOpState,
+    ) -> f32 {
         let sample_rate = state.sample_rate;
         let rates = &state.rates;
         let f0 = limit_frequency(f0, 0.5);
@@ -245,13 +239,7 @@ impl Lane {
                 *held = value;
             }
         }
-        if let Some(bank) = select(knobs.bank, BANKS) {
-            self.bank = bank;
-        }
-        if let Some(patch) = select(knobs.patch, PATCHES) {
-            self.patch = patch;
-        }
-        let patch: &'static Patch = &PATCH_BANKS[self.bank][self.patch];
+        let (patch, id) = (voice_param.patch(), voice_param.id());
         let brightness = knob(self.held[0]);
         let envelope = knob(self.held[1]);
         let velocity = knob(self.held[2]);
@@ -264,16 +252,16 @@ impl Lane {
                 voice
                     .lfo
                     .scrub(2.0 * sample_rate * envelope, &mut self.random);
-                voice.load_patch(patch, rates);
+                voice.load_patch(patch, id, rates);
                 voice.parameters.sustain = true;
                 voice.parameters.gate = false;
                 // A gate patched again later starts from low, so its first
-                // high loads the patch then selected.
+                // high loads the voice then set.
                 self.gate = false;
             }
             Some(high) => {
                 if high && !self.gate {
-                    voice.load_patch(patch, rates);
+                    voice.load_patch(patch, id, rates);
                     voice.lfo.reset();
                 }
                 self.gate = high;
@@ -296,7 +284,6 @@ impl Lane {
 
 impl SixOp {
     fn init(&mut self, sample_rate: f32) {
-        std::sync::LazyLock::force(&PATCH_BANKS);
         self.state = SixOpState::new(sample_rate);
     }
 
@@ -320,8 +307,6 @@ impl SixOp {
                 .accent_state
                 .read(accent, gate_volts, self.state.sample_rate);
             let knobs = Knobs {
-                bank: p.bank.value_or(lane_index, SixOpParams::BANK_DEFAULT),
-                patch: p.patch.value_or(lane_index, SixOpParams::PATCH_DEFAULT),
                 brightness: (
                     p.brightness
                         .value_or(lane_index, SixOpParams::BRIGHTNESS_DEFAULT),
@@ -334,7 +319,7 @@ impl SixOp {
                 ),
                 accent: (plaits_volts(accent), mark),
             };
-            let out = lane.step(f0, knobs, gate, &self.state);
+            let out = lane.step(f0, knobs, gate, &p.voice, &self.state);
             let out =
                 lane.accent_state
                     .apply(OUTPUT_GAIN * out, ACCENT_TRIM, self.state.sample_rate);
@@ -363,3 +348,20 @@ message_handlers!(impl SixOp {});
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "../../../../tests/plaits_voices/mod.rs"]
+mod plaits_voices;
+
+/// The builtin voices, for tests.
+#[cfg(test)]
+pub(crate) mod test_voices {
+    pub use super::plaits_voices::PLAITS_VOICES;
+
+    /// The file of a builtin voice path (one under `assets/builtin`).
+    pub fn asset(path: &str) -> std::path::PathBuf {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../assets/builtin")
+            .join(path)
+    }
+}
