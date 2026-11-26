@@ -38365,6 +38365,11 @@
           "description": "how `fm` bends the frequency",
           "$ref": "#/$defs/FmMode",
           "default": "throughZero"
+        },
+        "waitForZeroCross": {
+          "description": "a new voice stays silent until its wave first crosses zero, so it starts without a click",
+          "type": "boolean",
+          "default": true
         }
       },
       "required": [
