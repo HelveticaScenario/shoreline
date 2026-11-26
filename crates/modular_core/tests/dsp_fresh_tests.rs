@@ -416,7 +416,6 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.noise"
         | "$mi.particles"
         | "$mi.phaseDistortion"
-        | "$mi.ringHat"
         | "$mi.sixOp"
         | "$mi.snare"
         | "$mi.speak"
