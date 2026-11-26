@@ -475,28 +475,6 @@ fn blend_glides_when_mix_changes() {
     }
 }
 
-/// Each of `$mi.hiHat`'s hats renders the same whichever outputs are read,
-/// and one nothing hears rejoins within a few milliseconds of being read.
-#[test]
-fn hi_hat_outputs_render_the_same_whichever_others_are_read() {
-    modular_core::dsp::utils::rng::TEST_SEED_BASE.set(Some(1));
-    let ports = ["blend", "square", "ring"];
-    for mix in [json!(0.0), json!(2.5), json!(5.0), cable("lfo", 1)] {
-        for trigger in [Some(poly_cable("src", LANES)), None] {
-            let mut params = json!({
-                "freq": poly_cable("lfo", LANES),
-                "tone": cable("lfo", 0),
-                "noisiness": 2.0,
-                "mix": mix,
-            });
-            if let Some(trigger) = trigger {
-                params["trigger"] = trigger;
-            }
-            check_connections_agree("$mi.hiHat", params, &ports, 1e-3, 240);
-        }
-    }
-}
-
 /// A side added by a patch update draws noise of its own for each hat.
 #[test]
 fn hi_hat_sides_added_by_a_patch_update_get_their_own_noise() {

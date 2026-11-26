@@ -6,11 +6,7 @@ use schemars::JsonSchema;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
-    dsp::{
-        mi::core::blend::{Blend, crossfade},
-        oscillators::FmMode,
-        utils::rng::seed_base,
-    },
+    dsp::{mi::core::blend::Blend, oscillators::FmMode, utils::rng::seed_base},
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 
@@ -166,8 +162,7 @@ const HI_HAT_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-/// One lane of both hats. Each has its own noise, so either renders the same
-/// whether or not the other is heard.
+/// One lane of both hats, each with its own noise.
 #[derive(Clone, Copy, Default)]
 struct Voice {
     strike: Strike,
@@ -202,7 +197,6 @@ impl MiHiHat {
 
     fn update(&mut self, _sample_rate: f32) {
         let lanes = self.lane_count();
-        let connected = self.connected();
         let p = &self.params;
         let state = &self.state;
         for (lane_index, voice) in self.lane_state[..lanes].iter_mut().enumerate() {
@@ -225,24 +219,14 @@ impl MiHiHat {
                 noisiness: knob(&p.noisiness, MiHiHatParams::NOISINESS_DEFAULT),
                 accent: knob(&p.accent, MiHiHatParams::ACCENT_DEFAULT),
             };
-            let position = voice
-                .blend
-                .position(knob(&p.mix, MiHiHatParams::MIX_DEFAULT), state.sample_rate);
-            let square_heard = connected.square || connected.blend;
-            let ring_heard = connected.ring || connected.blend;
             let struck = voice.strike.read(knobs, trigger, state);
-            let square = voice.square.play(square_heard, f0, &struck, state);
-            let ring = voice.ring.play(ring_heard, f0, &struck, state);
-            if connected.blend {
-                let blend = crossfade(square, ring, position);
-                self.outputs.blend.set(lane_index, blend);
-            }
-            if connected.square {
-                self.outputs.square.set(lane_index, square);
-            }
-            if connected.ring {
-                self.outputs.ring.set(lane_index, ring);
-            }
+            let square = voice.square.play(f0, &struck, state);
+            let ring = voice.ring.play(f0, &struck, state);
+            let mix = knob(&p.mix, MiHiHatParams::MIX_DEFAULT);
+            let blend = voice.blend.step(square, ring, mix, state.sample_rate);
+            self.outputs.blend.set(lane_index, blend);
+            self.outputs.square.set(lane_index, square);
+            self.outputs.ring.set(lane_index, ring);
         }
     }
 }

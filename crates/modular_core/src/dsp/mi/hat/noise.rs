@@ -12,9 +12,6 @@ pub trait MetallicNoise: Default {
     fn set_pitch(&mut self, f0: f32, rates: &HatRates);
 
     fn next(&mut self) -> f32;
-
-    /// Advances the source a sample without rendering it.
-    fn skip(&mut self);
 }
 
 /// The six oscillators' frequencies over `f0`, for a nominal 414 Hz.
@@ -44,13 +41,6 @@ impl MetallicNoise for SquareNoise {
             noise += *phase >> 31;
         }
         0.33 * noise as f32 - 1.0
-    }
-
-    #[inline(always)]
-    fn skip(&mut self) {
-        for (phase, increment) in self.phase.iter_mut().zip(self.increment) {
-            *phase = phase.wrapping_add(increment);
-        }
     }
 }
 
@@ -88,20 +78,6 @@ impl MetallicNoise for RingModNoise {
             out += square * modulator.saw(*modulator_f);
         }
         out
-    }
-
-    #[inline(always)]
-    fn skip(&mut self) {
-        for ([carrier, modulator], [carrier_f, modulator_f]) in self
-            .oscillators
-            .as_chunks_mut::<2>()
-            .0
-            .iter_mut()
-            .zip(self.frequency.as_chunks::<2>().0)
-        {
-            carrier.skip_square(*carrier_f);
-            modulator.skip_saw(*modulator_f);
-        }
     }
 }
 

@@ -160,29 +160,10 @@ impl<M: Model> Lane<M> {
         }
     }
 
-    /// One sample of the hat's output at `f0` cycles per sample. With
-    /// `listened` false the hat [`skip`](HiHat::skip)s the sample and gives 0.
+    /// One sample of the hat's output at `f0` cycles per sample.
     #[inline(always)]
-    pub(super) fn play(
-        &mut self,
-        listened: bool,
-        f0: f32,
-        struck: &Struck,
-        state: &HatState,
-    ) -> f32 {
-        let out = if listened {
-            (OUTPUT_GAIN * self.step(f0, struck, state)).clamp(-5.0, 5.0)
-        } else {
-            self.hat.skip(
-                struck.sustain,
-                struck.triggered,
-                f0,
-                &struck.knobs,
-                &mut self.random,
-                &state.rates,
-            );
-            0.0
-        };
+    pub(super) fn play(&mut self, f0: f32, struck: &Struck, state: &HatState) -> f32 {
+        let out = (OUTPUT_GAIN * self.step(f0, struck, state)).clamp(-5.0, 5.0);
         struck
             .accent
             .apply_to(&mut self.level, out, ACCENT_TRIM, state.sample_rate)
