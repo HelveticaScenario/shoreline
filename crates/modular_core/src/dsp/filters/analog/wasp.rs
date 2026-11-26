@@ -20,8 +20,9 @@
 use super::kernel::{DB12, Kernel, Rates, Taps};
 use super::wasp_circuit::{
     BP, C_INPUT, C_INTEGRATOR, C_LEAD, C_POT, Companions, G_DIODE_FEED, G_OTA_INPUT, G_SUM, HP,
-    History, LP, MAX_ITERATIONS, N1, N2, N3, Network, R_INPUT, UNKNOWNS, branches, newton,
+    History, LP, MAX_ITERATIONS, N1, N2, N3, R_INPUT, Sample, UNKNOWNS, branches, newton,
 };
+use super::wasp_network::Network;
 use super::wasp_parts::{OTA_REFERENCE, Ota};
 
 /// Corner of the 10 µF output capacitors into a 100 kΩ load, in Hz.
@@ -45,6 +46,9 @@ const REST_GUESS: [f64; UNKNOWNS] = [5.6007, 6.0, 5.6021, 6.0, 5.6753, 4.9921, 0
 const SIGNAL_GROUND: f64 = 1.0e12;
 
 const MAX_REST_ITERATIONS: usize = 60;
+/// Most the solve's starting point is carried ahead of the last solution,
+/// in volts.
+const PREDICTED_STEP: f64 = 0.5;
 
 /// What a Wasp filter module mixes from the loop's three outputs.
 #[derive(Clone, Copy)]
@@ -78,10 +82,11 @@ pub struct WaspState {
     /// Whether the circuit has settled at rest and the rest holds a
     /// solution.
     settled: bool,
-    /// The previous sample's solution, and how far it moved from the one
-    /// before.
+    /// The previous sample's solution, how far it moved from the one
+    /// before, and how far that move changed from the one before it.
     v: [f64; UNKNOWNS],
     moved: [f64; UNKNOWNS],
+    bent: [f64; UNKNOWNS],
     history: History,
     /// The output capacitor's charge.
     output: f64,
@@ -90,18 +95,16 @@ pub struct WaspState {
 impl WaspState {
     /// The circuit at rest for `c`'s resonance, every capacitor charged.
     fn at_rest(response: WaspResponse, c: &WaspCoeffs) -> Self {
-        let dc = Companions {
-            network: Network::new(c.rotation, 0.0),
-            ..Companions::default()
-        };
-        let none = History::default();
-        let v =
-            newton(&dc, &c.otas, &none, 0.0, REST_GUESS, MAX_REST_ITERATIONS).unwrap_or(REST_GUESS);
-        let pot = branches(&dc, &none, 0.0, &v).pot;
+        let dc = Companions::dc(c.rotation);
+        let silent = Sample::new(&dc, &History::default(), 0.0);
+        let v = newton(&dc, &c.otas, &silent, REST_GUESS, MAX_REST_ITERATIONS)
+            .map_or(REST_GUESS, |(v, _)| v);
+        let pot = branches(&dc, &silent, &v).pot;
         Self {
             settled: true,
             v,
             moved: [0.0; UNKNOWNS],
+            bent: [0.0; UNKNOWNS],
             history: History {
                 input: (-v[N1], 0.0),
                 lead: v[LP] - v[N1],
@@ -175,14 +178,14 @@ impl Kernel for Wasp {
         let integrator = 2.0 * C_INTEGRATOR * core;
         let radians = 2.0 * core * rates.gain(cutoff) as f64;
         WaspCoeffs {
-            companions: Companions {
-                input: 1.0 / (R_INPUT + input_step),
+            companions: Companions::new(
+                1.0 / (R_INPUT + input_step),
                 input_step,
-                lead: C_LEAD * core,
+                C_LEAD * core,
                 integrator,
                 pot,
                 network,
-            },
+            ),
             otas: Ota::new(Ota::bias_for(g * integrator)),
             rotation,
             highpass_match: 1.0 / summer_gain,
@@ -205,15 +208,26 @@ impl Kernel for Wasp {
         }
         let source = x as f64;
         let k = &c.companions;
-        // The solve starts where the last two samples point.
-        let start = std::array::from_fn(|i| state.v[i] + state.moved[i]);
-        let solved = newton(k, &c.otas, &state.history, source, start, MAX_ITERATIONS)
-            .filter(|v| source.is_finite() && v.iter().all(|value| value.is_finite()));
+        // The solve starts where the last three samples point, unless they
+        // point across a jump, and falls back to where the last one was.
+        let ahead: [f64; UNKNOWNS] = std::array::from_fn(|i| state.moved[i] + state.bent[i]);
+        let smooth = ahead.iter().all(|step| step.abs() < PREDICTED_STEP);
+        let start = if smooth {
+            std::array::from_fn(|i| state.v[i] + ahead[i])
+        } else {
+            state.v
+        };
+        let sample = Sample::new(k, &state.history, source);
+        let solved = newton(k, &c.otas, &sample, start, MAX_ITERATIONS)
+            .filter(|&(_, settled)| settled)
+            .or_else(|| newton(k, &c.otas, &sample, state.v, MAX_ITERATIONS))
+            .map(|(v, _)| v)
+            .filter(|_| source.is_finite());
         let Some(v) = solved else {
             *state = WaspState::default();
             return [0.0; 4];
         };
-        let branches = branches(k, &state.history, source, &v);
+        let branches = branches(k, &sample, &v);
         let history = &mut state.history;
         history.input.0 += k.input_step * (branches.input + history.input.1);
         history.input.1 = branches.input;
@@ -226,7 +240,9 @@ impl Kernel for Wasp {
             branches.pot,
             k.pot * (branches.pot - history.pot.0) - history.pot.1,
         );
-        state.moved = std::array::from_fn(|i| v[i] - state.v[i]);
+        let moved: [f64; UNKNOWNS] = std::array::from_fn(|i| v[i] - state.v[i]);
+        state.bent = std::array::from_fn(|i| moved[i] - state.moved[i]);
+        state.moved = moved;
         state.v = v;
         let mixed = c.mix(response, &v);
         state.output += c.output * (mixed - state.output);
@@ -275,15 +291,11 @@ mod tests {
             [5.4, 7.0, 5.9, 4.0, 5.5, 6.5, 0.3],
             [5.7, 2.0, 0.55, 11.5, 5.6, 5.0, -0.2],
         ] {
-            let (b, a) = equations(&c.companions, &c.otas, &state.history, 0.3, &v);
+            let sample = Sample::new(&c.companions, &state.history, 0.3);
+            let (b, a) = equations(&c.companions, &c.otas, &sample, &v);
             let x = solve(&a, &b).unwrap();
-            for row in 0..UNKNOWNS {
-                let sum: f64 = (0..UNKNOWNS).map(|k| a[row][k] * x[k]).sum();
-                assert!(
-                    (sum - b[row]).abs() < 1e-9,
-                    "row {row}: {sum} vs {}",
-                    b[row]
-                );
+            for (row, (sum, b)) in a.times(&x).into_iter().zip(b).enumerate() {
+                assert!((sum - b).abs() < 1e-9, "row {row}: {sum} vs {b}");
             }
         }
     }
