@@ -8,11 +8,22 @@ fn mark() -> GlideMark {
 }
 
 fn knobs(ratio: f32, index: f32, feedback: f32) -> Knobs {
+    offset_knobs(ratio, index, feedback, 0.0)
+}
+
+fn offset_knobs(ratio: f32, index: f32, feedback: f32, offset: f32) -> Knobs {
     Knobs {
         ratio: (ratio, mark()),
         index: (index, mark()),
         feedback: (feedback, mark()),
+        offset: (offset, mark()),
     }
+}
+
+/// The carrier and the sub-octave for one sample.
+fn render(voice: &mut Voice, f0: f32, knobs: Knobs, state: &TwoOpState) -> (f32, f32) {
+    let controls = voice.control(f0, knobs, state);
+    voice.step(controls, state)
 }
 
 /// Replays `two_op.f32` (Plaits' two-operator FM engine with per-sample
@@ -123,20 +134,118 @@ fn non_finite_knobs_hold() {
     }
 }
 
-/// A NaN or infinite pitch leaves the output finite.
+/// A NaN or infinite pitch or phase offset, or an offset that races around,
+/// leaves the output finite.
 #[test]
 fn non_finite_pitch_stays_finite() {
     let state = TwoOpState::new(48000.0);
     let mut voice = Voice::default();
-    for n in 0..300 {
+    for n in 0..3000 {
         let f0 = match n {
             100 => f32::NAN,
             150 => f32::INFINITY,
             200 => f32::NEG_INFINITY,
             _ => 0.01,
         };
-        let controls = voice.control(f0, knobs(2.5, 3.0, -3.0), &state);
-        let (out, sub) = voice.step(controls, &state);
+        let offset = match n % 13 {
+            0 if n % 600 == 0 => f32::NAN,
+            1 if n % 600 == 1 => f32::NEG_INFINITY,
+            5 => -7.25,
+            _ => (n as f32 * 0.007).sin() * 3.0,
+        };
+        let feedback = if n < 1500 { -3.0 } else { 4.0 };
+        let (out, sub) = render(
+            &mut voice,
+            f0,
+            offset_knobs(2.5, 3.0, feedback, offset),
+            &state,
+        );
         assert!(out.is_finite() && sub.is_finite(), "sample {n}");
+    }
+}
+
+/// A phase offset plays the same waveform shifted in time, carrier and
+/// sub-octave alike: at a 100-sample period, a quarter-cycle offset leads by
+/// 25 samples. Feedback into the modulator's phase keeps this; feedback into
+/// its pitch carries a drift from the voice's own past, which no offset
+/// recreates.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    let state = TwoOpState::new(48000.0);
+    for (ratio, index, feedback) in [(2.5, 3.0, 0.0), (3.7, 4.0, 0.0), (2.0, 2.5, 3.0)] {
+        let tone = |offset: f32| {
+            let mut voice = Voice::default();
+            (0..4000)
+                .map(|_| {
+                    render(
+                        &mut voice,
+                        0.01,
+                        offset_knobs(ratio, index, feedback, offset),
+                        &state,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let ahead = tone(0.25);
+        let plain = tone(0.0);
+        for (output, pick) in [("fm", 0), ("subOctave", 1)] {
+            let get = |s: &[(f32, f32)]| {
+                s.iter()
+                    .map(|&(a, b)| if pick == 0 { a } else { b })
+                    .collect::<Vec<f32>>()
+            };
+            let (error, at) = max_error(&get(&ahead[1000..3000]), &get(&plain[1025..3025]));
+            assert!(
+                error < 1e-3,
+                "{output}, ratio {ratio}, feedback {feedback}: error {error} at {at}"
+            );
+        }
+    }
+}
+
+/// An offset that moves, or jumps, ends where a voice started at it plays,
+/// within the rounding its phases gather on the way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    let state = TwoOpState::new(48000.0);
+    for feedback in [0.0, 3.0] {
+        let mut held = Voice::default();
+        let mut glided = Voice::default();
+        let mut jumped = Voice::default();
+        for n in 0..6000 {
+            let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
+            let jump = if n < 100 { 0.9 } else { 0.4 };
+            let k = |offset| offset_knobs(3.7, 3.0, feedback, offset);
+            let a = render(&mut held, 0.01, k(0.4), &state);
+            let b = render(&mut glided, 0.01, k(glide), &state);
+            let c = render(&mut jumped, 0.01, k(jump), &state);
+            if n >= 3000 {
+                for (name, other) in [("glided", b), ("jumped", c)] {
+                    assert!(
+                        (a.0 - other.0).abs() < 1e-3 && (a.1 - other.1).abs() < 1e-3,
+                        "feedback {feedback}, {name}, sample {n}: {a:?} vs {other:?}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// A NaN or infinite phase offset holds the phases where they are.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let state = TwoOpState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..200 {
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            102 => f32::NEG_INFINITY,
+            _ => 0.3,
+        };
+        let a = render(&mut held, 0.01, offset_knobs(2.5, 3.0, 1.0, 0.3), &state);
+        let b = render(&mut glitched, 0.01, offset_knobs(2.5, 3.0, 1.0, v), &state);
+        assert_eq!(a, b, "sample {n}");
     }
 }
