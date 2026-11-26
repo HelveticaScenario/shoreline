@@ -1,6 +1,8 @@
 //! `plaits::FastSineOscillator`: a sine and cosine from the "magic circle"
 //! recurrence, without a table.
 
+use super::phase::wrap;
+
 /// `FastSineOscillator::Fast2Sin`: 2 sin(π f), from a cubic that keeps the
 /// pitch within a few cents from 16 Hz to 16 kHz at 48 kHz.
 #[inline(always)]
@@ -16,6 +18,10 @@ fn fast_rsqrt(x: f32) -> f32 {
     y * (1.5 - (x * 0.5 * y * y))
 }
 
+/// The fastest, in cycles per step, a point travelling to a phase offset runs
+/// overall.
+const MAX_FREQUENCY: f32 = 0.25;
+
 /// The oscillator in Plaits' quadrature mode: a point circling the origin,
 /// returned as its two coordinates.
 #[derive(Clone, Copy)]
@@ -25,6 +31,21 @@ pub struct QuadratureOscillator {
     /// `NaN` until the first render, which starts at its frequency.
     epsilon: f32,
     amplitude: f32,
+    /// The phase offset the point has travelled so far, in `[0, 1)`.
+    travelled: f32,
+}
+
+/// Moves `(x, y)` `cycles` of a cycle along the orbit the recurrence traces at
+/// `epsilon`, exactly where that many cycles of steps would take it, so the
+/// invariant holds.
+#[inline(always)]
+fn advance(x: &mut f32, y: &mut f32, epsilon: f32, cycles: f32) {
+    let half = 0.5 * epsilon.abs();
+    let (sin, cos) = (std::f32::consts::TAU * cycles).sin_cos();
+    let sin = sin / (1.0 - half * half).sqrt();
+    let (x0, y0) = (*x, *y);
+    *x = cos * x0 + sin * (half * x0 + y0);
+    *y = cos * y0 - sin * (x0 + half * y0);
 }
 
 impl Default for QuadratureOscillator {
@@ -34,11 +55,36 @@ impl Default for QuadratureOscillator {
             y: 0.0,
             epsilon: f32::NAN,
             amplitude: 0.0,
+            travelled: 0.0,
         }
     }
 }
 
 impl QuadratureOscillator {
+    /// Starts a fresh oscillator at `frequency` cycles per step, `offset` (in
+    /// `[0, 1)`) of a cycle along its orbit.
+    pub fn seed(&mut self, offset: f32, frequency: f32) {
+        self.epsilon = fast_2_sin(frequency);
+        self.travelled = offset;
+        if offset != 0.0 {
+            advance(&mut self.x, &mut self.y, self.epsilon, offset);
+        }
+    }
+
+    /// [`render`](Self::render), with the point travelling to the phase
+    /// `offset` (in `[0, 1)`) along its orbit by the shortest way, as fast as
+    /// ±0.25 cycles per step overall allows, so a point that moves to an
+    /// offset runs as one seeded there does.
+    #[inline(always)]
+    pub fn render_offset<const N: usize>(
+        &mut self,
+        frequency: f32,
+        amplitude: f32,
+        offset: f32,
+    ) -> [(f32, f32); N] {
+        self.render_toward(frequency, amplitude, Some(offset))
+    }
+
     /// `N` steps of the point at `frequency` cycles per step (within ±0.25),
     /// its radius `amplitude`. Frequency and radius ramp to their new values
     /// across the steps, as Plaits' interpolators do across a block, except
@@ -51,6 +97,16 @@ impl QuadratureOscillator {
     /// sample, as under audio-rate FM, cannot pump the radius.
     #[inline(always)]
     pub fn render<const N: usize>(&mut self, frequency: f32, amplitude: f32) -> [(f32, f32); N] {
+        self.render_toward(frequency, amplitude, None)
+    }
+
+    #[inline(always)]
+    fn render_toward<const N: usize>(
+        &mut self,
+        frequency: f32,
+        amplitude: f32,
+        offset: Option<f32>,
+    ) -> [(f32, f32); N] {
         let target = fast_2_sin(frequency);
         if self.epsilon.is_nan() {
             self.epsilon = target;
@@ -66,7 +122,7 @@ impl QuadratureOscillator {
             x *= scale;
             y *= scale;
         }
-        let out = std::array::from_fn(|_| {
+        let out = std::array::from_fn(|step| {
             if epsilon_increment != 0.0 {
                 self.epsilon += epsilon_increment;
                 let invariant = x * x + y * y + self.epsilon.abs() * x * y;
@@ -84,6 +140,16 @@ impl QuadratureOscillator {
                 };
                 x *= scale;
                 y *= scale;
+            }
+            if let Some(offset) = offset {
+                let behind = offset - self.travelled;
+                let behind = behind - behind.round();
+                let shift = (behind / (N - step) as f32)
+                    .clamp(-MAX_FREQUENCY - frequency, MAX_FREQUENCY - frequency);
+                if shift != 0.0 {
+                    self.travelled = wrap(self.travelled + shift);
+                    advance(&mut x, &mut y, self.epsilon, shift);
+                }
             }
             self.amplitude += amplitude_increment;
             if self.epsilon >= 0.0 {
