@@ -3,12 +3,13 @@
 //! the sample rate, emitting the phasor offset by the triangle. Extended to
 //! run backward: the master wraps below 0, the slave crosses its peak and 0
 //! going down, and a backward sync restarts the slave where a forward cycle
-//! ends.
+//! ends. A phase offset moves the whole oscillator through time: the master
+//! and slave travel it as extra frequency, so every edge stays band-limited.
 
 use crate::dsp::mi::core::{
     control::Ramp,
     dsp::constrain,
-    phase::{fraction, wrap_below},
+    phase::{fraction, wrap, wrap_below},
     polyblep::{
         edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
         this_integrated_blep_sample,
@@ -30,6 +31,10 @@ pub struct PdOscillator {
     previous_pw: f32,
     /// Whether the slave is past its peak.
     high: bool,
+    /// The phase offsets the master and slave have travelled so far, in
+    /// `[0, 1)`.
+    offset: f32,
+    slave_offset: f32,
     /// Plaits' `ParameterInterpolator`s across the two substeps.
     master_frequency: Ramp,
     slave_frequency: Ramp,
@@ -50,6 +55,8 @@ impl Default for PdOscillator {
             next_sample: 0.0,
             previous_pw: 0.5,
             high: false,
+            offset: 0.0,
+            slave_offset: 0.0,
             master_frequency: ramp(0.0),
             slave_frequency: ramp(0.01),
             pw: ramp(0.5),
@@ -70,11 +77,43 @@ fn triangle(phase: f32, pw: f32, slope_up: f32, slope_down: f32) -> f32 {
     phase + (triangle - phase)
 }
 
+/// This substep's share of the way from `travelled` to `target`, both phases
+/// in `[0, 1)`, over the `left` substeps remaining, held so a phasor running at
+/// `frequency` stays within ±`max`; `travelled` moves by it.
+#[inline(always)]
+fn travel(target: f32, travelled: &mut f32, left: usize, frequency: f32, max: f32) -> f32 {
+    let behind = target - *travelled;
+    let behind = behind - behind.round();
+    let shift = (behind / left as f32).clamp(-max - frequency, max - frequency);
+    *travelled = wrap(*travelled + shift);
+    shift
+}
+
 impl PdOscillator {
+    /// Starts a fresh oscillator `offset` of a cycle into its waveform, with the
+    /// slave where it would be had it started with the master at `ratio` times
+    /// its frequency.
+    pub fn seed(&mut self, offset: f32, ratio: f32) {
+        let pw = self.previous_pw;
+        self.master_phase = offset;
+        self.offset = offset;
+        self.slave_offset = wrap(offset * ratio);
+        self.slave_phase = self.slave_offset;
+        self.high = self.slave_phase >= pw;
+        self.next_sample = triangle(self.slave_phase, pw, 1.0 / pw, 1.0 / (1.0 - pw));
+    }
+
     /// The two substeps of one output sample: the phasor offset by
     /// `amount` × the triangle. Frequencies are in cycles per substep (finite,
-    /// negative runs backward) and are held to ±`max`.
+    /// negative runs backward) and are held to ±`max`. The master travels to
+    /// the phase `offset` (in `[0, 1)`) and the slave to `ratio` times it, each
+    /// by the shortest way and as fast as the frequency limit allows, so a
+    /// voice that moves to an offset plays as one seeded there does.
     #[inline(always)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one call site, per-sample controls"
+    )]
     pub fn render(
         &mut self,
         sync: bool,
@@ -82,6 +121,8 @@ impl PdOscillator {
         slave: f32,
         pw: f32,
         amount: f32,
+        offset: f32,
+        ratio: f32,
         max: f32,
     ) -> [f32; OVERSAMPLING] {
         let master = master.clamp(-max, max);
@@ -100,11 +141,22 @@ impl PdOscillator {
 
         let mut next_sample = self.next_sample;
         let mut out = [0.0; OVERSAMPLING];
-        for out in &mut out {
+        for (substep, out) in out.iter_mut().enumerate() {
             let mut this_sample = next_sample;
             next_sample = 0.0;
             let master_frequency = self.master_frequency.next_value();
             let slave_frequency = self.slave_frequency.next_value();
+            let left = OVERSAMPLING - substep;
+            let master_frequency =
+                master_frequency + travel(offset, &mut self.offset, left, master_frequency, max);
+            let slave_frequency = slave_frequency
+                + travel(
+                    wrap(offset * ratio),
+                    &mut self.slave_offset,
+                    left,
+                    slave_frequency,
+                    max,
+                );
             let pw = self.pw.next_value();
             let slope_up = 1.0 / pw;
             let slope_down = 1.0 / (1.0 - pw);

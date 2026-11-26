@@ -8,10 +8,15 @@ fn mark() -> GlideMark {
 }
 
 fn knobs(ratio: f32, amount: f32, asymmetry: f32) -> Knobs {
+    offset_knobs(ratio, amount, asymmetry, 0.0)
+}
+
+fn offset_knobs(ratio: f32, amount: f32, asymmetry: f32, offset: f32) -> Knobs {
     Knobs {
         ratio: (ratio, mark()),
         amount: (amount, mark()),
         asymmetry: (asymmetry, mark()),
+        offset: (offset, mark()),
     }
 }
 
@@ -149,7 +154,14 @@ fn stays_finite() {
                     _ => (n as f32 * 0.003).sin() * 0.02,
                 };
                 let knob = (n % 11) as f32 * 0.5;
-                let out = render(&mut voice, f0, knobs(knob, 5.0 - knob, knob), sync, &state);
+                let offset = match n % 13 {
+                    0 if n % 600 == 0 => f32::NAN,
+                    1 if n % 600 == 1 => f32::NEG_INFINITY,
+                    5 => -7.25,
+                    _ => (n as f32 * 0.007).sin() * 3.0,
+                };
+                let k = offset_knobs(knob, 5.0 - knob, knob, offset);
+                let out = render(&mut voice, f0, k, sync, &state);
                 assert!(out.is_finite(), "{sample_rate} Hz, sync {sync}, sample {n}");
             }
         }
@@ -221,4 +233,108 @@ fn backward_departs_only_by_the_substep_lag() {
         at_192k < 0.4 * at_48k,
         "departure {at_192k} at 192 kHz vs {at_48k} at 48 kHz"
     );
+}
+
+/// A phase offset plays the same waveform shifted in time, synced or free
+/// running: at a 100-sample period, a quarter-cycle offset leads by 25 samples.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    let state = PhaseDistortionState::new(48000.0);
+    for sync in [true, false] {
+        for (ratio, amount, asymmetry) in [(2.5, 3.0, 0.0), (3.2, 4.0, 3.0), (0.7, 2.0, 5.0)] {
+            let tone = |offset: f32| {
+                let mut voice = Voice::default();
+                (0..4000)
+                    .map(|_| {
+                        let k = offset_knobs(ratio, amount, asymmetry, offset);
+                        render(&mut voice, 0.01, k, sync, &state)
+                    })
+                    .collect::<Vec<f32>>()
+            };
+            let ahead = tone(0.25);
+            let plain = tone(0.0);
+            let (error, at) = max_error(&ahead[1000..3000], &plain[1025..3025]);
+            assert!(
+                error < 1e-3,
+                "sync {sync}, ratio {ratio}: error {error} at {at}"
+            );
+        }
+    }
+}
+
+/// An offset that moves, or jumps, ends where a voice started at it plays,
+/// within the rounding its phases gather on the way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    let state = PhaseDistortionState::new(48000.0);
+    for sync in [true, false] {
+        let mut held = Voice::default();
+        let mut glided = Voice::default();
+        let mut jumped = Voice::default();
+        for n in 0..6000 {
+            let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
+            let jump = if n < 100 { 0.9 } else { 0.4 };
+            let a = render(
+                &mut held,
+                0.01,
+                offset_knobs(3.2, 3.0, 2.0, 0.4),
+                sync,
+                &state,
+            );
+            let b = render(
+                &mut glided,
+                0.01,
+                offset_knobs(3.2, 3.0, 2.0, glide),
+                sync,
+                &state,
+            );
+            let c = render(
+                &mut jumped,
+                0.01,
+                offset_knobs(3.2, 3.0, 2.0, jump),
+                sync,
+                &state,
+            );
+            if n >= 3000 {
+                assert!(
+                    (a - b).abs() < 1e-2,
+                    "sync {sync}, glided, sample {n}: {a} vs {b}"
+                );
+                assert!(
+                    (a - c).abs() < 1e-2,
+                    "sync {sync}, jumped, sample {n}: {a} vs {c}"
+                );
+            }
+        }
+    }
+}
+
+/// A NaN or infinite phase offset holds the oscillator where it is.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let state = PhaseDistortionState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..200 {
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            _ => 0.3,
+        };
+        let a = render(
+            &mut held,
+            0.01,
+            offset_knobs(1.0, 3.0, 1.0, 0.3),
+            true,
+            &state,
+        );
+        let b = render(
+            &mut glitched,
+            0.01,
+            offset_knobs(1.0, 3.0, 1.0, v),
+            true,
+            &state,
+        );
+        assert!((a - b).abs() < 1e-6, "sample {n}: {a} vs {b}");
+    }
 }
