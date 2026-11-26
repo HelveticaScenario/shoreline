@@ -1,7 +1,8 @@
 mod knobs;
 
+use super::hat_drum::Model;
 use super::hat_drum::{RingHat, SquareHat};
-use super::lane::{HatState, Knobs, Lane};
+use super::lane::{HatState, Knobs, Lane, Strike};
 use crate::dsp::mi::core::fixture::{max_error, records};
 use crate::dsp::mi::drum::measure::{mark, peak, pitch_cents, rms, window};
 use crate::dsp::mi::drum::pitch;
@@ -19,6 +20,27 @@ fn knobs([tone, decay, noisiness, accent]: [f32; 4]) -> Knobs {
 
 const SR: f32 = 48000.0;
 
+/// One hat with a strike of its own, its accent in Plaits' volts.
+struct Solo<M: Model> {
+    strike: Strike,
+    lane: Lane<M>,
+}
+
+impl<M: Model> Solo<M> {
+    fn new(seed: u32) -> Self {
+        Self {
+            strike: Strike::default(),
+            lane: Lane::new(seed),
+        }
+    }
+
+    /// One sample at `f0` cycles per sample, before the output gain.
+    fn step(&mut self, f0: f32, knobs: Knobs, trigger: Option<f32>, state: &HatState) -> f32 {
+        let struck = self.strike.read_plaits(knobs, trigger, state);
+        self.lane.step(f0, &struck, state)
+    }
+}
+
 /// Replays `hihat.f32` (Plaits' two hi-hats rendered a sample at a time):
 /// strikes across accents and every knob's range, retriggers mid-decay and at
 /// audio rate, a pitch swept by FM, pitches past the oscillators' and noise
@@ -27,8 +49,8 @@ const SR: f32 = 48000.0;
 #[test]
 fn matches_plaits() {
     let state = HatState::new(SR);
-    let mut square = Lane::<SquareHat>::new(0x1234567);
-    let mut ring = Lane::<RingHat>::new(0x7654321);
+    let mut square = Solo::<SquareHat>::new(0x1234567);
+    let mut ring = Solo::<RingHat>::new(0x7654321);
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for r in records("hihat", 7 + 2) {
@@ -43,7 +65,7 @@ fn matches_plaits() {
         error < 1e-5,
         "max error {error} at sample {} ({})",
         at / 2,
-        ["hiHat", "ringHat"][at % 2]
+        ["square", "ring"][at % 2]
     );
 }
 
@@ -57,26 +79,26 @@ fn hit(sample_rate: f32, seconds: f32, mut step: impl FnMut(Option<f32>) -> f32)
         .collect()
 }
 
-/// `seconds` of `$mi.hiHat` at `hz` with noise from `seed`, struck once.
+/// `seconds` of the `square` hat at `hz` with noise from `seed`, struck once.
 fn square_hit(sample_rate: f32, hz: f32, volts: [f32; 4], seed: u32, seconds: f32) -> Vec<f32> {
     let state = HatState::new(sample_rate);
-    let mut lane = Lane::<SquareHat>::new(seed);
+    let mut lane = Solo::<SquareHat>::new(seed);
     hit(sample_rate, seconds, |trigger| {
         lane.step(hz / sample_rate, knobs(volts), trigger, &state)
     })
 }
 
-/// `seconds` of `$mi.ringHat` at `hz` with noise from `seed`, struck once.
+/// `seconds` of the `ring` hat at `hz` with noise from `seed`, struck once.
 fn ring_hit(sample_rate: f32, hz: f32, volts: [f32; 4], seed: u32, seconds: f32) -> Vec<f32> {
     let state = HatState::new(sample_rate);
-    let mut lane = Lane::<RingHat>::new(seed);
+    let mut lane = Solo::<RingHat>::new(seed);
     hit(sample_rate, seconds, |trigger| {
         lane.step(hz / sample_rate, knobs(volts), trigger, &state)
     })
 }
 
 type Render = fn(f32, f32, [f32; 4], u32, f32) -> Vec<f32>;
-const HATS: [(&str, Render); 2] = [("hiHat", square_hit), ("ringHat", ring_hit)];
+const HATS: [(&str, Render); 2] = [("square", square_hit), ("ring", ring_hit)];
 
 const RATES: [f32; 3] = [44100.0, 96000.0, 192000.0];
 
@@ -199,7 +221,7 @@ fn noise_sounds_the_same_at_any_rate() {
 fn ring_partials_hold_their_pitch_at_any_rate() {
     let hiss = |sample_rate: f32| {
         let state = HatState::new(sample_rate);
-        let mut lane = Lane::<RingHat>::new(1);
+        let mut lane = Solo::<RingHat>::new(1);
         let volts = [0.0, 5.0, 0.0, 5.0];
         (0..(0.5 * sample_rate) as usize)
             .map(|_| lane.step(1000.0 / sample_rate, knobs(volts), None, &state))
@@ -223,8 +245,8 @@ fn ring_partials_hold_their_pitch_at_any_rate() {
 #[test]
 fn hisses_when_unpatched() {
     for (name, hiss) in [
-        ("hiHat", hiss::<SquareHat> as fn([f32; 4]) -> Vec<f32>),
-        ("ringHat", hiss::<RingHat>),
+        ("square", hiss::<SquareHat> as fn([f32; 4]) -> Vec<f32>),
+        ("ring", hiss::<RingHat>),
     ] {
         let loud = hiss(METAL);
         assert!(rms(window(&loud, SR, 0.25, 0.5)) > 0.05, "{name} hisses");
@@ -239,9 +261,9 @@ fn hisses_when_unpatched() {
 }
 
 /// Half a second of a hat with its trigger unpatched, at 300 Hz.
-fn hiss<M: super::hat_drum::Model>(volts: [f32; 4]) -> Vec<f32> {
+fn hiss<M: Model>(volts: [f32; 4]) -> Vec<f32> {
     let state = HatState::new(SR);
-    let mut lane = Lane::<M>::new(1);
+    let mut lane = Solo::<M>::new(1);
     (0..24000)
         .map(|_| lane.step(300.0 / SR, knobs(volts), None, &state))
         .collect()
@@ -249,16 +271,16 @@ fn hiss<M: super::hat_drum::Model>(volts: [f32; 4]) -> Vec<f32> {
 
 /// Both hats stepped alike.
 struct Pair {
-    square: Lane<SquareHat>,
-    ring: Lane<RingHat>,
+    square: Solo<SquareHat>,
+    ring: Solo<RingHat>,
     state: HatState,
 }
 
 impl Pair {
     fn new(sample_rate: f32, seed: u32) -> Self {
         Self {
-            square: Lane::new(seed),
-            ring: Lane::new(seed),
+            square: Solo::new(seed),
+            ring: Solo::new(seed),
             state: HatState::new(sample_rate),
         }
     }
@@ -288,7 +310,7 @@ fn trigger_patched_again_rises() {
             .collect::<Vec<_>>()
     };
     let (held, repatched) = (run(false), run(true));
-    for (d, name) in ["hiHat", "ringHat"].iter().enumerate() {
+    for (d, name) in ["square", "ring"].iter().enumerate() {
         let after = |x: &[[f32; 2]]| {
             x[12000..14000]
                 .iter()
@@ -350,11 +372,11 @@ fn stays_finite() {
                 *p = p.max(o.abs());
             }
         }
-        assert!(peaks[0] < 12.0, "{sample_rate} Hz: hiHat peak {}", peaks[0]);
         assert!(
-            peaks[1] < 12.0,
-            "{sample_rate} Hz: ringHat peak {}",
-            peaks[1]
+            peaks[0] < 12.0,
+            "{sample_rate} Hz: square peak {}",
+            peaks[0]
         );
+        assert!(peaks[1] < 12.0, "{sample_rate} Hz: ring peak {}", peaks[1]);
     }
 }

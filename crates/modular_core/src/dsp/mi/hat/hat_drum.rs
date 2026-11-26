@@ -52,7 +52,7 @@ pub trait Model {
     fn vca(s: f32, gain: f32) -> f32;
 }
 
-/// `$mi.hiHat`: `HiHat<SquareNoise, SwingVCA, true, false>`.
+/// `$mi.hiHat`'s `square` hat: `HiHat<SquareNoise, SwingVCA, true, false>`.
 #[derive(Clone, Copy)]
 pub struct SquareHat;
 
@@ -71,7 +71,7 @@ impl Model for SquareHat {
     }
 }
 
-/// `$mi.ringHat`: `HiHat<RingModNoise, LinearVCA, false, true>`.
+/// `$mi.hiHat`'s `ring` hat: `HiHat<RingModNoise, LinearVCA, false, true>`.
 #[derive(Clone, Copy)]
 pub struct RingHat;
 

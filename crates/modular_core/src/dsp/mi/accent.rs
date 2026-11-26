@@ -36,6 +36,13 @@ pub(super) struct Accent {
     struck: bool,
     /// Whether the trigger is patched.
     patched: bool,
+    output: AccentLevel,
+}
+
+/// The output level an [`Accent`] sets on one sound, ramping between
+/// strikes' accents as that sound rings.
+#[derive(Clone, Copy, Default)]
+pub(super) struct AccentLevel {
     /// The output level less one.
     level: Level,
     /// The size of the last sample in, to tell whether the voice sounds.
@@ -51,8 +58,7 @@ impl Default for Accent {
             volts: 0.0,
             struck: false,
             patched: false,
-            level: Level::default(),
-            last: 0.0,
+            output: AccentLevel::default(),
         }
     }
 }
@@ -91,15 +97,31 @@ impl Accent {
     /// still sounds, and it holds through the hit.
     #[inline(always)]
     pub(super) fn apply(&mut self, out: f32, trim: f32, sample_rate: f32) -> f32 {
+        let mut output = self.output;
+        let out = self.apply_to(&mut output, out, trim, sample_rate);
+        self.output = output;
+        out
+    }
+
+    /// [`apply`](Self::apply) for one of several sounds a single accent
+    /// plays, each ramping its own `output` level.
+    #[inline(always)]
+    pub(super) fn apply_to(
+        &self,
+        output: &mut AccentLevel,
+        out: f32,
+        trim: f32,
+        sample_rate: f32,
+    ) -> f32 {
         let boost = (trim - 1.0) * self.volts * 0.2;
         if !self.patched {
-            self.level.set(boost, false, 1);
+            output.level.set(boost, false, 1);
         } else if self.struck {
             let samples = (RAMP_SECS * sample_rate).max(1.0) as u32;
-            self.level.set(boost, self.last > SILENT, samples);
+            output.level.set(boost, output.last > SILENT, samples);
         }
-        let level = 1.0 + self.level.next();
-        self.last = out.abs();
+        let level = 1.0 + output.level.next();
+        output.last = out.abs();
         out * level
     }
 }
