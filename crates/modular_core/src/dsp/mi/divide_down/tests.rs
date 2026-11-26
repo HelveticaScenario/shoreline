@@ -7,13 +7,24 @@ fn mark() -> GlideMark {
     PolySignal::mono(Signal::Volts(0.0)).glide_mark(0)
 }
 
+fn knobs(registration: f32) -> Knobs {
+    offset_knobs(registration, 0.0)
+}
+
+fn offset_knobs(registration: f32, offset: f32) -> Knobs {
+    Knobs {
+        registration: (registration, mark()),
+        offset: (offset, mark()),
+    }
+}
+
 /// `seconds` of a tone at `hz` (negative runs backward) at a fixed
 /// registration.
 fn tone(sample_rate: f32, hz: f32, registration: f32, seconds: f32) -> Vec<f32> {
     let state = DivideDownState::new(sample_rate);
     let mut voice = Voice::default();
     (0..(sample_rate * seconds) as usize)
-        .map(|_| voice.step(hz / sample_rate, (registration, mark()), &state))
+        .map(|_| voice.step(hz / sample_rate, knobs(registration), &state))
         .collect()
 }
 
@@ -27,7 +38,7 @@ fn matches_plaits() {
     let mut actual = Vec::new();
     let mut expected = Vec::new();
     for record in records("divide_down", 2 + 1) {
-        actual.push(voice.step(record[0], (record[1], mark()), &state));
+        actual.push(voice.step(record[0], knobs(record[1]), &state));
         expected.push(record[2]);
     }
     let (error, at) = max_error(&actual, &expected);
@@ -79,14 +90,15 @@ fn non_finite_knobs_hold() {
             102 => f32::NEG_INFINITY,
             _ => 1.0,
         };
-        let a = held.step(0.01, (1.0, mark()), &state);
-        let b = glitched.step(0.01, (v, mark()), &state);
+        let a = held.step(0.01, knobs(1.0), &state);
+        let b = glitched.step(0.01, knobs(v), &state);
         assert_eq!(a, b, "sample {n}");
     }
 }
 
-/// Every registration and any pitch, including NaN, infinite and backward
-/// ones, at any rate, leave the output finite and within full scale.
+/// Every registration, any moving or non-finite phase offset and any pitch,
+/// including NaN, infinite and backward ones, at any rate, leave the output
+/// finite and within full scale.
 #[test]
 fn stays_finite_and_bounded() {
     for sample_rate in [8000.0, 44100.0, 96000.0] {
@@ -100,7 +112,13 @@ fn stays_finite_and_bounded() {
                 _ => (n % 11) as f32 * 0.05 - 0.25,
             };
             let registration = 2.5 + 3.0 * (n as f32 * 0.002).sin();
-            let out = voice.step(f0, (registration, mark()), &state);
+            let offset = match n % 700 {
+                300 => f32::NAN,
+                350 => f32::NEG_INFINITY,
+                400 => -7.25,
+                _ => (n as f32 * 0.007).sin() * 3.0,
+            };
+            let out = voice.step(f0, offset_knobs(registration, offset), &state);
             assert!(
                 out.is_finite() && out.abs() <= 1.05,
                 "{sample_rate} Hz, sample {n}: {out}"
@@ -122,7 +140,7 @@ fn fm_across_the_octave_shift_stays_in_range() {
                 let t = n as f32 / 48000.0;
                 let fm = depth * (std::f32::consts::TAU * modulator * t).sin();
                 let f0 = carrier * (1.0 + fm) / 48000.0;
-                peak = peak.max(voice.step(f0, (registration, mark()), &state).abs());
+                peak = peak.max(voice.step(f0, knobs(registration), &state).abs());
             }
             assert!(
                 peak <= 1.05,
@@ -141,10 +159,10 @@ fn backward_retraces_forward() {
         let mut voice = Voice::default();
         let n = 4000;
         let forward: Vec<f32> = (0..n)
-            .map(|_| voice.step(f0, (registration, mark()), &state))
+            .map(|_| voice.step(f0, knobs(registration), &state))
             .collect();
         let backward: Vec<f32> = (0..n)
-            .map(|_| voice.step(-f0, (registration, mark()), &state))
+            .map(|_| voice.step(-f0, knobs(registration), &state))
             .collect();
         // The output runs a sample late, so backward sample `k` retraces
         // forward sample `n − k`.
@@ -184,4 +202,87 @@ fn high_notes_sound_the_same_at_any_rate() {
             }
         }
     }
+}
+
+/// `samples` of a voice at `f0` cycles per sample and `registration`, its
+/// phase offset `offset(n)` at sample `n`.
+fn offset_tone(
+    f0: f32,
+    registration: f32,
+    samples: usize,
+    offset: impl Fn(usize) -> f32,
+) -> Vec<f32> {
+    let state = DivideDownState::new(48000.0);
+    let mut voice = Voice::default();
+    (0..samples)
+        .map(|n| voice.step(f0, offset_knobs(registration, offset(n)), &state))
+        .collect()
+}
+
+/// A phase offset plays the same waveform shifted in time, forward, backward
+/// and past the octave shift: at a 100-sample period of the lowest saw, a
+/// quarter-cycle offset leads by 25 samples, and past the shift, where the
+/// eight-segment phase spans two cycles of the note, by a quarter of that.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    for registration in [0.0, 1.3, 2.5, 3.7, 5.0] {
+        for (f0, lead) in [(0.01, 25isize), (-0.01, -25), (0.1, 5)] {
+            let ahead = offset_tone(f0, registration, 4000, |_| 0.25);
+            let plain = offset_tone(f0, registration, 4000, |_| 0.0);
+            let (error, at) = if lead > 0 {
+                max_error(
+                    &ahead[1000..3000],
+                    &plain[1000 + lead as usize..3000 + lead as usize],
+                )
+            } else {
+                let lag = (-lead) as usize;
+                max_error(&ahead[1000 + lag..3000 + lag], &plain[1000..3000])
+            };
+            assert!(
+                error < 1e-3,
+                "f0 {f0}, registration {registration}: error {error} at {at}"
+            );
+        }
+    }
+}
+
+/// An offset that glides, or jumps, ends where a voice started at it plays,
+/// within the rounding its phase gathers on the way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    for registration in [0.0, 2.5, 5.0] {
+        let held = offset_tone(0.01, registration, 6000, |_| 0.4);
+        let glided = offset_tone(0.01, registration, 6000, |n| {
+            (n as f32 / 2000.0).min(1.0) * 0.4
+        });
+        let jumped = offset_tone(
+            0.01,
+            registration,
+            6000,
+            |n| if n < 100 { 0.9 } else { 0.4 },
+        );
+        let (error, at) = max_error(&glided[3000..], &held[3000..]);
+        assert!(
+            error < 1e-2,
+            "registration {registration}, glided: {error} at {at}"
+        );
+        let (error, at) = max_error(&jumped[3000..], &held[3000..]);
+        assert!(
+            error < 1e-2,
+            "registration {registration}, jumped: {error} at {at}"
+        );
+    }
+}
+
+/// A NaN or infinite phase offset holds the oscillator where it is.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let held = offset_tone(0.01, 1.0, 300, |_| 0.3);
+    let glitched = offset_tone(0.01, 1.0, 300, |n| match n {
+        100 => f32::NAN,
+        101 => f32::INFINITY,
+        102 => f32::NEG_INFINITY,
+        _ => 0.3,
+    });
+    assert_eq!(held, glitched);
 }

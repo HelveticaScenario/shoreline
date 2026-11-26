@@ -336,6 +336,7 @@ impl Lane {
                     &self.registration,
                     registration_key,
                     amplitude * divide_down_amount,
+                    0.0,
                 );
             }
         }
