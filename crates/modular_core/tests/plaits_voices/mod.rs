@@ -100,3 +100,11 @@ pub const PLAITS_VOICES: [&str; 96] = [
     "dx7/plaits/brass-6-bc.syx",
     "dx7/plaits/br-trumpet.syx",
 ];
+
+/// The `.syx` file of Plaits' patch `index`, bank by bank.
+pub fn plaits_file(index: usize) -> Vec<u8> {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../assets/builtin")
+        .join(PLAITS_VOICES[index]);
+    std::fs::read(path).unwrap()
+}

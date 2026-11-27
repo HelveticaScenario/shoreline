@@ -14,6 +14,10 @@ use super::units::{keyboard_scaling, normalize_velocity, pow2_fast_1, pow2_fast_
 /// sounding operator.
 const AMPLITUDE_LAG: f32 = 12.0 / 48000.0;
 
+/// The amplitude below which a released carrier counts as silent, about
+/// -60 dB: a DX7 release level under 10 settles below it.
+const SILENT_AMPLITUDE: f32 = 1.0 / 1024.0;
+
 /// How long a note a newer one cuts off takes to fade out, in seconds.
 const FADE_SECS: f32 = 5.0e-3;
 
@@ -242,12 +246,6 @@ impl FmVoice {
         self.lfo.set(&patch.lfo, rates.one_hz);
     }
 
-    /// Forgets the gate, so the next high starts a note even if the voice
-    /// stopped rendering while its gate was high.
-    pub fn forget_gate(&mut self) {
-        self.gate = false;
-    }
-
     /// Returns the operators, envelopes and gate to where `FMVoice::Init`
     /// leaves them, keeping the patch: a voice faded out while its envelopes
     /// still sounded starts its next note from silence, as a fresh one does.
@@ -262,6 +260,23 @@ impl FmVoice {
     /// The loaded patch's id, or `None` before one loads.
     pub fn patch_id(&self) -> Option<u64> {
         self.patch.is_some().then_some(self.patch_id)
+    }
+
+    /// Whether the voice has released and settled below `SILENT_AMPLITUDE`
+    /// in every carrier, so it sounds no more until its next note.
+    pub fn released(&self) -> bool {
+        let p = &self.parameters;
+        let Some(patch) = &self.patch else {
+            return true;
+        };
+        !p.gate
+            && !p.sustain
+            && (0..6).all(|i| {
+                patch.algorithm.is_modulator[i]
+                    || (self.envelopes[i].settled()
+                        && self.cache.amplitude[i] <= SILENT_AMPLITUDE
+                        && self.operators[i].amplitude <= SILENT_AMPLITUDE)
+            })
     }
 
     pub fn set_modulations(&mut self, lfo: &Lfo) {

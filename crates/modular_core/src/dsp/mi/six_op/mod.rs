@@ -14,12 +14,12 @@ pub use syx::{SyxVoice, parse_syx};
 use deserr::Deserr;
 use schemars::JsonSchema;
 
-use super::accent::{Accent, plaits_volts};
+use super::accent::{Accent, accent_boost, plaits_volts};
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        mi::core::{dsp::soft_clip, phase::limit_frequency, random::Random},
+        mi::core::{phase::limit_frequency, random::Random},
         oscillators::{FmMode, apply_fm},
         utils::{
             SchmittTrigger,
@@ -107,7 +107,7 @@ fn default_voices() -> usize {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SixOpOutputs {
-    #[output("output", "the FM voice; unaccented, within ±5 V", type = cv, default, range = (-10.0, 10.0))]
+    #[output("output", "the FM voices; each unaccented note within ±5 V", type = cv, default, range = (-10.0, 10.0))]
     sample: PolyOutput,
 }
 
@@ -228,10 +228,12 @@ impl Default for Lane {
 }
 
 impl Lane {
-    /// One sample of the voice at `f0` cycles per sample through Plaits'
-    /// output stage, before the output gain. `gate` is `None` when unpatched,
-    /// to scrub the envelopes.
+    /// One sample of the voices, each through Plaits' output stage, at
+    /// `f0` cycles per sample, before the output gain. `gate` is `None` when
+    /// unpatched, to scrub the envelopes. A note plays at the `level` it
+    /// starts with; the unpatched gate's drone follows it.
     #[inline(always)]
+    #[expect(clippy::too_many_arguments, reason = "one sample's inputs")]
     fn step(
         &mut self,
         f0: f32,
@@ -239,6 +241,7 @@ impl Lane {
         gate: Option<bool>,
         voice_param: &Dx7Voice,
         voices: usize,
+        level: f32,
         state: &SixOpState,
     ) -> f32 {
         let sample_rate = state.sample_rate;
@@ -266,9 +269,10 @@ impl Lane {
         match gate {
             None => {
                 if !self.droning {
-                    pool.start_note(voices);
+                    pool.start_note(voices, level);
                     self.droning = true;
                 }
+                pool.set_level(level);
                 // A gate patched again later starts from low, so its first
                 // high starts a note.
                 self.gate = false;
@@ -279,34 +283,27 @@ impl Lane {
                     .lfo
                     .scrub(2.0 * sample_rate * envelope, &mut self.random);
                 active.load_patch(patch, id, rates);
-                let p = &mut active.parameters;
-                p.sustain = true;
-                p.gate = false;
-                p.f0 = f0;
-                p.velocity = velocity;
-                p.envelope_control = envelope;
             }
             Some(high) => {
                 self.droning = false;
                 if high && !self.gate {
-                    pool.start_note(voices);
+                    pool.start_note(voices, level);
                     let active = pool.active();
                     active.load_patch(patch, id, rates);
                     active.lfo.reset();
                 }
                 self.gate = high;
-                let active = pool.active();
-                let p = &mut active.parameters;
-                p.sustain = false;
-                p.gate = high;
-                p.f0 = f0;
-                p.velocity = velocity;
-                p.envelope_control = envelope;
-                active.lfo.step(&mut self.random);
+                pool.active().lfo.step(&mut self.random);
             }
         }
         let active = pool.active();
-        active.parameters.brightness = brightness;
+        let p = &mut active.parameters;
+        p.sustain = gate.is_none();
+        p.gate = gate == Some(true);
+        p.f0 = f0;
+        p.velocity = velocity;
+        p.envelope_control = envelope;
+        p.brightness = brightness;
         let (active_patch, active_lfo) = (active.patch_id(), active.lfo);
         active.set_modulations(&active_lfo);
         let random = &mut self.random;
@@ -324,7 +321,7 @@ impl Lane {
                 voice.set_modulations(&lfo);
             }
         });
-        soft_clip(pool.render(rates) * 0.25)
+        pool.render(rates).clamp(-ACCENT_TRIM, ACCENT_TRIM)
     }
 }
 
@@ -365,11 +362,9 @@ impl SixOp {
                 ),
                 accent: (plaits_volts(accent), mark),
             };
-            let out = lane.step(f0, knobs, gate, &p.voice, p.voices, &self.state);
-            let out =
-                lane.accent_state
-                    .apply(OUTPUT_GAIN * out, ACCENT_TRIM, self.state.sample_rate);
-            self.outputs.sample.set(lane_index, out);
+            let level = 1.0 + accent_boost(accent, ACCENT_TRIM);
+            let out = lane.step(f0, knobs, gate, &p.voice, p.voices, level, &self.state);
+            self.outputs.sample.set(lane_index, OUTPUT_GAIN * out);
         }
     }
 }
@@ -397,17 +392,4 @@ mod tests;
 
 #[cfg(test)]
 #[path = "../../../../tests/plaits_voices/mod.rs"]
-mod plaits_voices;
-
-/// The builtin voices, for tests.
-#[cfg(test)]
-pub(crate) mod test_voices {
-    pub use super::plaits_voices::PLAITS_VOICES;
-
-    /// The file of a builtin voice path (one under `assets/builtin`).
-    pub fn asset(path: &str) -> std::path::PathBuf {
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../assets/builtin")
-            .join(path)
-    }
-}
+pub(crate) mod plaits_voices;

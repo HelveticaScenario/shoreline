@@ -13,7 +13,7 @@ import {
     BUILTIN_WAVETABLES,
 } from '../../../shared/builtinAssets';
 import { BUILTIN_DX7_VOICES } from '../../../shared/builtinDx7';
-import { voiceFragments } from '../../../shared/dx7Voice';
+import { type SyxFileVoices, voiceFragments } from '../../../shared/dx7Voice';
 
 /** Drag data type the file explorer sets to a file's `/`-rooted path. */
 export const WORKSPACE_PATH_MIME = 'application/x-shoreline-workspace-path';
@@ -165,12 +165,6 @@ export interface PathSuggestion {
     detail: string;
 }
 
-/** The voice names of one workspace `.syx` file. */
-export interface SyxFileVoices {
-    path: string;
-    names: string[];
-}
-
 /** A voice's completion: its file alone when the file holds only it. */
 function voiceSuggestions(
     path: string,
@@ -184,21 +178,21 @@ function voiceSuggestions(
         { path, detail: `${ASSET_DETAILS.syx}: the first, ${names[0]}` },
         ...fragments.map((fragment, i) => ({
             path: `${path}#${fragment}`,
-            detail: `DX7 voice ${i + 1} of ${names.length}`,
+            detail: `DX7 voice ${i + 1} of ${names.length}: ${names[i]}`,
         })),
     ];
 }
 
 /**
- * The completions for a workspace: every asset, and every voice of each
- * `.syx` file whose names `voices` holds.
+ * The completions for a workspace's `assets`: each asset, and every voice of
+ * each `.syx` file whose names `voices` holds.
  */
 export function workspaceSuggestions(
-    tree: FileTreeEntry[],
+    assets: readonly { path: string; kind: AssetKind }[],
     voices: readonly SyxFileVoices[],
 ): PathSuggestion[] {
     const names = new Map(voices.map((v) => [v.path, v.names]));
-    return assetPaths(tree).flatMap(({ path, kind }) => {
+    return assets.flatMap(({ path, kind }) => {
         const fileNames = kind === 'syx' ? names.get(path) : undefined;
         return fileNames && fileNames.length > 0
             ? voiceSuggestions(path, fileNames)

@@ -26,6 +26,7 @@ import type {
     Synthesizer,
     TransportSnapshot,
 } from '@modular/core';
+import type { SyxFileVoices } from './dx7Voice';
 import type schemas from '@modular/core/schemas.json';
 import type { SliderDefinition } from './dsl/sliderTypes';
 import type { ButtonDefinition } from './dsl/buttonTypes';
@@ -582,9 +583,7 @@ export interface IPCHandlers {
     [IPC_CHANNELS.FS_LIST_FILES]: () => FileTreeEntry[];
     [IPC_CHANNELS.FS_TREE_ON_CHANGE]: () => void;
     /** The voice names of each readable `.syx` file among the workspace paths. */
-    [IPC_CHANNELS.FS_LIST_SYX_VOICES]: (
-        paths: string[],
-    ) => { path: string; names: string[] }[];
+    [IPC_CHANNELS.FS_LIST_SYX_VOICES]: (paths: string[]) => SyxFileVoices[];
     [IPC_CHANNELS.FS_READ_FILE]: (filePath: string) => string;
     /**
      * With `expectedDiskContent`, the write is refused with a `conflict`

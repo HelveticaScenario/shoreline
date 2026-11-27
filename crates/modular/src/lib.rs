@@ -580,8 +580,8 @@ fn syx_voices(bytes: &[u8]) -> std::result::Result<Vec<SyxVoiceInfo>, String> {
     Ok(modular_core::dsp::mi::six_op::parse_syx(bytes)?
         .into_iter()
         .map(|v| SyxVoiceInfo {
+            data: v.data(),
             name: v.name,
-            data: v.packed.iter().map(|b| format!("{b:02x}")).collect(),
         })
         .collect())
 }

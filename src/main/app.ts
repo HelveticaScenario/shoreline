@@ -1092,12 +1092,14 @@ function inAssetWorkspace<T>(load: (path: string) => T): (path: string) => T {
     };
 }
 
+const loadSyx = inAssetWorkspace((syxPath) => synth.loadSyx(syxPath));
+
 const syxVoiceNames = createSyxVoiceNames(
     (workspacePath) =>
         currentWorkspaceRoot
             ? path.join(currentWorkspaceRoot, workspacePath)
             : null,
-    inAssetWorkspace((syxPath) => synth.loadSyx(syxPath)),
+    loadSyx,
 );
 
 registerIPCHandler('FS_LIST_SYX_VOICES', (paths) => syxVoiceNames(paths));
@@ -1128,7 +1130,7 @@ registerIPCHandler(
                         synth.loadMediaAudio(mediaPath),
                     ),
                     wav: inAssetWorkspace((wavPath) => synth.loadWav(wavPath)),
-                    syx: inAssetWorkspace((syxPath) => synth.loadSyx(syxPath)),
+                    syx: loadSyx,
                 },
             });
             patch.moduleIdRemaps = [];

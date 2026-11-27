@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import type { SyxFileVoices } from '../shared/dx7Voice';
 
 /**
  * Lists the voice names of workspace `.syx` files for path completion,
@@ -9,7 +10,7 @@ import * as fs from 'fs';
 export function createSyxVoiceNames(
     file: (path: string) => string | null,
     load: (path: string) => { name: string }[],
-): (paths: string[]) => { path: string; names: string[] }[] {
+): (paths: string[]) => SyxFileVoices[] {
     const cache = new Map<string, { mtimeMs: number; names: string[] }>();
     return (paths) =>
         paths.flatMap((path) => {
