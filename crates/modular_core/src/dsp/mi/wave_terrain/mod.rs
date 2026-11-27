@@ -8,7 +8,10 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
-            blend::Blend, fast_sine::QuadratureOscillator, phase::limit_frequency, sine::sine,
+            blend::Blend,
+            fast_sine::QuadratureOscillator,
+            phase::{limit_frequency, wrap},
+            sine::sine,
         },
         oscillators::{FmMode, apply_fm},
     },
@@ -52,6 +55,14 @@ struct WaveTerrainParams {
     )]
     #[deserr(default)]
     offset: Option<PolySignal>,
+    #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
     #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero traces the circle backward",
         type = audio,
@@ -119,6 +130,14 @@ const WAVE_TERRAIN_DOCS: ModuleDocs = ModuleDocs {
             title: "Phase-modulated voice",
             code: "bass: $mi.waveTerrain('g2', { radius: 4, offset: 1 })._pm",
         },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.waveTerrain(freq, { radius: 4, phaseOffset }),
+                )
+            "#,
+        },
     ],
 };
 
@@ -157,6 +176,9 @@ struct Controls {
     /// The two terrains blended, and how far toward the second.
     terrain: usize,
     blend: f32,
+    /// Phase offset in `[0, 1)`; the path turns once per cycle of the pitch,
+    /// so it is also the path's.
+    phase: f32,
 }
 
 #[derive(Clone, Copy, SeedSide)]
@@ -164,14 +186,19 @@ struct Voice {
     blend: Blend,
     path: QuadratureOscillator,
     controls: Controls,
-    /// The pitch and knobs, as bits, `controls` were derived from; `None`
-    /// before the first sample.
-    last_inputs: Option<[u32; 4]>,
+    /// The pitch, knobs and phase offset, as bits, `controls` were derived
+    /// from; `None` before the first sample.
+    last_inputs: Option<[u32; 5]>,
     terrain: SwapGlide,
     radius: SwapGlide,
     offset: SwapGlide,
-    /// The last finite knobs, which a NaN or infinite knob holds.
-    held: [f32; 3],
+    phase_offset: SwapGlide,
+    /// The last finite knobs and phase offset, which a NaN or infinite value
+    /// holds.
+    held: [f32; 4],
+    /// Whether the path has started at its phase offset; a voice carried
+    /// across a patch update keeps running from where it is.
+    seeded: bool,
 }
 
 impl Default for Voice {
@@ -184,11 +211,14 @@ impl Default for Voice {
             terrain: SwapGlide::default(),
             radius: SwapGlide::default(),
             offset: SwapGlide::default(),
+            phase_offset: SwapGlide::default(),
             held: [
                 WaveTerrainParams::TERRAIN_DEFAULT,
                 WaveTerrainParams::RADIUS_DEFAULT,
                 WaveTerrainParams::OFFSET_DEFAULT,
+                WaveTerrainParams::PHASE_OFFSET_DEFAULT,
             ],
+            seeded: false,
         }
     }
 }
@@ -198,6 +228,7 @@ struct Knobs {
     terrain: (f32, GlideMark),
     radius: (f32, GlideMark),
     offset: (f32, GlideMark),
+    phase_offset: (f32, GlideMark),
 }
 
 fn knob(volts: f32) -> f32 {
@@ -206,14 +237,23 @@ fn knob(volts: f32) -> f32 {
 
 impl Voice {
     /// The controls for a sample at `f0` cycles per sample, rederived only
-    /// when the pitch or a knob moves or a glide is under way.
+    /// when the pitch, a knob or the phase offset moves or a glide is under
+    /// way.
     #[inline(always)]
     fn control(&mut self, f0: f32, knobs: Knobs, state: &WaveTerrainState) -> Controls {
-        let inputs = [f0, knobs.terrain.0, knobs.radius.0, knobs.offset.0].map(f32::to_bits);
+        let inputs = [
+            f0,
+            knobs.terrain.0,
+            knobs.radius.0,
+            knobs.offset.0,
+            knobs.phase_offset.0,
+        ]
+        .map(f32::to_bits);
         if Some(inputs) == self.last_inputs
             && !self.terrain.will_glide(knobs.terrain.1)
             && !self.radius.will_glide(knobs.radius.1)
             && !self.offset.will_glide(knobs.offset.1)
+            && !self.phase_offset.will_glide(knobs.phase_offset.1)
         {
             return self.controls;
         }
@@ -226,13 +266,15 @@ impl Voice {
                 .follow(knobs.radius.0, knobs.radius.1, sample_rate),
             self.offset
                 .follow(knobs.offset.0, knobs.offset.1, sample_rate),
+            self.phase_offset
+                .follow(knobs.phase_offset.0, knobs.phase_offset.1, sample_rate),
         ];
         for (held, value) in self.held.iter_mut().zip(raw) {
             if value.is_finite() {
                 *held = value;
             }
         }
-        let [harmonics, timbre, morph] = self.held.map(knob);
+        let [harmonics, timbre, morph] = [0, 1, 2].map(|knob_index| knob(self.held[knob_index]));
 
         let f0 = limit_frequency(f0, 0.5);
         // Plaits' 48 kHz pitch, or this rate's when that is nearer Nyquist:
@@ -256,6 +298,7 @@ impl Voice {
             x_offset: 1.9 * morph - 1.0,
             terrain,
             blend: z - terrain as f32,
+            phase: wrap(self.held[3]),
         };
         self.controls
     }
@@ -264,7 +307,13 @@ impl Voice {
     /// output gain.
     #[inline(always)]
     fn step(&mut self, c: Controls) -> (f32, f32) {
-        let path = self.path.render::<2>(c.frequency, c.amplitude);
+        if !self.seeded {
+            self.path.seed(c.phase, c.frequency);
+            self.seeded = true;
+        }
+        let path = self
+            .path
+            .render_offset::<2>(c.frequency, c.amplitude, c.phase);
         let mut out = 0.0;
         let mut aux = 0.0;
         for (x, y) in path {
@@ -305,6 +354,11 @@ impl WaveTerrain {
                 offset: (
                     p.offset.value_or(lane, WaveTerrainParams::OFFSET_DEFAULT),
                     p.offset.glide_mark(lane),
+                ),
+                phase_offset: (
+                    p.phase_offset
+                        .value_or(lane, WaveTerrainParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);

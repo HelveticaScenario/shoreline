@@ -8,10 +8,15 @@ fn mark() -> GlideMark {
 }
 
 fn knobs(terrain: f32, radius: f32, offset: f32) -> Knobs {
+    phase_knobs(terrain, radius, offset, 0.0)
+}
+
+fn phase_knobs(terrain: f32, radius: f32, offset: f32, phase_offset: f32) -> Knobs {
     Knobs {
         terrain: (terrain, mark()),
         radius: (radius, mark()),
         offset: (offset, mark()),
+        phase_offset: (phase_offset, mark()),
     }
 }
 
@@ -142,10 +147,17 @@ fn stays_finite_and_bounded() {
                 _ => (n % 11) as f32 * 0.05 - 0.25,
             };
             let t = n as f32 * 0.002;
-            let k = knobs(
+            let phase_offset = match n % 13 {
+                0 if n % 600 == 0 => f32::NAN,
+                1 if n % 600 == 1 => f32::NEG_INFINITY,
+                5 => -7.25,
+                _ => (t * 3.5).sin() * 3.0,
+            };
+            let k = phase_knobs(
                 2.5 + 3.0 * t.sin(),
                 2.5 + 3.0 * (t * 1.3).sin(),
                 2.5 + 3.0 * (t * 0.7).sin(),
+                phase_offset,
             );
             let (out, pm) = render(&mut voice, f0, k, &state);
             assert!(
@@ -153,5 +165,90 @@ fn stays_finite_and_bounded() {
                 "{sample_rate} Hz, sample {n}: {out}, {pm}"
             );
         }
+    }
+}
+
+/// A phase offset plays the same waveform shifted in time, forward or
+/// backward and on both outputs: at a 100-sample period, a quarter-cycle
+/// offset leads by 25 samples.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    let state = WaveTerrainState::new(48000.0);
+    for f0 in [0.01, -0.01] {
+        for (terrain, radius, offset) in [(0.5, 2.5, 2.5), (3.0, 4.0, 1.0), (4.8, 5.0, 4.0)] {
+            let tone = |phase_offset: f32| {
+                let mut voice = Voice::default();
+                (0..4000)
+                    .map(|_| {
+                        let k = phase_knobs(terrain, radius, offset, phase_offset);
+                        render(&mut voice, f0, k, &state)
+                    })
+                    .collect::<Vec<(f32, f32)>>()
+            };
+            let ahead = tone(0.25);
+            let plain = tone(0.0);
+            // Backward, a lead of a quarter cycle is a lag of three.
+            let lead = if f0 > 0.0 { 25 } else { 75 };
+            for (output, pick) in [("height", 0), ("pm", 1)] {
+                let pick = |samples: &[(f32, f32)]| {
+                    samples
+                        .iter()
+                        .map(|&(a, b)| if pick == 0 { a } else { b })
+                        .collect::<Vec<f32>>()
+                };
+                let (error, at) = max_error(
+                    &pick(&ahead[1000..3000]),
+                    &pick(&plain[1000 + lead..3000 + lead]),
+                );
+                assert!(
+                    error < 1e-3,
+                    "f0 {f0}, terrain {terrain}, {output}: error {error} at {at}"
+                );
+            }
+        }
+    }
+}
+
+/// An offset that moves, or jumps, ends where a voice started at it plays,
+/// within the rounding its path gathers on the way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    let state = WaveTerrainState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glided = Voice::default();
+    let mut jumped = Voice::default();
+    for n in 0..6000 {
+        let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
+        let jump = if n < 100 { 0.9 } else { 0.4 };
+        let a = render(&mut held, 0.01, phase_knobs(3.0, 4.0, 1.0, 0.4), &state);
+        let b = render(&mut glided, 0.01, phase_knobs(3.0, 4.0, 1.0, glide), &state);
+        let c = render(&mut jumped, 0.01, phase_knobs(3.0, 4.0, 1.0, jump), &state);
+        if n >= 3000 {
+            for (name, other) in [("glided", b), ("jumped", c)] {
+                assert!(
+                    (a.0 - other.0).abs() < 1e-3 && (a.1 - other.1).abs() < 1e-3,
+                    "{name}, sample {n}: {a:?} vs {other:?}"
+                );
+            }
+        }
+    }
+}
+
+/// A NaN or infinite phase offset holds the path where it is.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let state = WaveTerrainState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..300 {
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            102 => f32::NEG_INFINITY,
+            _ => 0.3,
+        };
+        let a = render(&mut held, 0.01, phase_knobs(1.0, 3.0, 2.0, 0.3), &state);
+        let b = render(&mut glitched, 0.01, phase_knobs(1.0, 3.0, 2.0, v), &state);
+        assert_eq!(a, b, "sample {n}");
     }
 }
