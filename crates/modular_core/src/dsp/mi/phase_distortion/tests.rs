@@ -1,7 +1,7 @@
 use super::*;
 use crate::dsp::mi::core::fixture::{assert_rate_independent, harmonics, max_error, records};
 use crate::dsp::utils::voct_to_hz;
-use crate::types::Signal;
+use crate::types::{OutputStruct, Signal};
 
 fn mark() -> GlideMark {
     PolySignal::mono(Signal::Volts(0.0)).glide_mark(0)
@@ -221,4 +221,106 @@ fn backward_departs_only_by_the_substep_lag() {
         at_192k < 0.4 * at_48k,
         "departure {at_192k} at 192 kHz vs {at_48k} at 48 kHz"
     );
+}
+
+fn module(wait_for_zero_cross: bool) -> PhaseDistortion {
+    let params = PhaseDistortionParams {
+        freq: PolySignal::mono(Signal::Volts(-1.0)),
+        ratio: None,
+        amount: None,
+        asymmetry: None,
+        sync: true,
+        fm: None,
+        fm_mode: FmMode::default(),
+        wait_for_zero_cross,
+    };
+    let mut outputs = PhaseDistortionOutputs::default();
+    outputs.set_all_lanes(1);
+    let mut module = PhaseDistortion {
+        params,
+        outputs,
+        state: PhaseDistortionState::default(),
+        lane_state: vec![Voice::default(); 1].into_boxed_slice(),
+        _lane_count: 1,
+        _channels: 1,
+        _block_index: Default::default(),
+        _connected: Default::default(),
+    };
+    module.init(48000.0);
+    module
+}
+
+fn run(module: &mut PhaseDistortion, n: usize) -> Vec<f32> {
+    (0..n)
+        .map(|_| {
+            module.update(48000.0);
+            module.outputs.sample.get(0)
+        })
+        .collect()
+}
+
+/// A fresh voice is silent until its output first changes sign, then plays
+/// exactly the unmuted render.
+#[test]
+fn fresh_voice_waits_for_a_zero_crossing() {
+    let open = run(&mut module(false), 2000);
+    let muted = run(&mut module(true), 2000);
+    assert!(
+        open[0].abs() > 3.0,
+        "unmuted start {} sits at the peak",
+        open[0]
+    );
+    let release = open
+        .windows(2)
+        .position(|w| (w[0] > 0.0) != (w[1] > 0.0) || w[1] == 0.0)
+        .expect("the wave crosses zero")
+        + 1;
+    assert!(release > 1, "released at {release}");
+    assert!(muted[..release].iter().all(|&v| v == 0.0));
+    for (n, (m, o)) in muted.iter().zip(&open).enumerate().skip(release) {
+        assert_eq!(m.to_bits(), o.to_bits(), "sample {n}");
+    }
+}
+
+/// With the mute off, the module plays the engine's render from the first
+/// sample.
+#[test]
+fn mute_off_plays_the_engine_render() {
+    let state = PhaseDistortionState::new(48000.0);
+    let mut voice = Voice::default();
+    let f0 = voct_to_hz(-1.0) / 48000.0;
+    let out = run(&mut module(false), 2000);
+    for (n, actual) in out.iter().enumerate() {
+        let expected = OUTPUT_GAIN
+            * render(
+                &mut voice,
+                f0,
+                knobs(
+                    PhaseDistortionParams::RATIO_DEFAULT,
+                    PhaseDistortionParams::AMOUNT_DEFAULT,
+                    PhaseDistortionParams::ASYMMETRY_DEFAULT,
+                ),
+                true,
+                &state,
+            );
+        assert_eq!(actual.to_bits(), expected.to_bits(), "sample {n}");
+    }
+}
+
+/// A voice a patch update carries over keeps sounding without re-muting.
+#[test]
+fn carried_over_voice_does_not_re_mute() {
+    let mut reference = module(true);
+    let expected = run(&mut reference, 3000);
+
+    let mut old = module(true);
+    run(&mut old, 1000);
+    let mut new = module(true);
+    std::mem::swap(&mut new.state, &mut old.state);
+    std::mem::swap(&mut new.lane_state, &mut old.lane_state);
+    let after = run(&mut new, 2000);
+    assert!(after[0] != 0.0);
+    for (n, (a, e)) in after.iter().zip(&expected[1000..]).enumerate() {
+        assert_eq!(a.to_bits(), e.to_bits(), "sample {n}");
+    }
 }
