@@ -36,6 +36,11 @@ export interface VideoGraphHost {
      */
     publishTap(signal: AudioSignal, slot: number): void;
     /**
+     * One side of each lane of `signal`, as `$left` or `$right` reads it: a
+     * mono lane gives itself on both sides.
+     */
+    side(signal: AudioSignal, side: 'left' | 'right'): Collection;
+    /**
      * A `$signal` module with id `id` carrying 0..1, which the renderer
      * overwrites with a region average of a video signal.
      */

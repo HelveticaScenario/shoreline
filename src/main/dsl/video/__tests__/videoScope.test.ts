@@ -5,9 +5,9 @@ const taps = (patch: ReturnType<typeof exec>['patch']) =>
     patch.modules.filter((m) => m.moduleType === '_videoTap');
 
 describe('$v.scopeXY', () => {
-    it('draws one trace from an x and a y signal with the default settings', () => {
+    it('draws one trace from a stereo signal with the default settings', () => {
         const { patch, video } = exec(`
-            $v.scopeXY($sine('440hz'), $sine('330hz')).out()
+            $v.scopeXY($stereo($sine('440hz'), $sine('330hz'))).out()
         `);
         expect(video!.scopes).toEqual([
             {
@@ -30,35 +30,64 @@ describe('$v.scopeXY', () => {
         expect(video!.wgsl).toContain('video_scope(scope_0, uv)');
     });
 
-    it('pairs channels off, cycling the shorter side, one tap per channel', () => {
+    it('draws one trace per lane, each side through its own tap', () => {
         const { patch, video } = exec(`
-            $v.scopeXY($sine(['c3', 'e3', 'g3']), $sine('c2')).out()
+            $v.scopeXY($stereo($sine(['c3', 'e3', 'g3']), $sine('c2'))).out()
         `);
         const [scope] = video!.scopes;
         expect(scope.traces).toHaveLength(3);
-        expect(new Set(scope.traces.map((t) => t.y)).size).toBe(1);
         expect(new Set(scope.traces.map((t) => t.x)).size).toBe(3);
-        expect(taps(patch)).toHaveLength(4);
+        expect(new Set(scope.traces.map((t) => t.y)).size).toBe(3);
+        expect(taps(patch)).toHaveLength(6);
     });
 
-    it('takes an axis mixing collections, numbers and notes', () => {
-        const { video } = exec(`
-            $scopeXY(
-                [$sine('c3').range(-1, 1), 2, 'e3', $sine('g3')],
-                $saw(['c2', 'g2']),
-            )
+    it('reads x from the left side and y from the right', () => {
+        const { patch, video } = exec(`
+            $v.scopeXY($stereo($sine('c4'), $saw('c4'))).out()
         `);
-        expect(video!.scopes[0].traces).toHaveLength(4);
+        const [trace] = video!.scopes[0].traces;
+        const byId = new Map(patch.modules.map((m) => [m.id, m]));
+        const sideOf = (row: number) => {
+            const tap = taps(patch).find(
+                (m) => m.params.slot === video!.histories[row].tap,
+            )!;
+            const [cable] = tap.params.input as { module: string }[];
+            const source = cable.module;
+            return byId.get(source)!.moduleType;
+        };
+        expect(sideOf(trace.x)).toBe('$left');
+        expect(sideOf(trace.y)).toBe('$right');
     });
 
-    it('lifts numbers and note strings into constant signals', () => {
-        const { video } = exec(`$v.scopeXY($sine('c4'), 2.5).out()`);
-        expect(video!.scopes[0].traces).toHaveLength(1);
+    it('takes an array mixing collections, numbers and notes', () => {
+        const { video } = exec(`
+            $scopeXY([
+                $stereo($sine('c3'), $saw(['c2', 'g2'])),
+                2,
+                'e3',
+                $sine('g3'),
+            ])
+        `);
+        expect(video!.scopes[0].traces).toHaveLength(5);
+    });
+
+    it('draws a mono lane on both axes', () => {
+        const { patch, video } = exec(`$v.scopeXY($sine('c4')).out()`);
+        const [trace] = video!.scopes[0].traces;
+        expect(trace.x).not.toBe(trace.y);
+        expect(taps(patch)).toHaveLength(2);
+    });
+
+    it('points a separate y signal at $stereo', () => {
+        expect(() =>
+            exec(`$v.scopeXY($sine('c4'), $sine('g4')).out()`),
+        ).toThrow(/join two signals with \$stereo\(x, y\)/);
+        expect(() => exec(`$scopeXY($sine('c4'), 2.5)`)).toThrow(/\$stereo/);
     });
 
     it('passes the config through', () => {
         const { video } = exec(`
-            $v.scopeXY($sine('c4'), $sine('g4'), {
+            $v.scopeXY($stereo($sine('c4'), $sine('g4')), {
                 xRange: [-1, 1],
                 yRange: [0, 10],
                 samples: 512,
@@ -82,12 +111,12 @@ describe('$v.scopeXY', () => {
     it('rejects a reversed or non-finite range', () => {
         expect(() =>
             exec(
-                `$v.scopeXY($sine('c4'), $sine('c4'), { xRange: [5, -5] }).out()`,
+                `$v.scopeXY($stereo($sine('c4'), $sine('c4')), { xRange: [5, -5] }).out()`,
             ),
         ).toThrow(/xRange/);
         expect(() =>
             exec(
-                `$v.scopeXY($sine('c4'), $sine('c4'), { yRange: [0, Infinity] }).out()`,
+                `$v.scopeXY($stereo($sine('c4'), $sine('c4')), { yRange: [0, Infinity] }).out()`,
             ),
         ).toThrow(/yRange/);
     });
@@ -95,23 +124,25 @@ describe('$v.scopeXY', () => {
     it('rejects settings out of range', () => {
         expect(() =>
             exec(
-                `$v.scopeXY($sine('c4'), $sine('c4'), { persistence: 2 }).out()`,
+                `$v.scopeXY($stereo($sine('c4'), $sine('c4')), { persistence: 2 }).out()`,
             ),
         ).toThrow(/persistence/);
         expect(() =>
-            exec(`$v.scopeXY($sine('c4'), $sine('c4'), { samples: 1 }).out()`),
+            exec(
+                `$v.scopeXY($stereo($sine('c4'), $sine('c4')), { samples: 1 }).out()`,
+            ),
         ).toThrow(/samples/);
     });
 
-    it('rejects an axis with no channels', () => {
-        expect(() => exec(`$v.scopeXY([], $sine('c4')).out()`)).toThrow(
-            /\$v\.scopeXY: x/,
+    it('rejects a signal with no lanes', () => {
+        expect(() => exec(`$v.scopeXY([]).out()`)).toThrow(
+            /\$v\.scopeXY: signal has no lanes/,
         );
     });
 
     it('drops a scope the picture does not use, with its signals', () => {
         const { patch, video } = exec(`
-            $v.scopeXY($sine('c4'), $sine('g4'))
+            $v.scopeXY($stereo($sine('c4'), $sine('g4')))
             $v.osc(4).out()
         `);
         expect(video!.scopes).toEqual([]);
@@ -121,7 +152,7 @@ describe('$v.scopeXY', () => {
 
     it('can be warped and composited like any signal', () => {
         const { video } = exec(`
-            $v.out($v.mult($v.scopeXY($sine('c4'), $sine('g4')).kaleid(4), $v.hsv(0.9, 1, 1)))
+            $v.out($v.mult($v.scopeXY($stereo($sine('c4'), $sine('g4'))).kaleid(4), $v.hsv(0.9, 1, 1)))
         `);
         expect(video!.scopes).toHaveLength(1);
         expect(video!.wgsl).toContain('video_scope(scope_0, uv)');
@@ -129,8 +160,8 @@ describe('$v.scopeXY', () => {
 
     it('numbers several scopes and their history rows densely', () => {
         const { video } = exec(`
-            const a = $v.scopeXY($sine('c4'), $sine('g4'))
-            const b = $v.scopeXY($sine('c4'), $sine('e4'), { samples: 1024 })
+            const a = $v.scopeXY($stereo($sine('c4'), $sine('g4')))
+            const b = $v.scopeXY($stereo($sine('c4'), $sine('e4')), { samples: 1024 })
             $v.add(a, b).out()
         `);
         expect(video!.scopes.map((s) => s.traces)).toEqual([
@@ -143,14 +174,16 @@ describe('$v.scopeXY', () => {
 
 describe('$scopeXY', () => {
     it('shows $v.scopeXY as the picture', () => {
-        const { video } = exec(`$scopeXY($sine('440hz'), $sine('330hz'))`);
+        const { video } = exec(
+            `$scopeXY($stereo($sine('440hz'), $sine('330hz')))`,
+        );
         expect(video!.hasOutput).toBe(true);
         expect(video!.scopes).toHaveLength(1);
     });
 
     it('returns the scope so it can be reused', () => {
         const { video } = exec(`
-            const s = $scopeXY($sine('440hz'), $sine('330hz'))
+            const s = $scopeXY($stereo($sine('440hz'), $sine('330hz')))
             $v.out($v.mult(s, $v.hsv(0.5, 1, 1)))
         `);
         expect(video!.scopes).toHaveLength(1);
@@ -160,7 +193,7 @@ describe('$scopeXY', () => {
 describe('$v.scopeXY settings driven by signals', () => {
     it('binds a slider to a uniform slot the scope reads', () => {
         const { video } = exec(`
-            $v.scopeXY($sine('c4'), $sine('g4'), {
+            $v.scopeXY($stereo($sine('c4'), $sine('g4')), {
                 intensity: $slider('Beam', 0.8, 0, 1),
             }).out()
         `);
@@ -174,7 +207,7 @@ describe('$v.scopeXY settings driven by signals', () => {
 
     it('binds an audio signal through a tap', () => {
         const { video } = exec(`
-            $v.scopeXY($sine('c4'), $sine('g4'), {
+            $v.scopeXY($stereo($sine('c4'), $sine('g4')), {
                 lineWidth: $sine('1hz').range(0.5, 3),
             }).out()
         `);
@@ -187,7 +220,7 @@ describe('$v.scopeXY settings driven by signals', () => {
     it('keeps the slots of settings when renumbering', () => {
         const { video } = exec(`
             const unused = $v.solid($slider('Unused', 1, 0, 1), 0, 0)
-            $v.scopeXY($sine('c4'), $sine('g4'), {
+            $v.scopeXY($stereo($sine('c4'), $sine('g4')), {
                 intensity: $slider('Beam', 0.8, 0, 1),
             }).out()
         `);
@@ -201,7 +234,7 @@ describe('$v.scopeXY settings driven by signals', () => {
     it('rejects a video signal', () => {
         expect(() =>
             exec(
-                `$v.scopeXY($sine('c4'), $sine('g4'), { intensity: $v.osc(2) }).out()`,
+                `$v.scopeXY($stereo($sine('c4'), $sine('g4')), { intensity: $v.osc(2) }).out()`,
             ),
         ).toThrow(/intensity takes a number, a slider or an audio signal/);
     });

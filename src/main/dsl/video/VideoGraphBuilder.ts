@@ -262,33 +262,28 @@ export class VideoGraphBuilder implements VideoCore {
     }
 
     /**
-     * An XY scope of audio signals: `x` moves the beam across the frame and
-     * `y` up it. Each lane is its own signal, and the two are paired off
-     * lane by lane, the shorter cycling, one trace per pair. The beam
-     * is white on a transparent background, its opacity its brightness.
+     * An XY scope of a stereo signal: each lane's left side moves the beam
+     * across the frame and its right side up it, one trace per lane. The
+     * beam is white on a transparent background, its opacity its brightness.
      */
-    scopeXY = (
-        x: unknown,
-        y: unknown,
-        config?: VideoScopeConfig,
-    ): VideoOutput => {
+    scopeXY = (signal: unknown, config?: VideoScopeConfig): VideoOutput => {
         const fn = '$v.scopeXY';
-        const xs = this.lanesOf(fn, 'x', x);
-        const ys = this.lanesOf(fn, 'y', y);
-        for (const [name, lanes] of [
-            ['x', xs],
-            ['y', ys],
-        ] as const) {
-            if (lanes.length === 0) {
-                throw new Error(`${fn}: ${name} has no lanes`);
-            }
-        }
-        const traceCount = Math.max(xs.length, ys.length);
-        if (traceCount > MAX_SCOPE_TRACES) {
+        if (isScopeSignal(config)) {
             throw new Error(
-                `${fn}: ${traceCount} traces requested; a scope draws at most ${MAX_SCOPE_TRACES}`,
+                `${fn}: takes one stereo signal whose left side is x and right side is y; join two signals with $stereo(x, y)`,
             );
         }
+        const lanes = new Collection(...this.lanesOf(fn, 'signal', signal));
+        if (lanes.length === 0) {
+            throw new Error(`${fn}: signal has no lanes`);
+        }
+        if (lanes.length > MAX_SCOPE_TRACES) {
+            throw new Error(
+                `${fn}: ${lanes.length} traces requested; a scope draws at most ${MAX_SCOPE_TRACES}`,
+            );
+        }
+        const xs = this.host.side(lanes, 'left').items;
+        const ys = this.host.side(lanes, 'right').items;
         const samples = config?.samples ?? 2048;
         if (
             !Number.isInteger(samples) ||
@@ -299,15 +294,15 @@ export class VideoGraphBuilder implements VideoCore {
                 `${fn}: samples must be an integer from 2 to ${VIDEO_HISTORY_LEN}, got ${describe(samples)}`,
             );
         }
-        const row = (signal: ModuleOutput, axis: string) =>
+        const row = (side: ModuleOutput, axis: string) =>
             this.historyRow({
                 samples,
-                tap: this.tapFor(fn, axis, new Collection(signal)),
+                tap: this.tapFor(fn, axis, new Collection(side)),
                 trigger: false,
             });
-        const traces = Array.from({ length: traceCount }, (_, i) => ({
-            x: row(xs[i % xs.length], 'x'),
-            y: row(ys[i % ys.length], 'y'),
+        const traces = xs.map((x, i) => ({
+            x: row(x, 'x'),
+            y: row(ys[i], 'y'),
         }));
         const setting = (
             name: keyof typeof SCOPE_SETTING_RANGES,
@@ -674,6 +669,16 @@ const scopeSettings = (scope: VideoScope): VideoScopeSetting[] => [
     scope.lineWidth,
     scope.persistence,
 ];
+
+/** Whether `value` is a signal rather than a config object. */
+function isScopeSignal(value: unknown): boolean {
+    return (
+        value instanceof BaseCollection ||
+        Array.isArray(value) ||
+        typeof value === 'number' ||
+        typeof value === 'string'
+    );
+}
 
 /** A config number from `min` to `max`, or `fallback` when absent. */
 function boundedNumber(

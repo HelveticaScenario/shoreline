@@ -315,10 +315,10 @@ type RangedSignal = ConstantSignal | CollectionWithRange;
 type Poly<T extends Signal = Signal> = OrArray<T | Collection | CollectionWithRange> | SignalGroup;
 
 /**
- * An axis of an XY scope: signals and collections, or an array mixing
- * them. Every lane is its own trace.
+ * What an XY scope draws: signals and collections, or an array mixing
+ * them. Every lane is its own trace, its left side x and its right side y.
  */
-type ScopeAxis = OrArray<Signal>;
+type ScopeSignal = OrArray<Signal>;
 
 /**
  * A param value tagged into a cartesian signal group by {@link $g1}, {@link $g2},
