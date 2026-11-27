@@ -27,12 +27,22 @@ before the track as well as after it.
 
 ## Updating
 
-Press <Key command="shoreline.updatePatch" /> to run the patch and play it, and <Key command="shoreline.stop" /> to stop.
+Press <Key command="shoreline.updatePatch" /> to update the patch. The change
+waits for the start of the next bar, so it lands in time with the music. For a
+quicker change, <Key command="shoreline.updatePatchNextBeat" /> waits only for
+the next beat.
+
+When you don't want to wait at all, press the shortcut twice: a second update
+while one is waiting goes through right away. The **Update Patch** button at
+the top of the window always updates right away.
+
+Changed your mind while an update is waiting? Press
+<Key command="shoreline.cancelQueuedUpdate" /> to cancel it, and the patch
+that's playing carries on as it was. <Key command="shoreline.stop" /> stops
+everything.
+
 Edit and update as often as you like. Any module you kept carries on from
 where it was, so phases, envelopes and sequences don't restart under you.
-
-To land a change on the beat, press <Key command="shoreline.updatePatchNextBeat" /> instead, and the update waits
-for the next beat. If you change your mind while it is still waiting, <Key command="shoreline.cancelQueuedUpdate" /> cancels it.
 
 ## Where things are
 
