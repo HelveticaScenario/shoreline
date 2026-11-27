@@ -302,8 +302,8 @@ impl Voice {
     #[inline(always)]
     fn step(&mut self, c: Controls) -> (f32, f32) {
         if !self.seeded {
-            self.slope.seed(c.offset, c.pw);
-            self.triangle.seed(c.offset, 0.5);
+            self.slope.seed(c.offset, c.f0, c.pw);
+            self.triangle.seed(c.offset, c.f0, 0.5);
             self.seeded = true;
         }
         let slope = self.slope.step(c.f0, c.pw, c.offset, c.max_frequency);
