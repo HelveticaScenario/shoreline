@@ -2,7 +2,7 @@
 //! sample rate: input plus feedback is written to the voice's buffer, and
 //! its grains read from it.
 
-use super::buffer::{GrainBuffer, Linear12Codec, Linear16Codec, MuLaw8Codec, Resolution};
+use super::buffer::{GrainBuffer, Resolution};
 use super::feedback::FeedbackPath;
 use super::grain::Grain;
 use super::player::{GrainTrigger, GranularPlayer};
@@ -85,12 +85,7 @@ impl GranularCore {
         let mut out = Frame::ZERO;
         let mut mono = 0.0;
         let mut mix = |g: &Grain, x: f32| g.mix(x, place, &mut out, &mut mono);
-        let buffer = &self.buffer;
-        match buffer.resolution() {
-            Resolution::MuLaw8 => self.player.render::<MuLaw8Codec>(buffer, &mut mix),
-            Resolution::Linear12 => self.player.render::<Linear12Codec>(buffer, &mut mix),
-            Resolution::Linear16 => self.player.render::<Linear16Codec>(buffer, &mut mix),
-        }
+        self.player.render(&self.buffer, &mut mix);
         self.feedback.feed_back(mono);
         (out, mono)
     }

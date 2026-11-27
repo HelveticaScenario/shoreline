@@ -75,12 +75,6 @@ pub fn soft_clip(x: f32) -> f32 {
     }
 }
 
-/// Saturate to the signed 16-bit range.
-#[inline]
-pub fn clip16(x: i32) -> i32 {
-    x.clamp(-32768, 32767)
-}
-
 /// Asymmetric one-pole follower: `positive` applies while rising, `negative`
 /// while falling.
 #[inline]

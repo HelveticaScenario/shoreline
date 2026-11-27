@@ -302,7 +302,7 @@ fn record(m: &mut Granular) {
 fn recording_level(m: &Granular, voice: usize) -> usize {
     let buffer = &m.lane_state[voice].voice.granular.buffer;
     (0..buffer.max_delay())
-        .filter(|&i| buffer.raw(i as usize) != 0)
+        .filter(|&i| buffer.raw(i as usize) != 0.0)
         .count()
 }
 

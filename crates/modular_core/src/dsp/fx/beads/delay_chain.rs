@@ -2,7 +2,7 @@
 //! each voice records its input plus feedback, reads it back through the
 //! controller's taps and mixes dry and wet.
 
-use super::buffer::{GrainBuffer, Linear12Codec, Linear16Codec, MuLaw8Codec, Resolution};
+use super::buffer::GrainBuffer;
 use super::chain::{BlockClock, Media, POT_LP};
 use super::delay_controller::{DelayController, DelayControls, Grid};
 use super::feedback::FeedbackPath;
@@ -225,18 +225,7 @@ impl DelayVoice {
             .render(freeze, grid.grooved(self.groove_amount));
         let speed = self.speed.next();
         let bandwidth = self.bandwidth.next();
-        let buffer = &self.buffer;
-        let wet = match buffer.resolution() {
-            Resolution::MuLaw8 => self
-                .multitap
-                .render::<MuLaw8Codec>(buffer, &taps, speed, bandwidth),
-            Resolution::Linear12 => self
-                .multitap
-                .render::<Linear12Codec>(buffer, &taps, speed, bandwidth),
-            Resolution::Linear16 => self
-                .multitap
-                .render::<Linear16Codec>(buffer, &taps, speed, bandwidth),
-        };
+        let wet = self.multitap.render(&self.buffer, &taps, speed, bandwidth);
         self.feedback.feed_back(wet);
         wet
     }

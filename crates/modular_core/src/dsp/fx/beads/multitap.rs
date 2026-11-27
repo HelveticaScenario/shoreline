@@ -2,7 +2,7 @@
 //! through a two-grain pitch shifter, crossfaded by how far `speed` is from
 //! 1, then through the low- or high-pass `bandwidth` filter.
 
-use super::buffer::{Codec, GrainBuffer};
+use super::buffer::GrainBuffer;
 use super::delay_controller::{DelayTap, RENDERED_TAPS};
 use super::primitives::Svf;
 
@@ -11,8 +11,8 @@ const WINDOW: i32 = 2048 << 10;
 const HALF_WINDOW: i32 = WINDOW >> 1;
 
 #[inline(always)]
-fn read<C: Codec>(buffer: &GrainBuffer, delay: i32) -> f32 {
-    buffer.read_hermite::<C>(delay >> 10, (delay & 1023) as f32 / 1024.0)
+fn read(buffer: &GrainBuffer, delay: i32) -> f32 {
+    buffer.read_hermite(delay >> 10, (delay & 1023) as f32 / 1024.0)
 }
 
 /// Two triangle-windowed read heads half a window apart, sliding through the
@@ -36,7 +36,7 @@ impl PitchShifter {
     }
 
     #[inline(always)]
-    fn read<C: Codec>(&mut self, buffer: &GrainBuffer, delay: i32, speed: f32) -> f32 {
+    fn read(&mut self, buffer: &GrainBuffer, delay: i32, speed: f32) -> f32 {
         self.advance(speed);
         // The heads trail the tap by up to half a window, kept inside the
         // recording when the tap is near the longest delay.
@@ -49,8 +49,8 @@ impl PitchShifter {
         } else {
             2.0 - 2.0 * phase
         };
-        let head_1 = read::<C>(buffer, delay - self.phase);
-        let head_2 = read::<C>(buffer, delay - (self.phase + HALF_WINDOW) % WINDOW);
+        let head_1 = read(buffer, delay - self.phase);
+        let head_2 = read(buffer, delay - (self.phase + HALF_WINDOW) % WINDOW);
         head_2 + (head_1 - head_2) * triangle
     }
 }
@@ -72,7 +72,7 @@ impl MultitapDelay {
     /// The sum of `taps` read from `buffer` at `speed`, filtered by
     /// `bandwidth` (0–1; 0.5 leaves it unfiltered).
     #[inline]
-    pub fn render<C: Codec>(
+    pub fn render(
         &mut self,
         buffer: &GrainBuffer,
         taps: &[DelayTap; RENDERED_TAPS],
@@ -91,11 +91,11 @@ impl MultitapDelay {
                 continue;
             }
             let x = if shifted >= 1.0 {
-                shifter.read::<C>(buffer, tap.delay, speed)
+                shifter.read(buffer, tap.delay, speed)
             } else {
-                let straight = read::<C>(buffer, tap.delay);
+                let straight = read(buffer, tap.delay);
                 if shifted > 0.0 {
-                    let pitched = shifter.read::<C>(buffer, tap.delay, speed);
+                    let pitched = shifter.read(buffer, tap.delay, speed);
                     straight + (pitched - straight) * shifted
                 } else {
                     shifter.advance(speed);

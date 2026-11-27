@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    `$reverb`, `$granular`, `$granularSampler` and `$clockedDelay` no longer limit their output, so signals past 5 V pass at full level instead of being turned down, and a loud reverb no longer pumps or saturates. Their feedback still stays in check. If a patch relied on the old ceiling, turn the module down or follow it with your own limiting.
+    `$reverb`, `$granular`, `$granularSampler` and `$clockedDelay` no longer limit or clip signals past 5 V: they record, repeat and pass them at full level, and a loud reverb no longer pumps or saturates. Only the feedback is still held in check, and each `quality` keeps its bit-depth grit at any level. If a patch relied on the old ceiling, turn the signal down first or follow the module with your own limiting.
 
     ```js
     // before: a hot chord the reverb held down

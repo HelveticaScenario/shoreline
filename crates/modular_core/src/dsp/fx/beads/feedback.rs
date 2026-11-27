@@ -10,7 +10,8 @@ pub struct FeedbackPath {
     feedback: Ramp,
     previous: f32,
     dc_blocker: Svf,
-    input_limiter: Limiter,
+    /// Holds the fed-back signal within full scale.
+    limiter: Limiter,
     /// Low-pass coefficient on the feedback signal.
     lp_coefficient: f32,
     /// Pre-gain into the feedback soft clipper; 0 disables it.
@@ -25,7 +26,7 @@ impl FeedbackPath {
         self.previous = 0.0;
         self.dc_blocker = Svf::default();
         self.dc_blocker.set_f_q(40.0 / sample_rate, 0.5);
-        self.input_limiter.init(1.0 / sample_rate);
+        self.limiter.init(1.0 / sample_rate);
         (self.lp_coefficient, self.soft_limit_gain) = match resolution {
             Resolution::MuLaw8 => (0.75, 1.75),
             Resolution::Linear12 => (0.9, 1.3),
@@ -38,23 +39,24 @@ impl FeedbackPath {
         self.feedback.start(feedback, block_size);
     }
 
-    /// The sample to record for `input`, mixed with the fed-back signal.
+    /// The sample to record for `input`, mixed with the fed-back signal. Only
+    /// the fed-back signal is limited and soft-clipped, so the input records
+    /// at any level. Below full scale this matches the hardware, which drives
+    /// the input into the soft clipper with the feedback: the input's gain
+    /// rises with `feedback` by the clipper's pre-gain.
     #[inline]
     pub fn record(&mut self, input: f32) -> f32 {
         let feedback = self.feedback.next();
-        let mut s = input;
-        if self.soft_limit_gain != 0.0 {
-            s += self.previous * feedback * (self.max_gain / self.soft_limit_gain);
+        let k = self.soft_limit_gain;
+        if k != 0.0 {
+            let fed = self
+                .limiter
+                .process_mono(self.previous * feedback * (self.max_gain / k));
+            input * (1.0 + (k - 1.0) * feedback) + soft_clip(fed * k) * feedback
         } else {
-            s += self.previous * feedback * feedback * self.max_gain;
+            let fed = self.previous * feedback * feedback * self.max_gain;
+            input + self.limiter.process_mono(fed)
         }
-        s = self.input_limiter.process_mono(s);
-        if self.soft_limit_gain != 0.0 {
-            s *= self.soft_limit_gain;
-            s = soft_clip(s);
-            s = input + (s - input) * feedback;
-        }
-        s
     }
 
     /// Filter the played signal into the next sample's feedback.
