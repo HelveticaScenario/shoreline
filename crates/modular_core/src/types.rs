@@ -590,13 +590,12 @@ impl SwapGlide {
         if self.gliding() { self.value } else { input }
     }
 
-    /// [`follow`](Self::follow) for a value in cycles, read only by its
+    /// [`update`](Self::update) for a value in cycles, read only by its
     /// position within the cycle: a swap glides the shortest way round, by at
     /// most half a cycle, and the glided value stays within that of `input`.
     #[inline]
-    pub fn follow_cyclic(&mut self, input: f32, mark: GlideMark, sample_rate: f32) -> f32 {
+    pub fn update_cyclic(&mut self, input: f32, mark: GlideMark, sample_rate: f32) {
         self.advance(input, mark, sample_rate, true);
-        if self.gliding() { self.value } else { input }
     }
 
     /// A non-finite input holds the current value (0 before the first update).
@@ -4669,11 +4668,13 @@ mod swap_glide_tests {
     #[test]
     fn cyclic_swap_glides_the_short_way_round() {
         let mut g = SwapGlide::default();
-        g.follow_cyclic(0.95, mark(0, true), SR);
-        let mut prev = g.follow_cyclic(0.05, mark(1, true), SR);
+        g.update_cyclic(0.95, mark(0, true), SR);
+        g.update_cyclic(0.05, mark(1, true), SR);
+        let mut prev = *g;
         assert!((prev + 0.05).abs() < 1e-6, "starts on {prev}");
         for _ in 0..(SR as usize / 20) {
-            let y = g.follow_cyclic(0.05, mark(1, true), SR);
+            g.update_cyclic(0.05, mark(1, true), SR);
+            let y = *g;
             assert!(y >= prev && y <= 0.05, "{prev} -> {y}");
             prev = y;
         }
@@ -4685,7 +4686,8 @@ mod swap_glide_tests {
         let mut g = SwapGlide::default();
         for i in 0..10_000 {
             let x = (i % 100) as f32 / 100.0;
-            assert_eq!(g.follow_cyclic(x, mark(0, true), SR), x);
+            g.update_cyclic(x, mark(0, true), SR);
+            assert_eq!(*g, x);
         }
         assert!(!g.gliding());
     }

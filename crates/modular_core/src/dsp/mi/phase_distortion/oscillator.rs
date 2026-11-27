@@ -10,6 +10,7 @@ use crate::dsp::mi::core::{
     control::Ramp,
     dsp::constrain,
     phase::{fraction, wrap, wrap_below},
+    phase_offset::{Follower, Travel},
     polyblep::{
         edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
         this_integrated_blep_sample,
@@ -31,11 +32,10 @@ pub struct PdOscillator {
     previous_pw: f32,
     /// Whether the slave is past its peak.
     high: bool,
-    /// The phase offset the master has travelled so far, in `[0, 1)`.
-    offset: f32,
-    /// How much of `ratio` times the master's travel the slave has yet to
-    /// make, under a cycle.
-    slave_behind: f32,
+    /// The master's travel toward the phase offset.
+    offset: Travel,
+    /// The slave, in time with the master's travel.
+    slave: Follower,
     /// Plaits' `ParameterInterpolator`s across the two substeps.
     master_frequency: Ramp,
     slave_frequency: Ramp,
@@ -56,8 +56,8 @@ impl Default for PdOscillator {
             next_sample: 0.0,
             previous_pw: 0.5,
             high: false,
-            offset: 0.0,
-            slave_behind: 0.0,
+            offset: Travel::default(),
+            slave: Follower::default(),
             master_frequency: ramp(0.0),
             slave_frequency: ramp(0.01),
             pw: ramp(0.5),
@@ -78,18 +78,6 @@ fn triangle(phase: f32, pw: f32, slope_up: f32, slope_down: f32) -> f32 {
     phase + (triangle - phase)
 }
 
-/// This substep's share of the way from `travelled` to `target`, both phases
-/// in `[0, 1)`, over the `left` substeps remaining, held so a phasor running at
-/// `frequency` stays within ±`max`; `travelled` moves by it.
-#[inline(always)]
-fn travel(target: f32, travelled: &mut f32, left: usize, frequency: f32, max: f32) -> f32 {
-    let behind = target - *travelled;
-    let behind = behind - behind.round();
-    let shift = (behind / left as f32).clamp(-max - frequency, max - frequency);
-    *travelled = wrap(*travelled + shift);
-    shift
-}
-
 impl PdOscillator {
     /// Starts a fresh oscillator `offset` cycles into its waveform, with the
     /// slave where it would be had it started with the master at `ratio` times
@@ -98,8 +86,8 @@ impl PdOscillator {
     pub fn seed(&mut self, offset: f32, ratio: f32) {
         let pw = self.previous_pw;
         self.master_phase = wrap(offset);
-        self.offset = self.master_phase;
-        self.slave_behind = 0.0;
+        self.offset.seed(offset);
+        self.slave.seed();
         self.slave_phase = wrap(offset * ratio);
         self.high = self.slave_phase >= pw;
         self.next_sample = triangle(self.slave_phase, pw, 1.0 / pw, 1.0 / (1.0 - pw));
@@ -152,13 +140,10 @@ impl PdOscillator {
             let master_frequency = self.master_frequency.next_value();
             let slave_frequency = self.slave_frequency.next_value();
             let left = OVERSAMPLING - substep;
-            let shift = travel(offset, &mut self.offset, left, master_frequency, max);
+            let shift = self.offset.step(offset, left, master_frequency, max);
             let master_frequency = master_frequency + shift;
-            let behind = self.slave_behind + ratio * shift;
-            let behind = behind - behind.trunc();
-            let slave_shift = behind.clamp(-max - slave_frequency, max - slave_frequency);
-            self.slave_behind = behind - slave_shift;
-            let slave_frequency = slave_frequency + slave_shift;
+            let slave_frequency =
+                slave_frequency + self.slave.step(shift, ratio, slave_frequency, max);
             let pw = self.pw.next_value();
             let slope_up = 1.0 / pw;
             let slope_down = 1.0 / (1.0 - pw);

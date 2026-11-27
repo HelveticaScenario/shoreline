@@ -17,6 +17,7 @@ pub mod limiter;
 pub mod lpc;
 pub mod oscillator;
 pub mod phase;
+pub mod phase_offset;
 pub mod polyblep;
 pub mod random;
 pub mod ratio;

@@ -8,7 +8,8 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
-            phase::{limit_frequency, max_frequency, wrap},
+            phase::{limit_frequency, max_frequency},
+            phase_offset::PhaseOffset,
             ratio::{ratio_multiplier, ratio_semitones},
             sine::sine,
         },
@@ -210,13 +211,9 @@ struct Voice {
     ratio: SwapGlide,
     amount: SwapGlide,
     asymmetry: SwapGlide,
-    offset: SwapGlide,
-    /// The last finite knobs and phase offset, which a NaN or infinite value
-    /// holds.
-    held: [f32; 4],
-    /// Whether the oscillator has started at its phase offset; a voice carried
-    /// across a patch update keeps running from where it is.
-    seeded: bool,
+    offset: PhaseOffset,
+    /// The last finite knobs, which a NaN or infinite knob holds.
+    held: [f32; 3],
     /// Modulator multiplier for the cached ratio knob; `NaN` = never computed.
     last_ratio: f32,
     multiplier: f32,
@@ -230,14 +227,12 @@ impl Default for Voice {
             ratio: SwapGlide::default(),
             amount: SwapGlide::default(),
             asymmetry: SwapGlide::default(),
-            offset: SwapGlide::default(),
+            offset: PhaseOffset::default(),
             held: [
                 PhaseDistortionParams::RATIO_DEFAULT,
                 PhaseDistortionParams::AMOUNT_DEFAULT,
                 PhaseDistortionParams::ASYMMETRY_DEFAULT,
-                PhaseDistortionParams::PHASE_OFFSET_DEFAULT,
             ],
-            seeded: false,
             last_ratio: f32::NAN,
             multiplier: 1.0,
             gate: Gate::Fresh,
@@ -268,8 +263,6 @@ impl Voice {
                 .follow(knobs.amount.0, knobs.amount.1, sample_rate),
             self.asymmetry
                 .follow(knobs.asymmetry.0, knobs.asymmetry.1, sample_rate),
-            self.offset
-                .follow(knobs.offset.0, knobs.offset.1, sample_rate),
         ];
         for (held, value) in self.held.iter_mut().zip(raw) {
             if value.is_finite() {
@@ -291,7 +284,7 @@ impl Voice {
             modulator,
             pw: 0.5 + morph * 0.49,
             amount: 8.0 * timbre * timbre * (1.0 - modulator.abs() * state.to_48k * 3.8),
-            offset: wrap(self.held[3]),
+            offset: self.offset.update(knobs.offset, sample_rate),
             ratio: self.multiplier,
         }
     }
@@ -299,9 +292,8 @@ impl Voice {
     /// One output sample, before the output gain.
     #[inline(always)]
     fn step(&mut self, c: Controls, sync: bool, state: &PhaseDistortionState) -> f32 {
-        if !self.seeded {
+        if self.offset.seed() {
             self.oscillator.seed(c.offset, c.ratio);
-            self.seeded = true;
         }
         let phases = self.oscillator.render(
             sync,

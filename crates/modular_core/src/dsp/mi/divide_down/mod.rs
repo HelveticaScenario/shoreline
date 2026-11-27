@@ -7,7 +7,7 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        mi::core::phase::wrap,
+        mi::core::phase_offset::PhaseOffset,
         oscillators::{FmMode, apply_fm},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
@@ -146,16 +146,11 @@ impl DivideDownState {
 struct Voice {
     voice: DivideDownVoice,
     registration: SwapGlide,
-    offset: SwapGlide,
-    /// The last finite registration and phase offset, which a NaN or infinite
-    /// value holds.
-    held: [f32; 2],
+    offset: PhaseOffset,
+    /// The last finite registration, which a NaN or infinite one holds.
+    held: f32,
     /// The registration smoothed as Plaits smooths it.
     smoothed: f32,
-    /// Whether the voice has played; a fresh one starts at its phase offset
-    /// and its target registration, and one carried across a patch update
-    /// keeps running from where it is.
-    started: bool,
     /// The partial amplitudes of the smoothed registration.
     amplitudes: [f32; 7],
     /// The smoothed registration `amplitudes` were computed for, as bits.
@@ -167,13 +162,9 @@ impl Default for Voice {
         Self {
             voice: DivideDownVoice::default(),
             registration: SwapGlide::default(),
-            offset: SwapGlide::default(),
-            held: [
-                DivideDownParams::REGISTRATION_DEFAULT,
-                DivideDownParams::PHASE_OFFSET_DEFAULT,
-            ],
+            offset: PhaseOffset::default(),
+            held: DivideDownParams::REGISTRATION_DEFAULT,
             smoothed: 0.0,
-            started: false,
             amplitudes: [0.0; 7],
             amplitudes_key: None,
         }
@@ -194,23 +185,19 @@ impl Voice {
     /// One sample at `f0` cycles per sample, before the output gain.
     #[inline(always)]
     fn step(&mut self, f0: f32, knobs: Knobs, state: &DivideDownState) -> f32 {
-        let raw = [
-            self.registration.follow(
-                knobs.registration.0,
-                knobs.registration.1,
-                state.sample_rate,
-            ),
-            self.offset
-                .follow_cyclic(knobs.offset.0, knobs.offset.1, state.sample_rate),
-        ];
-        for (held, value) in self.held.iter_mut().zip(raw) {
-            if value.is_finite() {
-                *held = value;
-            }
+        let registration = self.registration.follow(
+            knobs.registration.0,
+            knobs.registration.1,
+            state.sample_rate,
+        );
+        if registration.is_finite() {
+            self.held = registration;
         }
-        let target = knob(self.held[0]);
-        let offset = wrap(self.held[1]);
-        if self.started {
+        let target = knob(self.held);
+        let offset = self.offset.update(knobs.offset, state.sample_rate);
+        // A fresh voice starts at its phase offset and its target registration;
+        // one carried across a patch update keeps running from where it is.
+        if !self.offset.seed() {
             self.smoothed += state.smoothing * (target - self.smoothed);
             // Settled: lands on the target rather than creeping toward it
             // through denormals.
@@ -220,7 +207,6 @@ impl Voice {
         } else {
             self.smoothed = target;
             self.voice.seed(offset);
-            self.started = true;
         }
 
         let key = self.smoothed.to_bits();
