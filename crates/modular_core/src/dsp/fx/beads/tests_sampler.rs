@@ -1,7 +1,10 @@
 use super::super::tests::{SR, poly_volts, rms};
 use super::super::wav_load::MIN_LOADED_FRAMES;
 use super::*;
-use crate::types::{Connect, LaneExpansion, OutputStruct, SampleBuffer, Signal};
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use crate::types::{Connect, LaneExpansion, OutputStruct, SampleBuffer, Signal, WavData};
 
 const PATH: &str = "pad.wav";
 
@@ -77,7 +80,7 @@ fn construct_from(
         _connected: Default::default(),
     };
     m.init(SR);
-    m.prepare_resources_impl(wav, SR);
+    m.prepare_resources_impl(Resources::wavs(wav), SR);
     m
 }
 

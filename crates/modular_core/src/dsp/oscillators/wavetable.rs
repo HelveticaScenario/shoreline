@@ -14,10 +14,8 @@
 
 use deserr::Deserr;
 use schemars::JsonSchema;
-use std::collections::HashMap;
 use std::f32::consts::PI;
 use std::ops::Range;
-use std::sync::Arc;
 
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
@@ -31,7 +29,7 @@ use crate::{
         utils::sanitize,
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
-    types::{Wav, WavData},
+    types::{Resources, Wav},
 };
 
 #[params]
@@ -464,12 +462,8 @@ impl WavetableOsc {
 
     /// Main-thread resource preparation. Builds the mipmap pyramid from the
     /// referenced WAV if it's present in the cache snapshot.
-    fn prepare_resources_impl(
-        &mut self,
-        wav_data: &HashMap<String, Arc<WavData>>,
-        sample_rate: f32,
-    ) {
-        if let Some(wd) = wav_data.get(self.params.wav.path()) {
+    fn prepare_resources_impl(&mut self, resources: Resources<'_>, sample_rate: f32) {
+        if let Some(wd) = resources.wav_data.get(self.params.wav.path()) {
             self.params.prepared = Some(PreparedWavetable::from_wav_data(wd, sample_rate));
         } else {
             self.params.prepared = None;
@@ -492,8 +486,10 @@ message_handlers!(impl WavetableOsc {});
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{OutputStruct, SampleBuffer, Signal};
+    use crate::types::{OutputStruct, SampleBuffer, Signal, WavData};
+    use std::collections::HashMap;
     use std::f32::consts::TAU;
+    use std::sync::Arc;
 
     /// Build a WavData containing `n_frames` sine-wave frames of `size`
     /// samples each.
@@ -683,7 +679,7 @@ mod tests {
     fn prepare_resources_noop_when_wav_missing() {
         let mut osc = make_osc(base_params());
         let wav_data: HashMap<String, Arc<WavData>> = HashMap::new();
-        osc.prepare_resources_impl(&wav_data, 48000.0);
+        osc.prepare_resources_impl(Resources::wavs(&wav_data), 48000.0);
         assert!(osc.params.prepared.is_none());
         osc.update(48000.0);
         assert_eq!(osc.outputs.sample.get(0), 0.0);
@@ -696,7 +692,7 @@ mod tests {
         let mut osc = make_osc(base_params());
         let mut wav_data: HashMap<String, Arc<WavData>> = HashMap::new();
         wav_data.insert("test.wav".to_string(), wav);
-        osc.prepare_resources_impl(&wav_data, 48000.0);
+        osc.prepare_resources_impl(Resources::wavs(&wav_data), 48000.0);
         assert!(osc.params.prepared.is_some());
         // Processing should now produce non-zero samples.
         let mut any_nonzero = false;
@@ -717,7 +713,7 @@ mod tests {
         });
         let mut wav_data: HashMap<String, Arc<WavData>> = HashMap::new();
         wav_data.insert("test.wav".to_string(), make_wav(2048, 1));
-        osc.prepare_resources_impl(&wav_data, 48000.0);
+        osc.prepare_resources_impl(Resources::wavs(&wav_data), 48000.0);
         osc
     }
 

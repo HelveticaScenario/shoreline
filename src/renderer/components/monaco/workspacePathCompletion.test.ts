@@ -60,6 +60,12 @@ const TREE: FileTreeEntry[] = [
         type: 'file',
         fileType: 'video',
     },
+    {
+        name: 'amp.nam',
+        path: 'captures/amp.nam',
+        type: 'file',
+        fileType: 'nam',
+    },
 ];
 
 describe('stringLiteralAt', () => {
@@ -213,6 +219,7 @@ test('assetPaths lists every asset with its kind, rooted at /', () => {
         { path: '/wavs/pads/warm.wav', kind: 'wav' },
         { path: '/pictures/photo.png', kind: 'image' },
         { path: '/clips/loop.mp4', kind: 'video' },
+        { path: '/captures/amp.nam', kind: 'nam' },
     ]);
 });
 
@@ -257,6 +264,7 @@ describe('workspace path completion', () => {
             "'/wavs/pads/warm.wav'",
             "'/pictures/photo.png'",
             "'/clips/loop.mp4'",
+            "'/captures/amp.nam'",
         ]);
         expect(list?.suggestions.map((s) => s.detail)).toEqual([
             'WAV file',
@@ -264,6 +272,7 @@ describe('workspace path completion', () => {
             'WAV file',
             'Image',
             'Video',
+            'NAM capture',
         ]);
         expect(list?.suggestions.map((s) => s.filterText)).toEqual([
             "'/wavs/kick.wav",
@@ -271,6 +280,7 @@ describe('workspace path completion', () => {
             "'/wavs/pads/warm.wav",
             "'/pictures/photo.png",
             "'/clips/loop.mp4",
+            "'/captures/amp.nam",
         ]);
         expect(list?.suggestions[0].range).toMatchObject({
             startColumn: 10,

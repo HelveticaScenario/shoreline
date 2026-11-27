@@ -4,6 +4,7 @@ members = [
     "crates/modular_core",
     "crates/modular_derive",
     "crates/modular",
+    "crates/nam_sys",
 ]
 default-members = [
     "crates/modular_core",

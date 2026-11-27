@@ -1,0 +1,19 @@
+[package]
+name = "nam_sys"
+version = "0.1.0"
+edition = "2024"
+authors = ["helveticascenario"]
+links = "nam_core"
+
+[features]
+# Test-only: replaces the process's malloc and operator new with counting
+# versions so tests can prove `NamDsp::process` never allocates.
+alloc-tracking = []
+
+[dependencies]
+
+[build-dependencies]
+cc = { version = "1.2", features = ["parallel"] }
+
+[lints]
+workspace = true

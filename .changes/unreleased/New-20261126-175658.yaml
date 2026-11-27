@@ -1,0 +1,3 @@
+kind: New
+body: 'New experimental `$nam` plays a signal through a [Neural Amp Modeler](https://www.neuralampmodeler.com) capture of an amp, pedal or preamp, loaded from a `.nam` file in your workspace, which the file explorer and path completion list beside your other files: `$saw(''e1'').nam(''/captures/amp.nam'', { gain: 6 })`. `gain` drives the capture and `level` sets its output, with captures that record their loudness brought to about the same level, and captures that include a lighter version play it by default, for a fraction of the CPU; `quality: ''full''` plays the capture as its author made it. Captures sound as intended only at a 48 kHz sample rate.'
+time: 2026-11-26T17:56:58.430736-05:00
