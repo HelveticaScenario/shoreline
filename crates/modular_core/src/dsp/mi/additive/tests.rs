@@ -1,14 +1,30 @@
 use super::*;
 use crate::dsp::mi::core::fixture::{assert_rate_independent, harmonics, max_error, records};
 use crate::dsp::utils::voct_to_hz;
+use crate::types::Signal;
+
+fn mark() -> GlideMark {
+    PolySignal::mono(Signal::Volts(0.0)).glide_mark(0)
+}
 
 fn knobs(centroid: f32, slope: f32, bumps: f32) -> [f32; 3] {
     [centroid, slope, bumps]
 }
 
 fn render(voice: &mut Voice, f0: f32, k: [f32; 3], series: Series, state: &AdditiveState) -> f32 {
+    render_offset(voice, f0, k, 0.0, series, state)
+}
+
+fn render_offset(
+    voice: &mut Voice,
+    f0: f32,
+    k: [f32; 3],
+    offset: f32,
+    series: Series,
+    state: &AdditiveState,
+) -> f32 {
     voice.control(k, state);
-    voice.step(f0, series, state)
+    voice.step(f0, (offset, mark()), series, state)
 }
 
 /// `seconds` of a tone at `hz` and fixed knobs.
@@ -170,7 +186,13 @@ fn stays_finite_and_bounded() {
                     2.5 + 3.0 * (t * 1.3).sin(),
                     2.5 + 3.0 * (t * 0.7).sin(),
                 );
-                let out = render(&mut voice, f0, k, series, &state);
+                let offset = match n % 13 {
+                    0 if n % 600 == 0 => f32::NAN,
+                    1 if n % 600 == 1 => f32::NEG_INFINITY,
+                    5 => -7.25,
+                    _ => (t * 2.3).sin() * 3.0,
+                };
+                let out = render_offset(&mut voice, f0, k, offset, series, &state);
                 assert!(
                     out.is_finite() && out.abs() <= 1.0,
                     "{sample_rate} Hz, sample {n}: {out}"
@@ -207,5 +229,91 @@ fn spectrum_keeps_time_at_any_rate() {
                 "{sample_rate} Hz, slot {k}: {a} vs {r}"
             );
         }
+    }
+}
+
+/// A phase offset plays the same waveform shifted in time, in either series:
+/// at a 100-sample period, a quarter-cycle offset leads by 25 samples.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    let state = AdditiveState::new(48000.0);
+    for series in [Series::Integer, Series::Organ] {
+        for settings in [knobs(2.5, 2.5, 0.0), knobs(4.0, 1.0, 3.0)] {
+            let tone = |offset: f32| {
+                let mut voice = Voice::default();
+                (0..4000)
+                    .map(|_| render_offset(&mut voice, 0.01, settings, offset, series, &state))
+                    .collect::<Vec<f32>>()
+            };
+            let ahead = tone(0.25);
+            let plain = tone(0.0);
+            let (error, at) = max_error(&ahead[1000..3000], &plain[1025..3025]);
+            assert!(error < 1e-3, "{series:?}: error {error} at {at}");
+        }
+    }
+}
+
+/// An offset that moves, or jumps, ends where a voice started at it plays,
+/// within the rounding its phase gathers on the way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    let state = AdditiveState::new(48000.0);
+    let k = knobs(3.0, 2.0, 1.0);
+    for series in [Series::Integer, Series::Organ] {
+        let mut held = Voice::default();
+        let mut glided = Voice::default();
+        let mut jumped = Voice::default();
+        for n in 0..6000 {
+            let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
+            let jump = if n < 100 { 0.9 } else { 0.4 };
+            let a = render_offset(&mut held, 0.01, k, 0.4, series, &state);
+            let b = render_offset(&mut glided, 0.01, k, glide, series, &state);
+            let c = render_offset(&mut jumped, 0.01, k, jump, series, &state);
+            if n >= 3000 {
+                assert!(
+                    (a - b).abs() < 1e-2,
+                    "{series:?}, glided, sample {n}: {a} vs {b}"
+                );
+                assert!(
+                    (a - c).abs() < 1e-2,
+                    "{series:?}, jumped, sample {n}: {a} vs {c}"
+                );
+            }
+        }
+    }
+}
+
+/// A NaN or infinite phase offset holds the phase where it is, and one from
+/// the first sample plays as the default offset.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let state = AdditiveState::new(48000.0);
+    let k = knobs(1.0, 1.0, 1.0);
+    let mut default = Voice::default();
+    let mut from_start = Voice::default();
+    for n in 0..50 {
+        let a = render_offset(
+            &mut default,
+            0.01,
+            k,
+            AdditiveParams::PHASE_OFFSET_DEFAULT,
+            Series::Integer,
+            &state,
+        );
+        let b = render_offset(&mut from_start, 0.01, k, f32::NAN, Series::Integer, &state);
+        assert_eq!(a, b, "sample {n}");
+    }
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..200 {
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            102 => f32::NEG_INFINITY,
+            _ => 0.3,
+        };
+        let a = render_offset(&mut held, 0.01, k, 0.3, Series::Integer, &state);
+        let b = render_offset(&mut glitched, 0.01, k, v, Series::Integer, &state);
+        assert_eq!(a, b, "sample {n}");
     }
 }

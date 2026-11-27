@@ -8,10 +8,14 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        mi::core::{phase::limit_frequency, sine::sine},
+        mi::core::{
+            phase::{limit_frequency, wrap},
+            sine::sine,
+        },
         oscillators::{FmMode, apply_fm},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
+    types::{GlideMark, SwapGlide},
 };
 
 use spectrum::{BANK, INTEGER, INTEGER_SLOTS, ORGAN, ORGAN_SLOTS, SLOTS, bank, update_amplitudes};
@@ -21,6 +25,9 @@ const OUTPUT_GAIN: f32 = -0.8 * 5.0;
 
 /// How often the spectrum steps toward the knobs: Plaits' block rate.
 const SPECTRUM_RATE: f32 = 4000.0;
+
+/// The fundamental's frequency limit, in cycles per sample.
+const MAX_FREQUENCY: f32 = 0.5;
 
 /// Which harmonics sound.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, Serialize, JsonSchema, Connect)]
@@ -70,6 +77,14 @@ struct AdditiveParams {
     #[deserr(default)]
     series: Series,
     #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
+    #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the wave backward",
         type = audio,
     )]
@@ -109,6 +124,14 @@ const ADDITIVE_DOCS: ModuleDocs = ModuleDocs {
             title: "Drawbar organ",
             code: "keys: $mi.additive('c3', { centroid: 1, series: 'organ' })",
         },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.additive(freq, { centroid: 3, phaseOffset }),
+                )
+            "#,
+        },
     ],
 };
 
@@ -122,6 +145,7 @@ pub struct Additive {
 
 #[derive(Default)]
 struct AdditiveState {
+    sample_rate: f32,
     inv_sample_rate: f32,
     to_48k: f32,
     /// Samples per spectrum step: 12 at 48 kHz, below 1 under 4 kHz, where
@@ -132,6 +156,7 @@ struct AdditiveState {
 impl AdditiveState {
     fn new(sample_rate: f32) -> Self {
         Self {
+            sample_rate,
             inv_sample_rate: 1.0 / sample_rate,
             to_48k: sample_rate / 48000.0,
             period: sample_rate / SPECTRUM_RATE,
@@ -142,6 +167,14 @@ impl AdditiveState {
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
     phase: f32,
+    /// The phase offset the fundamental has travelled so far, in `[0, 1)`.
+    /// Every harmonic is read from `phase`, so they all move with it.
+    travelled: f32,
+    /// The phase offset; a NaN or infinite one holds the last finite value.
+    offset: SwapGlide,
+    /// Whether the phase has started at its offset; a voice carried across a
+    /// patch update keeps running from where it is.
+    seeded: bool,
     /// Plaits' smoothed, normalised amplitudes, one step per `period`.
     amplitudes: [f32; SLOTS],
     /// The amplitudes ramped across each step, and their per-sample steps.
@@ -164,6 +197,9 @@ impl Default for Voice {
     fn default() -> Self {
         Self {
             phase: 0.0,
+            travelled: 0.0,
+            offset: SwapGlide::default(),
+            seeded: false,
             amplitudes: [0.0; SLOTS],
             ramp: [0.0; SLOTS],
             increment: [0.0; SLOTS],
@@ -233,10 +269,26 @@ impl Voice {
         }
     }
 
-    /// One sample at `f0` cycles per sample, before the output gain.
+    /// One sample at `f0` cycles per sample, before the output gain. The
+    /// phase travels to `offset` (in cycles) as extra frequency, by the
+    /// shortest way and as fast as the frequency limit allows, so a voice that
+    /// moves to an offset plays as one seeded there does.
     #[inline(always)]
-    fn step(&mut self, f0: f32, series: Series, state: &AdditiveState) -> f32 {
-        let f = limit_frequency(f0, 0.5);
+    fn step(
+        &mut self,
+        f0: f32,
+        offset: (f32, GlideMark),
+        series: Series,
+        state: &AdditiveState,
+    ) -> f32 {
+        self.offset.update(offset.0, offset.1, state.sample_rate);
+        let offset = wrap(*self.offset);
+        if !self.seeded {
+            self.phase = offset;
+            self.travelled = offset;
+            self.seeded = true;
+        }
+        let f = limit_frequency(f0, MAX_FREQUENCY);
         let pitch = f.abs();
         if pitch.to_bits() != self.last_f.to_bits() {
             // Harmonics fade toward Plaits' 24 kHz, and to silence at this
@@ -248,7 +300,10 @@ impl Voice {
             }
             self.last_f = pitch;
         }
-        self.phase += f;
+        let behind = offset - self.travelled;
+        let shift = (behind - behind.round()).clamp(-MAX_FREQUENCY - f, MAX_FREQUENCY - f);
+        self.travelled = wrap(self.travelled + shift);
+        self.phase += f + shift;
         if self.phase >= 1.0 {
             self.phase -= 1.0;
         } else if self.phase < 0.0 {
@@ -298,8 +353,13 @@ impl Additive {
                 p.slope.value_or(lane, AdditiveParams::SLOPE_DEFAULT),
                 p.bumps.value_or(lane, AdditiveParams::BUMPS_DEFAULT),
             ];
+            let offset = (
+                p.phase_offset
+                    .value_or(lane, AdditiveParams::PHASE_OFFSET_DEFAULT),
+                p.phase_offset.glide_mark(lane),
+            );
             voice.control(knobs, &self.state);
-            let out = voice.step(f0, p.series, &self.state);
+            let out = voice.step(f0, offset, p.series, &self.state);
             self.outputs.sample.set(lane, OUTPUT_GAIN * out);
         }
     }
