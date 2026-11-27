@@ -48,12 +48,7 @@ export type ParamKind =
     | 'unknown';
 
 export type ParamType =
-    | 'audio'
-    | 'pitch'
-    | 'frequency'
-    | 'gate'
-    | 'trig'
-    | 'control';
+    'audio' | 'pitch' | 'frequency' | 'gate' | 'trig' | 'control';
 
 const PARAM_TYPES = new Set<string>([
     'audio',
@@ -103,6 +98,8 @@ export interface ParamDescriptor {
     isScaleSignalInput?: boolean;
     /** A WAV file, written in the DSL as a `/`-rooted workspace path. */
     isWavInput?: boolean;
+    /** A DX7 voice, written in the DSL as a `.syx` path and `#name`. */
+    isDx7VoiceInput?: boolean;
 }
 
 export type ProcessedModuleSchema = ModuleSchema & {
@@ -539,6 +536,7 @@ export function processModuleSchema(
             const isLaneSumInput = referencesDef(s, 'LaneSum');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
             const isWavInput = referencesDef(s, 'Wav');
+            const isDx7VoiceInput = referencesDef(s, 'Dx7Voice');
             const isPolySignalInput =
                 !isLaneSumInput &&
                 !isScaleSignalInput &&
@@ -555,6 +553,7 @@ export function processModuleSchema(
                 ...(isLaneSumInput && { isLaneSumInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
                 ...(isWavInput && { isWavInput }),
+                ...(isDx7VoiceInput && { isDx7VoiceInput }),
                 ...(signalMeta && {
                     controlMax: signalMeta.controlMax,
                     controlMin: signalMeta.controlMin,

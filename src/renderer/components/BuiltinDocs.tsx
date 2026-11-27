@@ -3,6 +3,7 @@ import {
     BUILTIN_WAVETABLES,
     MI_TABLES_INTRO,
 } from '../../shared/builtinAssets';
+import { BUILTIN_DX7_VOICES } from '../../shared/builtinDx7';
 import { ColorizedCode } from './ColorizedCode';
 import { useQuoteExample } from '../hooks/useQuoteExample';
 
@@ -29,6 +30,22 @@ export const BuiltinDocs: React.FC = () => {
                         <code>{table.path}</code>
                     </h4>
                     <p>{table.description}</p>
+                </div>
+            ))}
+            <h3>DX7 Voices</h3>
+            <p className="types-intro">
+                The 96 DX7 patches of Mutable Instruments' Plaits by Emilie
+                Gillet, one file per voice, for <code>$mi.sixOp</code>:
+            </p>
+            <ColorizedCode
+                code={quote(`$mi.sixOp('c3', '${BUILTIN_DX7_VOICES[0].path}')`)}
+            />
+            {BUILTIN_DX7_VOICES.map((voice) => (
+                <div key={voice.path} className="module-card">
+                    <h4>
+                        <code>{voice.path}</code>
+                    </h4>
+                    <p>{voice.name}</p>
                 </div>
             ))}
         </div>

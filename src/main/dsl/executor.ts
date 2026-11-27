@@ -65,6 +65,7 @@ import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import { assetPath } from './assetPath';
+import { selectVoice, splitVoice, type SyxVoice } from '../../shared/dx7Voice';
 import {
     prepareTrackLabels,
     type TrackLabelProgram,
@@ -184,6 +185,8 @@ export interface DSLExecutionOptions {
      * it has none. The returned `path` names the decoded audio for a `Wav`.
      */
     loadMediaAudio?: (path: string) => LoadedWav | null;
+    /** The DX7 voices of a `.syx` file named by a workspace or builtin path. */
+    loadSyx?: (path: string) => SyxVoice[];
 }
 
 // Install pipe() on Array.prototype so arrays in the DSL can use it.
@@ -724,6 +727,13 @@ export function executePatchScript(
             'DSL execution error: "_mediaAudio" module not found in schemas',
         );
     }
+    const $left = userNamespaceTree['$left'];
+    const $right = userNamespaceTree['$right'];
+    if (typeof $left !== 'function' || typeof $right !== 'function') {
+        throw new Error(
+            'DSL execution error: "$scopeXY" requires "$left" and "$right" modules',
+        );
+    }
     const videoBuilder = new VideoGraphBuilder({
         controlValue: (moduleId) => {
             const slider = controls.sliders.find(
@@ -739,6 +749,9 @@ export function executePatchScript(
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
+        side: (output, side) =>
+            (side === 'left' ? $left : $right)(output) as Collection,
+        channelsOf: (output) => builder.channelsOf(output),
         cvSignal: (id) =>
             signal(0, { ...VIDEO_CV_RANGE, id }) as CollectionWithRange,
         mediaAudio: (path, playback) => {
@@ -797,6 +810,18 @@ export function executePatchScript(
         return timedWavLoad(() => options.loadWav!(rooted));
     };
     context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+    context.setDx7VoiceResolver((module, value) => {
+        const { path, voice } =
+            typeof value === 'string'
+                ? splitVoice(value)
+                : { path: value, voice: null };
+        const rooted = assetPath(module, path, 'syx');
+        if (!options.loadSyx) {
+            throw new Error(`${module}: .syx loading is not available`);
+        }
+        const voices = timedWavLoad(() => options.loadSyx!(rooted));
+        return selectVoice(module, rooted, voice, voices);
+    });
 
     /** The format, tempo, loops and cue points of a WAV file. */
     const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));
