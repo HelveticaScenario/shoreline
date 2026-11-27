@@ -214,7 +214,7 @@ fn moving_phase_offset_lands_on_the_held_one() {
         let mut jumped = Voice::default();
         for n in 0..6000 {
             let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
-            let jump = if n < 100 { 0.9 } else { 0.4 };
+            let jump = if n < 100 { 0.8 } else { 0.4 };
             let k = |offset| offset_knobs(3.7, 3.0, feedback, offset);
             let a = render(&mut held, 0.01, k(0.4), &state);
             let b = render(&mut glided, 0.01, k(glide), &state);
@@ -227,6 +227,91 @@ fn moving_phase_offset_lands_on_the_held_one() {
                     );
                 }
             }
+        }
+    }
+}
+
+/// How far phase `a` leads phase `b`, in cycles.
+fn lead(a: u32, b: u32) -> f64 {
+    f64::from(a.wrapping_sub(b).cast_signed()) / 4294967296.0
+}
+
+/// The carrier's, the modulator's and the sub-octave's phases.
+fn phases(voice: &Voice) -> [u32; 3] {
+    [voice.carrier_phase, voice.modulator_phase, voice.sub_phase]
+}
+
+/// An offset gliding across the wrap, at ratios that are not whole, moves
+/// every phase smoothly and the output with no step beyond what a held offset
+/// plays. Once across, the carrier is where a voice seeded at the new offset
+/// is, the sub-octave half a cycle from it and the modulator the ratio's
+/// fraction of a cycle; gliding back returns every phase to where it was.
+#[test]
+fn phase_offset_crosses_the_wrap_smoothly() {
+    let state = TwoOpState::new(48000.0);
+    // 0.5x, about 1.41x and 1.5x.
+    for ratio in [0.0, 1.6, 1.9] {
+        let k = |offset| offset_knobs(ratio, 3.0, 0.0, offset);
+        let across = |n: usize| 0.95 + 0.1 * ((n as f32 - 500.0) / 1000.0).clamp(0.0, 1.0);
+        let mut held = Voice::default();
+        let mut glided = Voice::default();
+        let mut seeded = Voice::default();
+        let mut largest_step = [0.0f32; 2];
+        let mut previous = [(0.0, 0.0); 2];
+        let mut previous_lead = [0.0; 3];
+        for n in 0..2000 {
+            let a = render(&mut held, 0.01, k(0.95), &state);
+            let b = render(&mut glided, 0.01, k(across(n)), &state);
+            render(&mut seeded, 0.01, k(1.05), &state);
+            for (i, (out, prev)) in [a, b].iter().zip(&mut previous).enumerate() {
+                if n > 0 {
+                    let step = (out.0 - prev.0).abs().max((out.1 - prev.1).abs());
+                    largest_step[i] = largest_step[i].max(step);
+                }
+                *prev = *out;
+            }
+            for (i, (g, h)) in phases(&glided).into_iter().zip(phases(&held)).enumerate() {
+                let now = lead(g, h);
+                if n > 0 {
+                    assert!(
+                        (now - previous_lead[i]).abs() < 1e-3,
+                        "ratio {ratio}, phase {i}, sample {n}: {} to {now}",
+                        previous_lead[i]
+                    );
+                }
+                previous_lead[i] = now;
+            }
+        }
+        assert!(
+            largest_step[1] < largest_step[0] * 1.05,
+            "ratio {ratio}: steps {largest_step:?}"
+        );
+        let fraction = f64::from(glided.multiplier).fract();
+        assert!(
+            fraction > 0.1,
+            "ratio {ratio}: multiplier {}",
+            glided.multiplier
+        );
+        let [carrier, modulator, sub] = phases(&glided);
+        let [seeded_carrier, seeded_modulator, seeded_sub] = phases(&seeded);
+        assert!(lead(carrier, seeded_carrier).abs() < 1e-5);
+        assert!((lead(sub, seeded_sub).abs() - 0.5).abs() < 1e-5);
+        assert!(
+            lead(
+                modulator,
+                seeded_modulator.wrapping_add(phase_increment(fraction as f32))
+            )
+            .abs()
+                < 1e-5,
+            "ratio {ratio}"
+        );
+
+        for n in 0..2000 {
+            render(&mut glided, 0.01, k(across(1999 - n)), &state);
+            render(&mut held, 0.01, k(0.95), &state);
+        }
+        for (g, h) in phases(&glided).into_iter().zip(phases(&held)) {
+            assert!(lead(g, h).abs() < 1e-5, "ratio {ratio}");
         }
     }
 }

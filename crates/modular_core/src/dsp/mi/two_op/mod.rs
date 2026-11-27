@@ -179,9 +179,8 @@ struct Controls {
     modulator: f32,
     amount: f32,
     feedback: f32,
-    /// The carrier's and the modulator's phase offsets, as 32-bit phases.
+    /// The phase offset, as a 32-bit phase.
     offset: u32,
-    modulator_offset: u32,
 }
 
 #[derive(Clone, Copy, SeedSide)]
@@ -216,9 +215,12 @@ struct Voice {
     /// Whether the phases have started at the phase offset; a voice carried
     /// across a patch update keeps running from where it is.
     seeded: bool,
-    /// The phase offsets the carrier and the modulator have travelled so far;
-    /// the sub-octave travels half of the carrier's.
-    travelled: u32,
+    /// The phase offset the carrier has travelled, unwrapped, so the sub-octave
+    /// can travel exactly half of it.
+    travelled: i64,
+    /// The carrier's travel times the ratio, accumulated as it goes, and how
+    /// far the modulator has followed it.
+    modulator_target: u32,
     modulator_travelled: u32,
 }
 
@@ -247,6 +249,7 @@ impl Default for Voice {
             held_offset: TwoOpParams::PHASE_OFFSET_DEFAULT,
             seeded: false,
             travelled: 0,
+            modulator_target: 0,
             modulator_travelled: 0,
         }
     }
@@ -268,16 +271,19 @@ fn fixed_phase(cycles: f32) -> u32 {
 
 /// This substep's share of the way from `travelled` to `target`, by the
 /// shortest way, over the `left` substeps remaining, held so a phase advancing
-/// by `increment` (signed) stays within ±`max`; `travelled` moves by it.
+/// by `increment` (signed) stays within ±`max`.
 #[inline(always)]
-fn travel(target: u32, travelled: &mut u32, left: i64, increment: i64, max: i64) -> u32 {
-    let behind = i64::from(target.wrapping_sub(*travelled).cast_signed());
+fn travel(target: u32, travelled: u32, left: i64, increment: i64, max: i64) -> i64 {
+    let behind = i64::from(target.wrapping_sub(travelled).cast_signed());
     // Each bound includes 0, so a phase already past the limit never travels
     // further out.
-    let shift = (behind / left).clamp((-max - increment).min(0), (max - increment).max(0));
-    let shift = shift as u32;
-    *travelled = travelled.wrapping_add(shift);
-    shift
+    (behind / left).clamp((-max - increment).min(0), (max - increment).max(0))
+}
+
+/// `shift` of the carrier's phase as the modulator's, at `multiplier` times.
+#[inline(always)]
+fn scaled(shift: i64, multiplier: f32) -> u32 {
+    (shift as f64 * f64::from(multiplier)).round() as i64 as u32
 }
 
 impl Voice {
@@ -330,7 +336,6 @@ impl Voice {
             amount: 2.0 * timbre * timbre * self.hf_taming,
             feedback: (self.held_feedback * 0.2).clamp(-1.0, 1.0),
             offset: fixed_phase(self.held_offset),
-            modulator_offset: fixed_phase(wrap(self.held_offset) * self.multiplier),
         }
     }
 
@@ -338,20 +343,26 @@ impl Voice {
     /// times it and the sub-octave at half, with the fed-back sample where
     /// those phases put the carrier.
     fn seed(&mut self, c: &Controls) {
+        let modulator_offset = scaled(i64::from(c.offset), self.multiplier);
         self.carrier_phase = c.offset;
         self.sub_phase = c.offset >> 1;
-        self.modulator_phase = c.modulator_offset;
-        self.travelled = c.offset;
-        self.modulator_travelled = c.modulator_offset;
+        self.modulator_phase = modulator_offset;
+        self.travelled = i64::from(c.offset);
+        self.modulator_target = modulator_offset;
+        self.modulator_travelled = modulator_offset;
         let modulator = sine_pm(self.modulator_phase, 0.0);
         self.previous_sample = sine_pm(self.carrier_phase, c.amount * modulator);
         self.seeded = true;
     }
 
     /// One output sample of the carrier and the sub-octave, before the
-    /// output gain. The carrier travels to its phase offset and the modulator
-    /// to its own, each as extra frequency within the modulator's limit, so a
-    /// voice that moves to an offset plays as one seeded there does.
+    /// output gain. The carrier travels to its phase offset by the shortest
+    /// way, the sub-octave half as far and the modulator `multiplier` times as
+    /// far, each as extra frequency within the modulator's limit, so no phase
+    /// jumps as the offset moves. A voice whose offset moves without crossing
+    /// the wrap, at a held ratio, plays as one seeded there does; each crossing
+    /// turns the sub-octave half a cycle and the modulator by the ratio's
+    /// fraction of one.
     #[inline(always)]
     fn step(&mut self, c: Controls, state: &TwoOpState) -> (f32, f32) {
         if !self.seeded {
@@ -374,29 +385,35 @@ impl Voice {
             let left = (OVERSAMPLING - j) as i64;
             let modulator_increment =
                 phase_increment(c.modulator * (1.0 + self.previous_sample * phase_feedback));
-            let modulator_shift = travel(
-                c.modulator_offset,
-                &mut self.modulator_travelled,
-                left,
-                i64::from(modulator_increment.cast_signed()),
-                max,
-            );
             let shift = travel(
                 c.offset,
-                &mut self.travelled,
+                self.travelled as u32,
                 left,
                 i64::from(carrier_increment.cast_signed()),
                 max,
             );
+            let sub_shift = ((self.travelled + shift) >> 1) - (self.travelled >> 1);
+            self.travelled += shift;
+            self.modulator_target = self
+                .modulator_target
+                .wrapping_add(scaled(shift, self.multiplier));
+            let modulator_shift = travel(
+                self.modulator_target,
+                self.modulator_travelled,
+                1,
+                i64::from(modulator_increment.cast_signed()),
+                max,
+            ) as u32;
+            self.modulator_travelled = self.modulator_travelled.wrapping_add(modulator_shift);
             self.modulator_phase = self
                 .modulator_phase
                 .wrapping_add(modulator_increment.wrapping_add(modulator_shift));
             self.carrier_phase = self
                 .carrier_phase
-                .wrapping_add(carrier_increment.wrapping_add(shift));
+                .wrapping_add(carrier_increment.wrapping_add(shift as u32));
             self.sub_phase = self
                 .sub_phase
-                .wrapping_add(sub_increment.wrapping_add((shift.cast_signed() >> 1) as u32));
+                .wrapping_add(sub_increment.wrapping_add(sub_shift as u32));
             let modulator = sine_pm(self.modulator_phase, modulator_fb * self.previous_sample);
             let carrier = sine_pm(self.carrier_phase, c.amount * modulator);
             let sub = sine_pm(self.sub_phase, c.amount * carrier * 0.25);
