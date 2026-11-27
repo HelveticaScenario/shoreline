@@ -65,6 +65,7 @@ import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import { assetPath } from './assetPath';
+import { selectVoice, splitVoice, type SyxVoice } from '../../shared/dx7Voice';
 import {
     prepareTrackLabels,
     type TrackLabelProgram,
@@ -184,6 +185,8 @@ export interface DSLExecutionOptions {
      * it has none. The returned `path` names the decoded audio for a `Wav`.
      */
     loadMediaAudio?: (path: string) => LoadedWav | null;
+    /** The DX7 voices of a `.syx` file named by a workspace or builtin path. */
+    loadSyx?: (path: string) => SyxVoice[];
 }
 
 // Install pipe() on Array.prototype so arrays in the DSL can use it.
@@ -797,6 +800,18 @@ export function executePatchScript(
         return timedWavLoad(() => options.loadWav!(rooted));
     };
     context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+    context.setDx7VoiceResolver((module, value) => {
+        const { path, voice } =
+            typeof value === 'string'
+                ? splitVoice(value)
+                : { path: value, voice: null };
+        const rooted = assetPath(module, path, 'syx');
+        if (!options.loadSyx) {
+            throw new Error(`${module}: .syx loading is not available`);
+        }
+        const voices = timedWavLoad(() => options.loadSyx!(rooted));
+        return selectVoice(module, rooted, voice, voices);
+    });
 
     /** The format, tempo, loops and cue points of a WAV file. */
     const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));
