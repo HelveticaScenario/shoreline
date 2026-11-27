@@ -8,10 +8,15 @@ fn mark() -> GlideMark {
 }
 
 fn knobs(shape: f32, fold: f32, asymmetry: f32) -> Knobs {
+    offset_knobs(shape, fold, asymmetry, 0.0)
+}
+
+fn offset_knobs(shape: f32, fold: f32, asymmetry: f32, offset: f32) -> Knobs {
     Knobs {
         shape: (shape, mark()),
         fold: (fold, mark()),
         asymmetry: (asymmetry, mark()),
+        offset: (offset, mark()),
     }
 }
 
@@ -132,7 +137,13 @@ fn stays_finite() {
             _ => 0.01,
         };
         let asymmetry = if n % 2 == 0 { 0.0 } else { 5.0 };
-        let (out, overtones) = render(&mut voice, f0, knobs(3.0, 3.0, asymmetry), &state);
+        let offset = match n {
+            150 => f32::NAN,
+            320 => f32::INFINITY,
+            _ => (n as f32 * 0.05).sin(),
+        };
+        let k = offset_knobs(3.0, 3.0, asymmetry, offset);
+        let (out, overtones) = render(&mut voice, f0, k, &state);
         assert!(out.is_finite() && overtones.is_finite(), "sample {n}");
         assert!(
             out.abs() <= 1.5 && overtones.abs() <= 1.5,
@@ -156,7 +167,14 @@ fn stays_finite_at_low_rates() {
                 _ => (n as f32 * 0.37).sin() * state.max_frequency,
             };
             let knob = (n % 11) as f32 * 0.5;
-            let (out, overtones) = render(&mut voice, f0, knobs(knob, 5.0 - knob, knob), &state);
+            let offset = match n % 13 {
+                0 if n % 600 == 0 => f32::NAN,
+                1 if n % 600 == 1 => f32::NEG_INFINITY,
+                5 => -7.25,
+                _ => (n as f32 * 0.007).sin() * 3.0,
+            };
+            let k = offset_knobs(knob, 5.0 - knob, knob, offset);
+            let (out, overtones) = render(&mut voice, f0, k, &state);
             assert!(
                 out.is_finite() && overtones.is_finite(),
                 "{sample_rate} Hz, sample {n}"
@@ -166,5 +184,102 @@ fn stays_finite_at_low_rates() {
                 "{sample_rate} Hz, sample {n}: {out} {overtones}"
             );
         }
+    }
+}
+
+/// A phase offset plays the same waveform shifted in time, on both outputs
+/// and running backward: at a 100-sample period, a quarter-cycle offset is 25
+/// samples further into the waveform.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    let state = WaveshaperState::new(48000.0);
+    for f0 in [0.01, -0.01] {
+        for (shape, fold, asymmetry) in [(2.5, 2.5, 2.5), (4.0, 3.0, 0.0), (0.5, 4.5, 5.0)] {
+            let tone = |offset: f32| {
+                let mut voice = Voice::default();
+                (0..4000)
+                    .map(|_| {
+                        render(
+                            &mut voice,
+                            f0,
+                            offset_knobs(shape, fold, asymmetry, offset),
+                            &state,
+                        )
+                    })
+                    .collect::<Vec<(f32, f32)>>()
+            };
+            let ahead = tone(0.25);
+            let plain = tone(0.0);
+            // Backward, the waveform 25 samples further in played 25 samples ago.
+            let (ahead, plain) = if f0 > 0.0 {
+                (&ahead[1000..3000], &plain[1025..3025])
+            } else {
+                (&ahead[1025..3025], &plain[1000..3000])
+            };
+            for (output, pick) in [("shaped", 0), ("overtones", 1)] {
+                let get = |v: &[(f32, f32)]| {
+                    v.iter()
+                        .map(|s| if pick == 0 { s.0 } else { s.1 })
+                        .collect::<Vec<f32>>()
+                };
+                let (error, at) = max_error(&get(ahead), &get(plain));
+                assert!(
+                    error < 1e-3,
+                    "f0 {f0}, shape {shape}, {output}: error {error} at {at}"
+                );
+            }
+        }
+    }
+}
+
+/// An offset that moves, or jumps, ends where a voice started at it plays,
+/// within the rounding its phases gather on the way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    let state = WaveshaperState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glided = Voice::default();
+    let mut jumped = Voice::default();
+    for n in 0..6000 {
+        let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
+        let jump = if n < 100 { 0.9 } else { 0.4 };
+        let a = render(&mut held, 0.01, offset_knobs(4.0, 3.0, 2.0, 0.4), &state);
+        let b = render(
+            &mut glided,
+            0.01,
+            offset_knobs(4.0, 3.0, 2.0, glide),
+            &state,
+        );
+        let c = render(&mut jumped, 0.01, offset_knobs(4.0, 3.0, 2.0, jump), &state);
+        if n >= 3000 {
+            for (name, x) in [("glided", b), ("jumped", c)] {
+                assert!(
+                    (a.0 - x.0).abs() < 1e-2 && (a.1 - x.1).abs() < 1e-2,
+                    "{name}, sample {n}: {a:?} vs {x:?}"
+                );
+            }
+        }
+    }
+}
+
+/// A NaN or infinite phase offset holds the oscillators where they are.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let state = WaveshaperState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..200 {
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            102 => f32::NEG_INFINITY,
+            _ => 0.3,
+        };
+        let a = render(&mut held, 0.01, offset_knobs(3.0, 3.0, 1.0, 0.3), &state);
+        let b = render(&mut glitched, 0.01, offset_knobs(3.0, 3.0, 1.0, v), &state);
+        assert!(
+            (a.0 - b.0).abs() < 1e-6 && (a.1 - b.1).abs() < 1e-6,
+            "sample {n}: {a:?} vs {b:?}"
+        );
     }
 }
