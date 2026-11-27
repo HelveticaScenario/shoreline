@@ -47,10 +47,6 @@ name = "overdrive_bench"
 harness = false
 
 [[bench]]
-name = "shape_bench"
-harness = false
-
-[[bench]]
 name = "patch_bench"
 harness = false
 

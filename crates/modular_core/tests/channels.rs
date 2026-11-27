@@ -601,7 +601,6 @@ const PER_SIDE: &[(&str, &[&str])] = &[
     ),
     ("$dattorro", &["input"]),
     ("$plate", &["input"]),
-    ("$unstable.reverb", &["input"]),
     ("$hall", &["input"]),
     ("$reverb", &["input"]),
     ("$mi.chorus", &["input"]),

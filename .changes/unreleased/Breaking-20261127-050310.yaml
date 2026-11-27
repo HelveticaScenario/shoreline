@@ -1,0 +1,13 @@
+kind: Breaking
+body: |-
+    The `$unstable.reverb` and `$unstable.shape.*` modules are removed. `$hall` takes the same params as `$unstable.reverb`, so a call keeps its arguments, but the sound changes. For shaping, use `$overdrive`, `$fold`, `$cheby` or `$softClip`.
+
+    ```js
+    // before
+    pad: $saw("c3").unstable.reverb({ decay: 2 }).wet(2)
+    lead: $saw("c4").unstable.shape.saturate("soft", 2)
+    // after
+    pad: $saw("c3").hall({ decay: 2 }).wet(2)
+    lead: $saw("c4").overdrive(2)
+    ```
+time: 2026-11-27T05:03:10.370811-05:00

@@ -122,29 +122,29 @@ describe('computeControlQuickFixes — wrap chain module arguments', () => {
 describe('computeControlQuickFixes — namespaced modules', () => {
     test('direct dotted factory call resolves', () => {
         const { source, fixes } = fixesAt(
-            `$unstable.shape.digital($sine(0), 2.|5).track();`,
+            `$mi.chorus($sine(0), { amount: 2.|5 }).track();`,
         );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'drive' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('drive', 2.5, `);
+        expect(fix.title).toBe(`Wrap 'amount' in $slider`);
+        expect(apply(source, fix)).toContain(`$slider('amount', 2.5, `);
     });
 
     test('dotted chain path resolves', () => {
         const { source, fixes } = fixesAt(
-            `$sine(0).unstable.shape.digital(2.|5).track();`,
+            `$sine(0).mi.chorus({ amount: 2.|5 }).track();`,
         );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'drive' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('drive', 2.5, `);
+        expect(fix.title).toBe(`Wrap 'amount' in $slider`);
+        expect(apply(source, fix)).toContain(`$slider('amount', 2.5, `);
     });
 
     test('a dotted factory split across lines resolves', () => {
         const { source, fixes } = fixesAt(
-            `$unstable.shape\n  // comment\n  .digital($sine(0), 2.|5).track();`,
+            `$mi\n  // comment\n  .chorus($sine(0), { amount: 2.|5 }).track();`,
         );
         const fix = wrapFix(fixes);
-        expect(fix.title).toBe(`Wrap 'drive' in $slider`);
-        expect(apply(source, fix)).toContain(`$slider('drive', 2.5, `);
+        expect(fix.title).toBe(`Wrap 'amount' in $slider`);
+        expect(apply(source, fix)).toContain(`$slider('amount', 2.5, `);
     });
 
     test('a namespaced drum call broken across lines resolves', () => {
@@ -156,9 +156,9 @@ describe('computeControlQuickFixes — namespaced modules', () => {
 
     test('comments between segments do not break resolution', () => {
         const { fixes } = fixesAt(
-            `$unstable /* shapers */ .shape.digital($sine(0), 2.|5).track();`,
+            `$mi /* engines */ .chorus($sine(0), { amount: 2.|5 }).track();`,
         );
-        expect(wrapFix(fixes).title).toBe(`Wrap 'drive' in $slider`);
+        expect(wrapFix(fixes).title).toBe(`Wrap 'amount' in $slider`);
     });
 });
 
