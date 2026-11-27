@@ -170,9 +170,8 @@ struct Voice {
     /// The phase offset the fundamental has travelled so far, in `[0, 1)`.
     /// Every harmonic is read from `phase`, so they all move with it.
     travelled: f32,
+    /// The phase offset; a NaN or infinite one holds the last finite value.
     offset: SwapGlide,
-    /// The last finite phase offset, which a NaN or infinite one holds.
-    held_offset: f32,
     /// Whether the phase has started at its offset; a voice carried across a
     /// patch update keeps running from where it is.
     seeded: bool,
@@ -200,7 +199,6 @@ impl Default for Voice {
             phase: 0.0,
             travelled: 0.0,
             offset: SwapGlide::default(),
-            held_offset: AdditiveParams::PHASE_OFFSET_DEFAULT,
             seeded: false,
             amplitudes: [0.0; SLOTS],
             ramp: [0.0; SLOTS],
@@ -283,11 +281,8 @@ impl Voice {
         series: Series,
         state: &AdditiveState,
     ) -> f32 {
-        let value = self.offset.follow(offset.0, offset.1, state.sample_rate);
-        if value.is_finite() {
-            self.held_offset = value;
-        }
-        let offset = wrap(self.held_offset);
+        self.offset.update(offset.0, offset.1, state.sample_rate);
+        let offset = wrap(*self.offset);
         if !self.seeded {
             self.phase = offset;
             self.travelled = offset;

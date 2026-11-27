@@ -283,11 +283,26 @@ fn moving_phase_offset_lands_on_the_held_one() {
     }
 }
 
-/// A NaN or infinite phase offset holds the phase where it is.
+/// A NaN or infinite phase offset holds the phase where it is, and one from
+/// the first sample plays as the default offset.
 #[test]
 fn non_finite_phase_offset_holds() {
     let state = AdditiveState::new(48000.0);
     let k = knobs(1.0, 1.0, 1.0);
+    let mut default = Voice::default();
+    let mut from_start = Voice::default();
+    for n in 0..50 {
+        let a = render_offset(
+            &mut default,
+            0.01,
+            k,
+            AdditiveParams::PHASE_OFFSET_DEFAULT,
+            Series::Integer,
+            &state,
+        );
+        let b = render_offset(&mut from_start, 0.01, k, f32::NAN, Series::Integer, &state);
+        assert_eq!(a, b, "sample {n}");
+    }
     let mut held = Voice::default();
     let mut glitched = Voice::default();
     for n in 0..200 {
