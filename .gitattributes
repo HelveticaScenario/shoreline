@@ -5,4 +5,3 @@
 # Hooks run under sh, which reads a trailing CR as part of the command.
 /.husky/*            text eol=lf
 *.f32 filter=lfs diff=lfs merge=lfs -text
-*.syx filter=lfs diff=lfs merge=lfs -text
