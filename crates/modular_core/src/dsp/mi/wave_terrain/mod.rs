@@ -8,10 +8,8 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
-            blend::Blend,
-            fast_sine::QuadratureOscillator,
-            phase::{limit_frequency, wrap},
-            sine::sine,
+            blend::Blend, fast_sine::QuadratureOscillator, phase::limit_frequency,
+            phase_offset::PhaseOffset, sine::sine,
         },
         oscillators::{FmMode, apply_fm},
     },
@@ -192,13 +190,9 @@ struct Voice {
     terrain: SwapGlide,
     radius: SwapGlide,
     offset: SwapGlide,
-    phase_offset: SwapGlide,
-    /// The last finite knobs and phase offset, which a NaN or infinite value
-    /// holds.
-    held: [f32; 4],
-    /// Whether the path has started at its phase offset; a voice carried
-    /// across a patch update keeps running from where it is.
-    seeded: bool,
+    phase_offset: PhaseOffset,
+    /// The last finite knobs, which a NaN or infinite knob holds.
+    held: [f32; 3],
 }
 
 impl Default for Voice {
@@ -211,14 +205,12 @@ impl Default for Voice {
             terrain: SwapGlide::default(),
             radius: SwapGlide::default(),
             offset: SwapGlide::default(),
-            phase_offset: SwapGlide::default(),
+            phase_offset: PhaseOffset::default(),
             held: [
                 WaveTerrainParams::TERRAIN_DEFAULT,
                 WaveTerrainParams::RADIUS_DEFAULT,
                 WaveTerrainParams::OFFSET_DEFAULT,
-                WaveTerrainParams::PHASE_OFFSET_DEFAULT,
             ],
-            seeded: false,
         }
     }
 }
@@ -266,8 +258,6 @@ impl Voice {
                 .follow(knobs.radius.0, knobs.radius.1, sample_rate),
             self.offset
                 .follow(knobs.offset.0, knobs.offset.1, sample_rate),
-            self.phase_offset
-                .follow(knobs.phase_offset.0, knobs.phase_offset.1, sample_rate),
         ];
         for (held, value) in self.held.iter_mut().zip(raw) {
             if value.is_finite() {
@@ -298,7 +288,7 @@ impl Voice {
             x_offset: 1.9 * morph - 1.0,
             terrain,
             blend: z - terrain as f32,
-            phase: wrap(self.held[3]),
+            phase: self.phase_offset.update(knobs.phase_offset, sample_rate),
         };
         self.controls
     }
@@ -307,9 +297,8 @@ impl Voice {
     /// output gain.
     #[inline(always)]
     fn step(&mut self, c: Controls) -> (f32, f32) {
-        if !self.seeded {
+        if self.phase_offset.seed() {
             self.path.seed(c.phase, c.frequency);
-            self.seeded = true;
         }
         let path = self
             .path

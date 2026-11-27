@@ -5,6 +5,7 @@
 use super::control::Ramp;
 use super::dsp::constrain;
 use super::phase::wrap;
+use super::phase_offset::Travel;
 use super::polyblep::{
     edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
     this_integrated_blep_sample,
@@ -16,8 +17,8 @@ pub struct SlopeOscillator {
     next_sample: f32,
     /// Whether the phase is below the peak, on the rising slope.
     high: bool,
-    /// The phase offset travelled so far, in `[0, 1)`.
-    offset: f32,
+    /// The phase's travel toward the offset.
+    offset: Travel,
     /// Plaits' one-sample `ParameterInterpolator`s, which land a hair off
     /// their target; kept so the oscillator matches Plaits bit for bit.
     frequency: Ramp,
@@ -34,7 +35,7 @@ impl Default for SlopeOscillator {
             phase: 0.5,
             next_sample: 0.0,
             high: true,
-            offset: 0.0,
+            offset: Travel::default(),
             frequency,
             pw,
         }
@@ -46,7 +47,7 @@ impl SlopeOscillator {
     /// its waveform, for a first step at `frequency` with the peak at `pw`.
     pub fn seed(&mut self, offset: f32, frequency: f32, pw: f32) {
         self.phase = wrap(self.phase + offset);
-        self.offset = offset;
+        self.offset.seed(offset);
         // The peak where the first step puts it, from the same ramps.
         let (mut f, mut w) = (self.frequency, self.pw);
         f.set(frequency, Some(1.0));
@@ -67,13 +68,7 @@ impl SlopeOscillator {
         self.frequency.set(frequency, Some(1.0));
         self.pw.set(pw, Some(1.0));
         let frequency = self.frequency.next_value();
-        let behind = offset - self.offset;
-        // The bounds always hold 0, so a phase with no way left to travel never
-        // shifts, even when the ramp lands a hair past ±`max`.
-        let shift = (behind - behind.round())
-            .clamp((-max - frequency).min(0.0), (max - frequency).max(0.0));
-        self.offset = wrap(self.offset + shift);
-        let frequency = frequency + shift;
+        let frequency = frequency + self.offset.step(offset, 1, frequency, max);
         let pw = width(self.pw.next_value(), frequency);
 
         let mut this_sample = self.next_sample;

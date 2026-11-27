@@ -11,7 +11,8 @@ use crate::{
     dsp::{
         mi::core::{
             filter::{OnePole, tan_dirty},
-            phase::{limit_frequency, max_frequency, wrap},
+            phase::{limit_frequency, max_frequency},
+            phase_offset::PhaseOffset,
         },
         oscillators::{FmMode, apply_fm},
         utils::{changed, voct_to_hz},
@@ -146,12 +147,9 @@ struct Voice {
     formant: SwapGlide,
     ratio: SwapGlide,
     width: SwapGlide,
-    phase_offset: SwapGlide,
-    /// The last finite phase offset, in `[0, 1)`.
+    phase_offset: PhaseOffset,
+    /// The phase offset in `[0, 1)` the last `control` read.
     offset: f32,
-    /// Whether the oscillator has started at its phase offset; a voice carried
-    /// across a patch update keeps running from where it is.
-    seeded: bool,
     /// Formant frequencies and bleed for the cached `formant`/`ratio` pair;
     /// `NaN` = never computed.
     last_formant: f32,
@@ -173,9 +171,8 @@ impl Default for Voice {
             formant: SwapGlide::default(),
             ratio: SwapGlide::default(),
             width: SwapGlide::default(),
-            phase_offset: SwapGlide::default(),
+            phase_offset: PhaseOffset::default(),
             offset: FormantParams::PHASE_OFFSET_DEFAULT,
-            seeded: false,
             last_formant: f32::NAN,
             last_ratio: f32::NAN,
             formants: [0.0; 2],
@@ -232,12 +229,7 @@ impl Voice {
             .follow(knobs.formant.0, knobs.formant.1, sample_rate);
         let ratio = self.ratio.follow(knobs.ratio.0, knobs.ratio.1, sample_rate);
         let width = self.width.follow(knobs.width.0, knobs.width.1, sample_rate);
-        let offset = self
-            .phase_offset
-            .follow(knobs.offset.0, knobs.offset.1, sample_rate);
-        if offset.is_finite() {
-            self.offset = wrap(offset);
-        }
+        self.offset = self.phase_offset.update(knobs.offset, sample_rate);
 
         // A NaN or infinite knob holds the formants where they are.
         if (changed(formant, self.last_formant) || changed(ratio, self.last_ratio))
@@ -278,11 +270,8 @@ impl Voice {
     fn step(&mut self, f0: f32, state: &FormantState) -> f32 {
         let f0 = limit_frequency(f0, state.max_carrier);
         // At offset 0 a fresh voice starts as Plaits' does.
-        if !self.seeded {
-            if self.offset != 0.0 {
-                self.osc.seed(self.offset, f0);
-            }
-            self.seeded = true;
+        if self.phase_offset.seed() && self.offset != 0.0 {
+            self.osc.seed(self.offset, f0);
         }
         let out = self.osc.step(f0, self.offset, state.max_carrier);
         OUTPUT_GAIN * self.dc_blocker.high_pass(out)

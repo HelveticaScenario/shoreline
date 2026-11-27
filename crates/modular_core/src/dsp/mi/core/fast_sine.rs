@@ -1,7 +1,7 @@
 //! `plaits::FastSineOscillator`: a sine and cosine from the "magic circle"
 //! recurrence, without a table.
 
-use super::phase::wrap;
+use super::phase_offset::Travel;
 
 /// `FastSineOscillator::Fast2Sin`: 2 sin(π f), from a cubic that keeps the
 /// pitch within a few cents from 16 Hz to 16 kHz at 48 kHz.
@@ -31,8 +31,8 @@ pub struct QuadratureOscillator {
     /// `NaN` until the first render, which starts at its frequency.
     epsilon: f32,
     amplitude: f32,
-    /// The phase offset the point has travelled so far, in `[0, 1)`.
-    travelled: f32,
+    /// The point's travel toward the phase offset.
+    travel: Travel,
 }
 
 /// Moves `(x, y)` `cycles` of a cycle along the orbit the recurrence traces at
@@ -55,7 +55,7 @@ impl Default for QuadratureOscillator {
             y: 0.0,
             epsilon: f32::NAN,
             amplitude: 0.0,
-            travelled: 0.0,
+            travel: Travel::default(),
         }
     }
 }
@@ -65,7 +65,7 @@ impl QuadratureOscillator {
     /// `[0, 1)`) of a cycle along its orbit.
     pub fn seed(&mut self, offset: f32, frequency: f32) {
         self.epsilon = fast_2_sin(frequency);
-        self.travelled = offset;
+        self.travel.seed(offset);
         if offset != 0.0 {
             advance(&mut self.x, &mut self.y, self.epsilon, offset);
         }
@@ -142,12 +142,8 @@ impl QuadratureOscillator {
                 y *= scale;
             }
             if let Some(offset) = offset {
-                let behind = offset - self.travelled;
-                let behind = behind - behind.round();
-                let shift = (behind / (N - step) as f32)
-                    .clamp(-MAX_FREQUENCY - frequency, MAX_FREQUENCY - frequency);
+                let shift = self.travel.step(offset, N - step, frequency, MAX_FREQUENCY);
                 if shift != 0.0 {
-                    self.travelled = wrap(self.travelled + shift);
                     advance(&mut x, &mut y, self.epsilon, shift);
                 }
             }

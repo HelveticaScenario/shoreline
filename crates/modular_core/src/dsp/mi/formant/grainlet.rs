@@ -7,7 +7,8 @@
 //! band-limited.
 
 use crate::dsp::mi::core::control::Ramp;
-use crate::dsp::mi::core::phase::{fraction, wrap, wrap_below};
+use crate::dsp::mi::core::phase::{fraction, wrap_below};
+use crate::dsp::mi::core::phase_offset::Travel;
 use crate::dsp::mi::core::polyblep::{next_blep_sample, this_blep_sample};
 use crate::dsp::mi::core::sine::sine;
 
@@ -26,8 +27,8 @@ pub struct GrainletPair {
     carrier_phase: f32,
     formant_phase: [f32; 2],
     next_sample: [f32; 2],
-    /// The phase offset the carrier has travelled so far, in `[0, 1)`.
-    travelled: f32,
+    /// The carrier's travel toward the phase offset.
+    travel: Travel,
     formant_frequency: [Ramp; 2],
     shape: Ramp,
     bleed: Ramp,
@@ -57,7 +58,7 @@ impl GrainletPair {
     /// cycle would have reached by then.
     pub fn seed(&mut self, offset: f32, f0: f32) {
         self.carrier_phase = offset;
-        self.travelled = offset;
+        self.travel.seed(offset);
         let samples = offset / f0.abs();
         let carrier = carrier(offset, self.shape.subsample(0.0));
         let bleed = self.bleed.subsample(0.0);
@@ -74,11 +75,7 @@ impl GrainletPair {
     /// an offset plays as one seeded there does once its grains restart.
     #[inline(always)]
     pub fn step(&mut self, f0: f32, offset: f32, max: f32) -> f32 {
-        let behind = offset - self.travelled;
-        let behind = behind - behind.round();
-        let shift = behind.clamp(-max - f0, max - f0);
-        self.travelled = wrap(self.travelled + shift);
-        let f0 = f0 + shift;
+        let f0 = f0 + self.travel.step(offset, 1, f0, max);
         let mut this_sample = self.next_sample;
         let mut next_sample = [0.0; 2];
         let f1 = [

@@ -4,7 +4,8 @@
 //! frequency, so every saw shifts with it and every edge stays band-limited.
 
 use crate::dsp::mi::core::{
-    phase::{limit_frequency, wrap},
+    phase::limit_frequency,
+    phase_offset::Travel,
     polyblep::{edge_time, next_blep_sample, this_blep_sample},
 };
 
@@ -72,19 +73,6 @@ fn shift_down(frequency: f32, speed: f32) -> Option<(f32, usize)> {
 /// The fastest the phase runs, in segments per sample, while it travels to an
 /// offset: the most `shift_down` leaves it.
 const MAX_SEGMENTS: f32 = 0.5;
-
-/// This sample's share of the way from `travelled` to `target`, both in cycles
-/// of the eight-segment phase in `[0, 1)`, by the shortest way, as extra
-/// segments per sample held so a phase running at `frequency` stays within
-/// ±[`MAX_SEGMENTS`]; `travelled` moves by it.
-#[inline(always)]
-fn travel(target: f32, travelled: &mut f32, frequency: f32) -> f32 {
-    let behind = target - *travelled;
-    let behind = behind - behind.round();
-    let shift = (behind * 8.0).clamp(-MAX_SEGMENTS - frequency, MAX_SEGMENTS - frequency);
-    *travelled = wrap(*travelled + shift * 0.125);
-    shift
-}
 
 /// The phase runs across eight segments; each saw resets at the segments its
 /// period ends on.
@@ -184,9 +172,9 @@ pub struct DivideDownVoice {
     oscillator: DivideDownOscillator,
     /// The saw levels the oscillator last drew with.
     gains: [f32; 4],
-    /// The phase offset the oscillator has travelled so far, in cycles of the
-    /// eight-segment phase in `[0, 1)`.
-    offset: f32,
+    /// The phase's travel toward the offset, in cycles of the eight-segment
+    /// phase.
+    offset: Travel,
     /// The registration key, octave shift and gain `gains` were computed
     /// for, as bits; `None` before the first sample.
     gains_key: Option<(u32, usize, u32)>,
@@ -199,7 +187,7 @@ impl DivideDownVoice {
     pub fn seed(&mut self, offset: f32) {
         self.oscillator.phase = offset * 8.0;
         self.oscillator.segment = self.oscillator.phase as i32;
-        self.offset = offset;
+        self.offset.seed(offset);
     }
 
     /// One sample at `f0` cycles per sample (at the rate whose ratio to
@@ -233,7 +221,10 @@ impl DivideDownVoice {
             self.gains = gains;
             self.gains_key = Some(key);
         }
-        let frequency = frequency + travel(offset, &mut self.offset, frequency);
+        let shift = self
+            .offset
+            .step(offset, 1, frequency * 0.125, MAX_SEGMENTS * 0.125);
+        let frequency = frequency + shift * 8.0;
         self.oscillator.step(frequency, self.gains)
     }
 }

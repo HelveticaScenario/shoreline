@@ -11,7 +11,8 @@ use crate::{
     dsp::{
         mi::core::{
             filter::{OnePole, tan_dirty},
-            phase::{limit_frequency, max_frequency, wrap},
+            phase::{limit_frequency, max_frequency},
+            phase_offset::{PhaseOffset, Travel},
         },
         oscillators::{FmMode, apply_fm},
         utils::changed,
@@ -144,14 +145,11 @@ struct Voice {
     cutoff: SwapGlide,
     shape: SwapGlide,
     mode: SwapGlide,
-    offset: SwapGlide,
-    /// The phase offset in `[0, 1)`, held at its last finite value, and the
-    /// offset the carrier has travelled so far.
+    offset: PhaseOffset,
+    /// The phase offset in `[0, 1)` the last `control` read, and the carrier's
+    /// travel toward it.
     phase_offset: f32,
-    travelled: f32,
-    /// Whether the oscillator has started at its phase offset; a voice carried
-    /// across a patch update keeps running from where it is.
-    seeded: bool,
+    travel: Travel,
     /// Formant-to-pitch ratio for the cached `cutoff`; `NaN` = never computed.
     last_cutoff: f32,
     multiplier: f32,
@@ -170,10 +168,9 @@ impl Default for Voice {
             cutoff: SwapGlide::default(),
             shape: SwapGlide::default(),
             mode: SwapGlide::default(),
-            offset: SwapGlide::default(),
+            offset: PhaseOffset::default(),
             phase_offset: ZOscParams::PHASE_OFFSET_DEFAULT,
-            travelled: ZOscParams::PHASE_OFFSET_DEFAULT,
-            seeded: false,
+            travel: Travel::default(),
             last_cutoff: f32::NAN,
             multiplier: 0.0,
             last_f0: f32::NAN,
@@ -188,18 +185,6 @@ struct Knobs {
     shape: (f32, GlideMark),
     mode: (f32, GlideMark),
     offset: (f32, GlideMark),
-}
-
-/// The shift that takes `travelled` to `target`, both phases in `[0, 1)`, by
-/// the shortest way, held so a carrier running at `frequency` stays within
-/// ±`max`; `travelled` moves by it.
-#[inline(always)]
-fn travel(target: f32, travelled: &mut f32, frequency: f32, max: f32) -> f32 {
-    let behind = target - *travelled;
-    let behind = behind - behind.round();
-    let shift = behind.clamp(-max - frequency, max - frequency);
-    *travelled = wrap(*travelled + shift);
-    shift
 }
 
 impl Voice {
@@ -233,12 +218,7 @@ impl Voice {
             .follow(knobs.cutoff.0, knobs.cutoff.1, sample_rate);
         let shape = self.shape.follow(knobs.shape.0, knobs.shape.1, sample_rate);
         let mode = self.mode.follow(knobs.mode.0, knobs.mode.1, sample_rate);
-        let offset = self
-            .offset
-            .follow(knobs.offset.0, knobs.offset.1, sample_rate);
-        if offset.is_finite() {
-            self.phase_offset = wrap(offset);
-        }
+        self.phase_offset = self.offset.update(knobs.offset, sample_rate);
         // A NaN or infinite cutoff holds the multiplier where it is.
         if changed(cutoff, self.last_cutoff) && cutoff.is_finite() {
             self.multiplier = (8.0 * (cutoff * 0.2).clamp(0.0, 1.0)).exp2();
@@ -262,21 +242,17 @@ impl Voice {
     #[inline(always)]
     fn step(&mut self, f0: f32, state: &ZOscState) -> f32 {
         let f0 = limit_frequency(f0, state.max_carrier);
-        if !self.seeded {
+        if self.offset.seed() {
             // An unshifted voice starts as Plaits' does, on a silent sample.
             if self.phase_offset != 0.0 {
                 self.osc.seed(self.phase_offset, f0);
             }
-            self.travelled = self.phase_offset;
-            self.seeded = true;
+            self.travel.seed(self.phase_offset);
         }
         let f0 = f0
-            + travel(
-                self.phase_offset,
-                &mut self.travelled,
-                f0,
-                state.max_carrier,
-            );
+            + self
+                .travel
+                .step(self.phase_offset, 1, f0, state.max_carrier);
         OUTPUT_GAIN * self.dc_blocker.high_pass(self.osc.step(f0))
     }
 }

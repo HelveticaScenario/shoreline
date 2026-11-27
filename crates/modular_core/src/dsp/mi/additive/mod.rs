@@ -9,13 +9,14 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         mi::core::{
-            phase::{limit_frequency, wrap},
+            phase::limit_frequency,
+            phase_offset::{PhaseOffset, Travel},
             sine::sine,
         },
         oscillators::{FmMode, apply_fm},
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
-    types::{GlideMark, SwapGlide},
+    types::GlideMark,
 };
 
 use spectrum::{BANK, INTEGER, INTEGER_SLOTS, ORGAN, ORGAN_SLOTS, SLOTS, bank, update_amplitudes};
@@ -167,14 +168,10 @@ impl AdditiveState {
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
     phase: f32,
-    /// The phase offset the fundamental has travelled so far, in `[0, 1)`.
-    /// Every harmonic is read from `phase`, so they all move with it.
-    travelled: f32,
-    /// The phase offset; a NaN or infinite one holds the last finite value.
-    offset: SwapGlide,
-    /// Whether the phase has started at its offset; a voice carried across a
-    /// patch update keeps running from where it is.
-    seeded: bool,
+    /// The fundamental's travel toward the phase offset. Every harmonic is
+    /// read from `phase`, so they all move with it.
+    travel: Travel,
+    offset: PhaseOffset,
     /// Plaits' smoothed, normalised amplitudes, one step per `period`.
     amplitudes: [f32; SLOTS],
     /// The amplitudes ramped across each step, and their per-sample steps.
@@ -197,9 +194,8 @@ impl Default for Voice {
     fn default() -> Self {
         Self {
             phase: 0.0,
-            travelled: 0.0,
-            offset: SwapGlide::default(),
-            seeded: false,
+            travel: Travel::default(),
+            offset: PhaseOffset::default(),
             amplitudes: [0.0; SLOTS],
             ramp: [0.0; SLOTS],
             increment: [0.0; SLOTS],
@@ -281,12 +277,10 @@ impl Voice {
         series: Series,
         state: &AdditiveState,
     ) -> f32 {
-        self.offset.update(offset.0, offset.1, state.sample_rate);
-        let offset = wrap(*self.offset);
-        if !self.seeded {
+        let offset = self.offset.update(offset, state.sample_rate);
+        if self.offset.seed() {
             self.phase = offset;
-            self.travelled = offset;
-            self.seeded = true;
+            self.travel.seed(offset);
         }
         let f = limit_frequency(f0, MAX_FREQUENCY);
         let pitch = f.abs();
@@ -300,10 +294,7 @@ impl Voice {
             }
             self.last_f = pitch;
         }
-        let behind = offset - self.travelled;
-        let shift = (behind - behind.round()).clamp(-MAX_FREQUENCY - f, MAX_FREQUENCY - f);
-        self.travelled = wrap(self.travelled + shift);
-        self.phase += f + shift;
+        self.phase += f + self.travel.step(offset, 1, f, MAX_FREQUENCY);
         if self.phase >= 1.0 {
             self.phase -= 1.0;
         } else if self.phase < 0.0 {

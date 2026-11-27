@@ -9,7 +9,8 @@ use crate::{
             blend::Blend,
             interpolate::hermite,
             oscillator::SlopeOscillator,
-            phase::{limit_frequency, max_frequency, wrap},
+            phase::{limit_frequency, max_frequency},
+            phase_offset::PhaseOffset,
             sine::sine,
             tables::{
                 LUT_FOLD, LUT_FOLD_2, LUT_WS_BUMP, LUT_WS_DOUBLE_BUMP, LUT_WS_INVERSE_SIN,
@@ -201,13 +202,9 @@ struct Voice {
     shape: SwapGlide,
     fold: SwapGlide,
     asymmetry: SwapGlide,
-    offset: SwapGlide,
-    /// The last finite knobs and phase offset, which a NaN or infinite value
-    /// holds.
-    held: [f32; 4],
-    /// Whether the oscillators have started at their phase offset; a voice
-    /// carried across a patch update keeps running from where it is.
-    seeded: bool,
+    offset: PhaseOffset,
+    /// The last finite knobs, which a NaN or infinite knob holds.
+    held: [f32; 3],
 }
 
 impl Default for Voice {
@@ -219,14 +216,12 @@ impl Default for Voice {
             shape: SwapGlide::default(),
             fold: SwapGlide::default(),
             asymmetry: SwapGlide::default(),
-            offset: SwapGlide::default(),
+            offset: PhaseOffset::default(),
             held: [
                 WaveshaperParams::SHAPE_DEFAULT,
                 WaveshaperParams::FOLD_DEFAULT,
                 WaveshaperParams::ASYMMETRY_DEFAULT,
-                WaveshaperParams::PHASE_OFFSET_DEFAULT,
             ],
-            seeded: false,
         }
     }
 }
@@ -263,8 +258,6 @@ impl Voice {
             self.fold.follow(knobs.fold.0, knobs.fold.1, sample_rate),
             self.asymmetry
                 .follow(knobs.asymmetry.0, knobs.asymmetry.1, sample_rate),
-            self.offset
-                .follow(knobs.offset.0, knobs.offset.1, sample_rate),
         ];
         for (held, value) in self.held.iter_mut().zip(raw) {
             if value.is_finite() {
@@ -292,7 +285,7 @@ impl Voice {
             shape: (0.5 + (harmonics - 0.5) * shape_attenuation) * 3.9999,
             wavefolder_gain: 0.03 + 0.46 * timbre * wavefolder_attenuation,
             overtone_gain: overtone * (2.0 - overtone),
-            offset: wrap(self.held[3]),
+            offset: self.offset.update(knobs.offset, sample_rate),
             max_frequency: state.max_frequency,
         }
     }
@@ -301,10 +294,9 @@ impl Voice {
     /// gains.
     #[inline(always)]
     fn step(&mut self, c: Controls) -> (f32, f32) {
-        if !self.seeded {
+        if self.offset.seed() {
             self.slope.seed(c.offset, c.f0, c.pw);
             self.triangle.seed(c.offset, c.f0, 0.5);
-            self.seeded = true;
         }
         let slope = self.slope.step(c.f0, c.pw, c.offset, c.max_frequency);
         let triangle = self.triangle.step(c.f0, 0.5, c.offset, c.max_frequency);

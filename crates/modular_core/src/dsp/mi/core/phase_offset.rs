@@ -24,6 +24,13 @@ impl PhaseOffset {
         wrap(*self.glide)
     }
 
+    /// Whether the next [`update`](Self::update) with `mark` glides, so a voice
+    /// that skips work on unchanged inputs knows the offset may still move.
+    #[inline(always)]
+    pub fn will_glide(&self, mark: GlideMark) -> bool {
+        self.glide.will_glide(mark)
+    }
+
     /// True once, the first time a voice asks: a fresh voice seeds its phases
     /// at the offset.
     #[inline(always)]
