@@ -58,6 +58,18 @@ fn z_osc_paths_agree() {
             "fmMode": "lin",
         }),
     );
+    check_paths_agree(
+        "$mi.zOsc",
+        json!({ "freq": [-1.0, 0.0, 1.5, 3.0], "phaseOffset": 0.25, "fm": cable("src", 1) }),
+    );
+    check_paths_agree(
+        "$mi.zOsc",
+        json!({ "freq": 1.0, "shape": 2.0, "phaseOffset": cable("lfo", 0) }),
+    );
+    check_paths_agree(
+        "$mi.zOsc",
+        json!({ "freq": cable("lfo", 2), "phaseOffset": poly_cable("lfo", LANES) }),
+    );
 }
 
 #[test]
