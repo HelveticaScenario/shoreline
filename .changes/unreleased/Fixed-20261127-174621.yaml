@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`$scopeXY` no longer scrambles its picture after a patch update changes only one of its two signals, such as adding `.gain()` to `y`.'
+time: 2026-11-27T17:46:21.343116-05:00
