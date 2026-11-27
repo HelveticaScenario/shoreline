@@ -3,6 +3,7 @@ mod dx7_voice;
 mod envelope;
 mod lfo;
 mod patch;
+mod pool;
 mod syx;
 mod units;
 mod voice;
@@ -29,7 +30,8 @@ use crate::{
     types::{GlideMark, SwapGlide},
 };
 
-use voice::{FmVoice, Rates};
+use pool::Pool;
+use voice::Rates;
 
 /// Plaits' output gain for this engine, at ±5 V full scale, after its
 /// `SoftClip(x / 4)` output stage.
@@ -55,6 +57,13 @@ struct SixOpParams {
     )]
     #[deserr(default)]
     gate: Option<PolySignal>,
+    #[input(
+        "how many notes ring at once: a note beyond that fades out the oldest",
+        range = (1, 8),
+    )]
+    #[serde(default = "default_voices")]
+    #[deserr(default = default_voices())]
+    voices: usize,
     #[input(
         "the level of the modulating operators: darker (0) to brighter and harsher (5)",
         type = control,
@@ -89,6 +98,10 @@ struct SixOpParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+}
+
+fn default_voices() -> usize {
+    2
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -167,10 +180,13 @@ fn knob(volts: f32) -> f32 {
     (volts * 0.2).clamp(0.0, 1.0)
 }
 
-/// One lane: Plaits' `SixOpEngine` with one voice, a sample at a time.
+/// One lane: Plaits' `SixOpEngine`, a sample at a time, with as many voices
+/// as `voices` asks.
 #[derive(Clone, Copy, SeedSide)]
 struct Lane {
-    voice: FmVoice,
+    pool: Pool,
+    /// Whether the unpatched gate's drone has its voice.
+    droning: bool,
     trigger: SchmittTrigger,
     gate: bool,
     /// The LFO's generator for sample-and-hold, as Plaits draws its global one.
@@ -192,7 +208,8 @@ struct Lane {
 impl Default for Lane {
     fn default() -> Self {
         Self {
-            voice: FmVoice::default(),
+            pool: Pool::default(),
+            droning: false,
             trigger: SchmittTrigger::default(),
             gate: false,
             random: Random::new(0),
@@ -221,6 +238,7 @@ impl Lane {
         knobs: Knobs,
         gate: Option<bool>,
         voice_param: &Dx7Voice,
+        voices: usize,
         state: &SixOpState,
     ) -> f32 {
         let sample_rate = state.sample_rate;
@@ -244,41 +262,69 @@ impl Lane {
         let envelope = knob(self.held[1]);
         let velocity = knob(self.held[2]);
 
-        let voice = &mut self.voice;
+        let pool = &mut self.pool;
         match gate {
             None => {
+                if !self.droning {
+                    pool.start_note(voices);
+                    self.droning = true;
+                }
+                // A gate patched again later starts from low, so its first
+                // high starts a note.
+                self.gate = false;
                 // Plaits scrubs the LFO before the patch loads; it then
                 // modulates with the loaded patch's depths.
-                voice
+                let active = pool.active();
+                active
                     .lfo
                     .scrub(2.0 * sample_rate * envelope, &mut self.random);
-                voice.load_patch(patch, id, rates);
-                voice.parameters.sustain = true;
-                voice.parameters.gate = false;
-                // A gate patched again later starts from low, so its first
-                // high loads the voice then set.
-                self.gate = false;
+                active.load_patch(patch, id, rates);
+                let p = &mut active.parameters;
+                p.sustain = true;
+                p.gate = false;
+                p.f0 = f0;
+                p.velocity = velocity;
+                p.envelope_control = envelope;
             }
             Some(high) => {
+                self.droning = false;
                 if high && !self.gate {
-                    voice.load_patch(patch, id, rates);
-                    voice.lfo.reset();
+                    pool.start_note(voices);
+                    let active = pool.active();
+                    active.load_patch(patch, id, rates);
+                    active.lfo.reset();
                 }
                 self.gate = high;
-                voice.lfo.step(&mut self.random);
-                voice.parameters.sustain = false;
-                voice.parameters.gate = high;
+                let active = pool.active();
+                let p = &mut active.parameters;
+                p.sustain = false;
+                p.gate = high;
+                p.f0 = f0;
+                p.velocity = velocity;
+                p.envelope_control = envelope;
+                active.lfo.step(&mut self.random);
             }
         }
-        let p = &mut voice.parameters;
-        p.f0 = f0;
-        p.velocity = velocity;
-        p.brightness = brightness;
-        p.envelope_control = envelope;
-        let lfo = voice.lfo;
-        voice.set_modulations(&lfo);
-
-        soft_clip(voice.render(rates) * 0.25)
+        let active = pool.active();
+        active.parameters.brightness = brightness;
+        let (active_patch, active_lfo) = (active.patch_id(), active.lfo);
+        active.set_modulations(&active_lfo);
+        let random = &mut self.random;
+        pool.for_each_other(|voice| {
+            let p = &mut voice.parameters;
+            p.brightness = brightness;
+            p.sustain = false;
+            p.gate = false;
+            // A releasing voice of another patch runs its own LFO.
+            if voice.patch_id() == active_patch {
+                voice.set_modulations(&active_lfo);
+            } else {
+                voice.lfo.step(random);
+                let lfo = voice.lfo;
+                voice.set_modulations(&lfo);
+            }
+        });
+        soft_clip(pool.render(rates) * 0.25)
     }
 }
 
@@ -319,7 +365,7 @@ impl SixOp {
                 ),
                 accent: (plaits_volts(accent), mark),
             };
-            let out = lane.step(f0, knobs, gate, &p.voice, &self.state);
+            let out = lane.step(f0, knobs, gate, &p.voice, p.voices, &self.state);
             let out =
                 lane.accent_state
                     .apply(OUTPUT_GAIN * out, ACCENT_TRIM, self.state.sample_rate);

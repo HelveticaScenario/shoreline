@@ -8,6 +8,15 @@ use super::lfo::Lfo;
 use super::patch::Patch;
 use super::units::{keyboard_scaling, normalize_velocity, pow2_fast_1, pow2_fast_2, rate_scaling};
 
+/// How far behind its envelope an operator's amplitude follows, in seconds:
+/// Plaits ramps each voice's amplitudes across a 24-sample block, half a
+/// block behind on average, so an envelope that jumps never steps a
+/// sounding operator.
+const AMPLITUDE_LAG: f32 = 12.0 / 48000.0;
+
+/// How long a note a newer one cuts off takes to fade out, in seconds.
+const FADE_SECS: f32 = 5.0e-3;
+
 /// Rate-dependent constants every voice shares.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Rates {
@@ -18,6 +27,10 @@ pub struct Rates {
     pub envelope_scale: f32,
     /// How long the scrubbed envelope holds its gate, in samples.
     pub gate_duration: f32,
+    /// How far an operator's amplitude moves toward its level each sample.
+    pub amplitude_follow: f32,
+    /// How much of a cut-off note's level fades each sample.
+    pub fade: f32,
 }
 
 impl Rates {
@@ -28,6 +41,8 @@ impl Rates {
             one_hz,
             envelope_scale: 44100.0 * one_hz,
             gate_duration: 1.5 * sample_rate,
+            amplitude_follow: (1.0 / (AMPLITUDE_LAG * sample_rate)).min(1.0),
+            fade: 1.0 / (FADE_SECS * sample_rate),
         }
     }
 }
@@ -227,6 +242,28 @@ impl FmVoice {
         self.lfo.set(&patch.lfo, rates.one_hz);
     }
 
+    /// Forgets the gate, so the next high starts a note even if the voice
+    /// stopped rendering while its gate was high.
+    pub fn forget_gate(&mut self) {
+        self.gate = false;
+    }
+
+    /// Returns the operators, envelopes and gate to where `FMVoice::Init`
+    /// leaves them, keeping the patch: a voice faded out while its envelopes
+    /// still sounded starts its next note from silence, as a fresh one does.
+    pub fn silence(&mut self) {
+        self.operators = [Operator::default(); 6];
+        self.envelopes = [Envelope::default(); 6];
+        self.pitch_envelope = Envelope::default();
+        self.feedback_state = [0.0; 2];
+        self.gate = false;
+    }
+
+    /// The loaded patch's id, or `None` before one loads.
+    pub fn patch_id(&self) -> Option<u64> {
+        self.patch.is_some().then_some(self.patch_id)
+    }
+
     pub fn set_modulations(&mut self, lfo: &Lfo) {
         self.parameters.pitch_mod = lfo.pitch_mod();
         self.parameters.amp_mod = lfo.amp_mod();
@@ -360,7 +397,11 @@ impl FmVoice {
             }
         }
         let increment = cache.increment;
-        let amplitude = cache.amplitude;
+        let follow = rates.amplitude_follow;
+        let amplitude: [f32; 6] = std::array::from_fn(|i| {
+            let from = self.operators[i].amplitude;
+            from + (cache.amplitude[i] - from) * follow
+        });
 
         let mut buffers = [0.0; 4];
         let feedback_scale = patch.feedback_scale;

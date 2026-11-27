@@ -30,6 +30,16 @@ fn voice(bank: f32, patch: f32) -> &'static Dx7Voice {
     &VOICES[bank as usize * 32 + patch as usize]
 }
 
+/// The builtin voice of file stem `name`.
+fn builtin(name: &str) -> &'static Dx7Voice {
+    let file = format!("/{name}.syx");
+    let index = test_voices::PLAITS_VOICES
+        .iter()
+        .position(|p| p.ends_with(&file))
+        .unwrap();
+    voice((index / 32) as f32, (index % 32) as f32)
+}
+
 fn new_lane(seed: u32) -> Lane {
     Lane {
         random: Random::new(seed),
@@ -40,7 +50,7 @@ fn new_lane(seed: u32) -> Lane {
 /// Replays `six_op.f32` (Plaits' six-op engine with per-sample controls):
 /// gated notes across all three banks, feedback loops spanning several
 /// operators, fixed-frequency operators, pitch envelopes and LFOs, notes
-/// alternating between patches, and scrubbed drones.
+/// alternating between patches, scrubbed drones, and one to three voices.
 #[test]
 fn matches_plaits() {
     let state = SixOpState::new(48000.0);
@@ -48,7 +58,7 @@ fn matches_plaits() {
     let mut lane = new_lane(0);
     let mut actual = Vec::new();
     let mut expected = Vec::new();
-    for record in records("six_op", 9) {
+    for record in records("six_op", 10) {
         if record[0] != current {
             current = record[0];
             lane = new_lane(0x5eed + current as u32);
@@ -62,10 +72,11 @@ fn matches_plaits() {
             knobs(record[2], record[3], record[4]),
             gate,
             voice(record[6], record[7]),
+            record[8] as usize,
             &state,
         );
         actual.push(out);
-        expected.push(record[8]);
+        expected.push(record[9]);
     }
     let (error, at) = max_error(&actual, &expected);
     assert!(error < 1e-5, "max error {error} at sample {at}");
@@ -101,6 +112,7 @@ fn render(
                 knobs(2.5, envelope, 4.0),
                 gate,
                 voice(bank, patch),
+                2,
                 &state,
             )
         })
@@ -169,7 +181,16 @@ fn runs_backward() {
         let render = |f0: f32| {
             let mut lane = new_lane(1);
             (0..4800)
-                .map(|_| lane.step(f0, knobs(2.5, 2.5, 4.0), None, voice(bank, patch), &state))
+                .map(|_| {
+                    lane.step(
+                        f0,
+                        knobs(2.5, 2.5, 4.0),
+                        None,
+                        voice(bank, patch),
+                        2,
+                        &state,
+                    )
+                })
                 .collect::<Vec<_>>()
         };
         let forward = render(0.004);
@@ -201,8 +222,15 @@ fn non_finite_knobs_hold() {
             _ => 2.0,
         };
         let gate = Some(n % 1000 < 700);
-        let a = held.step(0.005, knobs(2.0, 2.0, 2.0), gate, voice(2.0, 2.0), &state);
-        let b = glitched.step(0.005, knobs(v, v, v), gate, voice(2.0, 2.0), &state);
+        let a = held.step(
+            0.005,
+            knobs(2.0, 2.0, 2.0),
+            gate,
+            voice(2.0, 2.0),
+            2,
+            &state,
+        );
+        let b = glitched.step(0.005, knobs(v, v, v), gate, voice(2.0, 2.0), 2, &state);
         assert_eq!(a, b, "sample {n}");
     }
 }
@@ -231,6 +259,7 @@ fn stays_finite() {
                         knobs(knob, 5.0 - knob, 5.0),
                         gate,
                         voice(bank as f32, patch as f32),
+                        2,
                         &state,
                     );
                     assert!(
@@ -302,10 +331,147 @@ fn a_gate_patched_again_rises() {
             knobs(2.5, 2.5, 4.0),
             Some(true),
             voice(0.0, 0.0),
+            2,
             &state,
         );
     }
     assert!(lane.gate);
-    lane.step(0.005, knobs(2.5, 2.5, 4.0), None, voice(0.0, 0.0), &state);
+    lane.step(
+        0.005,
+        knobs(2.5, 2.5, 4.0),
+        None,
+        voice(0.0, 0.0),
+        2,
+        &state,
+    );
     assert!(!lane.gate);
+}
+
+/// A note-on while the last note still sounds starts the new note in a
+/// silent voice, so a voice whose operators restart their phases at note-on
+/// leaves the sounding note to release: on the note-on's first sample the
+/// output is the release alone, give or take the new note's first step.
+#[test]
+fn a_retrigger_leaves_the_last_note_sounding() {
+    let state = SixOpState::new(48000.0);
+    let step = |lane: &mut Lane, gate: bool, voice: &Dx7Voice| {
+        lane.step(
+            220.0 / 48000.0,
+            knobs(2.5, 2.5, 0.0),
+            Some(gate),
+            voice,
+            2,
+            &state,
+        )
+    };
+    let mut worst = (0.0f32, "");
+    for (index, path) in test_voices::PLAITS_VOICES.iter().enumerate() {
+        let voice = voice((index / 32) as f32, (index % 32) as f32);
+        if !voice.patch().reset_phase {
+            continue;
+        }
+        let mut lane = new_lane(1);
+        let peak = (0..4800)
+            .map(|n| step(&mut lane, n < 4752, voice).abs())
+            .fold(0.0f32, f32::max);
+        let mut released = lane;
+        let error = (step(&mut lane, true, voice) - step(&mut released, false, voice)).abs();
+        if error / peak > worst.0 {
+            worst = (error / peak, path);
+        }
+    }
+    assert!(
+        worst.0 < 0.05,
+        "{}: {} of the note's peak",
+        worst.1,
+        worst.0
+    );
+}
+
+/// A fast attack rises over about as long as Plaits' block, not in a sample:
+/// bells with a snappy envelope, notes starting in the last ones' tails, step
+/// no more at a note-on than Plaits' own engine does (0.0114 there), whether
+/// the voice playing it is fresh or one a newer note faded out.
+#[test]
+fn a_fast_attack_ramps() {
+    let state = SixOpState::new(48000.0);
+    let bells = builtin("bells");
+    let semitones = [0.0f32, 3.0, 2.0, 7.0];
+    for voices in [1, 2, 3, 8] {
+        let mut lane = new_lane(1);
+        let out: Vec<f32> = (0..96000)
+            .map(|n| {
+                let f0 = voct_to_hz(-2.0 + semitones[n / 12000 % 4] / 12.0) / 48000.0;
+                let gate = Some(n % 12000 < 6000);
+                lane.step(f0, knobs(0.0, 0.17, 0.0), gate, bells, voices, &state)
+            })
+            .collect();
+        for note in 1..8 {
+            let n = note * 12000;
+            let step = (n..n + 60)
+                .map(|m| (out[m] - 2.0 * out[m - 1] + out[m - 2]).abs())
+                .fold(0.0f32, f32::max);
+            assert!(
+                step < 0.012,
+                "{voices} voices, note {note}: second difference {step}"
+            );
+        }
+    }
+}
+
+/// A note beyond `voices` fades the oldest out within a few milliseconds,
+/// leaving the newer notes sounding as if it had never played.
+#[test]
+fn a_note_past_the_count_fades_the_oldest() {
+    let state = SixOpState::new(48000.0);
+    let e_piano = builtin("e-piano-1");
+    let render = |first: bool| {
+        let mut lane = new_lane(1);
+        (0..24000)
+            .map(|n| {
+                let gate = if n < 12000 {
+                    first && n < 6000
+                } else {
+                    n < 18000
+                };
+                lane.step(0.004, knobs(2.5, 2.5, 0.0), Some(gate), e_piano, 1, &state)
+            })
+            .collect::<Vec<f32>>()
+    };
+    let (both, second) = (render(true), render(false));
+    let faded = 12000 + (0.006 * 48000.0) as usize;
+    assert!(both[12000..faded] != second[12000..faded]);
+    assert_eq!(both[faded..], second[faded..]);
+}
+
+/// A note-on that restarts the phases of a voice still sounding fades the
+/// cut-off sound out rather than stepping it: cs-80 restarts its phases at
+/// every note-on, and three of its operators never fall silent.
+#[test]
+fn a_restarted_voice_fades_out() {
+    let state = SixOpState::new(48000.0);
+    let cs80 = builtin("cs-80");
+    assert!(cs80.patch().reset_phase);
+    let semitones = [0.0f32, 3.0, 2.0, 7.0];
+    let mut lane = new_lane(1);
+    let out: Vec<f32> = (0..96000)
+        .map(|n| {
+            let f0 = voct_to_hz(-2.0 + semitones[n / 12000 % 4] / 12.0) / 48000.0;
+            lane.step(
+                f0,
+                knobs(2.23, 2.17, 1.075),
+                Some(n % 12000 < 6000),
+                cs80,
+                2,
+                &state,
+            )
+        })
+        .collect();
+    for note in 1..8 {
+        let n = note * 12000;
+        let step = (n..n + 60)
+            .map(|m| (out[m] - 2.0 * out[m - 1] + out[m - 2]).abs())
+            .fold(0.0f32, f32::max);
+        assert!(step < 0.02, "note {note}: second difference {step}");
+    }
 }
