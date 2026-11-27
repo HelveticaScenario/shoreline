@@ -1,5 +1,5 @@
 /** The kinds of workspace file a patch can load. */
-export type AssetKind = 'wav' | 'image' | 'video' | 'drawing';
+export type AssetKind = 'wav' | 'image' | 'video' | 'drawing' | 'syx';
 
 /** File extensions of each asset kind, lower case and without the dot. */
 export const ASSET_EXTENSIONS: Record<AssetKind, readonly string[]> = {
@@ -7,6 +7,7 @@ export const ASSET_EXTENSIONS: Record<AssetKind, readonly string[]> = {
     image: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif'],
     video: ['mp4', 'webm', 'mov', 'm4v', 'ogv'],
     drawing: ['svg'],
+    syx: ['syx'],
 };
 
 /** The asset kind a file name's extension marks, or undefined for any other file. */

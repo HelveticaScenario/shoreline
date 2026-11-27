@@ -6,6 +6,7 @@ import {
     BUILTIN_PREFIX,
     BUILTIN_WAVETABLES,
 } from './builtinAssets';
+import { BUILTIN_DX7_VOICES } from './builtinDx7';
 
 const builtinDir = join(__dirname, '..', '..', 'assets', 'builtin');
 
@@ -33,6 +34,12 @@ describe('built-in assets', () => {
     it('lists exactly the bundled drawings', () => {
         expect(BUILTIN_DRAWINGS.map((a) => a.path).sort()).toEqual(
             bundled(join(builtinDir, 'drawings'), '.svg').sort(),
+        );
+    });
+
+    it('lists exactly the bundled DX7 voices', () => {
+        expect(BUILTIN_DX7_VOICES.map((v) => v.path).sort()).toEqual(
+            bundled(join(builtinDir, 'dx7'), '.syx').sort(),
         );
     });
 });

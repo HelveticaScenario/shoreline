@@ -4,6 +4,7 @@ import {
     Folder,
     FolderOpen,
     Image,
+    KeyboardMusic,
     Parentheses,
     PenLine,
     type LucideIcon,
@@ -20,6 +21,7 @@ const FILE_ICONS: Record<NonNullable<FileTreeEntry['fileType']>, LucideIcon> = {
     image: Image,
     video: Film,
     drawing: PenLine,
+    syx: KeyboardMusic,
 };
 
 interface TreeNodeProps {

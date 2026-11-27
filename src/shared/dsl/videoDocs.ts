@@ -176,16 +176,12 @@ export const VIDEO_DOCS: VideoDoc[] = [
         name: 'scopeXY',
         group: 'Generators',
         description:
-            'An XY oscilloscope: `x` moves a glowing beam across the frame and `y` moves it up, drawn from every audio sample, so two sines a fifth apart trace a Lissajous figure. The beam is white, its opacity its brightness, on a transparent background, so laid over black it shows as a gray beam with a soft glow, laid over other signals it adds light, multiplying it by a color tints it, and `.a` reads its brightness as a gray. It can be warped and blurred like any video signal. Each frame the trail fades by `persistence` and the newest samples are drawn over it. `intensity`, `persistence` and `lineWidth` take sliders and audio signals as well as numbers, read once a frame and held within their ranges; they have one value for the whole beam, so they do not take video signals.\n\nEach lane is its own signal: the lanes of `x` and `y` are paired off in order, the shorter side cycling, and each pair draws one trace. `$scopeXY(x, y, config)` is a shorthand for `$v.scopeXY(x, y, config).out()`.',
+            'An XY oscilloscope of a stereo signal: its left side moves a glowing beam across the frame and its right side moves it up, drawn from every audio sample, so `$stereo` of two sines a fifth apart traces a Lissajous figure, and a stereo wav holding a drawing in its two channels draws it. The beam is white, its opacity its brightness, on a transparent background, so laid over black it shows as a gray beam with a soft glow, laid over other signals it adds light, multiplying it by a color tints it, and `.a` reads its brightness as a gray. It can be warped and blurred like any video signal. Each frame the trail fades by `persistence` and the newest samples are drawn over it. `intensity`, `persistence` and `lineWidth` take sliders and audio signals as well as numbers, read once a frame and held within their ranges; they have one value for the whole beam, so they do not take video signals.\n\nEach lane draws its own trace. A mono lane is both sides at once, so it draws a diagonal line. `$scopeXY(signal, config)` is a shorthand for `$v.scopeXY(signal, config).out()`.',
         params: [
             {
-                name: 'x',
+                name: 'signal',
                 description:
-                    'Horizontal signal: an audio signal, a number, or an array of them; each lane is a trace',
-            },
-            {
-                name: 'y',
-                description: 'Vertical signal, given the same way as `x`',
+                    'A stereo audio signal, or an array of them: left is horizontal, right is vertical, and each lane is a trace',
             },
             {
                 name: 'config.xRange',
@@ -224,13 +220,13 @@ export const VIDEO_DOCS: VideoDoc[] = [
             },
         ],
         examples: [
-            "$v.scopeXY($sine('c3'), $sine('g3')).out()",
-            "$v.out($v.mult($v.scopeXY($sine(['c3', 'e3']), $sine('g2'), { persistence: 0.9 }), $v.hsv(0.4, 0.8, 1)))",
-            "$scopeXY($sine('110hz'), $sine('165hz'), { lineWidth: 1.5 })",
-            "$scopeXY($sine('c3'), $sine('g3'), { intensity: $slider('Beam', 0.6, 0, 1), lineWidth: $sine('0.25hz').range(0.5, 3) })",
+            "$v.scopeXY($stereo($sine('c3'), $sine('g3'))).out()",
+            "$v.out($v.mult($v.scopeXY($stereo($sine(['c3', 'e3']), $sine('g2')), { persistence: 0.9 }), $v.hsv(0.4, 0.8, 1)))",
+            "$scopeXY($stereo($sine('110hz'), $sine('165hz')), { lineWidth: 1.5 })",
+            "$scopeXY($stereo($sine('c3'), $sine('g3')), { intensity: $slider('Beam', 0.6, 0, 1), lineWidth: $sine('0.25hz').range(0.5, 3) })",
         ],
         declarations: [
-            'scopeXY(x: ScopeAxis, y: ScopeAxis, config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | Collection | CollectionWithRange; persistence?: number | Collection | CollectionWithRange; lineWidth?: number | Collection | CollectionWithRange; upsample?: boolean }): VideoSignal;',
+            'scopeXY(signal: ScopeSignal, config?: { xRange?: [number, number]; yRange?: [number, number]; samples?: number; intensity?: number | Collection | CollectionWithRange; persistence?: number | Collection | CollectionWithRange; lineWidth?: number | Collection | CollectionWithRange; upsample?: boolean }): VideoSignal;',
         ],
     },
     {

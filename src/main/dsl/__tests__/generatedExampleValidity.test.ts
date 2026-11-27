@@ -16,7 +16,9 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { validatePatchGraph } from '@modular/core';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseSyx, validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
 import { dslModules } from '../../../shared/dsl/dslModuleDocs';
@@ -32,7 +34,7 @@ import { type DSLExecutionOptions, executePatchScript } from '../executor';
 //
 // A stub WAV loader so examples that play samples can build a graph without
 // real audio files on disk. Every path loads as the same two-second stereo
-// file.
+// file. DX7 voices load from the bundled files.
 
 const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
     channels: 2,
@@ -53,8 +55,12 @@ const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
 // Every drawing reads as the same small square.
 const stubReadDrawing: NonNullable<DSLExecutionOptions['readDrawing']> = () =>
     '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 H10 V10 H0 Z" stroke="black"/></svg>';
+/** Reads the bundled `.syx` files, which is all examples play. */
+const loadBuiltinSyx: NonNullable<DSLExecutionOptions['loadSyx']> = (path) =>
+    parseSyx(readFileSync(join(__dirname, '../../../../assets', path)));
 
 const EXECUTION_OPTIONS: DSLExecutionOptions = {
+    loadSyx: loadBuiltinSyx,
     loadMediaAudio: stubLoadMediaAudio,
     readDrawing: stubReadDrawing,
     sampleRate: 48_000,

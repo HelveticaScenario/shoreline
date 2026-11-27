@@ -53,7 +53,7 @@ const SVG_DOCS: ModuleDocs = ModuleDocs {
               'builtin/drawings/plover.svg',
               $ramp('20hz'),
             )
-            $scopeXY($left(pen), $right(pen))
+            $scopeXY(pen)
         "#,
     }],
 };

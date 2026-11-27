@@ -13,7 +13,9 @@ use modular_core::types::{ModuleSpec, PatchGraph, SameIds, Sampleable};
 use serde_json::{Value, json};
 
 mod common;
+mod dx7_common;
 use common::from_graph;
+use dx7_common::plaits_voice;
 
 /// Helper — build a mini-notation payload shaped like what `$(source)`
 /// would emit on the DSL side. `$cycle` takes a parsed payload, never a bare
@@ -416,7 +418,6 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.noise"
         | "$mi.particles"
         | "$mi.phaseDistortion"
-        | "$mi.sixOp"
         | "$mi.snare"
         | "$mi.speak"
         | "$mi.string"
@@ -433,6 +434,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.waveTerrain"
         | "$mi.waveshaper"
         | "$mi.zOsc" => json!({ "freq": 0.0 }),
+        "$mi.sixOp" => json!({ "freq": 0.0, "voice": plaits_voice(0, 0) }),
         "$pSine" | "$pSaw" | "$pPulse" => json!({ "phase": 0.0 }),
         "$lpf" | "$hpf" | "$jup6f" | "$multimode" | "$apf" | "$lpfSk" | "$hpfSk" | "$lpfLadder"
         | "$hpfLadder" | "$apfLadder" | "$lpfDiode" | "$hpfDiode" | "$lpfOta" | "$hpfOta"

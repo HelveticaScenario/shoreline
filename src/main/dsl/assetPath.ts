@@ -4,6 +4,7 @@ import {
     BUILTIN_PREFIX,
     BUILTIN_WAVETABLES,
 } from '../../shared/builtinAssets';
+import { BUILTIN_DX7_VOICES } from '../../shared/builtinDx7';
 
 /** The bundled files of each kind, by path. */
 const BUILTIN_PATHS: Record<AssetKind, ReadonlySet<string>> = {
@@ -11,6 +12,7 @@ const BUILTIN_PATHS: Record<AssetKind, ReadonlySet<string>> = {
     image: new Set(),
     video: new Set(),
     drawing: new Set(BUILTIN_DRAWINGS.map((asset) => asset.path)),
+    syx: new Set(BUILTIN_DX7_VOICES.map((voice) => voice.path)),
 };
 
 const EXAMPLE_PATHS: Record<AssetKind, string> = {
@@ -18,6 +20,7 @@ const EXAMPLE_PATHS: Record<AssetKind, string> = {
     image: '/pictures/photo.png',
     video: '/clips/loop.mp4',
     drawing: '/drawings/sketch.svg',
+    syx: '/dx7/rom1a.syx',
 };
 
 /**

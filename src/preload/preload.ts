@@ -167,6 +167,9 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.FS_GET_WORKSPACE]
         >;
         listFiles: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_LIST_FILES]>;
+        listSyxVoices: Promisify<
+            IPCHandlers[typeof IPC_CHANNELS.FS_LIST_SYX_VOICES]
+        >;
         /** Calls `callback` when files in the workspace folder change. */
         onTreeChange: (callback: () => void) => () => void;
         readFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_READ_FILE]>;
@@ -411,6 +414,8 @@ const electronAPI: ElectronAPI = {
         getWorkspace: (...args) => invokeIPC('FS_GET_WORKSPACE', ...args),
 
         listFiles: (...args) => invokeIPC('FS_LIST_FILES', ...args),
+
+        listSyxVoices: (...args) => invokeIPC('FS_LIST_SYX_VOICES', ...args),
 
         onTreeChange: menuEventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
 

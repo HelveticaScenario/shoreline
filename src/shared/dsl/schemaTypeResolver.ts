@@ -65,6 +65,7 @@ export function resolveRef(
     | 'Buffer'
     | 'Wav'
     | 'Drawing'
+    | 'Dx7Voice'
     | 'PhaseWarp'
     | 'EnoscScale'
     | 'Pattern' {
@@ -103,6 +104,9 @@ export function resolveRef(
     }
     if (defName === 'Drawing') {
         return 'Drawing';
+    }
+    if (defName === 'Dx7Voice') {
+        return 'Dx7Voice';
     }
     if (defName === 'PhaseWarp') {
         return 'PhaseWarp';
@@ -317,7 +321,11 @@ export function schemaToTypeExpr(
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
         }
-        if (resolved === 'Wav' || resolved === 'Drawing') {
+        if (
+            resolved === 'Wav' ||
+            resolved === 'Drawing' ||
+            resolved === 'Dx7Voice'
+        ) {
             return 'string';
         }
         if (resolved === 'PhaseWarp') {

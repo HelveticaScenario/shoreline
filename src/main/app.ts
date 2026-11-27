@@ -104,6 +104,7 @@ import * as os from 'os';
 import { promises as fsPromises } from 'fs';
 import * as path from 'path';
 import { createOpenFileWatcher } from './openFileWatcher';
+import { createSyxVoiceNames } from './syxVoiceNames';
 import { z } from 'zod';
 
 // Enable Node's source-map support so production stack traces (panics, errors)
@@ -1092,6 +1093,18 @@ function inWavWorkspace<T>(load: (path: string) => T): (path: string) => T {
     };
 }
 
+const loadSyx = inWavWorkspace((syxPath) => synth.loadSyx(syxPath));
+
+const syxVoiceNames = createSyxVoiceNames(
+    (workspacePath) =>
+        currentWorkspaceRoot
+            ? path.join(currentWorkspaceRoot, workspacePath)
+            : null,
+    loadSyx,
+);
+
+registerIPCHandler('FS_LIST_SYX_VOICES', (paths) => syxVoiceNames(paths));
+
 registerIPCHandler(
     'DSL_EXECUTE',
     (source, sourceId, trigger): DSLExecuteResult => {
@@ -1123,6 +1136,7 @@ registerIPCHandler(
                         currentWorkspaceRoot,
                         builtinAssetsDir(),
                     ),
+                loadSyx,
             });
             patch.moduleIdRemaps = [];
 
@@ -1572,6 +1586,9 @@ registerIPCHandler('FS_SELECT_WORKSPACE', async () => {
     currentWorkspaceRoot = workspaceRoot;
     console.log('Workspace selected:', workspaceRoot);
     watchWorkspace(workspaceRoot);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.FS_TREE_ON_CHANGE);
+    }
 
     // Save to config (load-merge-save to preserve other settings)
     configStore.update((config) => {

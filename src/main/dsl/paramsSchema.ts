@@ -100,6 +100,8 @@ export interface ParamDescriptor {
     isWavInput?: boolean;
     /** An SVG line drawing, written in the DSL as a file path. */
     isDrawingInput?: boolean;
+    /** A DX7 voice, written in the DSL as a `.syx` path and `#name`. */
+    isDx7VoiceInput?: boolean;
 }
 
 export type ProcessedModuleSchema = ModuleSchema & {
@@ -537,6 +539,7 @@ export function processModuleSchema(
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
             const isWavInput = referencesDef(s, 'Wav');
             const isDrawingInput = referencesDef(s, 'Drawing');
+            const isDx7VoiceInput = referencesDef(s, 'Dx7Voice');
             const isPolySignalInput =
                 !isLaneSumInput &&
                 !isScaleSignalInput &&
@@ -554,6 +557,7 @@ export function processModuleSchema(
                 ...(isScaleSignalInput && { isScaleSignalInput }),
                 ...(isWavInput && { isWavInput }),
                 ...(isDrawingInput && { isDrawingInput }),
+                ...(isDx7VoiceInput && { isDx7VoiceInput }),
                 ...(signalMeta && {
                     controlMax: signalMeta.controlMax,
                     controlMin: signalMeta.controlMin,

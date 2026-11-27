@@ -1,3 +1,3 @@
 kind: New
-body: 'New experimental `$svg` traces an SVG line drawing as a phase runs from 0 to 1, as a stereo signal with left–right on the left side and up–down on the right: `const pen = $svg(''builtin/drawings/plover.svg'', $ramp(''20hz''))`, then `$scopeXY($left(pen), $right(pen))` draws it. SVG files in your workspace show up in the file explorer and path completion, and a bundled plover drawing is listed on the Built-ins page.'
+body: 'New experimental `$svg` traces an SVG line drawing as a phase runs from 0 to 1, as a stereo signal with left–right on the left side and up–down on the right: `$scopeXY($svg(''builtin/drawings/plover.svg'', $ramp(''20hz'')))` draws it. SVG files in your workspace show up in the file explorer and path completion, and a bundled plover drawing is listed on the Built-ins page.'
 time: 2026-11-27T06:21:32.683115-05:00
