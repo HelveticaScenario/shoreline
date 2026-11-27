@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 import { exec } from './videoExec';
 
-const taps = (patch: ReturnType<typeof exec>['patch']) =>
+type Result = ReturnType<typeof exec>;
+
+const taps = (patch: Result['patch']) =>
     patch.modules.filter((m) => m.moduleType === '_videoTap');
+
+const sides = (patch: Result['patch']) =>
+    patch.modules.filter(
+        (m) => m.moduleType === '$left' || m.moduleType === '$right',
+    );
+
+/** The module the tap behind history row `row` reads. */
+const tapSource = (
+    patch: Result['patch'],
+    video: NonNullable<Result['video']>,
+    row: number,
+) => {
+    const tap = taps(patch).find(
+        (m) => m.params.slot === video.histories[row].tap,
+    )!;
+    const [cable] = tap.params.input as { module: string }[];
+    return patch.modules.find((m) => m.id === cable.module)!;
+};
 
 describe('$v.scopeXY', () => {
     it('draws one trace from a stereo signal with the default settings', () => {
@@ -46,17 +66,18 @@ describe('$v.scopeXY', () => {
             $v.scopeXY($stereo($sine('c4'), $saw('c4'))).out()
         `);
         const [trace] = video!.scopes[0].traces;
-        const byId = new Map(patch.modules.map((m) => [m.id, m]));
-        const sideOf = (row: number) => {
-            const tap = taps(patch).find(
-                (m) => m.params.slot === video!.histories[row].tap,
-            )!;
-            const [cable] = tap.params.input as { module: string }[];
-            const source = cable.module;
-            return byId.get(source)!.moduleType;
-        };
-        expect(sideOf(trace.x)).toBe('$left');
-        expect(sideOf(trace.y)).toBe('$right');
+        expect(tapSource(patch, video!, trace.x).moduleType).toBe('$left');
+        expect(tapSource(patch, video!, trace.y).moduleType).toBe('$right');
+    });
+
+    it('shares the taps of a signal drawn by several scopes', () => {
+        const { patch, video } = exec(`
+            const s = $stereo($sine('c4'), $saw('c4'))
+            $v.add($v.scopeXY(s), $v.scopeXY(s, { persistence: 0.9 })).out()
+        `);
+        expect(video!.scopes).toHaveLength(2);
+        expect(taps(patch)).toHaveLength(2);
+        expect(sides(patch)).toHaveLength(2);
     });
 
     it('takes an array mixing collections, numbers and notes', () => {
@@ -71,11 +92,13 @@ describe('$v.scopeXY', () => {
         expect(video!.scopes[0].traces).toHaveLength(5);
     });
 
-    it('draws a mono lane on both axes', () => {
+    it('draws a mono lane on both axes from one tap', () => {
         const { patch, video } = exec(`$v.scopeXY($sine('c4')).out()`);
         const [trace] = video!.scopes[0].traces;
-        expect(trace.x).not.toBe(trace.y);
-        expect(taps(patch)).toHaveLength(2);
+        expect(trace.y).toBe(trace.x);
+        expect(tapSource(patch, video!, trace.x).moduleType).toBe('$sine');
+        expect(taps(patch)).toHaveLength(1);
+        expect(sides(patch)).toHaveLength(0);
     });
 
     it('points a separate y signal at $stereo', () => {
@@ -83,6 +106,12 @@ describe('$v.scopeXY', () => {
             exec(`$v.scopeXY($sine('c4'), $sine('g4')).out()`),
         ).toThrow(/join two signals with \$stereo\(x, y\)/);
         expect(() => exec(`$scopeXY($sine('c4'), 2.5)`)).toThrow(/\$stereo/);
+        expect(() =>
+            exec(`$scopeXY($sine('c4'), $sine('g4').items[0])`),
+        ).toThrow(/\$stereo/);
+        expect(() =>
+            exec(`$scopeXY($sine('c4'), $g1([$sine('g4'), $sine('a4')]))`),
+        ).toThrow(/\$stereo/);
     });
 
     it('passes the config through', () => {
@@ -148,6 +177,7 @@ describe('$v.scopeXY', () => {
         expect(video!.scopes).toEqual([]);
         expect(video!.histories).toEqual([]);
         expect(taps(patch)).toHaveLength(0);
+        expect(sides(patch)).toHaveLength(0);
     });
 
     it('can be warped and composited like any signal', () => {

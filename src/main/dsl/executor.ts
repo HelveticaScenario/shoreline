@@ -751,6 +751,7 @@ export function executePatchScript(
         },
         side: (output, side) =>
             (side === 'left' ? $left : $right)(output) as Collection,
+        channelsOf: (output) => builder.channelsOf(output),
         cvSignal: (id) =>
             signal(0, { ...VIDEO_CV_RANGE, id }) as CollectionWithRange,
         mediaAudio: (path, playback) => {
