@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `$reverb`, `$granular`, `$granularSampler` and `$clockedDelay` no longer limit their output, so signals past 5 V pass at full level instead of being turned down, and a loud reverb no longer pumps or saturates. Their feedback still stays in check. If a patch relied on the old ceiling, turn the module down or follow it with your own limiting.
+
+    ```js
+    // before: a hot chord the reverb held down
+    pad: $saw($chord('C3[m7]')).reverb(4)
+    // after: turn the chord down to taste first
+    pad: $saw($chord('C3[m7]')).amp(0.5).reverb(4)
+    ```
+time: 2026-11-26T23:08:25.078514-05:00

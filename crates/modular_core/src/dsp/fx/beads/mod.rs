@@ -1,7 +1,7 @@
 //! Port of Mutable Instruments Beads (beads/dsp, copyright 2017 Emilie
 //! Gillet, MIT licence), split into modules: grain voices (`$granular`,
 //! `$granularSampler`), the delay mode (`$clockedDelay`), wow and flutter
-//! (`$wowFlutter`) and the reverb with its limiters (`$reverb`). Grains start
+//! (`$wowFlutter`) and the reverb (`$reverb`). Grains start
 //! on an external trigger.
 
 mod buffer;

@@ -152,11 +152,6 @@ impl Limiter {
     }
 
     #[inline]
-    pub fn process(&mut self, frame: Frame) -> Frame {
-        frame * self.gain(frame.l.abs().max(frame.r.abs()))
-    }
-
-    #[inline]
     pub fn process_mono(&mut self, x: f32) -> f32 {
         x * self.gain(x.abs())
     }

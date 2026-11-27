@@ -122,14 +122,15 @@ fn silence_stays_silent_in_every_quality() {
 
 #[test]
 fn dry_signal_passes_at_hardware_dry_gain() {
+    // A signal far past full scale passes unlimited.
     let mut p = delay_params(GranularQuality::Digital);
     p.mix = poly_volts(&[0.0]);
     let mut m = make(p);
     for n in 0..4800 {
-        let x = sine(220.0, n, SR, 1.0);
+        let x = sine(220.0, n, SR, 15.0);
         let y = step(&mut m, x, n as f64 / BAR);
         if n > 100 {
-            assert!((y - 0.75 * x).abs() < 1e-5, "{y} vs {x} at {n}");
+            assert!((y - 0.75 * x).abs() < 1e-4, "{y} vs {x} at {n}");
         }
     }
 }
@@ -197,10 +198,15 @@ fn feedback_stays_bounded_at_full() {
     p.bars = poly_volts(&[1.0 / 16.0]);
     p.feedback = poly_volts(&[5.0]);
     let mut m = make(p);
+    // The feedback limiter holds the recording within 5 V, so the output
+    // stays within the dry input plus the wet gain of 1.5 on 5 V.
     for n in 0..96_000 {
         let x = sine(330.0, n, SR, 4.0);
         let y = step(&mut m, x, n as f64 / BAR);
-        assert!(y.is_finite() && y.abs() <= 5.0 + 1e-3, "{y} at {n}");
+        assert!(
+            y.is_finite() && y.abs() <= 0.75 * 4.0 + 1.5 * 5.0,
+            "{y} at {n}"
+        );
     }
 }
 
