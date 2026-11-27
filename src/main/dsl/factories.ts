@@ -306,6 +306,11 @@ export class DSLContext {
     ) => {
         throw new Error(`${module}: WAV loading is not available`);
     };
+    private resolveDrawing: (module: string, path: unknown) => unknown = (
+        module,
+    ) => {
+        throw new Error(`${module}: drawing loading is not available`);
+    };
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -337,6 +342,16 @@ export class DSLContext {
      */
     setWavResolver(resolve: (module: string, path: unknown) => unknown): void {
         this.resolveWav = resolve;
+    }
+
+    /**
+     * Sets how a drawing param's path becomes the engine's reference, which
+     * carries the file's text; `module` names the module in errors.
+     */
+    setDrawingResolver(
+        resolve: (module: string, path: unknown) => unknown,
+    ): void {
+        this.resolveDrawing = resolve;
     }
 
     /**
@@ -395,6 +410,9 @@ export class DSLContext {
         const processed = processModuleSchema(schema);
         const wavParamNames = processed.params
             .filter((p) => p.isWavInput)
+            .map((p) => p.name);
+        const drawingParamNames = processed.params
+            .filter((p) => p.isDrawingInput)
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
         const signalParamNames = new Set(
@@ -476,6 +494,9 @@ export class DSLContext {
                 if (!isWavRef(params[name])) {
                     params[name] = this.resolveWav(schema.name, params[name]);
                 }
+            }
+            for (const name of drawingParamNames) {
+                params[name] = this.resolveDrawing(schema.name, params[name]);
             }
 
             // A pattern carries the spans of its own source literals, so

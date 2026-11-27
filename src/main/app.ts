@@ -82,6 +82,7 @@ import { serializeForIPC } from './serializeForIPC';
 import { resolveWorkspacePath } from './workspacePaths';
 import { isIgnoredName, readWorkspaceTree } from './workspaceTree';
 import { builtinAssetsDir } from './builtinAssetsDir';
+import { readDrawingFile } from './drawingFile';
 import { SyphonBridge, type SyphonStatus } from './syphon/SyphonBridge';
 import { syphonAction, type SyphonTarget } from './syphon/syphonTarget';
 import { requestCameraAccess, screenSource } from './liveSources';
@@ -1116,6 +1117,12 @@ registerIPCHandler(
                     synth.loadMediaAudio(mediaPath),
                 ),
                 loadWav: inWavWorkspace((wavPath) => synth.loadWav(wavPath)),
+                readDrawing: (drawingPath) =>
+                    readDrawingFile(
+                        drawingPath,
+                        currentWorkspaceRoot,
+                        builtinAssetsDir(),
+                    ),
             });
             patch.moduleIdRemaps = [];
 

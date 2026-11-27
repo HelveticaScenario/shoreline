@@ -5,6 +5,7 @@ import {
     FolderOpen,
     Image,
     Parentheses,
+    PenLine,
     type LucideIcon,
 } from 'lucide-react';
 import type { MouseEvent } from 'react';
@@ -18,6 +19,7 @@ const FILE_ICONS: Record<NonNullable<FileTreeEntry['fileType']>, LucideIcon> = {
     wav: AudioLines,
     image: Image,
     video: Film,
+    drawing: PenLine,
 };
 
 interface TreeNodeProps {

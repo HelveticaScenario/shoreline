@@ -184,6 +184,8 @@ export interface DSLExecutionOptions {
      * it has none. The returned `path` names the decoded audio for a `Wav`.
      */
     loadMediaAudio?: (path: string) => LoadedWav | null;
+    /** The text of an SVG file named by a `/`-rooted workspace or `builtin/` path. */
+    readDrawing?: (path: string) => string;
 }
 
 // Install pipe() on Array.prototype so arrays in the DSL can use it.
@@ -797,6 +799,17 @@ export function executePatchScript(
         return timedWavLoad(() => options.loadWav!(rooted));
     };
     context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+    context.setDrawingResolver((module, path) => {
+        const rooted = assetPath(module, path, 'drawing');
+        if (!options.readDrawing) {
+            throw new Error(`${module}: drawing loading is not available`);
+        }
+        return {
+            type: 'drawing_ref' as const,
+            path: rooted,
+            svg: options.readDrawing(rooted),
+        };
+    });
 
     /** The format, tempo, loops and cue points of a WAV file. */
     const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));

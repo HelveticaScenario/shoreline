@@ -50,8 +50,13 @@ const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
     path,
 ) => ({ ...stubLoadWav(`media:${path}`), bitDepth: 32 });
 
+// Every drawing reads as the same small square.
+const stubReadDrawing: NonNullable<DSLExecutionOptions['readDrawing']> = () =>
+    '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 H10 V10 H0 Z" stroke="black"/></svg>';
+
 const EXECUTION_OPTIONS: DSLExecutionOptions = {
     loadMediaAudio: stubLoadMediaAudio,
+    readDrawing: stubReadDrawing,
     sampleRate: 48_000,
     workspaceRoot: '/workspace',
     loadWav: stubLoadWav,

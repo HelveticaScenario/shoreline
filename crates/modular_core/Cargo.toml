@@ -34,6 +34,7 @@ strum = { version = "0.27", features = ["derive"] }
 rustfft = "6.2"
 bumpalo = { version = "3.16", features = ["collections"] }
 wide = "1.7.1"
+usvg = { version = "0.50.0", default-features = false }
 
 [dev-dependencies]
 criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }

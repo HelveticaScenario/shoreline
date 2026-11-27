@@ -9,6 +9,7 @@ import type { FileTreeEntry } from '../../../shared/ipcTypes';
 import type { AssetKind } from '../../../shared/assetFiles';
 import {
     BUILTIN_PREFIX,
+    BUILTIN_DRAWINGS,
     BUILTIN_WAVETABLES,
 } from '../../../shared/builtinAssets';
 
@@ -113,6 +114,7 @@ const ASSET_DETAILS: Record<AssetKind, string> = {
     wav: 'WAV file',
     image: 'Image',
     video: 'Video',
+    drawing: 'SVG drawing',
 };
 
 /** Every asset in a file tree, with its `/`-rooted workspace path. */
@@ -161,9 +163,16 @@ interface PathSuggestion {
     detail: string;
 }
 
-const BUILTIN_SUGGESTIONS: PathSuggestion[] = BUILTIN_WAVETABLES.map(
-    ({ path }) => ({ path, detail: ASSET_DETAILS.wav }),
-);
+const BUILTIN_SUGGESTIONS: PathSuggestion[] = [
+    ...BUILTIN_WAVETABLES.map(({ path }) => ({
+        path,
+        detail: ASSET_DETAILS.wav,
+    })),
+    ...BUILTIN_DRAWINGS.map(({ path }) => ({
+        path,
+        detail: ASSET_DETAILS.drawing,
+    })),
+];
 
 /** The workspace assets `listFiles` lists, or none when it fails. */
 async function workspaceSuggestions(

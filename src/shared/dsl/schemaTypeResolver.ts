@@ -64,6 +64,7 @@ export function resolveRef(
     | 'LaneSum<Signal>'
     | 'Buffer'
     | 'Wav'
+    | 'Drawing'
     | 'PhaseWarp'
     | 'EnoscScale'
     | 'Pattern' {
@@ -99,6 +100,9 @@ export function resolveRef(
     }
     if (defName === 'Wav') {
         return 'Wav';
+    }
+    if (defName === 'Drawing') {
+        return 'Drawing';
     }
     if (defName === 'PhaseWarp') {
         return 'PhaseWarp';
@@ -313,7 +317,7 @@ export function schemaToTypeExpr(
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
         }
-        if (resolved === 'Wav') {
+        if (resolved === 'Wav' || resolved === 'Drawing') {
             return 'string';
         }
         if (resolved === 'PhaseWarp') {

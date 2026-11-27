@@ -492,6 +492,14 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$sampler" => {
             json!({ "wav": { "type": "wav_ref", "path": "test", "channels": 1 }, "gate": 0.0 })
         }
+        "$svg" => json!({
+            "file": {
+                "type": "drawing_ref",
+                "path": "test.svg",
+                "svg": r#"<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 H10 V10" stroke="black"/></svg>"#
+            },
+            "phase": 0.0
+        }),
         "$wavetable" => {
             json!({ "wav": { "type": "wav_ref", "path": "test", "channels": 1 }, "pitch": 0.0 })
         }

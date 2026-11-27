@@ -11,6 +11,7 @@ import {
 } from './workspacePathCompletion';
 import {
     BUILTIN_PREFIX,
+    BUILTIN_DRAWINGS,
     BUILTIN_WAVETABLES,
 } from '../../../shared/builtinAssets';
 
@@ -326,7 +327,9 @@ describe('workspace path completion', () => {
     });
 
     test('offers the bundled files in a literal starting with builtin/ or part of it', async () => {
-        const builtins = BUILTIN_WAVETABLES.map((a) => `'${a.path}'`);
+        const builtins = [...BUILTIN_WAVETABLES, ...BUILTIN_DRAWINGS].map(
+            (a) => `'${a.path}'`,
+        );
         for (const typed of ['b', 'builtin', 'builtin/', 'builtin/tables/be']) {
             const line = `$wavetable('c3', '${typed}')`;
             const list = await complete(line, 19 + typed.length);

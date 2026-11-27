@@ -48,12 +48,7 @@ export type ParamKind =
     | 'unknown';
 
 export type ParamType =
-    | 'audio'
-    | 'pitch'
-    | 'frequency'
-    | 'gate'
-    | 'trig'
-    | 'control';
+    'audio' | 'pitch' | 'frequency' | 'gate' | 'trig' | 'control';
 
 const PARAM_TYPES = new Set<string>([
     'audio',
@@ -103,6 +98,8 @@ export interface ParamDescriptor {
     isScaleSignalInput?: boolean;
     /** A WAV file, written in the DSL as a `/`-rooted workspace path. */
     isWavInput?: boolean;
+    /** An SVG line drawing, written in the DSL as a file path. */
+    isDrawingInput?: boolean;
 }
 
 export type ProcessedModuleSchema = ModuleSchema & {
@@ -539,6 +536,7 @@ export function processModuleSchema(
             const isLaneSumInput = referencesDef(s, 'LaneSum');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
             const isWavInput = referencesDef(s, 'Wav');
+            const isDrawingInput = referencesDef(s, 'Drawing');
             const isPolySignalInput =
                 !isLaneSumInput &&
                 !isScaleSignalInput &&
@@ -555,6 +553,7 @@ export function processModuleSchema(
                 ...(isLaneSumInput && { isLaneSumInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
                 ...(isWavInput && { isWavInput }),
+                ...(isDrawingInput && { isDrawingInput }),
                 ...(signalMeta && {
                     controlMax: signalMeta.controlMax,
                     controlMin: signalMeta.controlMin,
