@@ -18,8 +18,8 @@ export const GUIDE_CHAPTERS: readonly GuideChapter[] = [
     {
         heading: 'Shoreline',
         id: 'welcome',
-        lede: 'A modular synthesizer you play by writing code. Each line builds modules and patches them together; change a line, update, and the music carries on.',
-        summary: 'A first sound, and where to go next.',
+        lede: 'A modular synthesizer you play by writing code. Every line builds modules and patches them together. Change a line, update, and the music carries on without missing a beat.',
+        summary: 'A first sound, and help as you type.',
         title: 'Welcome',
     },
     {
@@ -39,12 +39,12 @@ export const GUIDE_CHAPTERS: readonly GuideChapter[] = [
     },
     {
         id: 'controls',
-        summary: 'Sliders to play with and scopes to see your signals.',
+        summary: 'Sliders and buttons to play, and scopes to see your signals.',
         title: 'Controls & displays',
     },
     {
         id: 'mixing',
-        summary: 'Track levels and panning, buses, sends and groups.',
+        summary: 'Levels and panning, shared effects and groups.',
         title: 'Mixing & routing',
     },
     {

@@ -1,17 +1,18 @@
 ## The mixer
 
-<Key command="shoreline.toggleMixer" /> shows the mixer, with a strip per track.
-Its level, pan, mute and solo edit the track's label and `.track()` options in
-your code, so the mix lives in the patch.
+Press <Key command="shoreline.toggleMixer" /> to show the mixer, which has a strip for every track. A
+strip's level, pan, mute and solo edit that track's label and `.track()`
+options in your code, so the mix lives in the patch along with everything
+else.
 
 ## Track options
 
-`.track()` at the end of a track sets how it sits in the mix:
+Add `.track()` to the end of a track to set how it sits in the mix:
 
 | Option   | Sets                                                             |
 | -------- | ---------------------------------------------------------------- |
-| `gain`   | the level: 5 is unity, and each step of 1 is 12 dB               |
-| `pan`    | the position: -5 left, 0 centre, 5 right                         |
+| `gain`   | the level, where 5 is unity and each step of 1 is 12 dB          |
+| `pan`    | the position, with -5 left, 0 centre and 5 right                 |
 | `spread` | how far a chord's voices fan out across the stereo field, 0 to 5 |
 | `sends`  | the buses this track also feeds                                  |
 
@@ -21,8 +22,9 @@ lead: $saw('c4:m7').lpf('c6').track({ gain: 4, pan: -2, spread: 3 })
 
 ## Buses and sends
 
-A bus is a track other tracks send to, for an effect they share. List it in a
-track's `sends`, alone or with a level where 5 is full:
+A bus is a track that other tracks send to, which is how several of them
+share one effect. To feed a bus from a track, list the bus in that track's
+`sends`, either alone or with a level, where 5 is full:
 
 ```js
 verb: $bus().plate().track({ gain: 3 })
@@ -33,7 +35,8 @@ keys: $saw('c4:M7').lpf('c5').track({ sends: verb })
 ## Groups
 
 A track labelled `name$group` plays into the group track `group` instead of
-the outputs. The group mixes them and can process the mix like any signal:
+going to the outputs. The group mixes its tracks together, and you can process
+that mix like any other signal:
 
 ```js
 kick$drums: $tr808.kick($`c ~ c ~`)

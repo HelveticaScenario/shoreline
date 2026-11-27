@@ -1,8 +1,8 @@
 ## Tracks
 
-A line with a label is a track: it gets a strip in the mixer and you hear it.
-A line without one builds its modules and stays silent, ready to use
-elsewhere.
+Put a label in front of a line and it becomes a track. It gets a strip in the
+mixer, and you hear it. A line without a label still builds its modules, but
+they stay silent, ready for other lines to use.
 
 ```js
 const seq = $`c2 ~ eb2 g2`
@@ -16,25 +16,23 @@ _lead: $sine('c5')
 | `lead_synth:`        | a track the mixer shows as "lead synth"        |
 | `_bass:`             | muted                                          |
 | `S_bass:`            | soloed                                         |
-| `S__bass:`           | muted and soloed: solo wins                    |
+| `S__bass:`           | muted and soloed, and solo wins                |
 | `bass$2:`            | plays on outputs 2 and 3                       |
 | `bass$2m:`           | plays in mono on output 2                      |
 | `kick$drums:`        | plays into the group track `drums`             |
-| a line with no label | builds modules for other lines to use, unheard |
+| a line with no label | builds modules for other lines, makes no sound |
 
-A track's name works like a `const` in the rest of the patch, so later lines
-can read it.
+A track's name is also a name you can use anywhere in the patch, on lines
+before the track as well as after it.
 
 ## Updating
 
-<Key command="shoreline.updatePatch" /> runs the patch and plays it, and
-<Key command="shoreline.stop" /> stops. Edit and update as often as you like:
-modules you kept carry on where they were, so phases, envelopes and sequences
-don't restart.
+Press <Key command="shoreline.updatePatch" /> to run the patch and play it, and <Key command="shoreline.stop" /> to stop.
+Edit and update as often as you like. Any module you kept carries on from
+where it was, so phases, envelopes and sequences don't restart under you.
 
-To land a change on the beat, press <Key command="shoreline.updatePatchNextBeat" />: the update waits for the next
-beat. <Key command="shoreline.cancelQueuedUpdate" /> cancels an update that is
-still waiting.
+To land a change on the beat, press <Key command="shoreline.updatePatchNextBeat" /> instead, and the update waits
+for the next beat. If you change your mind while it is still waiting, <Key command="shoreline.cancelQueuedUpdate" /> cancels it.
 
 ## Where things are
 
@@ -46,7 +44,8 @@ still waiting.
 | Docs            | this guide, and every module and global                           |
 | Command palette | every command and its shortcut                                    |
 
-<Key command="shoreline.openWorkspace" /> opens a folder as your workspace,
-<Key command="shoreline.save" /> saves, <Key command="shoreline.toggleMixer" />
-shows the mixer and <Key command="shoreline.showCommandPalette" /> opens the
-command palette.
+A few shortcuts are worth learning early. Press
+<Key command="shoreline.openWorkspace" /> to open a folder as your workspace,
+<Key command="shoreline.save" /> to save and <Key command="shoreline.toggleMixer" />
+to show the mixer. When you can't remember the rest,
+<Key command="shoreline.showCommandPalette" /> opens the command palette.

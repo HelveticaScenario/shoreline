@@ -1,46 +1,50 @@
 ## Pitch
 
-Anything that takes a pitch takes it in any of these forms:
+Wherever a module wants a pitch, you can write it in any of these ways:
 
 | Write          | Plays                                             |
 | -------------- | ------------------------------------------------- |
 | `'a3'`         | the note A3                                       |
-| `'eb'`         | E♭ in octave 4, the octave a note name leaves out |
+| `'eb'`         | E♭ in octave 4, where a note with no octave lands |
 | `'220hz'`      | 220 Hz                                            |
 | `'c3:m7'`      | every note of a C minor seventh at once           |
 | `'d3(dorian)'` | every note of D dorian at once                    |
-| `-1`           | a pitch voltage: 1 V per octave, 0 at C4, so C3   |
+| `-1`           | a pitch voltage, 1 V per octave with 0 at C4: C3  |
 
 ```js
 note: $saw('a3')
 chord: $saw('c3:m7')
 ```
 
-A chord or scale plays each note on a voice of its own, and everything after
-it in the chain handles every voice.
+A chord or scale plays each of its notes on a voice of its own. Everything
+after it in the chain handles all of those voices, so you only write the chain
+once.
 
 ## Chaining
 
-Every module that takes a signal chains onto one with a dot. This runs a saw
-through a lowpass filter and halves its level:
+Any module that takes a signal can be chained onto one with a dot, much like
+patching one module into the next. This line runs a saw through a lowpass
+filter, then halves its level:
 
 ```js
 bass: $saw('c2').lpf('400hz').amp(2.5)
 ```
 
-`$saw('c2').lpf('400hz')` is the same as `$lpf($saw('c2'), '400hz')`, so use
-whichever reads better. Levels and gains use 5 for unity, so `.amp(2.5)` is
-half and `.amp(5)` leaves the signal as it is.
+`$saw('c2').lpf('400hz')` means the same as `$lpf($saw('c2'), '400hz')`, so
+use whichever reads better to you. Levels and gains treat 5 as unity, which
+makes `.amp(2.5)` half, while `.amp(5)` leaves the signal as it is.
 
 ## Modulation
 
-Any parameter can take a signal instead of a fixed value. Here a slow sine
-sweeps the filter cutoff between two notes:
+Any parameter can take a signal in place of a fixed value, and that is how a
+patch starts to move. Here a slow sine sweeps the filter cutoff back and forth
+between two notes:
 
 ```js
 const sweep = $sine('0.25hz').range('c4', 'c7')
 pad: $saw('c3:M9').lpf(sweep, 2)
 ```
 
-`.range(low, high)` rescales a signal to swing between two values, in volts,
-notes or Hz. The second argument to `lpf` is the resonance.
+`.range(low, high)` rescales a signal so that it swings between two values,
+which you can give in volts, notes or Hz. The second argument to `lpf` is the
+resonance.
