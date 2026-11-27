@@ -79,6 +79,12 @@ struct PhaseDistortionParams {
     #[serde(default)]
     #[deserr(default)]
     fm_mode: FmMode,
+    #[input(
+        "a new voice stays silent until its wave first crosses zero, so it starts without a click"
+    )]
+    #[serde(default = "crate::dsp::utils::default_true")]
+    #[deserr(default = crate::dsp::utils::default_true())]
+    wait_for_zero_cross: bool,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -162,6 +168,42 @@ struct Controls {
     ratio: f32,
 }
 
+/// A voice's start mute. A voice carried over by a patch update keeps its
+/// gate, so only a voice that has never rendered waits.
+#[derive(Clone, Copy, Default)]
+enum Gate {
+    #[default]
+    Fresh,
+    /// Muted until the output's sign differs from this, or it reaches 0.
+    Waiting(f32),
+    Open,
+}
+
+impl Gate {
+    #[inline(always)]
+    fn pass(&mut self, out: f32, wait_for_zero_cross: bool) -> f32 {
+        match *self {
+            Gate::Open => out,
+            Gate::Fresh if !wait_for_zero_cross => {
+                *self = Gate::Open;
+                out
+            }
+            Gate::Waiting(last) if (out > 0.0) != (last > 0.0) => {
+                *self = Gate::Open;
+                out
+            }
+            _ if out == 0.0 => {
+                *self = Gate::Open;
+                out
+            }
+            _ => {
+                *self = Gate::Waiting(out);
+                0.0
+            }
+        }
+    }
+}
+
 #[derive(Clone, Copy, SeedSide)]
 struct Voice {
     oscillator: PdOscillator,
@@ -178,6 +220,7 @@ struct Voice {
     /// Modulator multiplier for the cached ratio knob; `NaN` = never computed.
     last_ratio: f32,
     multiplier: f32,
+    gate: Gate,
 }
 
 impl Default for Voice {
@@ -197,6 +240,7 @@ impl Default for Voice {
             seeded: false,
             last_ratio: f32::NAN,
             multiplier: 1.0,
+            gate: Gate::Fresh,
         }
     }
 }
@@ -314,6 +358,7 @@ impl PhaseDistortion {
             };
             let controls = voice.control(f0, knobs, &self.state);
             let out = voice.step(controls, p.sync, &self.state);
+            let out = voice.gate.pass(out, p.wait_for_zero_cross);
             self.outputs.sample.set(lane, OUTPUT_GAIN * out);
         }
     }
