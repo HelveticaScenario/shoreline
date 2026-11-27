@@ -384,6 +384,120 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@codemirror/autocomplete@npm:^6.0.0, @codemirror/autocomplete@npm:^6.20.4":
+  version: 6.20.4
+  resolution: "@codemirror/autocomplete@npm:6.20.4"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.17.0"
+    "@lezer/common": "npm:^1.0.0"
+  checksum: 10c0/f823a470dd0eccecc83e6ec527017c8fa70f2c4e98e4d4a1ed1d93b671f7271e590fb6899cd22a6608ffb1fb44b09613685969c1a43928cb80639640e4055da1
+  languageName: node
+  linkType: hard
+
+"@codemirror/commands@npm:^6.11.2":
+  version: 6.11.2
+  resolution: "@codemirror/commands@npm:6.11.2"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.7.0"
+    "@codemirror/view": "npm:^6.27.0"
+    "@lezer/common": "npm:^1.1.0"
+  checksum: 10c0/9866363cf66994b04de8620b20eba71e4a87ac6bab3f146b550bd1f8ff8f56ae5bdde019cb64afcfc097b2480842dc0da916be3e87f66a142ce309b1777772d6
+  languageName: node
+  linkType: hard
+
+"@codemirror/lang-javascript@npm:^6.2.5":
+  version: 6.2.5
+  resolution: "@codemirror/lang-javascript@npm:6.2.5"
+  dependencies:
+    "@codemirror/autocomplete": "npm:^6.0.0"
+    "@codemirror/language": "npm:^6.6.0"
+    "@codemirror/lint": "npm:^6.0.0"
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.17.0"
+    "@lezer/common": "npm:^1.0.0"
+    "@lezer/javascript": "npm:^1.0.0"
+  checksum: 10c0/a9b10c58ad9dbcc54e17a641a114fc7718e362281dc9533828ed2a3a09270eb5677febb4ddad6d0cc2c439496f0ba0b7aa893d08de0b1ddc44df5c9ab0d7d299
+  languageName: node
+  linkType: hard
+
+"@codemirror/lang-json@npm:^6.0.2":
+  version: 6.0.2
+  resolution: "@codemirror/lang-json@npm:6.0.2"
+  dependencies:
+    "@codemirror/language": "npm:^6.0.0"
+    "@lezer/json": "npm:^1.0.0"
+  checksum: 10c0/4a36022226557d0571c143f907638eb2d46c0f7cf96c6d9a86dac397a789efa2b387e3dd3df94bac21e27692892443b24f8129c044c9012df66e68f5080745b0
+  languageName: node
+  linkType: hard
+
+"@codemirror/language@npm:^6.0.0, @codemirror/language@npm:^6.13.1, @codemirror/language@npm:^6.6.0":
+  version: 6.13.1
+  resolution: "@codemirror/language@npm:6.13.1"
+  dependencies:
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/streamparser": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.23.0"
+    "@lezer/common": "npm:^1.5.0"
+    "@lezer/highlight": "npm:^1.0.0"
+    "@lezer/lr": "npm:^1.0.0"
+    style-mod: "npm:^4.0.0"
+  checksum: 10c0/2ff0cb0d1ad7196138093f2bf8642090f5420ce090c20df5bf4888b4a1d7ae3545b1ea7a0a9b7aa0c6a5a2b5c19326cca36812038beec0a5874e01de03849b44
+  languageName: node
+  linkType: hard
+
+"@codemirror/lint@npm:^6.0.0, @codemirror/lint@npm:^6.9.8":
+  version: 6.9.8
+  resolution: "@codemirror/lint@npm:6.9.8"
+  dependencies:
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.42.0"
+    crelt: "npm:^1.0.5"
+  checksum: 10c0/d2c3504ec8049e87c747a4e10c89f6841755b6876bebd8b5f6a9f23155e5ccca6d3c268bc043492628fd2415d832d469cdefba4bab6de79fc1596ee41e65925b
+  languageName: node
+  linkType: hard
+
+"@codemirror/search@npm:^6.7.3":
+  version: 6.7.3
+  resolution: "@codemirror/search@npm:6.7.3"
+  dependencies:
+    "@codemirror/state": "npm:^6.0.0"
+    "@codemirror/view": "npm:^6.37.0"
+    crelt: "npm:^1.0.5"
+  checksum: 10c0/bbdacb4a26659cbd1a88ed6e7562ebce84a3df72265f7f5ca667a3988e89f006d416f40daa7480e32fb98655caf9af3d37e99128f5722ca3821c89d7c61cbd83
+  languageName: node
+  linkType: hard
+
+"@codemirror/state@npm:^6.0.0, @codemirror/state@npm:^6.7.0, @codemirror/state@npm:^6.7.6":
+  version: 6.7.6
+  resolution: "@codemirror/state@npm:6.7.6"
+  dependencies:
+    "@marijn/find-cluster-break": "npm:^1.0.0"
+  checksum: 10c0/1ea16c30571210d40f6161a3a43b221fa1522fdcfef4836f6063dcd3d04fd2d5f4aefbc5cfdcd30f7d9df96985967cfb12cd876e4abb1cd41bff41ec8f3d328e
+  languageName: node
+  linkType: hard
+
+"@codemirror/streamparser@npm:^6.0.0":
+  version: 6.0.0
+  resolution: "@codemirror/streamparser@npm:6.0.0"
+  checksum: 10c0/6bff019d5ef905e1aac77a8a10170c3910fb55a0ae610259e0295924399fad4a62f96f27848d80a7ab1ef237256a6d2a1012278693aec5a9937b9c9696b05815
+  languageName: node
+  linkType: hard
+
+"@codemirror/view@npm:^6.17.0, @codemirror/view@npm:^6.23.0, @codemirror/view@npm:^6.27.0, @codemirror/view@npm:^6.37.0, @codemirror/view@npm:^6.42.0, @codemirror/view@npm:^6.44.2":
+  version: 6.44.2
+  resolution: "@codemirror/view@npm:6.44.2"
+  dependencies:
+    "@codemirror/state": "npm:^6.7.0"
+    crelt: "npm:^1.0.6"
+    style-mod: "npm:^4.1.0"
+    w3c-keyname: "npm:^2.2.4"
+  checksum: 10c0/7f1ec7e22b56ebcaf6c57d919dedfa2b4f234a979b120635c8fc52f46c53aa297b5fd2c2bf355b6b6da01de0d21001e2f9175adfb7ec7bc17573d6eaba1230bc
+  languageName: node
+  linkType: hard
+
 "@electron-forge/cli@npm:^7.10.2":
   version: 7.10.2
   resolution: "@electron-forge/cli@npm:7.10.2"
@@ -1893,6 +2007,53 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@lezer/common@npm:^1.0.0, @lezer/common@npm:^1.1.0, @lezer/common@npm:^1.2.0, @lezer/common@npm:^1.3.0, @lezer/common@npm:^1.5.0":
+  version: 1.5.7
+  resolution: "@lezer/common@npm:1.5.7"
+  checksum: 10c0/67a25392e4c5e3f7d61fe90e77ba3ebb8f1d1edaa25a3e74ef84a79e04e00a26436a2a116a7e4bacb2251734eb722718c4d1d1e99a4ddcac1d2cdd4f0121d1f1
+  languageName: node
+  linkType: hard
+
+"@lezer/highlight@npm:^1.0.0, @lezer/highlight@npm:^1.1.3, @lezer/highlight@npm:^1.2.5":
+  version: 1.2.5
+  resolution: "@lezer/highlight@npm:1.2.5"
+  dependencies:
+    "@lezer/common": "npm:^1.3.0"
+  checksum: 10c0/cb40f6efd8ba947b4a391368114ae394e36cbb2b7db07a7629278f9feed953d909868296f4acb936c7b70e4e7032458c5fcd6a2e836012ae6c02790b2de574fa
+  languageName: node
+  linkType: hard
+
+"@lezer/javascript@npm:^1.0.0":
+  version: 1.5.7
+  resolution: "@lezer/javascript@npm:1.5.7"
+  dependencies:
+    "@lezer/common": "npm:^1.2.0"
+    "@lezer/highlight": "npm:^1.1.3"
+    "@lezer/lr": "npm:^1.3.0"
+  checksum: 10c0/5bd5720c8d563f21d2c18945e15ec5d41d54a47b5c33aa2a0a100e01176557106555c3a5d8ee1fb34db4400d9bffc093ccd46c1e3c08521ade502df6d664d637
+  languageName: node
+  linkType: hard
+
+"@lezer/json@npm:^1.0.0":
+  version: 1.0.3
+  resolution: "@lezer/json@npm:1.0.3"
+  dependencies:
+    "@lezer/common": "npm:^1.2.0"
+    "@lezer/highlight": "npm:^1.0.0"
+    "@lezer/lr": "npm:^1.0.0"
+  checksum: 10c0/e91c957cc0825e927b55fbcd233d7ee0b39f9c2a89d9475489f394b7eba2b59e5f480d157a12d5cd6ae6f14bc99f9ccd8e8113baad498199ef1b13c49105f546
+  languageName: node
+  linkType: hard
+
+"@lezer/lr@npm:^1.0.0, @lezer/lr@npm:^1.3.0":
+  version: 1.4.13
+  resolution: "@lezer/lr@npm:1.4.13"
+  dependencies:
+    "@lezer/common": "npm:^1.0.0"
+  checksum: 10c0/2af71762c5b207e143b2bfe8694368e0b2be01e371c8dd9b0c454176d78639572b2f6428934b28c63eff9623b947e137e95f6c7439f18ff6b924b4951e11045d
+  languageName: node
+  linkType: hard
+
 "@listr2/prompt-adapter-inquirer@npm:^2.0.22":
   version: 2.0.22
   resolution: "@listr2/prompt-adapter-inquirer@npm:2.0.22"
@@ -1950,11 +2111,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@marijn/find-cluster-break@npm:^1.0.0":
+  version: 1.0.4
+  resolution: "@marijn/find-cluster-break@npm:1.0.4"
+  checksum: 10c0/6b3dc07fbccacad4cb58029bae59a106dd51be91a15b2810a62e4bf7adc633091eb0a23619f4da7f83f8b52c739b6f5674e8204883d1b34798df9bbf8f472df6
+  languageName: node
+  linkType: hard
+
 "@modular/app@workspace:.":
   version: 0.0.0-use.local
   resolution: "@modular/app@workspace:."
   dependencies:
     "@babel/core": "npm:^7.29.0"
+    "@codemirror/autocomplete": "npm:^6.20.4"
+    "@codemirror/commands": "npm:^6.11.2"
+    "@codemirror/lang-javascript": "npm:^6.2.5"
+    "@codemirror/lang-json": "npm:^6.0.2"
+    "@codemirror/language": "npm:^6.13.1"
+    "@codemirror/lint": "npm:^6.9.8"
+    "@codemirror/search": "npm:^6.7.3"
+    "@codemirror/state": "npm:^6.7.6"
+    "@codemirror/view": "npm:^6.44.2"
     "@electron-forge/cli": "npm:^7.10.2"
     "@electron-forge/maker-deb": "npm:^7.10.2"
     "@electron-forge/maker-flatpak": "npm:^7.10.2"
@@ -1987,6 +2164,7 @@ __metadata:
     "@fontsource/roboto-mono": "npm:^5.3.0"
     "@fontsource/source-code-pro": "npm:^5.3.1"
     "@fontsource/victor-mono": "npm:^5.3.0"
+    "@lezer/highlight": "npm:^1.2.5"
     "@monaco-editor/react": "npm:^4.7.0"
     "@playwright/test": "npm:^1.65.1"
     "@strudel/core": "npm:1.2.5"
@@ -2023,6 +2201,7 @@ __metadata:
     tinykeys: "npm:^3.0.0"
     tsx: "npm:^4.23.15"
     typescript: "npm:~5.9.3"
+    typescript-7: "npm:typescript@7.1.0-beta"
     uuid: "npm:^14.0.3"
     vite: "npm:^8.3.8"
     vitest: "npm:^5.1.1"
@@ -4435,6 +4614,153 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@typescript/typescript-aix-ppc64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-aix-ppc64@npm:7.1.0-beta"
+  conditions: os=aix & cpu=ppc64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-android-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-android-arm64@npm:7.1.0-beta"
+  conditions: os=android & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-darwin-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-darwin-arm64@npm:7.1.0-beta"
+  conditions: os=darwin & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-darwin-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-darwin-x64@npm:7.1.0-beta"
+  conditions: os=darwin & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-freebsd-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-freebsd-arm64@npm:7.1.0-beta"
+  conditions: os=freebsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-freebsd-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-freebsd-x64@npm:7.1.0-beta"
+  conditions: os=freebsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-arm64@npm:7.1.0-beta"
+  conditions: os=linux & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-arm@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-arm@npm:7.1.0-beta"
+  conditions: os=linux & cpu=arm
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-loong64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-loong64@npm:7.1.0-beta"
+  conditions: os=linux & cpu=loong64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-mips64el@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-mips64el@npm:7.1.0-beta"
+  conditions: os=linux & cpu=mips64el
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-ppc64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-ppc64@npm:7.1.0-beta"
+  conditions: os=linux & cpu=ppc64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-riscv64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-riscv64@npm:7.1.0-beta"
+  conditions: os=linux & cpu=riscv64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-s390x@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-s390x@npm:7.1.0-beta"
+  conditions: os=linux & cpu=s390x
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-linux-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-linux-x64@npm:7.1.0-beta"
+  conditions: os=linux & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-netbsd-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-netbsd-arm64@npm:7.1.0-beta"
+  conditions: os=netbsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-netbsd-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-netbsd-x64@npm:7.1.0-beta"
+  conditions: os=netbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-openbsd-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-openbsd-arm64@npm:7.1.0-beta"
+  conditions: os=openbsd & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-openbsd-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-openbsd-x64@npm:7.1.0-beta"
+  conditions: os=openbsd & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-sunos-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-sunos-x64@npm:7.1.0-beta"
+  conditions: os=sunos & cpu=x64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-win32-arm64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-win32-arm64@npm:7.1.0-beta"
+  conditions: os=win32 & cpu=arm64
+  languageName: node
+  linkType: hard
+
+"@typescript/typescript-win32-x64@npm:7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "@typescript/typescript-win32-x64@npm:7.1.0-beta"
+  conditions: os=win32 & cpu=x64
+  languageName: node
+  linkType: hard
+
 "@ungap/structured-clone@npm:^1.0.0":
   version: 1.3.0
   resolution: "@ungap/structured-clone@npm:1.3.0"
@@ -5494,6 +5820,13 @@ __metadata:
   version: 2.0.0
   resolution: "convert-source-map@npm:2.0.0"
   checksum: 10c0/8f2f7a27a1a011cc6cc88cc4da2d7d0cfa5ee0369508baae3d98c260bb3ac520691464e5bbe4ae7cdf09860c1d69ecc6f70c63c6e7c7f7e3f18ec08484dc7d9b
+  languageName: node
+  linkType: hard
+
+"crelt@npm:^1.0.5, crelt@npm:^1.0.6":
+  version: 1.0.7
+  resolution: "crelt@npm:1.0.7"
+  checksum: 10c0/5fdb5fcfa492a176c4cdaac611c131a183a91f2e6e3ea2ba2111b6891ca75bb7ba1ef81d67dab34387f5553c415d8a3d776690d3cf3ee68fca2dd3bfbed382e9
   languageName: node
   linkType: hard
 
@@ -10171,6 +10504,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"style-mod@npm:^4.0.0, style-mod@npm:^4.1.0":
+  version: 4.1.5
+  resolution: "style-mod@npm:4.1.5"
+  checksum: 10c0/e3eb5fc744ce542e84693037b330ce5c2d54cf399b6c413bf4dd22948057924645616605e9a892fc3b5ac5a8d89a3cf3d08abd7658ec757f056182c46f97c1e1
+  languageName: node
+  linkType: hard
+
 "style-to-js@npm:^1.0.0":
   version: 1.1.21
   resolution: "style-to-js@npm:1.1.21"
@@ -10514,6 +10854,80 @@ __metadata:
   version: 1.4.0
   resolution: "type-fest@npm:1.4.0"
   checksum: 10c0/a3c0f4ee28ff6ddf800d769eafafcdeab32efa38763c1a1b8daeae681920f6e345d7920bf277245235561d8117dab765cb5f829c76b713b4c9de0998a5397141
+  languageName: node
+  linkType: hard
+
+"typescript-7@npm:typescript@7.1.0-beta":
+  version: 7.1.0-beta
+  resolution: "typescript@npm:7.1.0-beta"
+  dependencies:
+    "@typescript/typescript-aix-ppc64": "npm:7.1.0-beta"
+    "@typescript/typescript-android-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-darwin-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-darwin-x64": "npm:7.1.0-beta"
+    "@typescript/typescript-freebsd-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-freebsd-x64": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-arm": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-loong64": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-mips64el": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-ppc64": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-riscv64": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-s390x": "npm:7.1.0-beta"
+    "@typescript/typescript-linux-x64": "npm:7.1.0-beta"
+    "@typescript/typescript-netbsd-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-netbsd-x64": "npm:7.1.0-beta"
+    "@typescript/typescript-openbsd-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-openbsd-x64": "npm:7.1.0-beta"
+    "@typescript/typescript-sunos-x64": "npm:7.1.0-beta"
+    "@typescript/typescript-win32-arm64": "npm:7.1.0-beta"
+    "@typescript/typescript-win32-x64": "npm:7.1.0-beta"
+  dependenciesMeta:
+    "@typescript/typescript-aix-ppc64":
+      optional: true
+    "@typescript/typescript-android-arm64":
+      optional: true
+    "@typescript/typescript-darwin-arm64":
+      optional: true
+    "@typescript/typescript-darwin-x64":
+      optional: true
+    "@typescript/typescript-freebsd-arm64":
+      optional: true
+    "@typescript/typescript-freebsd-x64":
+      optional: true
+    "@typescript/typescript-linux-arm":
+      optional: true
+    "@typescript/typescript-linux-arm64":
+      optional: true
+    "@typescript/typescript-linux-loong64":
+      optional: true
+    "@typescript/typescript-linux-mips64el":
+      optional: true
+    "@typescript/typescript-linux-ppc64":
+      optional: true
+    "@typescript/typescript-linux-riscv64":
+      optional: true
+    "@typescript/typescript-linux-s390x":
+      optional: true
+    "@typescript/typescript-linux-x64":
+      optional: true
+    "@typescript/typescript-netbsd-arm64":
+      optional: true
+    "@typescript/typescript-netbsd-x64":
+      optional: true
+    "@typescript/typescript-openbsd-arm64":
+      optional: true
+    "@typescript/typescript-openbsd-x64":
+      optional: true
+    "@typescript/typescript-sunos-x64":
+      optional: true
+    "@typescript/typescript-win32-arm64":
+      optional: true
+    "@typescript/typescript-win32-x64":
+      optional: true
+  bin:
+    tsc: bin/tsc
+  checksum: 10c0/4ae43c8a57944a5ecb30093aa93ea94c9726e013e20e97e31ffd976018f507aeadb3d515136429dd894871419dca532b5b8c259f3aae1d0eaef112d197ac3b2c
   languageName: node
   linkType: hard
 
@@ -10942,6 +11356,13 @@ __metadata:
   bin:
     vitest: ./vitest.mjs
   checksum: 10c0/c3f9ac564025fba9f2d6058e22fb1a97747cd9efaa2fd6f210855d3775654d30e1da55054dddfcf1f788f00d47edd54b8cb7d22f78209510413cf9c84e168141
+  languageName: node
+  linkType: hard
+
+"w3c-keyname@npm:^2.2.4":
+  version: 2.2.8
+  resolution: "w3c-keyname@npm:2.2.8"
+  checksum: 10c0/37cf335c90efff31672ebb345577d681e2177f7ff9006a9ad47c68c5a9d265ba4a7b39d6c2599ceea639ca9315584ce4bd9c9fbf7a7217bfb7a599e71943c4c4
   languageName: node
   linkType: hard
 

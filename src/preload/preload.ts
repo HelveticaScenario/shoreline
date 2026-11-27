@@ -12,6 +12,7 @@ import {
     IPCResponse,
     IPC_CHANNELS,
     KeybindingOverride,
+    LanguageServerInfo,
     MENU_CHANNELS,
     MainLogEntry,
     Promisify,
@@ -62,6 +63,11 @@ export interface ElectronAPI {
     ) => Promise<DSLExecuteResult>;
     getDslLibSource: () => Promise<string>;
     getSignalSiteTables: () => Promise<SignalSiteTables>;
+    languageServer: {
+        info: () => Promise<LanguageServerInfo | null>;
+        request: (method: string, params: unknown) => Promise<unknown>;
+        notify: (method: string, params: unknown) => Promise<void>;
+    };
 
     // Synthesizer operations
     synthesizer: {
@@ -309,6 +315,13 @@ const electronAPI: ElectronAPI = {
         invokeIPC('DSL_EXECUTE', source, sourceId, trigger),
     getDslLibSource: () => invokeIPC('GET_DSL_LIB_SOURCE'),
     getSignalSiteTables: () => invokeIPC('GET_SIGNAL_SITE_TABLES'),
+    languageServer: {
+        info: () => invokeIPC('LANGUAGE_SERVER_INFO'),
+        notify: (method, params) =>
+            invokeIPC('LANGUAGE_SERVER_NOTIFY', method, params),
+        request: (method, params) =>
+            invokeIPC('LANGUAGE_SERVER_REQUEST', method, params),
+    },
 
     // Synthesizer operations
     synthesizer: {

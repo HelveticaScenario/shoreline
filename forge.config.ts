@@ -287,6 +287,11 @@ const config: ForgeConfig = {
                     target: 'main',
                 },
                 {
+                    entry: 'src/main/languageService/slContentMapper.ts',
+                    config: 'vite.main.config.ts',
+                    target: 'main',
+                },
+                {
                     entry: 'src/preload/preload.ts',
                     config: 'vite.preload.config.ts',
                     target: 'preload',

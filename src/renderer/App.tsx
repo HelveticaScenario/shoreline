@@ -30,7 +30,7 @@ import { EngineHealth } from './components/EngineHealth';
 import { ErrorDisplay } from './components/ErrorDisplay';
 import { FileExplorer } from './components/FileExplorer';
 import { ModuleProfile } from './components/ModuleProfile';
-import { MonacoPatchEditor as PatchEditor } from './components/MonacoPatchEditor';
+import { PatchEditor } from './components/PatchEditor';
 import { PerformancePanel } from './components/PerformancePanel';
 import { SaveConflicts } from './components/SaveConflicts';
 import { Sidebar } from './components/Sidebar';

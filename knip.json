@@ -5,6 +5,7 @@
             "entry": [
                 "src/main/main.ts",
                 "src/preload/preload.ts",
+                "src/main/languageService/slContentMapper.ts",
                 "vite.main.config.ts",
                 "vite.preload.config.ts",
                 "vite.renderer.config.ts",
@@ -27,6 +28,7 @@
             ],
             "ignoreDependencies": [
                 "babel-plugin-react-compiler",
+                "typescript-7",
                 "@strudel/core",
                 "@modular/core",
                 "@fontsource/anonymous-pro",

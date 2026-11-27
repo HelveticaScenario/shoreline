@@ -278,8 +278,7 @@ export interface FileChange {
 }
 
 export type FSWriteResult =
-    | FSOperationResult
-    | { success: false; conflict: true };
+    FSOperationResult | { success: false; conflict: true };
 
 export interface WorkspaceFolder {
     path: string;
@@ -328,8 +327,7 @@ export interface EditorContextMenuOptions {
 }
 
 export type ContextMenuOptions =
-    | FileContextMenuOptions
-    | EditorContextMenuOptions;
+    FileContextMenuOptions | EditorContextMenuOptions;
 
 export type ContextMenuCommand = 'save' | 'rename' | 'delete' | 'editor';
 
@@ -363,6 +361,11 @@ export const IPC_CHANNELS = {
     DSL_EXECUTE: 'modular:dsl:execute',
     GET_DSL_LIB_SOURCE: 'modular:dsl:get-lib-source',
     GET_SIGNAL_SITE_TABLES: 'modular:dsl:get-signal-site-tables',
+
+    // Language server
+    LANGUAGE_SERVER_INFO: 'modular:language-server:info',
+    LANGUAGE_SERVER_REQUEST: 'modular:language-server:request',
+    LANGUAGE_SERVER_NOTIFY: 'modular:language-server:notify',
 
     // Synthesizer operations
     SYNTH_GET_SAMPLE_RATE: 'modular:synth:get-sample-rate',
@@ -506,6 +509,17 @@ export interface IPCHandlers {
     ) => DSLExecuteResult;
     [IPC_CHANNELS.GET_DSL_LIB_SOURCE]: () => string;
     [IPC_CHANNELS.GET_SIGNAL_SITE_TABLES]: () => SignalSiteTables;
+
+    // Language server
+    [IPC_CHANNELS.LANGUAGE_SERVER_INFO]: () => LanguageServerInfo | null;
+    [IPC_CHANNELS.LANGUAGE_SERVER_REQUEST]: (
+        method: string,
+        params: unknown,
+    ) => Promise<unknown>;
+    [IPC_CHANNELS.LANGUAGE_SERVER_NOTIFY]: (
+        method: string,
+        params: unknown,
+    ) => Promise<void>;
 
     // Synthesizer operations
     [IPC_CHANNELS.SYNTH_GET_SAMPLE_RATE]: typeof Synthesizer.prototype.sampleRate;
@@ -697,3 +711,11 @@ export type Promisify<T> = T extends (...args: any[]) => Promise<any>
     : T extends (...args: infer P) => infer R
       ? (...args: P) => Promise<R>
       : never;
+
+/** Where the language server's documents live; null when the editor does not use it. */
+export interface LanguageServerInfo {
+    /** `file://` URI of the directory virtual buffers live in. */
+    buffersUri: string;
+    /** `file://` URI of the DSL's declarations. */
+    libUri: string;
+}

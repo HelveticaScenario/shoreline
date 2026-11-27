@@ -1,4 +1,5 @@
 import type { editor, IRange } from 'monaco-editor';
+import { shownBufferModel } from '../components/codemirror/bufferModel';
 import type { DSLExecuteResult } from '../../shared/ipcTypes';
 import type { ButtonDefinition } from '../../shared/dsl/buttonTypes';
 import type { SliderDefinition } from '../../shared/dsl/sliderTypes';
@@ -85,7 +86,7 @@ function buildScopes(
     file: string,
     callSiteSpans: CallSiteSpans,
 ): Pick<RunningPatchUi, 'scopeViews' | 'scopeDecorations'> {
-    const model = editorInstance?.getModel();
+    const model = editorInstance?.getModel() ?? shownBufferModel();
     const scopeViews: ScopeView[] = [];
     const ranges: IRange[] = [];
     (result.appliedPatch?.scopes ?? []).forEach((scope, i) => {
@@ -101,8 +102,7 @@ function buildScopes(
             ),
         );
         const loc = (scope as any).sourceLocation as
-            | { line: number; column: number }
-            | undefined;
+            { line: number; column: number } | undefined;
         // A scope whose call site cannot be resolved (source edited during
         // the async round-trip) gets no decoration and a null
         // decorationIndex: its zone is hidden.

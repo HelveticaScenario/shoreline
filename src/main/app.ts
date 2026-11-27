@@ -97,6 +97,11 @@ import { buildSignalSiteTables } from './dsl/signalSiteTables';
 import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { videoCvParams } from '../shared/dsl/controlRanges';
 import { buildLibSource } from './dsl/typescriptLibGen';
+import {
+    languageServerNotify,
+    languageServerRequest,
+    startLanguageServer,
+} from './languageService/languageServer';
 import * as fs from 'fs';
 import * as net from 'net';
 import * as os from 'os';
@@ -951,6 +956,22 @@ registerIPCHandler('GET_DSL_LIB_SOURCE', () => {
     }
     return cachedLibSource;
 });
+
+// The CodeMirror editor (MODULAR_EDITOR=codemirror) reads patches through the
+// TypeScript 7 language server; the Monaco editor runs its own worker.
+const languageServer = () => {
+    cachedLibSource ??= buildLibSource(schemas);
+    return startLanguageServer(cachedLibSource);
+};
+registerIPCHandler('LANGUAGE_SERVER_INFO', () =>
+    process.env.MODULAR_EDITOR === 'codemirror' ? languageServer().info : null,
+);
+registerIPCHandler('LANGUAGE_SERVER_REQUEST', (method, params) =>
+    languageServerRequest(languageServer(), method, params),
+);
+registerIPCHandler('LANGUAGE_SERVER_NOTIFY', (method, params) =>
+    languageServerNotify(languageServer(), method, params),
+);
 
 // The schemas are fixed for the life of the process, so the tables are too.
 let cachedSignalSiteTables: SignalSiteTables | null = null;
