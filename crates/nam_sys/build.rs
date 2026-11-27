@@ -63,7 +63,8 @@ fn main() {
             .flag("-fvisibility=hidden")
             // nlohmann also asserts inside `noexcept` functions, where a
             // failure terminates instead of reading out of bounds.
-            .flag_if_supported("-Wno-exceptions");
+            .flag_if_supported("-Wno-exceptions")
+            .flag_if_supported("-Wno-terminate");
         // Matches the x86-64-v2 baseline the Rust code is built for.
         if target.starts_with("x86_64") {
             build.flag("-march=x86-64-v2");

@@ -530,6 +530,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$granularSampler" => {
             json!({ "wav": { "type": "wav_ref", "path": "test", "channels": 1 } })
         }
+        "$nam" => json!({ "input": 0.0, "model": "/amp.nam" }),
         "$wowFlutter" => json!({ "input": 0.0 }),
         "$clockedDelay" => json!({ "input": 0.0 }),
         "$eq" => json!({ "input": 0.0 }),
