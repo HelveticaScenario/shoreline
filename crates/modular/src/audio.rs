@@ -8,7 +8,7 @@ use cpal::traits::{DeviceTrait, HostTrait};
 use modular_core::PORT_MAX_LANES;
 use modular_core::PatchGraph;
 use modular_core::dsp::schema;
-use modular_core::dsp::utils::SchmittTrigger;
+use modular_core::dsp::utils::{OUTPUT_FULL_SCALE_VOLTS, SchmittTrigger};
 use modular_core::profiling::{ModuleProfileAccum, ModuleProfileCollection};
 
 use modular_core::types::ClockMessages;
@@ -688,9 +688,8 @@ impl From<napi::Error> for ApplyPatchError {
 use crate::validation::ValidationError;
 use crate::validation::validate_patch;
 
-/// Volts-to-full-scale factor for audio output: ±20 V plays at 0 dBFS, so a
-/// single ±5 V voice sits at -12 dBFS and summed lanes and tracks have headroom.
-const AUDIO_OUTPUT_ATTENUATION: f32 = 0.05;
+/// Volts-to-full-scale factor for audio output.
+const AUDIO_OUTPUT_ATTENUATION: f32 = 1.0 / OUTPUT_FULL_SCALE_VOLTS;
 
 /// Volts per unit of audio input: a full-scale input reads as ±5 V, the level
 /// of a single voice.

@@ -533,7 +533,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$wowFlutter" => json!({ "input": 0.0 }),
         "$clockedDelay" => json!({ "input": 0.0 }),
         "$eq" => json!({ "input": 0.0 }),
-        "$filterDC" => json!({ "input": 0.0 }),
+        "$filterDC" | "$softClip" => json!({ "input": 0.0 }),
         "$quantNoise" => json!({ "input": 0.0, "amount": 1.0 }),
         "$groove" => json!({ "template": { "timing": [0.0, 0.2] } }),
         "$step" => json!({ "steps": [0.0], "next": 0.0 }),
