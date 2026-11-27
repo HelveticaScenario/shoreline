@@ -1,10 +1,13 @@
 //! `plaits::GrainletOscillator`, two at a time: a phase-distorted single-cycle
 //! sine window (the carrier) times a sine at the formant frequency, restarted
 //! on every carrier cycle. The two grainlets of Plaits' granular formant
-//! engine share their carrier, so it is computed once for both.
+//! engine share their carrier, so it is computed once for both. A phase
+//! offset moves the carrier through time as extra frequency; the formants
+//! restart on its cycle, so they follow it and every restart stays
+//! band-limited.
 
 use crate::dsp::mi::core::control::Ramp;
-use crate::dsp::mi::core::phase::{fraction, wrap_below};
+use crate::dsp::mi::core::phase::{fraction, wrap, wrap_below};
 use crate::dsp::mi::core::polyblep::{next_blep_sample, this_blep_sample};
 use crate::dsp::mi::core::sine::sine;
 
@@ -23,6 +26,8 @@ pub struct GrainletPair {
     carrier_phase: f32,
     formant_phase: [f32; 2],
     next_sample: [f32; 2],
+    /// The phase offset the carrier has travelled so far, in `[0, 1)`.
+    travelled: f32,
     formant_frequency: [Ramp; 2],
     shape: Ramp,
     bleed: Ramp,
@@ -47,10 +52,33 @@ impl GrainletPair {
             && self.bleed.settled()
     }
 
+    /// Starts a fresh pair `offset` of a cycle into the carrier at frequency
+    /// `f0`, with each formant where a grain that restarted at the top of the
+    /// cycle would have reached by then.
+    pub fn seed(&mut self, offset: f32, f0: f32) {
+        self.carrier_phase = offset;
+        self.travelled = offset;
+        let samples = offset / f0.abs();
+        let carrier = carrier(offset, self.shape.subsample(0.0));
+        let bleed = self.bleed.subsample(0.0);
+        for i in 0..2 {
+            self.formant_phase[i] = fraction(samples * self.formant_frequency[i].subsample(0.0));
+            self.next_sample[i] = grainlet(carrier, self.formant_phase[i], bleed);
+        }
+    }
+
     /// One sample of both grainlets at carrier frequency `f0` (cycles per
-    /// sample, finite; negative runs the carrier backward).
+    /// sample, finite; negative runs the carrier backward), held to ±`max`.
+    /// The carrier travels to the phase `offset` (in `[0, 1)`) by the shortest
+    /// way and as fast as the frequency limit allows, so a pair that moves to
+    /// an offset plays as one seeded there does once its grains restart.
     #[inline(always)]
-    pub fn step(&mut self, f0: f32) -> f32 {
+    pub fn step(&mut self, f0: f32, offset: f32, max: f32) -> f32 {
+        let behind = offset - self.travelled;
+        let behind = behind - behind.round();
+        let shift = behind.clamp(-max - f0, max - f0);
+        self.travelled = wrap(self.travelled + shift);
+        let f0 = f0 + shift;
         let mut this_sample = self.next_sample;
         let mut next_sample = [0.0; 2];
         let f1 = [
