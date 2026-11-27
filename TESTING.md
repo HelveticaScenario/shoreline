@@ -21,7 +21,7 @@ Shoreline is an Electron app (React/TypeScript renderer) on a Rust DSP engine. T
     - `swap_glides.rs`, `connect_alloc_free.rs` — patch updates glide changed params and allocate nothing on the audio thread.
     - `peggy_parser_parity.rs`, `sp_combine_strudel_parity.rs` — the mini-notation parser and pattern combinators match their JS references.
 - Multi-module patches are built with `Patch::from_graph()`, a test-only helper, so no audio thread is needed.
-- **Benchmarks:** `cargo bench -p modular_core --bench patch_bench` (also `drums_bench`, `mix_bench`, `overdrive_bench`, `shape_bench`).
+- **Benchmarks:** `cargo bench -p modular_core --bench patch_bench` (also `drums_bench`, `mix_bench`, `overdrive_bench`).
 
 ## Vitest unit and integration tests
 

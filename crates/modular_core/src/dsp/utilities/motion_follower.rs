@@ -1,10 +1,7 @@
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
-    dsp::{
-        shape::shapers::tanh_driven,
-        utils::{cached::Cached, sanitize},
-    },
+    dsp::utils::{cached::Cached, sanitize, saturation::tanh_pade},
     poly::{PolyOutput, PolySignal, PolySignalExt},
 };
 use deserr::Deserr;
@@ -192,7 +189,7 @@ impl MotionFollower {
 
             let ceiling = self.params.ceiling.value_or(lane, 5.0).max(0.001);
             let gain = self.params.gain.value_or(lane, 0.25);
-            let shape = |level: f32| sanitize(ceiling * tanh_driven(level * gain / ceiling));
+            let shape = |level: f32| sanitize(ceiling * tanh_pade(level * gain / ceiling));
             self.outputs.sample.set(lane, shape(both));
             self.outputs.pos.set(lane, shape(rising));
             self.outputs.neg.set(lane, shape(falling));
