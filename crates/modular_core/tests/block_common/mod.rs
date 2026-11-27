@@ -10,10 +10,12 @@
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock};
 
 use modular_core::Patch;
 pub use modular_core::bounds::Bounds;
+use modular_core::dsp::fx::nam::NamModelData;
 use modular_core::dsp::{get_params_deserializers, schema};
 use modular_core::params::DeserializedParams;
 use modular_core::types::{ProcessingMode, SameIds, SampleBuffer, WavData};
@@ -121,11 +123,31 @@ pub fn assemble_settled<'a>(
     for (path, wav) in wavs {
         patch.wav_data.insert(path.into(), wav);
     }
+    let resources = modular_core::types::Resources {
+        wav_data: &patch.wav_data,
+        nam_data: nam_models(),
+    };
     for module in patch.sampleables.values() {
-        module.prepare_resources(&patch.wav_data);
+        module.prepare_resources(resources);
     }
     patch.connect_all();
     patch
+}
+
+/// The NAM models every patch built here can name: NeuralAmpModelerCore's
+/// example A2 capture at `/a2.nam`, and its example capture with a lite
+/// version at `/slim.nam`.
+pub fn nam_models() -> &'static HashMap<String, Arc<NamModelData>> {
+    static MODELS: LazyLock<HashMap<String, Arc<NamModelData>>> = LazyLock::new(|| {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../nam_sys/NeuralAmpModelerCore/example_models");
+        let load = |name: &str| Arc::new(NamModelData::load(&dir.join(name)).expect(name));
+        HashMap::from([
+            ("/a2.nam".to_string(), load("A2.nam")),
+            ("/slim.nam".to_string(), load("slimmable_container.nam")),
+        ])
+    });
+    &MODELS
 }
 
 /// A 16-frame wavetable of 256-sample cycles, each frame brighter than the last.
@@ -461,6 +483,22 @@ unsafe impl GlobalAlloc for CountingAllocator {
 /// in Sample mode itself, through every step pattern. Requires the binary's
 /// global allocator to be [`CountingAllocator`].
 pub fn allocations_while_rendering(module_type: &str, params: Value) -> usize {
+    counted_while_rendering(module_type, params, |render| {
+        ALLOCATIONS.with(|n| n.set(0));
+        COUNTING.with(|c| c.set(true));
+        render();
+        COUNTING.with(|c| c.set(false));
+        ALLOCATIONS.with(Cell::get)
+    })
+}
+
+/// What `count` reports for the renders [`allocations_while_rendering`]
+/// makes, with the patches built before `count` runs.
+pub fn counted_while_rendering<T>(
+    module_type: &str,
+    params: Value,
+    count: impl FnOnce(&dyn Fn()) -> T,
+) -> T {
     let modes = [
         (ProcessingMode::Block, ProcessingMode::Block),
         (ProcessingMode::Sample, ProcessingMode::Block),
@@ -470,17 +508,15 @@ pub fn allocations_while_rendering(module_type: &str, params: Value) -> usize {
         .iter()
         .map(|&(src_mode, dut_mode)| build(src_mode, dut_mode, module_type, params.clone()))
         .collect();
-    ALLOCATIONS.with(|n| n.set(0));
-    COUNTING.with(|c| c.set(true));
-    for patch in &patches {
-        for steps in STEP_PATTERNS {
-            for _ in 0..BLOCKS {
-                render_block(patch, steps);
+    count(&|| {
+        for patch in &patches {
+            for steps in STEP_PATTERNS {
+                for _ in 0..BLOCKS {
+                    render_block(patch, steps);
+                }
             }
         }
-    }
-    COUNTING.with(|c| c.set(false));
-    ALLOCATIONS.with(Cell::get)
+    })
 }
 
 /// The gain curve that `$gain` and `$mix` apply: unity at 5, 12 dB per unit

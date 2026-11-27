@@ -1,3 +1,6 @@
 [submodule "native/syphon-bridge/vendor/Syphon-Framework"]
 	path = native/syphon-bridge/vendor/Syphon-Framework
 	url = https://github.com/Syphon/Syphon-Framework
+[submodule "crates/nam_sys/NeuralAmpModelerCore"]
+	path = crates/nam_sys/NeuralAmpModelerCore
+	url = https://github.com/sdatkinson/NeuralAmpModelerCore.git

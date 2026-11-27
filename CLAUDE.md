@@ -10,7 +10,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Setup
 
-The macOS Syphon bridge builds the Syphon framework from a git submodule. Required after clone:
+Two git submodules are required after clone: the Syphon framework the macOS Syphon bridge builds, and NeuralAmpModelerCore (with its Eigen), which `crates/nam_sys` compiles for `$nam`:
 
 ```bash
 git submodule update --init --recursive

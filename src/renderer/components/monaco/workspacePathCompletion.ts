@@ -111,6 +111,7 @@ export function stringLiteralAt(
 
 const ASSET_DETAILS: Record<AssetKind, string> = {
     wav: 'WAV file',
+    nam: 'NAM capture',
     image: 'Image',
     video: 'Video',
 };

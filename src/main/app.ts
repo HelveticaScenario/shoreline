@@ -719,6 +719,16 @@ setInterval(() => {
 // Workspace root state
 let currentWorkspaceRoot: string | null = null;
 
+/**
+ * Opens `root` as the workspace: the engine resolves every file a patch names
+ * against it, and the explorer watches it.
+ */
+function setWorkspaceRoot(root: string | null): void {
+    currentWorkspaceRoot = root;
+    if (root) synth.setWavWorkspace(root);
+    watchWorkspace(root);
+}
+
 // File watcher for config changes
 let configWatcher: fs.FSWatcher | null = null;
 
@@ -1083,13 +1093,6 @@ function submitPatchUpdate(
 }
 
 // DSL execution in main process with direct N-API access
-/** Wraps an engine load so it resolves paths against the current workspace. */
-function inWavWorkspace<T>(load: (path: string) => T): (path: string) => T {
-    return (relative) => {
-        if (currentWorkspaceRoot) synth.setWavWorkspace(currentWorkspaceRoot);
-        return load(relative);
-    };
-}
 
 registerIPCHandler(
     'DSL_EXECUTE',
@@ -1112,10 +1115,8 @@ registerIPCHandler(
                     mediaFileExists(currentWorkspaceRoot, relative),
                 sampleRate: synth.sampleRate(),
                 workspaceRoot: currentWorkspaceRoot,
-                loadMediaAudio: inWavWorkspace((mediaPath) =>
-                    synth.loadMediaAudio(mediaPath),
-                ),
-                loadWav: inWavWorkspace((wavPath) => synth.loadWav(wavPath)),
+                loadMediaAudio: (mediaPath) => synth.loadMediaAudio(mediaPath),
+                loadWav: (wavPath) => synth.loadWav(wavPath),
             });
             patch.moduleIdRemaps = [];
 
@@ -1562,9 +1563,8 @@ registerIPCHandler('FS_SELECT_WORKSPACE', async () => {
     }
 
     const workspaceRoot = result.filePaths[0];
-    currentWorkspaceRoot = workspaceRoot;
+    setWorkspaceRoot(workspaceRoot);
     console.log('Workspace selected:', workspaceRoot);
-    watchWorkspace(workspaceRoot);
 
     // Save to config (load-merge-save to preserve other settings)
     configStore.update((config) => {
@@ -2628,18 +2628,18 @@ app.on('ready', () => {
 
     // In E2E test mode, use the workspace provided via env var
     if (process.env.E2E_WORKSPACE && fs.existsSync(process.env.E2E_WORKSPACE)) {
-        currentWorkspaceRoot = process.env.E2E_WORKSPACE;
+        setWorkspaceRoot(process.env.E2E_WORKSPACE);
         console.log('E2E workspace:', currentWorkspaceRoot);
     } else {
         // Load last opened folder
         const config = configStore.load();
         if (config.lastOpenedFolder && fs.existsSync(config.lastOpenedFolder)) {
-            currentWorkspaceRoot = config.lastOpenedFolder;
+            setWorkspaceRoot(config.lastOpenedFolder);
             console.log('Restored last opened folder:', currentWorkspaceRoot);
+        } else {
+            setWorkspaceRoot(null);
         }
     }
-
-    watchWorkspace(currentWorkspaceRoot);
 
     // Audio configuration is already restored during Synthesizer initialization
     // (the config is passed to the constructor)

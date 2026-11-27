@@ -4,12 +4,14 @@ import { BUILTIN_PREFIX, BUILTIN_WAVETABLES } from '../../shared/builtinAssets';
 /** The bundled files of each kind, by path. */
 const BUILTIN_PATHS: Record<AssetKind, ReadonlySet<string>> = {
     wav: new Set(BUILTIN_WAVETABLES.map((asset) => asset.path)),
+    nam: new Set(),
     image: new Set(),
     video: new Set(),
 };
 
 const EXAMPLE_PATHS: Record<AssetKind, string> = {
     wav: '/wavs/kick.wav',
+    nam: '/captures/amp.nam',
     image: '/pictures/photo.png',
     video: '/clips/loop.mp4',
 };

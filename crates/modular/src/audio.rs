@@ -657,6 +657,8 @@ pub struct PatchSubmission {
     pub trigger: QueuedTrigger,
     pub update_id: u64,
     pub wav_data: HashMap<String, Arc<modular_core::types::WavData>>,
+    /// Every `.nam` file the graph's `$nam` modules name, loaded.
+    pub nam_data: HashMap<String, Arc<modular_core::dsp::fx::nam::NamModelData>>,
     pub transport_meta: Option<TransportMeta>,
     pub reset_clock: bool,
 }
@@ -1499,6 +1501,7 @@ impl AudioState {
         module_type: &str,
         params: serde_json::Value,
         sample_rate: f32,
+        resources: modular_core::types::Resources<'_>,
     ) -> std::result::Result<Vec<RebuiltModule>, String> {
         let constructors = modular_core::dsp::get_constructors();
         let constructor = constructors
@@ -1527,6 +1530,7 @@ impl AudioState {
                 continue;
             }
             settlement.settle_rebuilt(id, module.as_ref());
+            module.prepare_resources(resources);
             rebuilt.push((module, *update_id));
         }
         match disconnected {
@@ -1836,6 +1840,7 @@ impl AudioState {
             trigger,
             update_id,
             wav_data,
+            nam_data,
             transport_meta,
             reset_clock,
         } = submission;
@@ -2069,8 +2074,12 @@ impl AudioState {
         // Run main-thread resource preparation (e.g. FFT-based mipmap generation for
         // wavetable oscillators). Called here because allocation and file-backed
         // data access must not happen on the audio thread.
+        let resources = modular_core::types::Resources {
+            wav_data: &wav_data,
+            nam_data: &nam_data,
+        };
         for module in update.new_patch.sampleables.values() {
-            module.prepare_resources(&wav_data);
+            module.prepare_resources(resources);
         }
 
         // Populate wav_data from the cache snapshot
@@ -5706,6 +5715,7 @@ mod tests {
             trigger: QueuedTrigger::Immediate,
             update_id: 1,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -5716,7 +5726,13 @@ mod tests {
         for i in 0..COMMAND_QUEUE_CAPACITY {
             for id in ["a", "b"] {
                 for (rebuilt, update_id) in state
-                    .rebuild_module(id, "$signal", signal(i as f64), 44_100.0)
+                    .rebuild_module(
+                        id,
+                        "$signal",
+                        signal(i as f64),
+                        44_100.0,
+                        modular_core::types::Resources::wavs(&HashMap::new()),
+                    )
                     .unwrap()
                 {
                     state.send_module_update(id.into(), rebuilt, update_id);
@@ -5763,6 +5779,7 @@ mod tests {
             trigger: QueuedTrigger::Immediate,
             update_id: 1,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -5842,6 +5859,7 @@ mod tests {
             trigger,
             update_id,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -5854,7 +5872,13 @@ mod tests {
         submit_filter_patch(&state, vec![], 1, QueuedTrigger::Immediate);
         let params = serde_json::json!({ "input": cable_to("src", "output"), "cutoff": 2.0 });
         let filter = state
-            .rebuild_module("filter", "$multimode", params, 44_100.0)
+            .rebuild_module(
+                "filter",
+                "$multimode",
+                params,
+                44_100.0,
+                modular_core::types::Resources::wavs(&HashMap::new()),
+            )
             .unwrap()
             .remove(0)
             .0;
@@ -5866,7 +5890,17 @@ mod tests {
         assert_eq!(filter.connected_outputs(), bits(&["hp", "bp", "morph"]));
         // A rebuilt module cannot connect an output the patch left unread.
         let reader = serde_json::json!({ "input": cable_to("filter", "lp"), "offset": 1.0 });
-        assert!(state.rebuild_module("y", "$add", reader, 44_100.0).is_err());
+        assert!(
+            state
+                .rebuild_module(
+                    "y",
+                    "$add",
+                    reader,
+                    44_100.0,
+                    modular_core::types::Resources::wavs(&HashMap::new())
+                )
+                .is_err()
+        );
     }
 
     #[test]
@@ -5877,7 +5911,13 @@ mod tests {
         let queued = vec![module_spec("y", "$add", reader(1.0))];
         submit_filter_patch(&state, queued, 2, QueuedTrigger::NextBar);
         let rebuilt = state
-            .rebuild_module("y", "$add", reader(2.0), 44_100.0)
+            .rebuild_module(
+                "y",
+                "$add",
+                reader(2.0),
+                44_100.0,
+                modular_core::types::Resources::wavs(&HashMap::new()),
+            )
             .unwrap();
         assert_eq!(
             rebuilt
@@ -5925,6 +5965,7 @@ mod tests {
             trigger: QueuedTrigger::Immediate,
             update_id: 1,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -5935,6 +5976,7 @@ mod tests {
                 "$add",
                 serde_json::json!({ "input": cable("st"), "offset": 2.0 }),
                 44_100.0,
+                modular_core::types::Resources::wavs(&HashMap::new()),
             )
             .unwrap()
             .remove(0)
@@ -5978,6 +6020,7 @@ mod tests {
             trigger: QueuedTrigger::Immediate,
             update_id: 1,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -6012,6 +6055,7 @@ mod tests {
                 trigger,
                 update_id,
                 wav_data: HashMap::new(),
+                nam_data: HashMap::new(),
                 transport_meta: None,
                 reset_clock: false,
             });
@@ -6083,6 +6127,7 @@ mod tests {
             trigger: QueuedTrigger::Immediate,
             update_id: 1,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -6101,6 +6146,7 @@ mod tests {
                     "$add",
                     serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
                     44_100.0,
+                    modular_core::types::Resources::wavs(&HashMap::new()),
                 )
                 .unwrap()
                 .remove(0)
@@ -6119,6 +6165,7 @@ mod tests {
                 "$erratic",
                 serde_json::json!({ "input": cable("saw"), "amount": 2.0 }),
                 44_100.0,
+                modular_core::types::Resources::wavs(&HashMap::new()),
             )
             .unwrap()
             .remove(0)
@@ -6144,6 +6191,7 @@ mod tests {
             trigger: QueuedTrigger::NextBar,
             update_id: 2,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });
@@ -6156,6 +6204,7 @@ mod tests {
                 "$add",
                 serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
                 44_100.0,
+                modular_core::types::Resources::wavs(&HashMap::new()),
             )
             .unwrap()
             .into_iter()
@@ -6178,6 +6227,7 @@ mod tests {
             trigger: QueuedTrigger::Immediate,
             update_id: 3,
             wav_data: HashMap::new(),
+            nam_data: HashMap::new(),
             transport_meta: None,
             reset_clock: false,
         });

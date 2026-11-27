@@ -18,6 +18,7 @@ mod link;
 mod linux_hosts_tests;
 mod media_audio;
 mod midi;
+mod nam_cache;
 mod output_choice;
 mod panic_log;
 mod params_cache;
@@ -424,12 +425,12 @@ impl WavCache {
     /// `builtin/...` one. Every segment after the prefix must be a plain name.
     /// A workspace file may lie wherever its links lead; a bundled file, with
     /// links followed, must lie inside the bundled folder.
-    fn asset_file(&self, path: &str) -> Result<PathBuf> {
+    pub(crate) fn asset_file(&self, path: &str) -> Result<PathBuf> {
         if let Some(relative) = path.strip_prefix(BUILTIN_PREFIX) {
             return file_inside(&self.builtin_path, relative, Links::Contained).map_err(|e| {
                 napi::Error::from_reason(match e {
                     FileInsideError::Outside => {
-                        format!("WAV path must name a built-in file: {path}")
+                        format!("path must name a built-in file: {path}")
                     }
                     FileInsideError::Unreadable(e) => format!("no built-in file {path} ({e})"),
                 })
@@ -442,7 +443,7 @@ impl WavCache {
         }
         let outside = || {
             napi::Error::from_reason(format!(
-                "WAV path must name a file inside the workspace folder: {path}"
+                "path must name a file inside the workspace folder: {path}"
             ))
         };
         let relative = path.strip_prefix('/').ok_or_else(outside)?;
@@ -760,6 +761,7 @@ pub struct Synthesizer {
     fallback_warning: Option<String>,
     next_update_id: u64,
     wav_cache: WavCache,
+    nam_cache: nam_cache::NamCache,
 }
 
 #[napi]
@@ -820,6 +822,7 @@ impl Synthesizer {
             fallback_warning,
             next_update_id: 0,
             wav_cache: WavCache::new(PathBuf::new()),
+            nam_cache: nam_cache::NamCache::default(),
         })
     }
 
@@ -1022,6 +1025,22 @@ impl Synthesizer {
                 None
             };
 
+        let wav_cache = &self.wav_cache;
+        let nam_data = match self
+            .nam_cache
+            .load_for(&patch, |path| wav_cache.asset_file(path))
+        {
+            Ok(loaded) => loaded,
+            Err(errors) => {
+                return PatchUpdateResult {
+                    errors: vec![ApplyPatchError {
+                        message: "Validation failed".to_string(),
+                        errors: Some(errors),
+                    }],
+                    update_id: update_id as f64,
+                };
+            }
+        };
         let wav_data_snapshot = self.wav_cache.snapshot();
         let errors = self.state.handle_set_patch(PatchSubmission {
             graph: patch,
@@ -1029,6 +1048,7 @@ impl Synthesizer {
             trigger,
             update_id,
             wav_data: wav_data_snapshot,
+            nam_data,
             transport_meta,
             reset_clock,
         });
@@ -1057,8 +1077,11 @@ impl Synthesizer {
     /// Set the workspace root directory for WAV file loading.
     #[napi]
     pub fn set_wav_workspace(&mut self, workspace_path: String) {
-        self.wav_cache
-            .set_workspace_path(PathBuf::from(workspace_path));
+        let path = PathBuf::from(workspace_path);
+        if path != self.wav_cache.workspace_path {
+            self.nam_cache.clear();
+        }
+        self.wav_cache.set_workspace_path(path);
     }
 
     /// Set the folder holding the assets bundled with the app, which
@@ -1087,6 +1110,8 @@ impl Synthesizer {
             .get(&module_type)
             .map(|builder| builder(&params));
 
+        let wav_data = self.wav_cache.snapshot();
+        let nam_data = self.nam_cache.snapshot();
         // Uncached: slider values would pollute the params cache.
         let rebuilt = self
             .state
@@ -1095,6 +1120,10 @@ impl Synthesizer {
                 &module_type,
                 params,
                 self.streams.sample_rate as f32,
+                modular_core::types::Resources {
+                    wav_data: &wav_data,
+                    nam_data: &nam_data,
+                },
             )
             .map_err(napi::Error::from_reason)?;
 

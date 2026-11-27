@@ -1,9 +1,6 @@
 //! `$granularSampler`: Beads' grain voices playing a WAV, loaded into each
 //! voice's buffer instead of a live recording.
 
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use deserr::Deserr;
 use schemars::JsonSchema;
 
@@ -11,7 +8,7 @@ use crate::Wav;
 use crate::dsp::utils::rng::{LcgRng, seed_base};
 use crate::patch::Patch;
 use crate::poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt};
-use crate::types::{PatchUpdateHandler, PolySignalFields, WavData};
+use crate::types::{PatchUpdateHandler, PolySignalFields, Resources};
 
 use super::buffer::GrainBuffer;
 use super::chain::Media;
@@ -237,13 +234,10 @@ impl GranularSampler {
     }
 
     /// Load every voice's buffer from the WAV cache. Main thread.
-    fn prepare_resources_impl(
-        &mut self,
-        wav_data: &HashMap<String, Arc<WavData>>,
-        _sample_rate: f32,
-    ) {
+    fn prepare_resources_impl(&mut self, resources: Resources<'_>, _sample_rate: f32) {
         let media = self.params.quality.media();
-        let wav = wav_data
+        let wav = resources
+            .wav_data
             .get(self.params.wav.path())
             .filter(|w| w.frame_count() > 0 && w.sample_rate() > 0.0);
         let (source, per_channel) = cached_load(wav, media);

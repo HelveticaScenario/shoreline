@@ -91,7 +91,7 @@ impl BenchPatch {
         patch.wav_data.insert("noise".into(), noise_wav());
         patch.wav_data.insert("table".into(), table_wav());
         for module in patch.sampleables.values() {
-            module.prepare_resources(&patch.wav_data);
+            module.prepare_resources(modular_core::types::Resources::wavs(&patch.wav_data));
         }
         patch.connect_all();
         Self { patch, order }

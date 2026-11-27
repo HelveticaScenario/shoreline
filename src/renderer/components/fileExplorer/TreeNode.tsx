@@ -3,6 +3,7 @@ import {
     Film,
     Folder,
     FolderOpen,
+    Guitar,
     Image,
     Parentheses,
     type LucideIcon,
@@ -16,6 +17,7 @@ import { RenameInput } from './RenameInput';
 const FILE_ICONS: Record<NonNullable<FileTreeEntry['fileType']>, LucideIcon> = {
     patch: Parentheses,
     wav: AudioLines,
+    nam: Guitar,
     image: Image,
     video: Film,
 };

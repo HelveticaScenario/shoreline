@@ -407,16 +407,12 @@ pub trait Sampleable: MessageHandler + Send {
     }
     /// Called on the main thread after construction and before the module
     /// is shipped to the audio thread. Lets the module allocate freely and
-    /// do file I/O / heavy prep from the WAV data cache.
+    /// do heavy prep from the loaded files.
     ///
-    /// Default: no-op. Modules that need wav preparation should use the
+    /// Default: no-op. Modules that need files should use the
     /// `has_prepare_resources` flag in their `#[module(...)]` attribute to
     /// delegate to `prepare_resources_impl` on the inner module struct.
-    fn prepare_resources(
-        &self,
-        _wav_data: &std::collections::HashMap<String, std::sync::Arc<WavData>>,
-    ) {
-    }
+    fn prepare_resources(&self, _resources: Resources<'_>) {}
     /// Downcast to concrete type for state transfer.
     fn as_any(&self) -> &dyn std::any::Any;
     /// Transfer runtime state from an old module to this newly-constructed module.
@@ -1556,6 +1552,27 @@ impl WavData {
 
     pub fn with_data<R>(&self, f: impl FnOnce(&Vec<Vec<f32>>) -> R) -> R {
         self.buffer.with_data(f)
+    }
+}
+
+/// The loaded files a patch's modules prepare from on the main thread, keyed
+/// by the path a param names them by.
+#[derive(Clone, Copy)]
+pub struct Resources<'a> {
+    pub wav_data: &'a HashMap<String, Arc<WavData>>,
+    pub nam_data: &'a HashMap<String, Arc<crate::dsp::fx::nam::NamModelData>>,
+}
+
+impl<'a> Resources<'a> {
+    /// WAV files alone, for callers that load no NAM models.
+    pub fn wavs(wav_data: &'a HashMap<String, Arc<WavData>>) -> Self {
+        static NO_MODELS: std::sync::LazyLock<
+            HashMap<String, Arc<crate::dsp::fx::nam::NamModelData>>,
+        > = std::sync::LazyLock::new(HashMap::new);
+        Self {
+            wav_data,
+            nam_data: &NO_MODELS,
+        }
     }
 }
 
