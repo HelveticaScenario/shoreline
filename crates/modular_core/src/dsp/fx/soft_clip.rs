@@ -103,15 +103,20 @@ fn tanh_clip(x: f32, ceiling: f32, inv_ceiling: f32) -> f32 {
 const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Clip peaks gently",
     description: "Leaves a signal untouched until it nears the ceiling, then rounds its peaks \
-                  off so they never pass it. Each lane is clipped on its own, so fold a chord \
-                  or a mix down to its final lanes first to catch its summed peaks. `_tanh` saturates toward \
-                  the same ceiling along a tanh curve instead, and ignores `knee`.",
+                  off so they never pass it. In `$setEndOfChainCb` it catches the whole \
+                  mix's peaks before the output, as the ceiling defaults to the output's full \
+                  scale; elsewhere it clips each lane on its own. `_tanh` saturates toward the \
+                  same ceiling along a tanh curve instead, and ignores `knee`.",
     categories: &[ReferenceCategory::Distortion, ReferenceCategory::Dynamics],
     sections: &[],
     examples: &[
         DocExample {
-            title: "Catch a hot chord",
-            code: "chord: $saw('c3:m9').setLanes(1).softClip()",
+            title: "Catch the whole mix",
+            code: r#"
+                $setEndOfChainCb((mix) => mix.softClip())
+                chord: $saw('c3:m9')
+                bass: $saw('c2')
+            "#,
         },
         DocExample {
             title: "Hard-edged bass",
