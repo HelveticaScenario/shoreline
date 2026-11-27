@@ -38,6 +38,8 @@ export interface ModuleSiteInfo {
     folds: string[];
     /** The `$buffer` params whose channels the module lifts with, as with an input. */
     buffers: string[];
+    /** The file params; a lifted module is stereo for a two-channel file. */
+    files: string[];
     /** Outputs that carry one value per lane, mono whatever the module is. */
     monoOutputs: string[];
 }
@@ -416,8 +418,7 @@ export function collectSignalSites(
     ): { receiver: TS.Expression; module: ModuleSiteInfo } | undefined => {
         const names: string[] = [];
         let found:
-            | { receiver: TS.Expression; module: ModuleSiteInfo }
-            | undefined;
+            { receiver: TS.Expression; module: ModuleSiteInfo } | undefined;
         let node: TS.Expression = callee;
         while (ts.isPropertyAccessExpression(node)) {
             names.unshift(node.name.text);
@@ -712,7 +713,8 @@ export function collectSignalSites(
         if (info.stereo === 'mono' || info.stereo === 'stereo') {
             return info.stereo;
         }
-        // A file decides, which only a run can tell.
+        // A file decides, which only a run can tell; a lifted module's file
+        // joins its inputs below.
         if (info.stereo === 'derived') {
             return 'unknown';
         }
@@ -725,11 +727,15 @@ export function collectSignalSites(
                 const name = info.positional[index];
                 if (info.inputs[name] || info.buffers.includes(name)) {
                     inputs.push(channelsOf(arg));
+                } else if (info.files.includes(name)) {
+                    inputs.push('unknown');
                 }
             } else if (ts.isObjectLiteralExpression(arg)) {
                 forEachField(arg, (key, field) => {
                     if (info.inputs[key] || info.buffers.includes(key)) {
                         inputs.push(channelsOf(field));
+                    } else if (info.files.includes(key)) {
+                        inputs.push('unknown');
                     }
                 });
             } else if (!isPlain(checker.getTypeAtLocation(arg))) {

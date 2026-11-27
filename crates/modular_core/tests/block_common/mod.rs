@@ -46,7 +46,8 @@ pub fn poly_cable(module: &str, lanes: usize) -> Value {
 /// `src` (a `LANES`-wide saw) and `lfo` (a `LANES`-wide sine) feed
 /// `dut`, a `module_type` with `params`, and `reader` maps `dut` from its own
 /// range, so `dut` stores its bounds when it has any. The wav `table` holds
-/// [`wavetable`].
+/// [`wavetable`], `stereoTable` holds it beside [`right_wavetable`], and
+/// `rightTable` holds [`right_wavetable`] alone.
 pub fn build(
     src_mode: ProcessingMode,
     dut_mode: ProcessingMode,
@@ -72,7 +73,11 @@ pub fn build(
                 ProcessingMode::Block,
             ),
         ],
-        [("table", wavetable())],
+        [
+            ("table", wavetable()),
+            ("stereoTable", stereo_wavetable()),
+            ("rightTable", mono_wav(right_wavetable_samples())),
+        ],
     )
 }
 
@@ -128,21 +133,49 @@ pub fn assemble_settled<'a>(
     patch
 }
 
+/// Samples per cycle of the test wavetables.
+const TABLE_SIZE: usize = 256;
+
+/// 16 cycles of `TABLE_SIZE` samples, cycle `frame` given by `wave(frame, phase)`.
+fn table_samples(wave: impl Fn(usize, f32) -> f32 + Copy) -> Vec<f32> {
+    (0..16)
+        .flat_map(|frame| {
+            (0..TABLE_SIZE)
+                .map(move |i| wave(frame, std::f32::consts::TAU * i as f32 / TABLE_SIZE as f32))
+        })
+        .collect()
+}
+
+fn wavetable_samples() -> Vec<f32> {
+    table_samples(|frame, phase| (phase.sin() + (phase * (2 + frame) as f32).sin() * 0.3) * 0.7)
+}
+
+/// A table unlike [`wavetable`] in every frame: cosines, darker as it goes.
+fn right_wavetable_samples() -> Vec<f32> {
+    table_samples(|frame, phase| {
+        (phase.cos() + (phase * 3.0).cos() * 0.4 / (1 + frame) as f32) * 0.6
+    })
+}
+
+fn wav(channels: Vec<Vec<f32>>) -> Arc<WavData> {
+    Arc::new(WavData::new(
+        SampleBuffer::from_samples(channels, 48_000.0),
+        Some(TABLE_SIZE),
+    ))
+}
+
+fn mono_wav(samples: Vec<f32>) -> Arc<WavData> {
+    wav(vec![samples])
+}
+
 /// A 16-frame wavetable of 256-sample cycles, each frame brighter than the last.
 pub fn wavetable() -> Arc<WavData> {
-    const SIZE: usize = 256;
-    let samples = (0..16)
-        .flat_map(|frame| {
-            (0..SIZE).map(move |i| {
-                let phase = std::f32::consts::TAU * i as f32 / SIZE as f32;
-                (phase.sin() + (phase * (2 + frame) as f32).sin() * 0.3) * 0.7
-            })
-        })
-        .collect();
-    Arc::new(WavData::new(
-        SampleBuffer::from_samples(vec![samples], 48_000.0),
-        Some(SIZE),
-    ))
+    mono_wav(wavetable_samples())
+}
+
+/// [`wavetable`] on the left and a table of cosines on the right.
+pub fn stereo_wavetable() -> Arc<WavData> {
+    wav(vec![wavetable_samples(), right_wavetable_samples()])
 }
 
 /// Advance every module through `steps` (ascending slot targets ending at

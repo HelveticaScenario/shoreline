@@ -1,7 +1,7 @@
 //! FFT-based mipmap generation for anti-aliased wavetable playback.
 //!
-//! [`PreparedWavetable`] takes a [`WavData`], splits it into equal-size frames,
-//! and generates a band-limited mipmap pyramid — each level halves the spectral
+//! [`PreparedWavetable`] takes a [`WavData`], splits each side into equal-size
+//! frames, and generates a band-limited mipmap pyramid — each level halves the spectral
 //! bandwidth of the one before it, down to the fundamental alone. At read
 //! time, the oscillator plays the brightest level whose harmonics all stay
 //! below Nyquist at its playback frequency, and fades into the next level (or,
@@ -39,10 +39,11 @@ pub struct MipmapRead {
     pub next_weight: f32,
 }
 
-/// One band-limited copy of every frame.
+/// One band-limited copy of every frame of every side.
 #[derive(Debug, Clone, Connect)]
 struct MipmapLevel {
-    /// `frame_count * table_size` samples, frames stored back-to-back.
+    /// `sides * frame_count * table_size` samples: each side's frames stored
+    /// back-to-back, the sides one after the other.
     samples: Vec<f32>,
     /// `log2` of the playback frequency in Hz below which all of this level's
     /// harmonics stay below Nyquist.
@@ -63,12 +64,15 @@ pub struct PreparedWavetable {
     pub table_size: usize,
     /// Number of frames in the table.
     pub frame_count: usize,
+    /// Sides stored: 2 for a two-channel file, otherwise 1.
+    pub sides: usize,
 }
 
 impl PreparedWavetable {
     /// Prepare a wavetable from a loaded WAV.
     ///
-    /// Reads channel 0. The frame size is taken from `wav.detected_frame_size`,
+    /// Reads both channels of a two-channel file and channel 0 of any other,
+    /// each side cut into the same frames. The frame size is taken from `wav.detected_frame_size`,
     /// falling back to [`DEFAULT_FRAME_SIZE`] when the metadata is absent or
     /// degenerate. Frames past the end of the channel (i.e. if the sample
     /// count isn't a clean multiple of `frame_size`) are discarded.
@@ -88,12 +92,12 @@ impl PreparedWavetable {
         // keeps `frame_size / 2^(l+1)` bins, at least 2 while `l <= log2 - 2`.
         let mipmap_count = integer_log2(frame_size) - 1;
 
-        let channel = 0;
+        let sides = if wav.channel_count() == 2 { 2 } else { 1 };
 
         let nyquist = sample_rate / 2.0;
         let mut levels: Vec<MipmapLevel> = (0..mipmap_count)
             .map(|level| MipmapLevel {
-                samples: vec![0.0f32; frame_count * table_size],
+                samples: vec![0.0f32; sides * frame_count * table_size],
                 limit: (nyquist / (level_cutoff(frame_size, level) - 1) as f32).log2(),
             })
             .collect();
@@ -104,6 +108,7 @@ impl PreparedWavetable {
                 frame_size,
                 table_size,
                 frame_count,
+                sides,
             };
         }
 
@@ -119,11 +124,12 @@ impl PreparedWavetable {
         // To recover the original amplitude we divide by frame_size.
         let inv_n = 1.0 / frame_size as f32;
 
-        for frame_idx in 0..frame_count {
-            // Load channel 0 samples for this frame into the FFT input buffer.
+        for (side, frame_idx) in
+            (0..sides).flat_map(|side| (0..frame_count).map(move |f| (side, f)))
+        {
             let src_base = frame_idx * frame_size;
             for (i, bin) in spectrum.iter_mut().enumerate() {
-                *bin = Complex::new(wav.read(channel, src_base + i), 0.0);
+                *bin = Complex::new(wav.read(side, src_base + i), 0.0);
             }
 
             fft_forward.process(&mut spectrum);
@@ -161,7 +167,7 @@ impl PreparedWavetable {
 
                 fft_inverse.process(&mut padded);
 
-                let dest_base = frame_idx * table_size;
+                let dest_base = (side * frame_count + frame_idx) * table_size;
                 let dest = &mut level_table.samples[dest_base..dest_base + table_size];
                 for (i, c) in padded.iter().enumerate() {
                     dest[i] = c.re * inv_n;
@@ -174,6 +180,7 @@ impl PreparedWavetable {
             frame_size,
             table_size,
             frame_count,
+            sides,
         }
     }
 
@@ -182,15 +189,17 @@ impl PreparedWavetable {
         self.frame_count > 0 && self.frame_size > 0
     }
 
-    /// Read an interpolated sample from mipmap level `level`.
+    /// Read an interpolated sample of `side` from mipmap level `level`.
     ///
+    /// - `side` is clamped to the sides stored, so a one-sided table reads
+    ///   the same on both.
     /// - `phase` is wrapped modulo 1.0 and linearly interpolated within a
     ///   frame.
     /// - `frame` is clamped to `[0, frame_count - 1]` and linearly
     ///   crossfaded between adjacent frames.
     ///
     #[inline]
-    fn read_sample(&self, level: usize, frame: f32, phase: f32) -> f32 {
+    fn read_sample(&self, level: usize, side: usize, frame: f32, phase: f32) -> f32 {
         if self.frame_count == 0 {
             return 0.0;
         }
@@ -213,8 +222,9 @@ impl PreparedWavetable {
         let i1 = if i0 + 1 >= self.table_size { 0 } else { i0 + 1 };
         let phase_frac = idx - (i0 as f32);
 
-        let base0 = f0_idx * self.table_size;
-        let base1 = f1_idx * self.table_size;
+        let side_base = side.min(self.sides - 1) * self.frame_count;
+        let base0 = (side_base + f0_idx) * self.table_size;
+        let base1 = (side_base + f1_idx) * self.table_size;
 
         let s0a = buf[base0 + i0];
         let s0b = buf[base0 + i1];
@@ -227,18 +237,18 @@ impl PreparedWavetable {
         s0 + (s1 - s0) * frame_frac
     }
 
-    /// Read at `mip`: level `mip.level`, blended toward the next level, or
+    /// Read `side` at `mip`: level `mip.level`, blended toward the next level, or
     /// toward silence past the last, by `mip.next_weight`.
     ///
     /// Allocation-free; safe to call from the audio thread.
     #[inline]
-    pub fn read(&self, mip: MipmapRead, frame: f32, phase: f32) -> f32 {
-        let sample = self.read_sample(mip.level, frame, phase);
+    pub fn read(&self, mip: MipmapRead, side: usize, frame: f32, phase: f32) -> f32 {
+        let sample = self.read_sample(mip.level, side, frame, phase);
         if mip.next_weight == 0.0 {
             return sample;
         }
         let next = if mip.level + 1 < self.levels.len() {
-            self.read_sample(mip.level + 1, frame, phase)
+            self.read_sample(mip.level + 1, side, frame, phase)
         } else {
             0.0
         };
@@ -317,11 +327,11 @@ mod tests {
         assert_eq!(prep.levels.len(), 10);
 
         // Sine starts at 0.
-        let s0 = prep.read_sample(0, 0.0, 0.0);
+        let s0 = prep.read_sample(0, 0, 0.0, 0.0);
         assert!(s0.abs() < 1e-4, "expected ~0 at phase 0, got {s0}");
 
         // Quarter-cycle of sine is +1.
-        let s_quarter = prep.read_sample(0, 0.0, 0.25);
+        let s_quarter = prep.read_sample(0, 0, 0.0, 0.25);
         assert!(
             (s_quarter - 1.0).abs() < 1e-3,
             "expected ~1.0 at phase 0.25, got {s_quarter}"
@@ -329,8 +339,8 @@ mod tests {
 
         // Sine fundamental is bin 1, far below any mipmap cutoff, so level 1
         // must be nearly identical to level 0.
-        let s0_l1 = prep.read_sample(1, 0.0, 0.0);
-        let s_quarter_l1 = prep.read_sample(1, 0.0, 0.25);
+        let s0_l1 = prep.read_sample(1, 0, 0.0, 0.0);
+        let s_quarter_l1 = prep.read_sample(1, 0, 0.0, 0.25);
         assert!(s0_l1.abs() < 1e-3, "level1 phase 0: {s0_l1}");
         assert!(
             (s_quarter_l1 - 1.0).abs() < 1e-3,
@@ -353,15 +363,15 @@ mod tests {
         assert_eq!(prep.frame_count, 2);
 
         // At phase 0.25: sine = +1, cosine = 0. Midpoint ~= 0.5.
-        let mid = prep.read_sample(0, 0.5, 0.25);
+        let mid = prep.read_sample(0, 0, 0.5, 0.25);
         assert!((mid - 0.5).abs() < 5e-3, "expected ~0.5 midway, got {mid}");
 
         // At frame=0, phase=0.25 should still be ~1.0 (sine).
-        let f0 = prep.read_sample(0, 0.0, 0.25);
+        let f0 = prep.read_sample(0, 0, 0.0, 0.25);
         assert!((f0 - 1.0).abs() < 1e-3, "frame 0 phase 0.25: {f0}");
 
         // At frame=1, phase=0.0 should be ~1.0 (cosine at 0).
-        let f1 = prep.read_sample(0, 1.0, 0.0);
+        let f1 = prep.read_sample(0, 0, 1.0, 0.0);
         assert!((f1 - 1.0).abs() < 1e-3, "frame 1 phase 0: {f1}");
     }
 
@@ -428,7 +438,7 @@ mod tests {
                     next_weight: 1.0
                 }
             );
-            assert_eq!(prep.read(mip, 0.0, 0.25), 0.0);
+            assert_eq!(prep.read(mip, 0, 0.0, 0.25), 0.0);
         }
         assert_eq!(prep.mipmap_for_freq(f32::NAN), MipmapRead::default());
         assert_eq!(prep.mipmap_for_freq(0.0), MipmapRead::default());
@@ -545,7 +555,7 @@ mod tests {
         let prep = PreparedWavetable::from_wav_data(&wav, 48000.0);
         assert_eq!(prep.frame_count, 0);
         // read_sample should return silence without panicking.
-        assert_eq!(prep.read_sample(0, 0.0, 0.0), 0.0);
-        assert_eq!(prep.read_sample(5, 0.5, 0.5), 0.0);
+        assert_eq!(prep.read_sample(0, 0, 0.0, 0.0), 0.0);
+        assert_eq!(prep.read_sample(5, 0, 0.5, 0.5), 0.0);
     }
 }

@@ -9,6 +9,9 @@
 //! optional `params.phase` [`PhaseWarp`] that warps the raw phase before
 //! sampling.
 //!
+//! A two-channel WAV makes the module stereo: lane `l` side `c` reads side `c`
+//! of the table, and with mono inputs both sides run the same phase.
+//!
 //! If the WAV isn't loaded or the prepared table is empty, the oscillator
 //! outputs silence (no panic, no alloc).
 
@@ -42,7 +45,7 @@ use crate::{
 pub(crate) struct WavetableOscParams {
     #[input("oscillator pitch; with `sync` set, the pitch it restarts at", type = pitch)]
     pub(crate) pitch: PolySignal,
-    #[input("WAV file holding the wavetable frames")]
+    #[input("WAV file holding the wavetable frames; a two-channel file plays in stereo")]
     pub(crate) wav: Wav,
     #[input(
         "which frame plays: 0 the first, 5 the last, blending between neighbours",
@@ -98,7 +101,13 @@ pub(crate) struct WavetableOscParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct WavetableOscOutputs {
-    #[output("output", "the wavetable oscillator", type = cv, default, range = (-5.0, 5.0))]
+    #[output(
+        "output",
+        "the wavetable oscillator, stereo for a two-channel file",
+        type = cv,
+        default,
+        range = (-5.0, 5.0),
+    )]
     sample: PolyOutput,
 }
 
@@ -167,8 +176,8 @@ impl LaneState {
         }
     }
 
-    /// One output sample (±5 V) at `position` (0–5 V across the frames), then
-    /// advance the phase. `warp` reshapes the read phase with its stage values
+    /// One output sample (±5 V) of the table's `side` at `position` (0–5 V
+    /// across the frames), then advance the phase. `warp` reshapes the read phase with its stage values
     /// already resolved for this lane; `restart` is this sample's restart
     /// input and `sync_ratio` its sync, if connected.
     #[inline(always)]
@@ -176,6 +185,7 @@ impl LaneState {
     fn step(
         &mut self,
         prepared: &PreparedWavetable,
+        side: usize,
         sample_rate: f32,
         inv_sr: f64,
         position: f32,
@@ -222,7 +232,7 @@ impl LaneState {
             Some((warp, resolved)) => warp.evaluate(raw_phase, resolved, freq_norm, &mut self.warp),
             None => raw_phase,
         };
-        let before = prepared.read(self.mip, frame_f, warped_phase);
+        let before = prepared.read(self.mip, side, frame_f, warped_phase);
 
         // Naive read plus any residual carried from a reset on the previous
         // sample.
@@ -256,7 +266,7 @@ impl LaneState {
                     }
                     None => phase,
                 };
-                prepared.read(self.mip, frame_f, warped)
+                prepared.read(self.mip, side, frame_f, warped)
             };
             // The slope in output units per sample, from a difference across
             // a small part of the cycle on the side the wave travels, so it
@@ -318,10 +328,12 @@ pub fn wavetable_derive_lane_count(params: &WavetableOscParams) -> usize {
 const WAVETABLE_DOCS: ModuleDocs = ModuleDocs {
     summary: "Wavetable oscillator",
     description: "Plays the single-cycle frames of a wavetable WAV and blends \
-                  between them, for evolving glassy, vocal or digital timbres. \
+                  between them, for evolving glassy, vocal or digital timbres; \
+                  tables bundled with the app live under `'builtin/tables/'`. \
                   Sweep `position` with an LFO or envelope, and bend each cycle \
-                  further with a `$phase.*` warp. Tables bundled with the app \
-                  live under `'builtin/tables/'`.",
+                  further with a `$phase.*` warp. A two-channel table plays in \
+                  stereo with both sides in step, so drawings traced as left = x \
+                  and right = y morph on an XY scope.",
     categories: &[ReferenceCategory::Oscillator],
     sections: &[],
     examples: &[
@@ -375,6 +387,7 @@ impl WavetableOsc {
             return;
         };
         let inv_sr = 1.0 / sample_rate as f64;
+        let channels = self.channels().max(1);
         let p = &self.params;
         for (lane, state) in self.lane_state.iter_mut().enumerate() {
             let ratio = p.sync.as_ref().map(|sync| sync_ratio(sync.get_value(lane)));
@@ -393,6 +406,7 @@ impl WavetableOsc {
             });
             let sample = state.step(
                 prepared,
+                lane % channels,
                 sample_rate,
                 inv_sr,
                 p.position
@@ -427,6 +441,7 @@ impl WavetableOsc {
             return Some(());
         };
         let lanes = self.lane_count();
+        let channels = self.channels().max(1);
         let mut scratch = Default::default();
         let WavetableOscParamsBlockInputs {
             pitch,
@@ -448,6 +463,7 @@ impl WavetableOsc {
                 state.tune(prepared, pitch[lane], fm[lane], p.fm_mode, ratios[lane]);
                 let sample = state.step(
                     prepared,
+                    lane % channels,
                     sample_rate,
                     inv_sr,
                     position[lane],
@@ -795,7 +811,7 @@ mod tests {
         osc.params.restart = Some(PolySignal::mono(Signal::Volts(2.0)));
         let state = osc.lane_state[0];
         let prepared = osc.params.prepared.as_ref().unwrap();
-        let table = |phase: f64| 5.0 * prepared.read(state.mip, 0.0, phase as f32);
+        let table = |phase: f64| 5.0 * prepared.read(state.mip, 0, 0.0, phase as f32);
         let (naive_first, naive_second) = (table(0.5 - 0.5 * step), table(0.5 * step));
         osc.update(48000.0);
         let first = osc.outputs.sample.get(0);

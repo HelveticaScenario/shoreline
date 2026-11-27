@@ -21,6 +21,7 @@ type BuiltSiteInfo = Omit<ModuleSiteInfo, 'chainable'>;
 /** `$delay(input, time, { feedback })`. */
 export const DELAY_SITE: BuiltSiteInfo = {
     buffers: [],
+    files: [],
     monoOutputs: [],
     folds: [],
     inputs: { feedback: 'cv', input: 'cv', time: 'cv' },
@@ -31,6 +32,7 @@ export const DELAY_SITE: BuiltSiteInfo = {
 /** `$super(freq, cb, { detune, width })`: a stereo unison stack of `cb`'s voice. */
 export const SUPER_SITE: BuiltSiteInfo = {
     buffers: [],
+    files: [],
     folds: [],
     inputs: { detune: 'cv', freq: 'cv', width: 'cv' },
     monoOutputs: [],
@@ -42,6 +44,7 @@ export const SUPER_SITE: BuiltSiteInfo = {
 const CROSS_SITE: ModuleSiteInfo = {
     buffers: [],
     chainable: false,
+    files: [],
     folds: [],
     inputs: { playhead: 'cv' },
     monoOutputs: [],
@@ -131,6 +134,9 @@ export function buildSignalSiteTables(
         tables.modules[schema.name] = {
             buffers: bufferParams(schema),
             chainable: qualifiesForChain(processed),
+            files: processed.params
+                .filter((p) => p.isWavInput)
+                .map((p) => p.name),
             monoOutputs: (schema.outputs ?? [])
                 .filter((output) => output.mono)
                 .map((output) => output.name),

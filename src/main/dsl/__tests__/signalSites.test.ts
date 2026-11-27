@@ -542,6 +542,12 @@ describe('fold sites', () => {
         expect(folds(`out$0m: $inputMono`)).toEqual([]);
     });
 
+    test('a lifted module playing a file may be stereo', () => {
+        expect(folds(`out$0m: $wavetable('c3', 'table.wav')`)).toEqual([
+            "$wavetable('c3', 'table.wav')‹.mono()›",
+        ]);
+    });
+
     test('a collection of mono and stereo may be stereo', () => {
         expect(folds(`${wide}out$0m: $c($saw('c3'), wide)`)).toEqual([
             "$c($saw('c3'), wide)‹.mono()›",

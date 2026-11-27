@@ -1,0 +1,3 @@
+kind: New
+body: '`$wavetable` plays a two-channel table in stereo, both sides at the same pitch and position, so a table of drawings traced as left = x and right = y morphs on an XY scope as you sweep `position`.'
+time: 2026-11-27T17:41:35.523798-05:00

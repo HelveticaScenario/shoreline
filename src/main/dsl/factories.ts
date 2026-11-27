@@ -7,7 +7,7 @@ import {
     CollectionWithRange,
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
-import type { Channels } from '../../shared/dsl/channels';
+import { type Channels, liftedChannels } from '../../shared/dsl/channels';
 import type { CallSiteKey, SpanRegistry } from './analyzeSource';
 import type { CallSiteSpans } from './sourceAnalysisTypes';
 import {
@@ -67,9 +67,8 @@ function isWavRef(value: unknown): boolean {
 }
 
 /**
- * What a `derived` module carries: stereo when a file it plays has two
- * channels, mono when every file's channel count is known, and otherwise
- * unknown.
+ * What the files a module plays make it: stereo when one has two channels,
+ * mono when every file's channel count is known, and otherwise unknown.
  */
 function fileChannels(files: unknown[]): Channels {
     const counts = files.map((file) =>
@@ -545,9 +544,22 @@ export class DSLContext {
                                 ? fileChannels(
                                       wavParamNames.map((name) => params[name]),
                                   )
-                                : this.builder.liftedChannelsOf(
-                                      Object.values(params),
-                                  ),
+                                : liftedChannels([
+                                      this.builder.liftedChannelsOf(
+                                          Object.values(params),
+                                      ),
+                                      // A lifted module is stereo for a
+                                      // two-channel file too.
+                                      ...(wavParamNames.length > 0
+                                          ? [
+                                                fileChannels(
+                                                    wavParamNames.map(
+                                                        (name) => params[name],
+                                                    ),
+                                                ),
+                                            ]
+                                          : []),
+                                  ]),
                     );
 
                     // Derive lane count from params using Rust-side derivation (backed by LRU cache)

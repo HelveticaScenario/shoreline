@@ -935,9 +935,29 @@ fn a_two_channel_file_makes_its_players_stereo() {
             "$add",
             json!({ "input": cable("stereo", 0), "offset": 0.0 }),
         ),
+        (
+            "table",
+            "$wavetable",
+            json!({ "pitch": [0.0, 1.0], "wav": wav(2) }),
+        ),
+        (
+            "monoTable",
+            "$wavetable",
+            json!({ "pitch": 0.0, "wav": wav(1) }),
+        ),
+        (
+            "liftedTable",
+            "$wavetable",
+            json!({ "pitch": cable("stereo", 0), "wav": wav(1) }),
+        ),
     ])
     .unwrap();
     let lanes = |id: &str| patch.sampleables[id].port_lanes("output");
+    // A lifted player is stereo for a two-channel file, and still lifts from
+    // a stereo input when its file is mono.
+    assert_eq!(lanes("table"), 4);
+    assert_eq!(lanes("monoTable"), 1);
+    assert_eq!(lanes("liftedTable"), 2);
     // One stereo lane, one mono lane, and a mono lane per channel.
     assert_eq!(lanes("stereo"), 2);
     assert_eq!(lanes("mono"), 1);
