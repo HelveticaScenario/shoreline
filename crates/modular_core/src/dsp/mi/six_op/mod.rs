@@ -392,10 +392,4 @@ mod tests;
 
 #[cfg(test)]
 #[path = "../../../../tests/plaits_voices/mod.rs"]
-mod plaits_voices;
-
-/// The builtin voices, for tests.
-#[cfg(test)]
-pub(crate) mod test_voices {
-    pub use super::plaits_voices::{PLAITS_VOICES, plaits_file};
-}
+pub(crate) mod plaits_voices;

@@ -280,9 +280,9 @@ describe('workspace path completion', () => {
         );
         expect(syx?.map((s) => [s.insertText, s.detail])).toEqual([
             ["'/dx7/rom1a.syx'", 'DX7 voices: the first, E.PIANO 1'],
-            ["'/dx7/rom1a.syx#E.PIANO 1'", 'DX7 voice 1 of 3'],
-            ["'/dx7/rom1a.syx#BASS    3'", 'DX7 voice 2 of 3'],
-            ["'/dx7/rom1a.syx#@2'", 'DX7 voice 3 of 3'],
+            ["'/dx7/rom1a.syx#E.PIANO 1'", 'DX7 voice 1 of 3: E.PIANO 1'],
+            ["'/dx7/rom1a.syx#BASS    3'", 'DX7 voice 2 of 3: BASS    3'],
+            ["'/dx7/rom1a.syx#@2'", 'DX7 voice 3 of 3: E.PIANO 1'],
             ["'/dx7/lone.syx'", 'DX7 voice BRASS 1'],
             ["'/dx7/broken.syx'", 'DX7 voices'],
         ]);

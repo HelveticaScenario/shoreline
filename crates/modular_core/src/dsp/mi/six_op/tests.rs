@@ -18,14 +18,12 @@ fn knobs(brightness: f32, envelope: f32, accent: f32) -> Knobs {
 /// Plaits' 96 patches, bank by bank, from the builtin files.
 fn voices() -> &'static [Dx7Voice] {
     static VOICES: std::sync::LazyLock<Vec<Dx7Voice>> = std::sync::LazyLock::new(|| {
-        test_voices::PLAITS_VOICES
-            .iter()
-            .enumerate()
-            .map(|(index, path)| {
-                let v = parse_syx(&test_voices::plaits_file(index))
+        (0..plaits_voices::PLAITS_VOICES.len())
+            .map(|index| {
+                let v = parse_syx(&plaits_voices::plaits_file(index))
                     .unwrap()
                     .remove(0);
-                Dx7Voice::new(path.to_string(), v.name, v.packed)
+                Dx7Voice::new(&v.packed)
             })
             .collect()
     });
@@ -40,7 +38,7 @@ fn voice(bank: usize, patch: usize) -> &'static Dx7Voice {
 /// The builtin voice of file stem `name`.
 fn builtin(name: &str) -> &'static Dx7Voice {
     let file = format!("/{name}.syx");
-    let index = test_voices::PLAITS_VOICES
+    let index = plaits_voices::PLAITS_VOICES
         .iter()
         .position(|p| p.ends_with(&file))
         .unwrap();
@@ -380,7 +378,7 @@ fn a_retrigger_leaves_the_last_note_sounding() {
         )
     };
     let mut worst = (0.0f32, "");
-    for (index, path) in test_voices::PLAITS_VOICES.iter().enumerate() {
+    for (index, path) in plaits_voices::PLAITS_VOICES.iter().enumerate() {
         let voice = &voices()[index];
         if !voice.patch().reset_phase {
             continue;
@@ -525,4 +523,32 @@ fn each_note_keeps_its_accent() {
     let (silent_second, first_alone) = (render(true), render(false));
     assert!(first_alone[2100..2500].iter().any(|v| v.abs() > 1e-3));
     assert_eq!(silent_second, first_alone);
+}
+
+/// A note that releases into silence stops rendering, fading out from below
+/// -60 dB, while the next note still plays.
+#[test]
+fn a_released_note_falls_silent() {
+    let state = SixOpState::new(48000.0);
+    let mut lane = new_lane(1);
+    let step = |lane: &mut Lane, gate: bool| {
+        lane.step(
+            220.0 / 48000.0,
+            knobs(2.5, 0.5, 2.5),
+            Some(gate),
+            voice(0, 5),
+            2,
+            1.0,
+            &state,
+        )
+    };
+    for n in 0..48000 {
+        step(&mut lane, n < 4800);
+    }
+    assert_eq!(lane.pool.sounding(), 0);
+    let peak = (0..4800)
+        .map(|_| step(&mut lane, true).abs())
+        .fold(0.0f32, f32::max);
+    assert_eq!(lane.pool.sounding(), 1);
+    assert!(peak > 0.1, "peak {peak}");
 }

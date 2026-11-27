@@ -12,6 +12,7 @@ const SLOTS: usize = MAX_VOICES + 1;
 enum Life {
     /// Faded out or never played; not rendered.
     Silent,
+    /// Sounding until a newer note cuts it off or it releases into silence.
     Playing,
     /// Fading out at `gain`.
     Fading,
@@ -123,8 +124,15 @@ impl Pool {
         }
     }
 
+    /// How many voices sound.
+    #[cfg(test)]
+    pub fn sounding(&self) -> usize {
+        self.slots.iter().filter(|s| s.life != Life::Silent).count()
+    }
+
     /// One sample of every sounding voice, each through Plaits' output stage
-    /// at its level, summed in slot order.
+    /// at its level, summed in slot order. A voice that has released into
+    /// silence fades out, so it renders no more.
     #[inline(always)]
     pub fn render(&mut self, rates: &Rates) -> f32 {
         let mut out = 0.0;
@@ -135,6 +143,9 @@ impl Pool {
             let sample = soft_clip(slot.voice.render(rates) * 0.25) * slot.level;
             if slot.life == Life::Playing {
                 out += sample;
+                if slot.voice.released() {
+                    slot.life = Life::Fading;
+                }
             } else {
                 out += sample * slot.gain;
                 slot.gain -= rates.fade;

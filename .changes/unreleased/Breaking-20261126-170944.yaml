@@ -1,11 +1,11 @@
 kind: Breaking
 body: |-
-    `$mi.sixOp` plays voices from DX7 `.syx` files: pass a file as its second argument, and add `#` and a voice name to pick one voice from a bank (`'/dx7/rom1a.syx#E.PIANO 1'`). Autocomplete lists every voice of every `.syx` file in your workspace. Plaits' 96 voices are built in, one file each under `builtin/dx7/plaits/`, and `bank` and `patch` are gone.
+    `$mi.sixOp` plays voices from DX7 `.syx` files: pass a file as its second argument, and add `#` and a voice name to pick one voice from a bank (`'/dx7/rom1a.syx#E.PIANO 1'`). Autocomplete lists every voice of every `.syx` file in your workspace. Plaits' 96 voices are built in, one file each under `builtin/dx7/plaits/`, and `bank` and `patch` are gone. It also plays up to `voices` notes at once, 2 unless you set it (up to 8), so each note's release rings on under the next; a note past the count fades out the oldest. Set `voices: 1` for one note at a time.
 
     ```js
     // before
-    keys: $mi.sixOp('c3', { bank: 1, patch: 0 })
+    keys: $mi.sixOp(seq, { gate: seq, bank: 1, patch: 0 })
     // after
-    keys: $mi.sixOp('c3', 'builtin/dx7/plaits/e-piano-1.syx')
+    keys: $mi.sixOp(seq, 'builtin/dx7/plaits/e-piano-1.syx', { gate: seq })
     ```
 time: 2026-11-26T17:09:44.019205-05:00

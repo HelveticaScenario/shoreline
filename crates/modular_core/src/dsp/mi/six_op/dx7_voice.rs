@@ -6,7 +6,6 @@ use std::borrow::Cow;
 
 use deserr::{DeserializeError, ErrorKind, IntoValue, Map, ValuePointerRef};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 
 use super::patch::{PACKED_SIZE, Patch};
 use crate::patch::Patch as Graph;
@@ -14,22 +13,15 @@ use crate::types::{CableSource, Connect, LaneExpansion, PreviousIds};
 
 #[derive(Clone)]
 pub struct Dx7Voice {
-    /// The file and voice name the patch named.
-    path: String,
-    name: String,
-    packed: [u8; PACKED_SIZE],
     patch: Patch,
     id: u64,
 }
 
 impl Dx7Voice {
-    pub(super) fn new(path: String, name: String, packed: [u8; PACKED_SIZE]) -> Self {
+    pub(super) fn new(packed: &[u8; PACKED_SIZE]) -> Self {
         Self {
-            patch: Patch::unpack(&packed),
-            id: fnv1a(&packed),
-            path,
-            name,
-            packed,
+            patch: Patch::unpack(packed),
+            id: fnv1a(packed),
         }
     }
 
@@ -78,48 +70,6 @@ impl Connect for Dx7Voice {
     fn mark_glides(&mut self, _old: Option<&Self>, _generation: u64, _ids: &dyn PreviousIds) {}
 }
 
-impl std::fmt::Debug for Dx7Voice {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Dx7Voice")
-            .field("path", &self.path)
-            .field("name", &self.name)
-            .finish()
-    }
-}
-
-impl PartialEq for Dx7Voice {
-    fn eq(&self, other: &Self) -> bool {
-        self.path == other.path && self.name == other.name && self.packed == other.packed
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct Dx7VoiceSerde {
-    path: String,
-    name: String,
-    data: String,
-}
-
-impl Serialize for Dx7Voice {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        Dx7VoiceSerde {
-            path: self.path.clone(),
-            name: self.name.clone(),
-            data: encode_hex(&self.packed),
-        }
-        .serialize(serializer)
-    }
-}
-
-impl<'de> Deserialize<'de> for Dx7Voice {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let raw = Dx7VoiceSerde::deserialize(deserializer)?;
-        let packed = decode_hex(&raw.data)
-            .ok_or_else(|| serde::de::Error::custom("a DX7 voice's data is 256 hex digits"))?;
-        Ok(Self::new(raw.path, raw.name, packed))
-    }
-}
-
 impl<E: DeserializeError> deserr::Deserr<E> for Dx7Voice {
     fn deserialize_from_value<V: IntoValue>(
         value: deserr::Value<V>,
@@ -139,26 +89,22 @@ impl<E: DeserializeError> deserr::Deserr<E> for Dx7Voice {
                 "a DX7 voice is a .syx path, optionally followed by #name",
             ));
         };
-        let mut string = |field: &'static str| {
-            map.remove(field)
-                .and_then(|v| match v.into_value() {
-                    deserr::Value::String(s) => Some(s),
-                    _ => None,
-                })
-                .ok_or_else(|| {
-                    deserr::take_cf_content(E::error::<V>(
-                        None,
-                        ErrorKind::MissingField { field },
-                        location,
-                    ))
-                })
-        };
-        let path = string("path")?;
-        let name = string("name")?;
-        let data = string("data")?;
+        let data = map
+            .remove("data")
+            .and_then(|v| match v.into_value() {
+                deserr::Value::String(s) => Some(s),
+                _ => None,
+            })
+            .ok_or_else(|| {
+                deserr::take_cf_content(E::error::<V>(
+                    None,
+                    ErrorKind::MissingField { field: "data" },
+                    location,
+                ))
+            })?;
         let packed =
             decode_hex(&data).ok_or_else(|| unexpected("a DX7 voice's data is 256 hex digits"))?;
-        Ok(Self::new(path, name, packed))
+        Ok(Self::new(&packed))
     }
 }
 

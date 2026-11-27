@@ -1,6 +1,6 @@
 /**
  * The workspace's path completions, read once and kept until the workspace's
- * files change, so completing never waits on the main process.
+ * files change or are re-read, so completing never waits on the main process.
  */
 import type { SyxFileVoices } from '../../../shared/dx7Voice';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
@@ -14,7 +14,8 @@ export interface WorkspaceAssetSource {
     listFiles: () => Promise<FileTreeEntry[]>;
     /** The voice names of each readable `.syx` file among `paths`. */
     listSyxVoices: (paths: string[]) => Promise<SyxFileVoices[]>;
-    /** Calls `callback` when the workspace's files change; returns the unsubscribe. */
+    /** Calls `callback` when the workspace's files change or are re-read;
+     *  returns the unsubscribe. */
     onTreeChange: (callback: () => void) => () => void;
 }
 

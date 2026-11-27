@@ -58,11 +58,12 @@ pub fn parse_syx(bytes: &[u8]) -> Result<Vec<SyxVoice>, String> {
 }
 
 /// The voices of one sysex message, from its F0 up to but not including its
-/// F7: a Yamaha (43) dump of format 0 (one voice) or 9 (32 voices), whose
-/// data follows a six-byte header. Any other message holds none; a dump with
-/// less data than its format needs is an error saying how much it holds.
+/// F7: a Yamaha (43) bulk dump (sub-status 0) of format 0 (one voice) or 9
+/// (32 voices) carrying that format's byte count, whose data follows the
+/// six-byte header. Any other message holds none; a dump with less data than
+/// its header names is an error saying how much it holds.
 fn message_voices(message: &[u8]) -> Result<Vec<SyxVoice>, String> {
-    let [0xf0, 0x43, _, format, _, _, data @ ..] = message else {
+    let [0xf0, 0x43, status, format, count_high, count_low, data @ ..] = message else {
         return Ok(Vec::new());
     };
     let (size, kind) = match format {
@@ -70,6 +71,10 @@ fn message_voices(message: &[u8]) -> Result<Vec<SyxVoice>, String> {
         9 => (BANK_SIZE, "32-voice"),
         _ => return Ok(Vec::new()),
     };
+    let count = usize::from(*count_high) << 7 | usize::from(*count_low);
+    if status & 0xf0 != 0 || count != size {
+        return Ok(Vec::new());
+    }
     if data.len() < size {
         return Err(format!(
             "the {kind} dump is cut short: it holds {} of its {size} bytes",
@@ -194,7 +199,7 @@ mod tests {
 
     #[test]
     fn reads_every_builtin_voice() {
-        use crate::dsp::mi::six_op::test_voices::{PLAITS_VOICES, plaits_file};
+        use crate::dsp::mi::six_op::plaits_voices::{PLAITS_VOICES, plaits_file};
         for (index, path) in PLAITS_VOICES.iter().enumerate() {
             let voices = parse_syx(&plaits_file(index)).unwrap();
             assert_eq!(voices.len(), 1, "{path}");
@@ -235,6 +240,16 @@ mod tests {
             error.contains("cut short") && error.contains("4000 of its 4096"),
             "{error}"
         );
+    }
+
+    #[test]
+    fn skips_messages_that_are_not_voice_dumps() {
+        let parameter_change = [0xf0, 0x43, 0x10, 0x00, 0x05, 0x40, 0xf7];
+        let wrong_count = [0xf0, 0x43, 0x00, 0x09, 0x01, 0x1b, 0x00, 0xf7];
+        for message in [&parameter_change[..], &wrong_count] {
+            let error = parse_syx(message).unwrap_err();
+            assert!(error.contains("no DX7 voice"), "{error}");
+        }
     }
 
     #[test]

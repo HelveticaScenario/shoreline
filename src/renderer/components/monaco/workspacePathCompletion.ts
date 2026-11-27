@@ -178,7 +178,7 @@ function voiceSuggestions(
         { path, detail: `${ASSET_DETAILS.syx}: the first, ${names[0]}` },
         ...fragments.map((fragment, i) => ({
             path: `${path}#${fragment}`,
-            detail: `DX7 voice ${i + 1} of ${names.length}`,
+            detail: `DX7 voice ${i + 1} of ${names.length}: ${names[i]}`,
         })),
     ];
 }
