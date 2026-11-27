@@ -137,6 +137,7 @@ export function usePatchRunner({
                 model,
                 code,
                 result.outputResolutions ?? [],
+                result.moduleChannels ?? [],
             );
         }
         const ui = buildPatchUi(

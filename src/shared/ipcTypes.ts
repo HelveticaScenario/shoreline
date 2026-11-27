@@ -7,6 +7,7 @@
 
 import type { AssetKind } from './assetFiles';
 import type { CursorStyle } from './cursorStyle';
+import type { ModuleChannelsRecord } from './dsl/channels';
 import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
 import type { SignalSiteTables } from './dsl/signalSites';
 import type { MonospaceFont } from './fonts';
@@ -255,6 +256,8 @@ export interface DSLExecuteResult {
     videoPreviews?: VideoPreviewSite[];
     /** Every contextual output choice made while the script ran */
     outputResolutions?: OutputResolutionRecord[];
+    /** The channels of every module the script built from a file */
+    moduleChannels?: ModuleChannelsRecord[];
 }
 
 /**

@@ -12,6 +12,11 @@ import {
     siteOfRecord,
     type SignalSite,
 } from '../../../shared/dsl/signalSites';
+import {
+    callKey,
+    foldsGiven,
+    monoFileCalls,
+} from '../../../renderer/components/monaco/monoFileCalls';
 import { executePatchScript } from '../executor';
 import { buildSignalSiteTables } from '../signalSiteTables';
 import { buildLibSource } from '../typescriptLibGen';
@@ -547,5 +552,152 @@ describe('fold sites', () => {
             "$c($saw('c3'), wide)‹.mono()›",
         ]);
         expect(folds(`out$0m: $c($saw('c3'), $saw('e3'))`)).toEqual([]);
+    });
+});
+
+describe('folds through files', () => {
+    /** A file of two channels when its name says stereo, else of one. */
+    const loadWav = (path: string) => ({
+        bitDepth: 16,
+        channels: path.includes('stereo') ? 2 : 1,
+        cuePoints: [],
+        duration: 1,
+        frameCount: 48_000,
+        loops: [],
+        mtime: 0,
+        path,
+        sampleRate: 48_000,
+    });
+
+    /** The values of `source` that fold, before a run and after one. */
+    function folds(source: string): { before: string[]; after: string[] } {
+        const sites = collect(source);
+        const { moduleChannels } = executePatchScript(source, schemas, {
+            loadWav,
+            sampleRate: 48_000,
+            workspaceRoot: '/workspace',
+        });
+        const mono = new Set(
+            monoFileCalls(sites, moduleChannels).map((call) =>
+                callKey(call.start, call.end, call.module),
+            ),
+        );
+        const text = (site: SignalSite) => source.slice(site.start, site.end);
+        return {
+            after: sites.filter((s) => foldsGiven(s, mono)).map(text),
+            before: sites.filter((s) => foldsGiven(s, new Set())).map(text),
+        };
+    }
+
+    test('a fold through mono files alone is none once run', () => {
+        const table = `$sampler('builtin/tables/mi/formants.wav', 5)`;
+        expect(folds(`out$0m: ${table}`)).toEqual({
+            after: [],
+            before: [table],
+        });
+        expect(
+            folds(`const k = $sampler('/kick.wav', 5)\nout$0m: k.lpf('c5')`),
+        ).toEqual({ after: [], before: ["k.lpf('c5')"] });
+        expect(
+            folds(
+                `out$0m: $c($sampler('/kick.wav', 5), $sampler('/snare.wav', 5))`,
+            ),
+        ).toEqual({
+            after: [],
+            before: ["$c($sampler('/kick.wav', 5), $sampler('/snare.wav', 5))"],
+        });
+    });
+
+    test('a stereo file still folds', () => {
+        const table = `$sampler('/stereo.wav', 5)`;
+        expect(folds(`out$0m: ${table}`)).toEqual({
+            after: [table],
+            before: [table],
+        });
+        expect(
+            folds(
+                `out$0m: $c($sampler('/kick.wav', 5), $sampler('/stereo.wav', 5))`,
+            ),
+        ).toEqual({
+            after: ["$c($sampler('/kick.wav', 5), $sampler('/stereo.wav', 5))"],
+            before: [
+                "$c($sampler('/kick.wav', 5), $sampler('/stereo.wav', 5))",
+            ],
+        });
+    });
+
+    test('a fold that does not come from files alone stands', () => {
+        const value = `$sampler('/kick.wav', 5).add(d)`;
+        expect(
+            folds(`const d = $deferred()\nout$0m: ${value}\nd.set(0)`),
+        ).toEqual({
+            after: [value],
+            before: [value],
+        });
+    });
+
+    test('a fold names the file calls it comes from', () => {
+        const source = `const k = $sampler('/kick.wav', 5)\nout$0m: k.amp($sampler('/snare.wav', 5))`;
+        const [site] = collect(source).filter((s) => s.fold);
+        expect(
+            site.foldCalls?.map((call) => ({
+                ...call,
+                text: source.slice(call.start, call.end),
+            })),
+        ).toEqual([
+            {
+                column: 11,
+                end: 34,
+                line: 1,
+                module: '$sampler',
+                start: 10,
+                text: "$sampler('/kick.wav', 5)",
+            },
+            {
+                column: 15,
+                end: 74,
+                line: 2,
+                module: '$sampler',
+                start: 49,
+                text: "$sampler('/snare.wav', 5)",
+            },
+        ]);
+    });
+});
+
+describe('mono file calls', () => {
+    const call = { column: 9, end: 30, line: 1, module: '$sampler', start: 8 };
+    const site: SignalSite = {
+        column: 1,
+        end: 30,
+        fold: true,
+        foldCalls: [call],
+        insertable: true,
+        line: 1,
+        slot: 'receiver',
+        start: 8,
+    };
+    const record = (channels: 'mono' | 'stereo' | 'unknown') => ({
+        channels,
+        column: 9 + 4,
+        line: 1,
+        module: '$sampler',
+    });
+
+    test('a call is mono when every run of it was', () => {
+        expect(monoFileCalls([site], [record('mono'), record('mono')])).toEqual(
+            [call],
+        );
+        expect(
+            monoFileCalls([site], [record('mono'), record('stereo')]),
+        ).toEqual([]);
+        expect(monoFileCalls([site], [record('unknown')])).toEqual([]);
+    });
+
+    test('a call that never ran, or built another module, is not', () => {
+        expect(monoFileCalls([site], [])).toEqual([]);
+        expect(
+            monoFileCalls([site], [{ ...record('mono'), module: '$grains' }]),
+        ).toEqual([]);
     });
 });

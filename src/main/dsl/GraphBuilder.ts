@@ -64,6 +64,7 @@ import {
     type Channels,
     collectionChannels,
     liftedChannels,
+    type ModuleChannelsRecord,
 } from '../../shared/dsl/channels';
 
 import z from 'zod';
@@ -626,9 +627,11 @@ function sliceRoot(
     for (const [name, value] of Object.entries(set.values)) {
         values[name] =
             value instanceof BaseCollection && value.length === rootLanes
-                ? new (value.constructor as new (
-                      ...args: ModuleOutput[]
-                  ) => AnyCollection)(...indices.map((i) => value.items[i]))
+                ? new (
+                      value.constructor as new (
+                          ...args: ModuleOutput[]
+                      ) => AnyCollection
+                  )(...indices.map((i) => value.items[i]))
                 : value;
         carrySignalRoot(values[name], value);
     }
@@ -810,6 +813,8 @@ export interface SourceLocation {
 export class GraphBuilder implements ChainHost {
     /** Resolves multi-output module roots and records each choice. */
     readonly outputResolver = new OutputResolver();
+    /** The channels of every module built from a file, by call site. */
+    readonly moduleChannelRecords: ModuleChannelsRecord[] = [];
     private modules = new Map<string, ModuleSpec>();
     /** The output ports handed out as ranged, as `module:port`. */
     private rangedPorts = new Set<string>();

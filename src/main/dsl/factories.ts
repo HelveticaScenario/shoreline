@@ -535,8 +535,7 @@ export class DSLContext {
                         }
                     }
 
-                    this.builder.setModuleChannels(
-                        node.id,
+                    const channels =
                         schema.stereo === 'mono'
                             ? 'mono'
                             : schema.stereo === 'stereo'
@@ -547,8 +546,17 @@ export class DSLContext {
                                   )
                                 : this.builder.liftedChannelsOf(
                                       Object.values(params),
-                                  ),
-                    );
+                                  );
+                    this.builder.setModuleChannels(node.id, channels);
+                    // The editor reads the channels of a module its file
+                    // decides from these, as only a run can tell them.
+                    if (sourceLocation && schema.stereo === 'derived') {
+                        this.builder.moduleChannelRecords.push({
+                            ...sourceLocation,
+                            channels,
+                            module: schema.name,
+                        });
+                    }
 
                     // Derive lane count from params using Rust-side derivation (backed by LRU cache)
                     // This handles modules with custom derivation logic (like mix, seq)

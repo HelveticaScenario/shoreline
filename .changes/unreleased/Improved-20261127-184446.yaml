@@ -1,0 +1,3 @@
+kind: Improved
+body: After you run a patch, the editor no longer shows a ghost `.mono()` after `$sampler` or `$grains` when the file it plays turns out to be mono. A stereo file still shows it, and editing the call brings it back until the next run.
+time: 2026-11-27T18:44:46.431954-05:00
