@@ -3241,8 +3241,9 @@ pub enum OutputType {
 #[napi(string_enum = "lowercase")]
 pub enum StereoMode {
     /// Stereo when any input it reads lane by lane is stereo or a file it
-    /// plays has two channels: the module then runs one lane per side and
-    /// each reads its own side of every input and of the file.
+    /// plays has two channels and its lanes fit two sides: the module then
+    /// runs one lane per side and each reads its own side of every input and
+    /// of the file.
     #[default]
     Lift,
     /// Always mono: every input folds a stereo producer to `(L + R) / 2`.

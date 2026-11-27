@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `$wavetable` plays a two-channel table in stereo, both sides at the same pitch and position, so a table of drawings traced as left = x and right = y morphs on an XY scope as you sweep `position`. A patch that played a two-channel table heard only its left channel; to keep that sound, take its left side with `$left`:
+
+    ```js
+    // Before
+    pad: $wavetable('c3', 'my-stereo-table.wav')
+    // After
+    pad: $left($wavetable('c3', 'my-stereo-table.wav'))
+    ```
+time: 2026-11-27T18:18:20.203832-05:00

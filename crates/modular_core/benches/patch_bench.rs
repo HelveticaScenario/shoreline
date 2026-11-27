@@ -90,6 +90,9 @@ impl BenchPatch {
         patch.settle_connections(&mut settlement, sinks);
         patch.wav_data.insert("noise".into(), noise_wav());
         patch.wav_data.insert("table".into(), table_wav());
+        patch
+            .wav_data
+            .insert("stereoTable".into(), stereo_table_wav());
         for module in patch.sampleables.values() {
             module.prepare_resources(&patch.wav_data);
         }
@@ -386,20 +389,38 @@ fn noise_wav() -> Arc<WavData> {
     ))
 }
 
-/// A 64-frame wavetable of 2048-sample cycles, for `$wavetable`.
-fn table_wav() -> Arc<WavData> {
-    const SIZE: usize = 2048;
-    let samples = (0..64)
+const TABLE_SIZE: usize = 2048;
+
+/// 64 frames of 2048-sample cycles, frame `f` given by `wave(f, phase)`.
+fn table_samples(wave: impl Fn(f32, f32) -> f32 + Copy) -> Vec<f32> {
+    (0..64)
         .flat_map(|frame| {
-            (0..SIZE).map(move |i| {
-                let phase = std::f32::consts::TAU * i as f32 / SIZE as f32;
-                (phase * (1.0 + frame as f32 * 0.1)).sin() * 0.8
+            (0..TABLE_SIZE).map(move |i| {
+                wave(
+                    frame as f32,
+                    std::f32::consts::TAU * i as f32 / TABLE_SIZE as f32,
+                )
             })
         })
-        .collect();
+        .collect()
+}
+
+/// A 64-frame wavetable of 2048-sample cycles, for `$wavetable`.
+fn table_wav() -> Arc<WavData> {
+    let samples = table_samples(|frame, phase| (phase * (1.0 + frame * 0.1)).sin() * 0.8);
     Arc::new(WavData::new(
         SampleBuffer::from_samples(vec![samples], 48_000.0),
-        Some(SIZE),
+        Some(TABLE_SIZE),
+    ))
+}
+
+/// [`table_wav`] on the left and its cosines on the right.
+fn stereo_table_wav() -> Arc<WavData> {
+    let left = table_samples(|frame, phase| (phase * (1.0 + frame * 0.1)).sin() * 0.8);
+    let right = table_samples(|frame, phase| (phase * (1.0 + frame * 0.1)).cos() * 0.8);
+    Arc::new(WavData::new(
+        SampleBuffer::from_samples(vec![left, right], 48_000.0),
+        Some(TABLE_SIZE),
     ))
 }
 
@@ -484,6 +505,15 @@ fn clocked_delays(lanes: usize) -> BenchPatch {
 
 /// 8 `$wavetable` oscillators: half at a fixed position, half scanned by an LFO.
 fn wavetables(lanes: usize) -> BenchPatch {
+    wavetables_of("table", 1, lanes)
+}
+
+/// [`wavetables`] from a two-channel table.
+fn stereo_wavetables(lanes: usize) -> BenchPatch {
+    wavetables_of("stereoTable", 2, lanes)
+}
+
+fn wavetables_of(path: &str, channels: usize, lanes: usize) -> BenchPatch {
     let mut modules = vec![(
         "lfo".to_string(),
         "$sine",
@@ -499,7 +529,7 @@ fn wavetables(lanes: usize) -> BenchPatch {
             format!("wt{i}"),
             "$wavetable",
             json!({
-                "wav": { "type": "wav_ref", "path": "table", "channels": 1 },
+                "wav": { "type": "wav_ref", "path": path, "channels": channels },
                 "pitch": poly(i as f32 * 0.3 - 1.0, lanes),
                 "position": position,
             }),
@@ -633,6 +663,7 @@ fn bench_patches(c: &mut Criterion) {
         ("granular_4", granular),
         ("clocked_delay_4", clocked_delays),
         ("wavetable_8", wavetables),
+        ("wavetable_stereo_8", stereo_wavetables),
         ("eq_8", eqs),
         ("video_tap_16", video_taps),
         ("erratic_constant_32", erratic_constant),

@@ -5,6 +5,7 @@ import {
     GraphBuilder,
     Collection,
     CollectionWithRange,
+    PORT_MAX_LANES,
 } from './GraphBuilder';
 import type { SourceSpan } from '../../shared/dsl/spanTypes';
 import { type Channels, liftedChannels } from '../../shared/dsl/channels';
@@ -534,34 +535,6 @@ export class DSLContext {
                         }
                     }
 
-                    this.builder.setModuleChannels(
-                        node.id,
-                        schema.stereo === 'mono'
-                            ? 'mono'
-                            : schema.stereo === 'stereo'
-                              ? 'stereo'
-                              : schema.stereo === 'derived'
-                                ? fileChannels(
-                                      wavParamNames.map((name) => params[name]),
-                                  )
-                                : liftedChannels([
-                                      this.builder.liftedChannelsOf(
-                                          Object.values(params),
-                                      ),
-                                      // A lifted module is stereo for a
-                                      // two-channel file too.
-                                      ...(wavParamNames.length > 0
-                                          ? [
-                                                fileChannels(
-                                                    wavParamNames.map(
-                                                        (name) => params[name],
-                                                    ),
-                                                ),
-                                            ]
-                                          : []),
-                                  ]),
-                    );
-
                     // Derive lane count from params using Rust-side derivation (backed by LRU cache)
                     // This handles modules with custom derivation logic (like mix, seq)
                     // As well as standard inference from PolySignal inputs
@@ -573,6 +546,30 @@ export class DSLContext {
                     if (laneCount !== undefined) {
                         node._setDerivedLaneCount(laneCount);
                     }
+
+                    // A lifted module is stereo for a two-channel file too,
+                    // unless its lanes are too wide to carry two sides.
+                    const files = wavParamNames.map((name) => params[name]);
+                    const fileFits =
+                        laneCount === undefined ||
+                        laneCount * 2 <= PORT_MAX_LANES;
+                    this.builder.setModuleChannels(
+                        node.id,
+                        schema.stereo === 'mono'
+                            ? 'mono'
+                            : schema.stereo === 'stereo'
+                              ? 'stereo'
+                              : schema.stereo === 'derived'
+                                ? fileChannels(files)
+                                : liftedChannels([
+                                      this.builder.liftedChannelsOf(
+                                          Object.values(params),
+                                      ),
+                                      ...(files.length > 0 && fileFits
+                                          ? [fileChannels(files)]
+                                          : []),
+                                  ]),
+                    );
 
                     // Return based on output configuration
                     if (outputs.length === 0) {

@@ -438,9 +438,9 @@ fn connected_mask(id: &str, module: &dyn Sampleable, connected: &HashSet<(String
 /// producers' physical lanes, before construction.
 ///
 /// A `stereo` module is stereo and a `mono` one mono. A lifted module is
-/// stereo when a file it plays has two channels or any input it reads lane by
-/// lane comes from a stereo output, so the analysis grows from the stereo
-/// modules until nothing changes; a
+/// stereo when a file it plays has two channels and its lanes fit two sides,
+/// or when any input it reads lane by lane comes from a stereo output, so the
+/// analysis grows from the stereo modules until nothing changes; a
 /// feedback cycle with no stereo source stays mono. An output follows its
 /// module's channels unless it has a fixed width or a single value. Each
 /// module's lane count then counts sides, and its inputs are rewritten by
@@ -470,7 +470,13 @@ fn settle_channels(
         .map(|(id, _, params, _)| {
             let stereo = match mode(id) {
                 StereoMode::Stereo => true,
-                StereoMode::Derived | StereoMode::Lift => params.params.has_stereo_file(),
+                StereoMode::Derived => params.params.has_stereo_file(),
+                // A lane count too wide to carry two sides plays a file's
+                // first channel instead.
+                StereoMode::Lift => {
+                    params.params.has_stereo_file()
+                        && params.lane_count.max(1) * 2 <= crate::poly::PORT_MAX_LANES
+                }
                 StereoMode::Mono => false,
             };
             (id.clone(), if stereo { 2 } else { 1 })

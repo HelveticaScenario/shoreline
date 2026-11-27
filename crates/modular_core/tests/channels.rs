@@ -958,6 +958,7 @@ fn a_two_channel_file_makes_its_players_stereo() {
     assert_eq!(lanes("table"), 4);
     assert_eq!(lanes("monoTable"), 1);
     assert_eq!(lanes("liftedTable"), 2);
+
     // One stereo lane, one mono lane, and a mono lane per channel.
     assert_eq!(lanes("stereo"), 2);
     assert_eq!(lanes("mono"), 1);
@@ -966,6 +967,18 @@ fn a_two_channel_file_makes_its_players_stereo() {
     assert_eq!(lanes("cloud"), 4);
     // What reads a stereo player lifts to stereo.
     assert_eq!(lanes("filtered"), 2);
+}
+
+#[test]
+fn a_lifted_player_too_wide_for_two_sides_plays_a_two_channel_file_mono() {
+    let pitches: Vec<f32> = (0..40).map(|lane| lane as f32 * 0.1).collect();
+    let patch = build(&[(
+        "chord",
+        "$wavetable",
+        json!({ "pitch": pitches, "wav": wav(2) }),
+    )])
+    .unwrap();
+    assert_eq!(patch.sampleables["chord"].port_lanes("output"), 40);
 }
 
 #[test]
