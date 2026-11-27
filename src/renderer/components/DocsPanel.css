@@ -271,9 +271,8 @@
     color: var(--text-primary);
 }
 
-.docs-panel .method-example {
+.docs-panel .method-example pre {
     margin: 0;
-    padding: 8px;
 }
 
 .docs-panel .see-also-links {

@@ -2,6 +2,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import type { MDXComponents } from 'mdx/types';
 import { GUIDE_PAGES } from '../docs/guide/chapters';
 import { sectionId } from '../docs/guide/chapterList';
+import { CodeExample } from './CodeExample';
 import { ColorizedCode } from './ColorizedCode';
 import { KeyChips } from './KeyChips';
 import { useQuoteExample } from '../hooks/useQuoteExample';
@@ -94,7 +95,7 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
             if (typeof code !== 'string') {
                 return <pre>{children}</pre>;
             }
-            return <ColorizedCode code={quote(code.replace(/\n$/, ''))} />;
+            return <CodeExample code={quote(code.replace(/\n$/, ''))} />;
         },
     };
 

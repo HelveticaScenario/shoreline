@@ -1,0 +1,31 @@
+.code-example {
+    position: relative;
+}
+
+/* Clear of the copy button's corner. */
+.code-example pre {
+    padding-right: 36px;
+}
+
+.code-example-copy {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.code-example-copy:hover {
+    color: var(--text-primary);
+}
+
+.code-example-copy.copied {
+    color: var(--accent-primary);
+}

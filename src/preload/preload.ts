@@ -242,6 +242,10 @@ export interface ElectronAPI {
         onChange: (callback: (config: AppConfig) => void) => () => void;
     };
 
+    clipboard: {
+        writeText: (text: string) => Promise<void>;
+    };
+
     // Keybinding overrides (read `<userData>/keybindings.json`)
     keybindings: {
         getPath: () => Promise<string>;
@@ -490,6 +494,10 @@ const electronAPI: ElectronAPI = {
         onChange: menuEventHandler(IPC_CHANNELS.CONFIG_ON_CHANGE),
         read: () => invokeIPC('CONFIG_READ'),
         write: (config) => invokeIPC('CONFIG_WRITE', config),
+    },
+
+    clipboard: {
+        writeText: (text) => invokeIPC('CLIPBOARD_WRITE_TEXT', text),
     },
 
     // Keybinding overrides

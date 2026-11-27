@@ -3,7 +3,7 @@ import {
     BUILTIN_WAVETABLES,
     MI_TABLES_INTRO,
 } from '../../shared/builtinAssets';
-import { ColorizedCode } from './ColorizedCode';
+import { CodeExample } from './CodeExample';
 import { useQuoteExample } from '../hooks/useQuoteExample';
 
 /** The Docs panel's Built-ins page: every file bundled with the app. */
@@ -16,7 +16,7 @@ export const BuiltinDocs: React.FC = () => {
                 Files bundled with the app. Load one by its path, which starts
                 with <code>builtin/</code>:
             </p>
-            <ColorizedCode
+            <CodeExample
                 code={quote(
                     `$wavetable('c3', '${BUILTIN_WAVETABLES[0].path}', 2.5)`,
                 )}

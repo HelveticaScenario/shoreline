@@ -4,6 +4,7 @@ import {
     MenuItem,
     app,
     autoUpdater,
+    clipboard,
     dialog,
     globalShortcut,
     ipcMain,
@@ -2029,6 +2030,8 @@ function ensureKeybindingsFile(): string {
     }
     return KEYBINDINGS_FILE;
 }
+
+registerIPCHandler('CLIPBOARD_WRITE_TEXT', (text) => clipboard.writeText(text));
 
 registerIPCHandler('KEYBINDINGS_GET_PATH', () => KEYBINDINGS_FILE);
 registerIPCHandler('KEYBINDINGS_READ_USER', () => loadUserKeybindings());

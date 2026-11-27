@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { VideoDocs } from './VideoDocs';
 import { BuiltinDocs } from './BuiltinDocs';
 import { GuideDocs } from './GuideDocs';
+import { CodeExample } from './CodeExample';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
 import { ReferenceBrowser } from './ReferenceBrowser';
 import { useQuoteExample } from '../hooks/useQuoteExample';
@@ -106,7 +107,9 @@ const TypeCard: React.FC<TypeCardProps> = ({
                     {typeDoc.examples.length > 0 && (
                         <div className="type-examples">
                             <h4>Examples</h4>
-                            <pre>{typeDoc.examples.map(quote).join('\n')}</pre>
+                            <CodeExample
+                                code={typeDoc.examples.map(quote).join('\n')}
+                            />
                         </div>
                     )}
 
@@ -128,9 +131,11 @@ const TypeCard: React.FC<TypeCardProps> = ({
                                         />
                                     </p>
                                     {method.example && (
-                                        <pre className="method-example">
-                                            {quote(method.example)}
-                                        </pre>
+                                        <div className="method-example">
+                                            <CodeExample
+                                                code={quote(method.example)}
+                                            />
+                                        </div>
                                     )}
                                 </div>
                             ))}

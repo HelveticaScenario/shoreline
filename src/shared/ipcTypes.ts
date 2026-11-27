@@ -278,8 +278,7 @@ export interface FileChange {
 }
 
 export type FSWriteResult =
-    | FSOperationResult
-    | { success: false; conflict: true };
+    FSOperationResult | { success: false; conflict: true };
 
 export interface WorkspaceFolder {
     path: string;
@@ -328,8 +327,7 @@ export interface EditorContextMenuOptions {
 }
 
 export type ContextMenuOptions =
-    | FileContextMenuOptions
-    | EditorContextMenuOptions;
+    FileContextMenuOptions | EditorContextMenuOptions;
 
 export type ContextMenuCommand = 'save' | 'rename' | 'delete' | 'editor';
 
@@ -435,6 +433,9 @@ export const IPC_CHANNELS = {
     CONFIG_READ: 'modular:config:read',
     CONFIG_WRITE: 'modular:config:write',
     CONFIG_ON_CHANGE: 'modular:config:on-change',
+
+    // Clipboard
+    CLIPBOARD_WRITE_TEXT: 'ui:clipboard-write-text',
 
     // Keybinding operations
     KEYBINDINGS_GET_PATH: 'modular:keybindings:get-path',
@@ -627,6 +628,9 @@ export interface IPCHandlers {
     [IPC_CHANNELS.CONFIG_READ]: () => AppConfig;
     [IPC_CHANNELS.CONFIG_WRITE]: (config: Partial<AppConfig>) => void;
     [IPC_CHANNELS.CONFIG_ON_CHANGE]: (config: AppConfig) => void;
+
+    // Clipboard
+    [IPC_CHANNELS.CLIPBOARD_WRITE_TEXT]: (text: string) => void;
 
     // Keybinding operations
     [IPC_CHANNELS.KEYBINDINGS_GET_PATH]: () => string;
