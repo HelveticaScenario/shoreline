@@ -270,6 +270,45 @@ impl Resets {
     }
 }
 
+/// The PolyBLEP for an edge of a cycle restarted `frac` into a step, `ahead`
+/// of the cycle's start for a wave running `speed` cycles a sample, when the
+/// wave reaches it before the next sample, which leaves it to the carry.
+/// Returns `(this_sample, next_sample)` like [`sync_blep`].
+#[inline(always)]
+pub fn restarted_edge(ahead: f32, jump: f32, frac: f32, speed: f32) -> Option<(f32, f32)> {
+    let at = frac + ahead / speed;
+    (ahead > 0.0 && at < 1.0).then(|| sync_blep(jump, at))
+}
+
+/// Whether a reset's band-limiting replaces a wave's own edge correction at
+/// `phase`, for a wave running `speed` cycles a sample: a reset replaces an
+/// edge just behind on the sample after it (`restarted`, a reset on the last
+/// sample) and an edge ahead on the sample it lands in (`resetting`).
+#[inline(always)]
+pub fn reset_replaces_edge(phase: f32, speed: f32, restarted: bool, resetting: bool) -> bool {
+    if phase < speed { restarted } else { resetting }
+}
+
+/// A `phaseOffset` wrapped into the cycle.
+#[inline(always)]
+pub fn wrap_offset(offset: f32) -> f32 {
+    offset.rem_euclid(1.0)
+}
+
+/// Where a wave shifted `offset` cycles reads its cycle while its accumulator
+/// stands at `phase`. The offset moves the read, never the accumulator, so it
+/// never drifts.
+#[inline(always)]
+pub fn offset_phase(phase: f32, offset: f32) -> f32 {
+    (phase + offset).rem_euclid(1.0)
+}
+
+/// [`offset_phase`] for an f64 accumulator.
+#[inline(always)]
+pub fn offset_phase_f64(phase: f64, offset: f64) -> f64 {
+    (phase + offset).rem_euclid(1.0)
+}
+
 /// Two-point PolyBLAMP correction for a reset's change of slope:
 /// `slope_change` is the slope after the reset minus the slope before, in
 /// output units per sample, located `frac` of a sample into the upcoming

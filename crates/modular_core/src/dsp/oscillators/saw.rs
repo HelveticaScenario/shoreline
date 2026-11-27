@@ -7,7 +7,10 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_ratio},
+        oscillators::{
+            FmMode, Landing, Resets, SyncRatios, apply_fm, offset_phase_f64, sync_ratio,
+            wrap_offset,
+        },
         utils::{
             sanitize, wrap_phase_f64,
             zero_cross_mute::{Crossing, ZeroCrossMute},
@@ -147,9 +150,7 @@ impl LaneState {
         // 0 = saw (peak at 1.0), 2.5 = triangle (peak at 0.5), 5 = ramp (peak at 0.0)
         let s = (1.0 - shape * 0.2).clamp(0.001, 0.999) as f64;
 
-        // Phase offset shifts the read position without altering the
-        // accumulator, so it never drifts.
-        let read_offset = offset.rem_euclid(1.0) as f64;
+        let read_offset = wrap_offset(offset) as f64;
 
         // Seed a fresh voice so its read position starts just before the
         // gentle zero crossing, then the mute below holds silence until it
@@ -193,7 +194,7 @@ impl LaneState {
         };
 
         // DPW: compute integral at current phase BEFORE advancing
-        let read_old = (self.phase + read_offset).rem_euclid(1.0);
+        let read_old = offset_phase_f64(self.phase, read_offset);
         let integral_old = triangle_integral(read_old, s);
 
         // A reset lands `frac` into this interval: the wave runs the old
@@ -211,7 +212,7 @@ impl LaneState {
                 None
             }
         };
-        let read_phase = (self.phase + read_offset).rem_euclid(1.0);
+        let read_phase = offset_phase_f64(self.phase, read_offset);
 
         let body = if phase_increment.abs() > 1.0e-7 {
             // The DPW slope is computed in f64: integral_new and

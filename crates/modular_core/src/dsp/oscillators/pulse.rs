@@ -7,7 +7,10 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio},
+        oscillators::{
+            FmMode, Landing, Resets, SyncRatios, apply_fm, offset_phase, reset_replaces_edge,
+            restarted_edge, sync_blep, sync_ratio, wrap_offset,
+        },
         utils::{sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -150,27 +153,18 @@ impl PulseLaneState {
         );
         self.phase = wrap_phase(self.phase + phase_increment);
 
-        // Phase offset shifts the read position without altering the
-        // accumulator, so it never drifts.
-        let read_offset = offset.rem_euclid(1.0);
-        let read_phase = (self.phase + read_offset).rem_euclid(1.0);
+        let read_offset = wrap_offset(offset);
+        let read_phase = offset_phase(self.phase, read_offset);
 
         let naive_pulse = |p: f32| if p < pulse_width { 1.0 } else { -1.0 };
 
         // Naive pulse plus PolyBLEP at its own rising (phase 0) and falling
         // (phase = width) edges. A reset lands in the upcoming interval, so
-        // these operate on the real, pre-reset phase. A reset band-limits the
-        // jump it makes, which replaces an edge ahead on the sample it lands
-        // and an edge just behind on the sample after it.
+        // these operate on the real, pre-reset phase.
         let abs_phase_inc = phase_increment.abs();
         let (restarted, resetting) = (self.restarted, reset.is_some());
         let edge = |phase: f32| {
-            let replaced = if phase < abs_phase_inc {
-                restarted
-            } else {
-                resetting
-            };
-            if replaced {
+            if reset_replaces_edge(phase, abs_phase_inc, restarted, resetting) {
                 0.0
             } else {
                 poly_blep_pulse(phase, abs_phase_inc)
@@ -212,9 +206,7 @@ impl PulseLaneState {
                 } else {
                     ((edge - read_offset).rem_euclid(1.0), rise)
                 };
-                let at = frac + ahead / abs_phase_inc;
-                if ahead > 0.0 && at < 1.0 {
-                    let (n, carry) = sync_blep(jump, at);
+                if let Some((n, carry)) = restarted_edge(ahead, jump, frac, abs_phase_inc) {
                     now += n;
                     self.blep_carry += carry;
                 }

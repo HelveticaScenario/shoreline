@@ -24,8 +24,9 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, Landing, Resets, SyncRatios, apply_fm, sync_corner, sync_ratio,
+            FmMode, Landing, Resets, SyncRatios, apply_fm, offset_phase, sync_corner, sync_ratio,
             wavetable_prep::{MipmapRead, PreparedWavetable},
+            wrap_offset,
         },
         phase_warp::{PhaseWarp, PhaseWarpGlides, PhaseWarpState, ResolvedWarp},
         utils::sanitize,
@@ -192,11 +193,10 @@ impl LaneState {
         // Frame index: 0–5V → 0..=frame_count-1.
         let frame_f = (position.clamp(0.0, 5.0) / 5.0) * frame_scale;
 
-        // The phase offset shifts the read position without altering the
-        // accumulator, so it never drifts. The current phase is read before
-        // it advances, so the first sample reads the starting phase.
-        let read_offset = offset.rem_euclid(1.0);
-        let raw_phase = (self.phase as f32 + read_offset).rem_euclid(1.0);
+        // The current phase is read before it advances, so the first sample
+        // reads the starting phase.
+        let read_offset = wrap_offset(offset);
+        let raw_phase = offset_phase(self.phase as f32, read_offset);
         let note_increment = self.freq as f64 * inv_sr;
         let (synced, reset) = self.resets.step(
             self.phase as f32,

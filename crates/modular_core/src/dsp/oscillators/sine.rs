@@ -7,7 +7,9 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         consts::{LUT_SINE, LUT_SINE_SIZE},
-        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_corner, sync_ratio},
+        oscillators::{
+            FmMode, Landing, Resets, SyncRatios, apply_fm, offset_phase, sync_corner, sync_ratio,
+        },
         utils::{interpolate, sanitize, wrap_phase},
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -121,9 +123,7 @@ impl LaneState {
                 .step(self.phase, increment, restart, sync_ratio, Landing::Next);
         self.phase = wrap_phase(self.phase + increment);
 
-        // Phase offset shifts the read position without altering the
-        // accumulator, so it never drifts.
-        let read_phase = (self.phase + offset).rem_euclid(1.0);
+        let read_phase = offset_phase(self.phase, offset);
 
         // Naive sample at the (pre-reset) phase, plus any residual carried
         // from a reset on the previous sample.

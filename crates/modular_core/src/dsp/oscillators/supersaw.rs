@@ -10,8 +10,8 @@ use crate::{
     dsp::{
         core::pan::pan_pair,
         oscillators::{
-            FmMode, Landing, Reset, RestartEdge, SyncRatios, apply_fm, sync_blep, sync_ratio,
-            synced_increment,
+            FmMode, Landing, Reset, RestartEdge, SyncRatios, apply_fm, reset_replaces_edge,
+            restarted_edge, sync_blep, sync_ratio, synced_increment,
         },
         utils::{
             fade::{DEFAULT_FADE_IN_SECS, FadeIn},
@@ -472,16 +472,9 @@ impl VoiceState {
         // Naive saw + its own PolyBLEP wrap correction, then any residual
         // carried from a reset on the previous sample. The reset (below)
         // lands in the upcoming interval, so this operates on the real,
-        // pre-reset phase. A reset band-limits the jump it makes, which
-        // replaces the wrap ahead on the sample it lands and the wrap just
-        // behind on the sample after it.
+        // pre-reset phase.
         let mut saw = 2.0 * read - 1.0;
-        let replaced = if read < saw_dt.abs() {
-            self.restarted
-        } else {
-            reset.is_some()
-        };
-        if !replaced {
+        if !reset_replaces_edge(read, saw_dt.abs(), self.restarted, reset.is_some()) {
             saw -= poly_blep_saw(read, saw_dt.abs());
         }
         saw += self.blep_carry;
@@ -499,41 +492,38 @@ impl VoiceState {
             // The saw as it reaches the reset; one that would wrap first
             // counts as reaching the end of its ramp.
             let before = 2.0 * (read + frac * saw_dt).clamp(0.0, 1.0) - 1.0;
-            let after = match reset {
+            let (after, edge) = match reset {
                 Reset::Sync(_) => {
                     phase = wrap_phase(-offset - frac * saw_dt);
-                    if saw_dt < 0.0 { 1.0 } else { -1.0 }
+                    (if saw_dt < 0.0 { 1.0 } else { -1.0 }, None)
                 }
                 Reset::Restart(_) => {
-                    phase = wrap_phase(-frac * saw_dt);
-                    self.sync_phase = wrap_phase(-frac * dt);
+                    phase = reset.phase(saw_dt);
+                    self.sync_phase = reset.phase(dt);
                     self.sync_offset = offset;
                     let start = wrap_phase(offset);
-                    if saw_dt < 0.0 && start == 0.0 {
+                    let after = if saw_dt < 0.0 && start == 0.0 {
                         1.0
                     } else {
                         2.0 * start - 1.0
-                    }
+                    };
+                    // A restarted saw that starts just short of its wrap
+                    // crosses it before the next sample, which leaves it to
+                    // the carry.
+                    let (ahead, jump) = if saw_dt < 0.0 {
+                        (start, 2.0)
+                    } else {
+                        ((1.0 - start).rem_euclid(1.0), -2.0)
+                    };
+                    (after, restarted_edge(ahead, jump, frac, saw_dt.abs()))
                 }
             };
             let (now, carry) = sync_blep(after - before, frac);
             saw += now;
             self.blep_carry = carry;
-            // A restarted saw that starts just short of its wrap crosses it
-            // before the next sample, which leaves it to the carry.
-            if let Reset::Restart(_) = reset {
-                let start = wrap_phase(offset);
-                let (ahead, jump) = if saw_dt < 0.0 {
-                    (start, 2.0)
-                } else {
-                    ((1.0 - start).rem_euclid(1.0), -2.0)
-                };
-                let at = frac + ahead / saw_dt.abs();
-                if ahead > 0.0 && at < 1.0 {
-                    let (now, carry) = sync_blep(jump, at);
-                    saw += now;
-                    self.blep_carry += carry;
-                }
+            if let Some((now, carry)) = edge {
+                saw += now;
+                self.blep_carry += carry;
             }
         }
 
