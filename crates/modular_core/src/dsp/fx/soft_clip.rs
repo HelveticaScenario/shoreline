@@ -215,21 +215,25 @@ mod tests {
         }
     }
 
-    /// Output `(peak, rms)` for a sine of `amp` volts at `hz`, after the
-    /// filters settle.
-    fn sine_levels(clip: &mut SoftClip, amp: f32, hz: f32) -> (f32, f32) {
-        let (mut peak, mut sum) = (0.0f32, 0.0f32);
+    /// `(peak, rms)` of the `clip` and `tanh` outputs for a sine of `amp`
+    /// volts at `hz`, after the filters settle.
+    fn sine_levels(clip: &mut SoftClip, amp: f32, hz: f32) -> [(f32, f32); 2] {
+        let mut levels = [(0.0f32, 0.0f32); 2];
         for n in 0..8800 {
             let x = amp * (TAU * hz * n as f32 / SR).sin();
             clip.params.input = PolySignal::mono(Signal::Volts(x));
             clip.update(SR);
             if n >= 4000 {
-                let y = clip.outputs.clip.get(0);
-                peak = peak.max(y.abs());
-                sum += y * y;
+                for (level, y) in levels
+                    .iter_mut()
+                    .zip([clip.outputs.clip.get(0), clip.outputs.tanh.get(0)])
+                {
+                    level.0 = level.0.max(y.abs());
+                    level.1 += y * y;
+                }
             }
         }
-        (peak, (sum / 4800.0).sqrt())
+        levels.map(|(peak, sum)| (peak, (sum / 4800.0).sqrt()))
     }
 
     #[test]
@@ -266,19 +270,48 @@ mod tests {
     #[test]
     fn quiet_signal_keeps_its_level_across_the_band() {
         for hz in [100.0f32, 1000.0, 10000.0, 16000.0] {
-            let (_, rms) = sine_levels(&mut make(5.0, 2.0), 2.0, hz);
-            assert!(
-                (rms - 2.0 * FRAC_1_SQRT_2).abs() < 0.01,
-                "{hz} Hz: rms {rms}"
-            );
+            for (output, (_, rms)) in sine_levels(&mut make(5.0, 2.0), 2.0, hz)
+                .into_iter()
+                .enumerate()
+            {
+                assert!(
+                    (rms - 2.0 * FRAC_1_SQRT_2).abs() < 0.01,
+                    "{hz} Hz output {output}: rms {rms}"
+                );
+            }
         }
     }
 
     #[test]
     fn loud_signal_is_held_near_the_ceiling() {
         for knee in [0.0f32, 2.0, 5.0] {
-            let (peak, _) = sine_levels(&mut make(4.0, knee), 20.0, 100.0);
-            assert!((peak - 4.0).abs() < 0.3, "knee {knee}: peak {peak}");
+            for (output, (peak, _)) in sine_levels(&mut make(4.0, knee), 20.0, 100.0)
+                .into_iter()
+                .enumerate()
+            {
+                assert!(
+                    (peak - 4.0).abs() < 0.3,
+                    "knee {knee} output {output}: peak {peak}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn knee_sets_where_rounding_starts() {
+        let untouched = 3.5 * FRAC_1_SQRT_2;
+        let hard = sine_levels(&mut make(4.0, 0.0), 3.5, 100.0);
+        let soft = sine_levels(&mut make(4.0, 5.0), 3.5, 100.0);
+        for output in 0..2 {
+            let (hard_rms, soft_rms) = (hard[output].1, soft[output].1);
+            assert!(
+                (hard_rms - untouched).abs() < 0.01,
+                "output {output}: knee 0 rms {hard_rms}"
+            );
+            assert!(
+                soft_rms < 0.95 * untouched,
+                "output {output}: knee 5 rms {soft_rms}"
+            );
         }
     }
 
