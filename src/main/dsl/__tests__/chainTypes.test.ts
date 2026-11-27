@@ -45,7 +45,7 @@ test('chain modules and .wet type on outputs, collections and named outputs', ()
             [
                 `out: $saw('c3').lpf('800hz', 2).wet(2.5)`,
                 `out: $c($sine('c3'), $sine('e3')).plate({ decay: 2 }).wet()`,
-                `out: $saw('c3').unstable.shape.fold('dual', 2).wet(1)`,
+                `out: $saw('c3').mi.chorus({ amount: 2 }).wet(1)`,
                 `out: $saw('c3').xover()._low.lpf('200hz').wet(2)`,
                 `out: $saw('c3').xover().wet(2)`,
                 `out: $saw('c3').delay(0.25, { feedback: 2 }).wet(2)`,

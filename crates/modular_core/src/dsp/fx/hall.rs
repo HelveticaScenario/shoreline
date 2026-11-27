@@ -1,10 +1,14 @@
-//! Feedback Delay Network (FDN) reverb module.
+//! Jot-style Feedback Delay Network reverb with a scattering feedback matrix.
 //!
-//! Two coupled sub-networks of parallel delay lines — one per side —
-//! recirculate through an orthonormal mixing matrix, producing a dense, smooth
-//! reverb tail that tracks the input's stereo image. Energy is conserved by the
-//! matrix and bled off only by per-line decay gains and damping, so the network
-//! is unconditionally stable for any finite decay time.
+//! Two coupled sub-networks — one per side — each run their delay
+//! lines through a paraunitary scattering matrix, so the wet field tracks the
+//! input's stereo image while diffusing densely. Three refinements from the
+//! artificial-reverberation literature shape the tail: per-line first-order
+//! absorption filters that set a two-band decay time (Jot & Chaigne, "Digital
+//! delay networks for designing artificial reverberators", AES 1991); a matching
+//! tonal-correction filter that flattens the steady-state timbre; and the
+//! scattering matrix itself (Schlecht & Habets, "Scattering in feedback delay
+//! networks") that spreads the inter-line mixing across short internal delays.
 
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -34,17 +38,20 @@ const NUM_DIFFUSERS: usize = 4;
 /// rescaled to the engine's actual rate at construction.
 const REF_SAMPLE_RATE: f32 = 48000.0;
 
-/// FDN delay lengths (samples at the reference rate). Pairwise-coprime primes;
-/// the first four (left block) and last four (right block) each span the full
-/// ~24–70 ms range, so the two sides share a matched character while staying
-/// decorrelated.
+/// Main FDN delay lengths (samples at the reference rate). Pairwise-coprime
+/// primes; the first four (left block) and last four (right block) each span
+/// the full ~24–70 ms range, so the two sides share a matched character.
 const FDN_DELAYS: [f32; NUM_LINES] = [
     1153.0, 1567.0, 2129.0, 2887.0, // left block
     1327.0, 1823.0, 2477.0, 3361.0, // right block
 ];
 
-/// Input-diffusion allpass lengths (samples at the reference rate). Short
-/// coprime primes that smear the dry transient before it enters the network.
+/// Scattering delays (samples at the reference rate) sitting between the two
+/// mixing stages of each block's feedback matrix. Short coprime primes
+/// (~0.3–3 ms), spread across each block.
+const SCATTER_DELAYS: [f32; NUM_LINES] = [17.0, 43.0, 79.0, 127.0, 29.0, 59.0, 101.0, 157.0];
+
+/// Input-diffusion allpass lengths (samples at the reference rate).
 const DIFFUSER_DELAYS: [f32; NUM_DIFFUSERS] = [113.0, 173.0, 271.0, 421.0];
 
 /// Input-diffusion allpass coefficient. Fixed — diffusion density is a
@@ -55,9 +62,12 @@ const DIFFUSER_COEFF: f32 = 0.7;
 /// chorusing decorrelates the lines without audible pitch wobble.
 const LFO_RATES_HZ: [f32; NUM_LINES] = [0.53, 0.79, 1.03, 1.21, 0.67, 0.91, 1.13, 1.31];
 
-/// `1 / sqrt(HALF_LINES)` — normalizes each block's Hadamard mix to be
-/// orthonormal (energy-preserving), which keeps the feedback loop stable.
+/// `1 / sqrt(HALF_LINES)` — normalizes each block's Hadamard mix to orthonormal.
 const HADAMARD4_NORM: f32 = 0.5; // 1 / sqrt(4)
+
+/// `2 / HALF_LINES` — the reflection weight of each block's Householder mix
+/// `I − (2/n)·1·1ᵀ`.
+const HOUSEHOLDER4_WEIGHT: f32 = 0.5;
 
 // ─── Parameter ranges ─────────────────────────────────────────────────────────
 
@@ -68,10 +78,20 @@ const MAX_PREDELAY_SECS: f32 = 0.5;
 const MAX_MOD_EXCURSION: f32 = 12.0;
 const MIN_T60: f32 = 0.15;
 const MAX_T60: f32 = 18.0;
-/// Per-line gains are clamped below 1.0 so the loop can never become lossless
-/// even at the maximum decay time.
+/// Per-line DC gains are clamped below 1.0 so the loop can never become
+/// lossless even at the maximum decay time.
 const MAX_FEEDBACK: f32 = 0.9995;
-/// `ln(1000)` — the −60 dB factor in the Jot decay-gain formula.
+/// Per-line absorption coefficients `(g_dc, k)`.
+type LineAbsorption = [(f32, f32); NUM_LINES];
+
+/// Smallest high-frequency-to-DC gain ratio for the absorption filters. Floors
+/// the pole away from 1.0 (an unstable integrator in the feedback loop) while
+/// still allowing heavy high-frequency damping.
+const MIN_ABSORPTION_RATIO: f32 = 0.02;
+/// Darkest high-frequency decay: at maximum damping the high band decays this
+/// fraction as long as the low band.
+const MIN_DECAY_RATIO: f32 = 0.1;
+/// `ln(1000)` — the −60 dB factor in the decay-gain formula.
 const LN_1000: f32 = 6.907_755;
 
 /// Cross-coupling rotation angle between the two sides' sub-networks at the
@@ -83,8 +103,8 @@ const NARROW_ANGLE: f32 = std::f32::consts::FRAC_PI_4; // 45°
 
 const INPUT_GAIN: f32 = 0.5;
 /// Scales the output taps only — outside the feedback loop, so it sets the wet
-/// level without affecting stability. Tuned to sit alongside the other reverbs.
-const OUTPUT_GAIN: f32 = 1.15;
+/// level without affecting stability.
+const OUTPUT_GAIN: f32 = 0.85;
 
 // Per-block sign patterns: the input pattern spreads the dry signal across a
 // block's modes; the tap pattern reads a decorrelated combination back out.
@@ -105,12 +125,15 @@ fn hadamard4(v: &mut [f32; HALF_LINES]) {
     v[3] = (b - d) * HADAMARD4_NORM;
 }
 
-/// One-pole lowpass step with unity DC gain: `y = c·x + (1 − c)·y_prev`. Keeping
-/// DC gain at unity means damping shortens only the high-frequency decay,
-/// leaving the loop's low-frequency gain (and thus stability) untouched.
+/// Apply the Householder reflection `I − (2/n)·1·1ᵀ` in place. Orthonormal, and
+/// paired with [`hadamard4`] across the scattering delays it yields a uniform
+/// mixing matrix at DC while the delays scatter it elsewhere.
 #[inline]
-fn one_pole(prev: f32, x: f32, coeff: f32) -> f32 {
-    prev + coeff * (x - prev)
+fn householder4(v: &mut [f32; HALF_LINES]) {
+    let reflect = HOUSEHOLDER4_WEIGHT * (v[0] + v[1] + v[2] + v[3]);
+    for x in v.iter_mut() {
+        *x -= reflect;
+    }
 }
 
 // ─── Params ──────────────────────────────────────────────────────────────────
@@ -119,14 +142,14 @@ fn one_pole(prev: f32, x: f32, coeff: f32) -> f32 {
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct ReverbParams {
+struct HallParams {
     #[input(
         "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         type = audio,
     )]
     input: PairSignal,
     #[input(
-        "how long the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
+        "how long the low end of the tail rings: -5 about 0.15 s, 0 about 1.6 s, +5 about 18 s",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -135,7 +158,7 @@ struct ReverbParams {
     #[deserr(default)]
     decay: Option<LaneSum>,
     #[input(
-        "how fast the tail darkens: -5 bright, +5 muffled",
+        "how much faster the treble dies than the bass: -5 equally fast, +5 ten times faster",
         type = control,
         default = 0.0,
         range = (-5.0, 5.0),
@@ -185,7 +208,7 @@ struct ReverbParams {
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct ReverbOutputs {
+struct HallOutputs {
     #[output(
         "output",
         "stereo reverb, fully wet, as one stereo lane",
@@ -201,7 +224,7 @@ struct ReverbOutputs {
 /// `init()`; runtime state (filter memories, LFO phases) carries across patch
 /// updates so the tail never glitches on an edit.
 #[derive(Default)]
-struct ReverbState {
+struct HallState {
     // Per-side input sections.
     predelay_l: DelayLine,
     predelay_r: DelayLine,
@@ -210,23 +233,27 @@ struct ReverbState {
 
     // Feedback delay network (left block then right block).
     lines: [DelayLine; NUM_LINES],
-    /// Per-line damping lowpass memory.
-    damp_state: [f32; NUM_LINES],
+    /// Short delays between the two mixing stages of each block's matrix.
+    scatter: [DelayLine; NUM_LINES],
+    /// Per-line absorption-filter (one-pole shelf) memory.
+    absorb_state: [f32; NUM_LINES],
     /// Per-line modulation LFO phase, in turns `[0, 1)`.
     lfo_phase: [f32; NUM_LINES],
 
-    // DC blocking on the output — stops the feedback loop from integrating any
-    // residual offset in the dry signal.
+    // Tonal-correction high-shelf memory (previous input) per side.
+    tc_prev_l: f32,
+    tc_prev_r: f32,
+
+    // DC blocking on the output.
     dc_blocker_l: DcBlocker,
     dc_blocker_r: DcBlocker,
     dc_block_coeff: f32,
 
-    // Patch-update glides. These all feed the recirculating loop, where a step
-    // change recirculates as an audible transient.
+    // Patch-update glides — these all feed the recirculating loop.
     smoothed_size: SwapGlide,
     smoothed_predelay: SwapGlide,
     smoothed_decay_k: SwapGlide,
-    smoothed_damp: SwapGlide,
+    smoothed_ratio: SwapGlide,
     /// Glided cross-coupling angle (radians).
     smoothed_width: SwapGlide,
 
@@ -236,17 +263,17 @@ struct ReverbState {
     decay_k_target: Option<(f32, f32)>,
     /// `(glided angle, sin, cos)`.
     cross: Option<(f32, f32, f32)>,
-    /// `((glided decay_k, glided size), per-line decay gain)`.
-    line_gains: Option<((f32, f32), [f32; NUM_LINES])>,
+    /// `((glided decay_k, glided size, hf_exponent), per-line (g_dc, k))`.
+    absorption: Option<((f32, f32, f32), LineAbsorption)>,
 
     sample_rate: f32,
 
-    // Fixed read lengths, derived from the sample rate only (so constant for
-    // the module's lifetime) — the size-1.0 delay in samples for each line.
+    // Fixed lengths, derived from the sample rate only.
     base_len: [f32; NUM_LINES],
     diffuser_len: [f32; NUM_DIFFUSERS],
-    /// Upper clamp on each line's read position, kept inside the allocated
-    /// buffer even at maximum size plus full modulation excursion.
+    scatter_len: [usize; NUM_LINES],
+    /// Upper clamp on each line's read position, inside the allocated buffer at
+    /// maximum size plus full modulation excursion.
     max_read: [f32; NUM_LINES],
     /// Per-sample LFO phase increment per line (sample-rate-only).
     lfo_inc: [f32; NUM_LINES],
@@ -256,38 +283,41 @@ struct ReverbState {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-const REVERB_DOCS: ModuleDocs = ModuleDocs {
-    summary: "Stereo room and hall reverb",
-    description: "A dense, natural-sounding reverb for anything from small rooms to long halls, \
-                  keeping a stereo source's left and right apart in the tail. Output is fully \
-                  wet, so blend it with `.wet(mix)` or send to it from a bus.",
+const HALL_DOCS: ModuleDocs = ModuleDocs {
+    summary: "Hall reverb with darkening tail",
+    description: "A dense stereo reverb whose bass and treble ring out for different times, like \
+                  a real hall where the highs die first. Keeps a stereo source's left and right \
+                  apart in the tail. Output is fully wet, so blend it with \
+                  `.wet(mix)` or send to it from a bus.",
     categories: &[ReferenceCategory::Effect],
     sections: &[],
     examples: &[DocExample {
-        title: "Pad in a wide hall",
+        title: "Dark, long-tailed plucks",
         code: r#"
-            chord: $saw('d3:m7')
-              .lpf('d5', 1)
-              .unstable.reverb({ decay: 3, size: 2 })
-              .wet(2.5)
+            const notes = $`c5 g4 eb5 ~`
+            melody: $sine(notes)
+              .amp($perc(notes, { decay: 0.15 }))
+              .hall({ decay: 4, damping: 4 })
+              .wet(3)
         "#,
     }],
 };
 
 #[module(
-    name = "$unstable.reverb", stereo = stereo,
-    docs = REVERB_DOCS,
+    name = "$hall", stereo = stereo,
+    docs = HALL_DOCS,
     lanes = 1,
     has_init,
-    args(input)
+    args(input),
+    experimental
 )]
-pub struct Reverb {
-    outputs: ReverbOutputs,
-    state: ReverbState,
-    params: ReverbParams,
+pub struct Hall {
+    outputs: HallOutputs,
+    state: HallState,
+    params: HallParams,
 }
 
-impl Reverb {
+impl Hall {
     /// Allocate the delay lines and cache every sample-rate-only constant.
     /// Runs once at construction on the main thread, where allocation is legal.
     fn init(&mut self, sample_rate: f32) {
@@ -311,8 +341,6 @@ impl Reverb {
             self.state.diffusers_r[i] = DelayLine::new(cap.max(1));
         }
 
-        // FDN lines: sized for the largest room plus full modulation excursion,
-        // so the modulated read position can never run past the buffer.
         let golden = 0.618_034_f32;
         for i in 0..NUM_LINES {
             let base = FDN_DELAYS[i] * sr_scale;
@@ -320,6 +348,10 @@ impl Reverb {
             self.state.max_read[i] = base * MAX_SIZE + max_mod_samples + 1.0;
             let cap = (base * MAX_SIZE).ceil() as usize + max_mod_samples.ceil() as usize + 4;
             self.state.lines[i] = DelayLine::new(cap.max(1));
+
+            let scatter = (SCATTER_DELAYS[i] * sr_scale).round() as usize;
+            self.state.scatter_len[i] = scatter.max(1);
+            self.state.scatter[i] = DelayLine::new(scatter.max(1) + 2);
 
             // Golden-ratio-spaced initial phases decorrelate the LFOs from the
             // first sample; the distinct rates keep them decorrelated after.
@@ -358,8 +390,7 @@ impl Reverb {
         );
         let predelay_samples = *self.state.smoothed_predelay;
 
-        // Decay maps to a target T60, then to the per-sample-length gain
-        // exponent `k` where each line's gain is `exp(k · length)`.
+        // Low-band decay time → per-sample-length gain exponent.
         let decay_v = self.params.decay.value_or(0.0);
         let decay_k = match self.state.decay_k_target {
             Some((cached, decay_k)) if cached == decay_v => decay_k,
@@ -377,17 +408,31 @@ impl Reverb {
             .update(decay_k, self.params.decay.glide_mark(), sample_rate);
         let decay_k = *self.state.smoothed_decay_k;
 
-        // Damping: more voltage → lower coefficient → darker tail.
-        let damp_coeff =
-            map_range(self.params.damping.value_or(0.0), -5.0, 5.0, 1.0, 0.08).clamp(0.08, 1.0);
+        // Damping → the ratio of high-band to low-band decay time.
+        let ratio_raw = map_range(
+            self.params.damping.value_or(0.0),
+            -5.0,
+            5.0,
+            1.0,
+            MIN_DECAY_RATIO,
+        )
+        .clamp(MIN_DECAY_RATIO, 1.0);
         self.state
-            .smoothed_damp
-            .update(damp_coeff, self.params.damping.glide_mark(), sample_rate);
-        let damp_coeff = *self.state.smoothed_damp;
+            .smoothed_ratio
+            .update(ratio_raw, self.params.damping.glide_mark(), sample_rate);
+        let ratio = *self.state.smoothed_ratio;
+        // A high-band gain that is `ratio`-shorter in decay corresponds to this
+        // extra exponent on each line's absorption pole.
+        let hf_exponent = 1.0 / ratio - 1.0;
 
-        // Width sets the cross-coupling rotation between the two sub-networks:
-        // +5 → a shallow angle that holds the sides apart, -5 → 45° that
-        // fully merges them. Gliding the angle keeps `sin²+cos²=1` exact.
+        // Tonal correction: a first-order high shelf with DC gain 1 that lifts
+        // the faster-decaying (steady-state quieter) high band by `sqrt(1/ratio)`.
+        let tc_r = (1.0 / ratio).sqrt();
+        let tc_b = (tc_r - 1.0) / (tc_r + 1.0);
+        let tc_scale = 1.0 / (1.0 - tc_b);
+
+        // Width sets the cross-coupling rotation between the two sub-networks.
+        // Gliding the angle keeps `sin²+cos²=1` exact.
         let angle_raw = map_range(
             self.params.width.value_or(0.0),
             -5.0,
@@ -435,28 +480,34 @@ impl Reverb {
         let inject_l = diff_l * INPUT_GAIN;
         let inject_r = diff_r * INPUT_GAIN;
 
-        // ── Read the network, damp, attenuate ────────────────────────────
+        // ── Read the network, run per-line absorption ────────────────────
 
-        let line_gains = match &self.state.line_gains {
-            Some((cached, gains)) if *cached == (decay_k, size) => *gains,
+        let key = (decay_k, size, hf_exponent);
+        let absorption = match &self.state.absorption {
+            Some((cached, absorption)) if *cached == key => *absorption,
             _ => {
-                let mut gains = [0.0; NUM_LINES];
-                for (i, gain) in gains.iter_mut().enumerate() {
+                let mut absorption = [(0.0, 0.0); NUM_LINES];
+                for (i, line) in absorption.iter_mut().enumerate() {
                     let length = self.state.base_len[i] * size;
-                    *gain = (decay_k * length).exp().min(MAX_FEEDBACK);
+                    let loop_len = length + self.state.scatter_len[i] as f32;
+                    let length_gain = decay_k * loop_len;
+                    let g_dc = length_gain.exp().min(MAX_FEEDBACK);
+                    let rho = (length_gain * hf_exponent)
+                        .exp()
+                        .clamp(MIN_ABSORPTION_RATIO, 1.0);
+                    *line = (g_dc, (1.0 - rho) / (1.0 + rho));
                 }
-                self.state.line_gains = Some(((decay_k, size), gains));
-                gains
+                self.state.absorption = Some((key, absorption));
+                absorption
             }
         };
 
-        let mut returns = [0.0f32; NUM_LINES];
+        let mut mix = [0.0f32; NUM_LINES];
         let mut left_out = 0.0f32;
         let mut right_out = 0.0f32;
         for i in 0..NUM_LINES {
             let length = self.state.base_len[i] * size;
 
-            // Advance this line's LFO and read at the (fractional) modulated tap.
             let mut phase = self.state.lfo_phase[i] + self.state.lfo_inc[i];
             if phase >= 1.0 {
                 phase -= 1.0;
@@ -474,47 +525,63 @@ impl Reverb {
                 right_out += delayed * TAP_SIGNS[i - HALF_LINES];
             }
 
-            // Damp, then attenuate by the nominal-length decay gain. The state
-            // is sanitized every sample so a non-finite input cannot lodge in
-            // the loop recursion.
-            let damped = sanitize(one_pole(self.state.damp_state[i], delayed, damp_coeff));
-            self.state.damp_state[i] = damped;
-            returns[i] = damped * line_gains[i];
+            // First-order absorption filter A(z) = g_dc·(1−k)/(1 − k·z⁻¹): a
+            // one-pole lowpass whose DC gain g_dc sets the low-band decay and
+            // whose pole k sets how much faster the high band decays. The gain
+            // is designed over the full loop delay a signal accrues in this
+            // line — the main tap plus the scattering delay it traverses before
+            // re-entering the network — so the realized decay matches `decay`.
+            let (g_dc, k) = absorption[i];
+            // Sanitized every sample so a non-finite input cannot lodge in the
+            // loop recursion.
+            let absorbed = sanitize(k * self.state.absorb_state[i] + g_dc * (1.0 - k) * delayed);
+            self.state.absorb_state[i] = absorbed;
+            mix[i] = absorbed;
         }
 
-        // ── Mix each block, cross-couple, write back with stereo input ───
-
-        let mut left_block = [returns[0], returns[1], returns[2], returns[3]];
-        let mut right_block = [returns[4], returns[5], returns[6], returns[7]];
+        // ── Per-block scattering, cross-couple, write back ───────────────
+        //
+        // Each block runs Hadamard · scattering delays · Householder — a
+        // paraunitary matrix — then a rotation couples the two blocks by the
+        // width angle. The whole 8×8 stays energy-preserving, so the loop is
+        // stable for any finite decay.
+        let mut left_block = [mix[0], mix[1], mix[2], mix[3]];
+        let mut right_block = [mix[4], mix[5], mix[6], mix[7]];
         hadamard4(&mut left_block);
         hadamard4(&mut right_block);
         for i in 0..HALF_LINES {
-            // Rotate each paired (left, right) line by the cross-coupling angle.
-            // A rotation is orthonormal, so the full matrix stays energy-preserving.
+            self.state.scatter[i].write(left_block[i]);
+            left_block[i] = self.state.scatter[i].read(self.state.scatter_len[i]);
+            self.state.scatter[i + HALF_LINES].write(right_block[i]);
+            right_block[i] =
+                self.state.scatter[i + HALF_LINES].read(self.state.scatter_len[i + HALF_LINES]);
+        }
+        householder4(&mut left_block);
+        householder4(&mut right_block);
+        for i in 0..HALF_LINES {
             let l = cross_cos * left_block[i] + cross_sin * right_block[i];
             let r = cross_cos * right_block[i] - cross_sin * left_block[i];
             self.state.lines[i].write(inject_l * INPUT_SIGNS[i] + l);
             self.state.lines[i + HALF_LINES].write(inject_r * INPUT_SIGNS[i] + r);
         }
 
-        // ── Level, DC-block, emit ────────────────────────────────────────
+        // ── Tonal correction, level, DC-block, emit ─────────────────────
+
+        let tc_l = (left_out - tc_b * self.state.tc_prev_l) * tc_scale;
+        let tc_r = (right_out - tc_b * self.state.tc_prev_r) * tc_scale;
+        self.state.tc_prev_l = left_out;
+        self.state.tc_prev_r = right_out;
 
         let coeff = self.state.dc_block_coeff;
-        let out_l = self
-            .state
-            .dc_blocker_l
-            .process(left_out * OUTPUT_GAIN, coeff);
-        let out_r = self
-            .state
-            .dc_blocker_r
-            .process(right_out * OUTPUT_GAIN, coeff);
+        let out_l = self.state.dc_blocker_l.process(tc_l * OUTPUT_GAIN, coeff);
+        let out_r = self.state.dc_blocker_r.process(tc_r * OUTPUT_GAIN, coeff);
 
         self.outputs.sample.set(0, out_l);
         self.outputs.sample.set(1, out_r);
     }
 }
 
-message_handlers!(impl Reverb {});
+message_handlers!(impl Hall {});
 
 #[cfg(test)]
 mod tests {
@@ -534,7 +601,7 @@ mod tests {
     fn make_reverb_at(params: serde_json::Value, sample_rate: f32) -> Box<dyn Sampleable> {
         let constructors = get_constructors();
         let deserializers = get_params_deserializers();
-        let deserializer = deserializers.get("$unstable.reverb").unwrap();
+        let deserializer = deserializers.get("$hall").unwrap();
         let mut cached = deserializer(params).unwrap();
         // Built as a patch builds a stereo module: one lane of two sides, with
         // each input lane on both sides, as a mono producer reaches it.
@@ -548,8 +615,8 @@ mod tests {
             f64_inputs: false,
             channels: 2,
         };
-        constructors.get("$unstable.reverb").unwrap()(
-            "test-reverb",
+        constructors.get("$hall").unwrap()(
+            "test-hall",
             sample_rate,
             deserialized,
             TEST_BLOCK_SIZE,
@@ -579,7 +646,6 @@ mod tests {
         samples.iter().map(|s| s * s).sum()
     }
 
-    /// Build params JSON with only `input` required; all others optional.
     fn reverb_params(overrides: serde_json::Value) -> serde_json::Value {
         let mut base = json!({ "input": 0.0 });
         if let (Some(base_map), Some(over_map)) = (base.as_object_mut(), overrides.as_object()) {
@@ -597,12 +663,12 @@ mod tests {
         use crate::poly::{PairSignal, PolySignal};
         use crate::types::{OutputStruct, Signal};
 
-        let mut outputs = super::ReverbOutputs::default();
+        let mut outputs = super::HallOutputs::default();
         outputs.set_all_lanes(2);
-        let mut m = super::Reverb {
+        let mut m = super::Hall {
             outputs,
             state: Default::default(),
-            params: super::ReverbParams {
+            params: super::HallParams {
                 input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(f32::NAN))),
                 decay: None,
                 damping: None,
@@ -682,9 +748,6 @@ mod tests {
 
     #[test]
     fn output_stays_finite_and_bounded() {
-        // Sustained full-scale DC is the worst case for a feedback loop:
-        // the matrix conserves energy and only the sub-unity line gains and
-        // DC blocker keep it in check.
         let reverb = make_reverb(reverb_params(json!({ "input": 1.0, "decay": 2.0 })));
         let (left, right) = collect_stereo(reverb.as_ref(), 48000);
         assert!(
@@ -716,6 +779,28 @@ mod tests {
     }
 
     #[test]
+    fn damping_shortens_high_frequency_tail() {
+        // Heavy damping should remove tail energy relative to no damping, since
+        // the absorption filters decay the high band far faster.
+        let n = 30000;
+        let reverb_bright = make_reverb(reverb_params(
+            json!({ "input": 1.0, "decay": 3.0, "damping": -5.0 }),
+        ));
+        let reverb_dark = make_reverb(reverb_params(
+            json!({ "input": 1.0, "decay": 3.0, "damping": 5.0 }),
+        ));
+        let (left_bright, _) = collect_stereo(reverb_bright.as_ref(), n);
+        let (left_dark, _) = collect_stereo(reverb_dark.as_ref(), n);
+        let tail_start = n * 3 / 4;
+        let bright_tail = energy(&left_bright[tail_start..]);
+        let dark_tail = energy(&left_dark[tail_start..]);
+        assert!(
+            bright_tail > dark_tail,
+            "damping should shorten the tail: bright={bright_tail}, dark={dark_tail}"
+        );
+    }
+
+    #[test]
     fn modulation_changes_output() {
         let n = 20000;
         let reverb_off = make_reverb(reverb_params(
@@ -734,25 +819,9 @@ mod tests {
     }
 
     #[test]
-    fn damping_changes_output() {
-        let n = 10000;
-        let reverb_bright = make_reverb(reverb_params(json!({ "input": 1.0, "damping": -5.0 })));
-        let reverb_dark = make_reverb(reverb_params(json!({ "input": 1.0, "damping": 5.0 })));
-        let (left_bright, _) = collect_stereo(reverb_bright.as_ref(), n);
-        let (left_dark, _) = collect_stereo(reverb_dark.as_ref(), n);
-        let differs = left_bright
-            .iter()
-            .zip(left_dark.iter())
-            .any(|(a, b)| (a - b).abs() > 1e-6);
-        assert!(differs, "different damping should produce different output");
-    }
-
-    #[test]
     fn max_size_and_modulation_stays_bounded() {
         // Largest room plus deepest modulation pushes every line's read tap to
-        // its furthest point. The buffers are sized for exactly this corner;
-        // an undersized buffer would wrap and read stale samples back into the
-        // feedback loop rather than panic, so guard the bound by driving it.
+        // its furthest point; the buffers are sized for exactly this corner.
         let reverb = make_reverb(reverb_params(json!({
             "input": 1.0,
             "decay": 5.0,
@@ -783,6 +852,7 @@ mod tests {
                     "input": 1.0,
                     "decay": 5.0,
                     "size": 5.0,
+                    "damping": 5.0,
                     "modulation": 5.0,
                 })),
                 sr,
@@ -801,5 +871,24 @@ mod tests {
                 "output should stay bounded at {sr} Hz, got peak {peak}"
             );
         }
+    }
+
+    #[test]
+    fn heavy_damping_stays_stable() {
+        // Maximum damping drives each absorption pole toward its clamp; verify
+        // the loop stays finite and bounded over a long run.
+        let reverb = make_reverb(reverb_params(
+            json!({ "input": 1.0, "decay": 5.0, "damping": 5.0 }),
+        ));
+        let (left, right) = collect_stereo(reverb.as_ref(), 96000);
+        assert!(
+            left.iter().chain(right.iter()).all(|s| s.is_finite()),
+            "output must stay finite under maximum damping"
+        );
+        let peak = left
+            .iter()
+            .chain(right.iter())
+            .fold(0.0f32, |m, &s| m.max(s.abs()));
+        assert!(peak < 50.0, "output should stay bounded, got peak {peak}");
     }
 }
