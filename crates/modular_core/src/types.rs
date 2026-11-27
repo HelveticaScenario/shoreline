@@ -590,9 +590,23 @@ impl SwapGlide {
         if self.gliding() { self.value } else { input }
     }
 
+    /// [`follow`](Self::follow) for a value in cycles, read only by its
+    /// position within the cycle: a swap glides the shortest way round, by at
+    /// most half a cycle, and the glided value stays within that of `input`.
+    #[inline]
+    pub fn follow_cyclic(&mut self, input: f32, mark: GlideMark, sample_rate: f32) -> f32 {
+        self.advance(input, mark, sample_rate, true);
+        if self.gliding() { self.value } else { input }
+    }
+
     /// A non-finite input holds the current value (0 before the first update).
     #[inline]
     pub fn update(&mut self, input: f32, mark: GlideMark, sample_rate: f32) {
+        self.advance(input, mark, sample_rate, false);
+    }
+
+    #[inline(always)]
+    fn advance(&mut self, input: f32, mark: GlideMark, sample_rate: f32, cyclic: bool) {
         let input = if input.is_finite() {
             input
         } else if self.value.is_finite() {
@@ -604,6 +618,9 @@ impl SwapGlide {
             self.generation = mark.generation;
             if mark.changed() && self.value.is_finite() {
                 self.offset = self.value - input;
+                if cyclic {
+                    self.offset -= self.offset.round();
+                }
                 self.coeff = (-1.0 / (SWAP_GLIDE_TAU_SECONDS * sample_rate)).exp();
             }
         }
@@ -4647,6 +4664,30 @@ mod swap_glide_tests {
         let c = step(&mut g, 4.0, mark(1, true));
         assert!(b - a > 0.9);
         assert!(b - c > 0.9);
+    }
+
+    #[test]
+    fn cyclic_swap_glides_the_short_way_round() {
+        let mut g = SwapGlide::default();
+        g.follow_cyclic(0.95, mark(0, true), SR);
+        let mut prev = g.follow_cyclic(0.05, mark(1, true), SR);
+        assert!((prev + 0.05).abs() < 1e-6, "starts on {prev}");
+        for _ in 0..(SR as usize / 20) {
+            let y = g.follow_cyclic(0.05, mark(1, true), SR);
+            assert!(y >= prev && y <= 0.05, "{prev} -> {y}");
+            prev = y;
+        }
+        assert_eq!(prev, 0.05);
+    }
+
+    #[test]
+    fn cyclic_passes_a_resetting_ramp_through() {
+        let mut g = SwapGlide::default();
+        for i in 0..10_000 {
+            let x = (i % 100) as f32 / 100.0;
+            assert_eq!(g.follow_cyclic(x, mark(0, true), SR), x);
+        }
+        assert!(!g.gliding());
     }
 
     #[test]

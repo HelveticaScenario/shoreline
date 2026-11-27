@@ -201,7 +201,7 @@ impl Voice {
                 state.sample_rate,
             ),
             self.offset
-                .follow(knobs.offset.0, knobs.offset.1, state.sample_rate),
+                .follow_cyclic(knobs.offset.0, knobs.offset.1, state.sample_rate),
         ];
         for (held, value) in self.held.iter_mut().zip(raw) {
             if value.is_finite() {

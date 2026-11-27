@@ -286,3 +286,36 @@ fn non_finite_phase_offset_holds() {
     });
     assert_eq!(held, glitched);
 }
+
+/// A patch edit across the wrap moves the phase the short way round: from
+/// 0.95 to 0.05 it travels forward a tenth of a cycle, never back.
+#[test]
+fn swapped_phase_offset_glides_the_short_way_round() {
+    let state = DivideDownState::new(48000.0);
+    let mut voice = Voice::default();
+    let swap = |generation| GlideMark {
+        generation,
+        changed: u64::MAX,
+        lane: 0,
+        lanes: 1,
+    };
+    let at = |offset, generation| Knobs {
+        registration: (2.5, mark()),
+        offset: (offset, swap(generation)),
+    };
+    for _ in 0..100 {
+        voice.step(0.01, at(0.95, 1), &state);
+    }
+    let mut prev = wrap(voice.held[1]);
+    let mut travelled = 0.0;
+    for _ in 0..2000 {
+        voice.step(0.01, at(0.05, 2), &state);
+        let now = wrap(voice.held[1]);
+        let step = now - prev - (now - prev).round();
+        assert!(step >= 0.0, "moved back by {step}");
+        travelled += step;
+        prev = now;
+    }
+    assert!((travelled - 0.1).abs() < 1e-4, "travelled {travelled}");
+    assert!((prev - 0.05).abs() < 1e-6, "ended on {prev}");
+}
