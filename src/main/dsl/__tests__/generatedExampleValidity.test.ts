@@ -29,6 +29,7 @@ import {
 } from '../../../shared/dsl/referenceDocs';
 import { buildLibSource } from '../typescriptLibGen';
 import { type DSLExecutionOptions, executePatchScript } from '../executor';
+import type { AssetLoaders } from '../assetParams';
 
 // ─── Execution environment ──────────────────────────────────────────────────
 //
@@ -36,7 +37,7 @@ import { type DSLExecutionOptions, executePatchScript } from '../executor';
 // real audio files on disk. Every path loads as the same two-second stereo
 // file. DX7 voices load from the bundled files.
 
-const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
+const stubLoadWav: AssetLoaders['wav'] = (path) => ({
     channels: 2,
     frameCount: 96_000,
     path,
@@ -48,20 +49,23 @@ const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
     mtime: 0,
 });
 
-const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
-    path,
-) => ({ ...stubLoadWav(`media:${path}`), bitDepth: 32 });
+const stubLoadMediaAudio: AssetLoaders['mediaAudio'] = (path) => ({
+    ...stubLoadWav(`media:${path}`),
+    bitDepth: 32,
+});
 
 /** Reads the bundled `.syx` files, which is all examples play. */
-const loadBuiltinSyx: NonNullable<DSLExecutionOptions['loadSyx']> = (path) =>
+const loadBuiltinSyx: AssetLoaders['syx'] = (path) =>
     parseSyx(readFileSync(join(__dirname, '../../../../assets', path)));
 
 const EXECUTION_OPTIONS: DSLExecutionOptions = {
-    loadSyx: loadBuiltinSyx,
-    loadMediaAudio: stubLoadMediaAudio,
+    loaders: {
+        mediaAudio: stubLoadMediaAudio,
+        syx: loadBuiltinSyx,
+        wav: stubLoadWav,
+    },
     sampleRate: 48_000,
     workspaceRoot: '/workspace',
-    loadWav: stubLoadWav,
 };
 
 // ─── Example extraction ─────────────────────────────────────────────────────

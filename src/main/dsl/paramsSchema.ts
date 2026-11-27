@@ -1,4 +1,8 @@
 import type { ModuleSchema } from '@modular/core';
+import {
+    ASSET_PARAM_TYPE_NAMES,
+    type AssetParamTypeName,
+} from '../../shared/dsl/assetParamTypes';
 
 /**
  * A small, pragmatic subset of JSON Schema (as emitted by `schemars`).
@@ -96,10 +100,11 @@ export interface ParamDescriptor {
      * lane count and takes no part in `$g` signal-group expansion.
      */
     isScaleSignalInput?: boolean;
-    /** A WAV file, written in the DSL as a `/`-rooted workspace path. */
-    isWavInput?: boolean;
-    /** A DX7 voice, written in the DSL as a `.syx` path and `#name`. */
-    isDx7VoiceInput?: boolean;
+    /**
+     * The schema type of a param written in the DSL as a file path, which the
+     * factory resolves through `ASSET_PARAM_TYPES`.
+     */
+    assetType?: AssetParamTypeName;
 }
 
 export type ProcessedModuleSchema = ModuleSchema & {
@@ -535,8 +540,9 @@ export function processModuleSchema(
 
             const isLaneSumInput = referencesDef(s, 'LaneSum');
             const isScaleSignalInput = referencesDef(s, 'ScaleSignal');
-            const isWavInput = referencesDef(s, 'Wav');
-            const isDx7VoiceInput = referencesDef(s, 'Dx7Voice');
+            const assetType = ASSET_PARAM_TYPE_NAMES.find((type) =>
+                referencesDef(s, type),
+            );
             const isPolySignalInput =
                 !isLaneSumInput &&
                 !isScaleSignalInput &&
@@ -552,8 +558,7 @@ export function processModuleSchema(
                 ...(isPolySignalInput && { isPolySignalInput }),
                 ...(isLaneSumInput && { isLaneSumInput }),
                 ...(isScaleSignalInput && { isScaleSignalInput }),
-                ...(isWavInput && { isWavInput }),
-                ...(isDx7VoiceInput && { isDx7VoiceInput }),
+                ...(assetType && { assetType }),
                 ...(signalMeta && {
                     controlMax: signalMeta.controlMax,
                     controlMin: signalMeta.controlMin,

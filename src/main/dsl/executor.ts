@@ -65,7 +65,13 @@ import { compileVideoGraph } from './video/wgslCompiler';
 import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import { assetPath } from './assetPath';
-import { selectVoice, splitVoice, type SyxVoice } from '../../shared/dx7Voice';
+import {
+    loaderUnavailable,
+    wavRef,
+    type AssetLoaders,
+    type LoadAsset,
+    type LoadedWav,
+} from './assetParams';
 import {
     prepareTrackLabels,
     type TrackLabelProgram,
@@ -102,35 +108,6 @@ export interface DSLExecutionResult {
     videoPreviews: VideoPreviewSite[];
     /** Every contextual output choice made while the script ran */
     outputResolutions: OutputResolutionRecord[];
-}
-
-/** What the engine reports about a decoded WAV or media audio track. */
-interface LoadedWav {
-    channels: number;
-    frameCount: number;
-    path: string;
-    sampleRate: number;
-    duration: number;
-    bitDepth: number;
-    pitch?: number | null;
-    playback?: string | null;
-    bpm?: number | null;
-    beats?: number | null;
-    timeSignature?: { num: number; den: number } | null;
-    barCount?: number | null;
-    loops: Array<{ loopType: string; start: number; end: number }>;
-    cuePoints: Array<{ position: number; label: string }>;
-    mtime: number;
-}
-
-/** The `wav` parameter value that refers to decoded audio held by the engine. */
-function wavRef(info: LoadedWav) {
-    return {
-        type: 'wav_ref' as const,
-        path: info.path,
-        channels: info.channels,
-        mtime: info.mtime,
-    };
 }
 
 /** What `$wavMeta` reports about a file. */
@@ -178,15 +155,8 @@ export interface DSLExecutionOptions {
     /** Whether a workspace-relative path names an existing file, for media errors. */
     mediaExists?: (path: string) => boolean;
     workspaceRoot?: string | null;
-    /** Decodes a WAV file named by a `/`-rooted workspace path. */
-    loadWav?: (path: string) => LoadedWav;
-    /**
-     * Decodes the audio track of a workspace media file, or returns null when
-     * it has none. The returned `path` names the decoded audio for a `Wav`.
-     */
-    loadMediaAudio?: (path: string) => LoadedWav | null;
-    /** The DX7 voices of a `.syx` file named by a workspace or builtin path. */
-    loadSyx?: (path: string) => SyxVoice[];
+    /** The host calls that read the patch's files; a missing one is an error when used. */
+    loaders?: Partial<AssetLoaders>;
 }
 
 // Install pipe() on Array.prototype so arrays in the DSL can use it.
@@ -745,12 +715,7 @@ export function executePatchScript(
         cvSignal: (id) =>
             signal(0, { ...VIDEO_CV_RANGE, id }) as CollectionWithRange,
         mediaAudio: (path, playback) => {
-            if (!options.loadMediaAudio) {
-                throw new Error(
-                    '$v.video(...).audio: media audio loading is not available',
-                );
-            }
-            const info = timedWavLoad(() => options.loadMediaAudio!(path));
+            const info = loadAsset('$v.video(...).audio', 'mediaAudio', path);
             if (info === null) {
                 throw new Error(`$v.video(...).audio: "/${path}" has no audio`);
             }
@@ -766,55 +731,39 @@ export function executePatchScript(
         ...args: Parameters<VideoGraphBuilder['scopeXY']>
     ): VideoOutput => videoBuilder.out(videoBuilder.scopeXY(...args));
 
-    // Wall-clock time this run spends inside synchronous loadWav host calls.
-    // The vm timeout below measures total wall-clock time of the run, so this
+    // Wall-clock time this run spends inside synchronous host loads. The vm
+    // timeout below measures total wall-clock time of the run, so this
     // distinguishes a patch stuck in a loop from one legitimately spending
-    // its budget decoding samples from disk. `wavLoadStart` marks a load in
+    // its budget reading files from disk. `assetLoadStart` marks a load in
     // flight: the timeout terminates all JS in the isolate, so the
     // post-load accumulation may never run and the catch block below must
     // count the interrupted load itself.
-    let wavLoadMs = 0;
-    let wavLoadStart: number | null = null;
+    let assetLoadMs = 0;
+    let assetLoadStart: number | null = null;
 
-    /** Runs a synchronous host load, billing its time to WAV loading. */
-    const timedWavLoad = <T>(load: () => T): T => {
+    /** Runs a host load, billing its time to asset loading. */
+    const loadAsset: LoadAsset = (fn, loader, path) => {
+        const load = options.loaders?.[loader];
+        if (!load) throw loaderUnavailable(fn, loader);
         const loadStart = performance.now();
-        wavLoadStart = loadStart;
+        assetLoadStart = loadStart;
         try {
-            return load();
+            return load(path) as ReturnType<AssetLoaders[typeof loader]>;
         } finally {
             // Also on throw: the time was still spent loading, and a
-            // stale wavLoadStart would bill everything after a caught
-            // load failure — even an infinite loop — to WAV loading.
-            wavLoadMs += performance.now() - loadStart;
-            wavLoadStart = null;
+            // stale assetLoadStart would bill everything after a caught
+            // load failure — even an infinite loop — to asset loading.
+            assetLoadMs += performance.now() - loadStart;
+            assetLoadStart = null;
         }
     };
-
-    /** Decodes the file at a `/`-rooted workspace path, or an error naming `fn`. */
-    const loadWavFile = (fn: string, path: unknown): LoadedWav => {
-        const rooted = assetPath(fn, path, 'wav');
-        if (!options.loadWav) {
-            throw new Error(`${fn}: WAV loading is not available`);
-        }
-        return timedWavLoad(() => options.loadWav!(rooted));
-    };
-    context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
-    context.setDx7VoiceResolver((module, value) => {
-        const { path, voice } =
-            typeof value === 'string'
-                ? splitVoice(value)
-                : { path: value, voice: null };
-        const rooted = assetPath(module, path, 'syx');
-        if (!options.loadSyx) {
-            throw new Error(`${module}: .syx loading is not available`);
-        }
-        const voices = timedWavLoad(() => options.loadSyx!(rooted));
-        return selectVoice(module, rooted, voice, voices);
-    });
+    context.setAssetLoader(loadAsset);
 
     /** The format, tempo, loops and cue points of a WAV file. */
-    const $wavMeta = (path: string) => wavMeta(loadWavFile('$wavMeta', path));
+    const $wavMeta = (path: string) =>
+        wavMeta(
+            loadAsset('$wavMeta', 'wav', assetPath('$wavMeta', path, 'wav')),
+        );
 
     /**
      * $phase.* DSL helpers produce phase-warp descriptors for modules that
@@ -1078,16 +1027,18 @@ export function executePatchScript(
             'ERR_SCRIPT_EXECUTION_TIMEOUT'
         ) {
             // The timeout counts wall-clock time, including synchronous host
-            // call-outs. When most of the budget went to loading WAV files
-            // (slow/cold disk, big library), say so — the wav cache keeps
+            // call-outs. When most of the budget went to loading files
+            // (slow/cold disk, big library), say so — the engine keeps
             // everything already decoded, so a re-run makes progress.
             const seconds = executionTimeoutMs / 1000;
-            const totalWavMs =
-                wavLoadMs +
-                (wavLoadStart !== null ? performance.now() - wavLoadStart : 0);
+            const totalLoadMs =
+                assetLoadMs +
+                (assetLoadStart !== null
+                    ? performance.now() - assetLoadStart
+                    : 0);
             const message =
-                totalWavMs >= executionTimeoutMs / 2
-                    ? `DSL execution error: Patch script timed out after ${seconds}s, ${(totalWavMs / 1000).toFixed(1)}s of it loading WAV files — loaded files stay cached, so run again to continue`
+                totalLoadMs >= executionTimeoutMs / 2
+                    ? `DSL execution error: Patch script timed out after ${seconds}s, ${(totalLoadMs / 1000).toFixed(1)}s of it loading files — loaded files stay cached, so run again to continue`
                     : `DSL execution error: Patch script timed out after ${seconds}s — check for infinite loops`;
             throw new Error(message, { cause: error });
         }

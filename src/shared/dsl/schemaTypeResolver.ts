@@ -6,6 +6,10 @@
  */
 
 import type schemas from '@modular/core/schemas.json';
+import {
+    isAssetParamTypeName,
+    type AssetParamTypeName,
+} from './assetParamTypes';
 
 /**
  * A single module schema entry, typed from the actual schemas.json data.
@@ -63,8 +67,7 @@ export function resolveRef(
     | 'Poly<Signal>'
     | 'LaneSum<Signal>'
     | 'Buffer'
-    | 'Wav'
-    | 'Dx7Voice'
+    | AssetParamTypeName
     | 'PhaseWarp'
     | 'EnoscScale'
     | 'Pattern' {
@@ -98,11 +101,8 @@ export function resolveRef(
     if (defName === 'Buffer') {
         return 'Buffer';
     }
-    if (defName === 'Wav') {
-        return 'Wav';
-    }
-    if (defName === 'Dx7Voice') {
-        return 'Dx7Voice';
+    if (isAssetParamTypeName(defName)) {
+        return defName;
     }
     if (defName === 'PhaseWarp') {
         return 'PhaseWarp';
@@ -317,7 +317,7 @@ export function schemaToTypeExpr(
         if (resolved === 'Buffer') {
             return 'BufferOutputRef';
         }
-        if (resolved === 'Wav' || resolved === 'Dx7Voice') {
+        if (typeof resolved === 'string' && isAssetParamTypeName(resolved)) {
             return 'string';
         }
         if (resolved === 'PhaseWarp') {
