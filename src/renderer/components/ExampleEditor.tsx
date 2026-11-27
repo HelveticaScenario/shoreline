@@ -23,6 +23,24 @@ interface ExampleEditorProps {
     onLive: (live: boolean) => void;
 }
 
+/**
+ * Where every example draws its hovers and other floating widgets: on the
+ * page's body, since a reference card is placed by a transform, which would
+ * make the card their frame, clip them to it and let the next card paint
+ * over them.
+ */
+let overflowHost: HTMLElement | null = null;
+
+function overflowWidgetsHost(): HTMLElement {
+    if (!overflowHost) {
+        // Monaco's widget styles apply within a `.monaco-editor`.
+        overflowHost = document.createElement('div');
+        overflowHost.className = 'monaco-editor code-example-overflow';
+        document.body.append(overflowHost);
+    }
+    return overflowHost;
+}
+
 /** Options matching `pre`'s type and padding, so the code sits where it was. */
 function optionsFor(
     pre: HTMLPreElement,
@@ -34,7 +52,6 @@ function optionsFor(
         automaticLayout: false,
         contextmenu: false,
         cursorBlinking: 'solid',
-        definitionLinkOpensInPeek: true,
         domReadOnly: true,
         fixedOverflowWidgets: true,
         folding: false,
@@ -51,6 +68,7 @@ function optionsFor(
         lineNumbersMinChars: 0,
         matchBrackets: 'never',
         minimap: { enabled: false },
+        overflowWidgetsDomNode: overflowWidgetsHost(),
         overviewRulerBorder: false,
         overviewRulerLanes: 0,
         padding: {

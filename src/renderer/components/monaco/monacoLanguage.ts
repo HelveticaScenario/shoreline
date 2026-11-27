@@ -3,6 +3,7 @@ import { applyDslLibToMonaco } from './monacoHelpers';
 import { EDITOR_COMPILER_OPTIONS } from './compilerOptions';
 import { registerDollarQuoteQuickFix } from './dollarQuoteQuickFix';
 import { registerJsDocLinkProviders } from './jsDocLinkProviders';
+import { docsNames, registerDefinitionDocs } from './definitionDocs';
 import { registerRenameProvider } from './renameProvider';
 import { registerOutputResolutionHints } from './outputResolutionHints';
 import type { ModuleSchema } from '@modular/core';
@@ -78,17 +79,21 @@ export function setupMonacoJavascript(
 
     const languageConfiguration = configureJavascriptPairs(monaco);
     const { extraLib, extraLibModel } = applyDslLibToMonaco(monaco, libSource);
+    const names = docsNames(options.schemas ?? []);
     const jsDocLinks = registerJsDocLinkProviders(
         monaco,
         options.schemas ?? [],
+        names,
         options.quotes,
     );
+    const definitionDocs = registerDefinitionDocs(monaco, names);
     const rename = registerRenameProvider(monaco);
     const outputHints = registerOutputResolutionHints(monaco);
     const dollarQuoteFix = registerDollarQuoteQuickFix(monaco);
 
     return () => {
         dollarQuoteFix.dispose();
+        definitionDocs.dispose();
         outputHints.dispose();
         rename.dispose();
         jsDocLinks.dispose();

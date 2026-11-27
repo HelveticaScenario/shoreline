@@ -4,6 +4,7 @@ import electronAPI from '../../electronAPI';
 import { buildEditorMenuItems } from '../../keybindings/editorMenuItems';
 import { dispatchCommand } from '../../keybindings/dispatch';
 import { installWorkspacePathDrop } from '../monaco/workspacePathCompletion';
+import { hasDefinitionDocs } from '../monaco/definitionDocs';
 import type { EditorCodeFormat } from './codeFormat';
 
 interface EditorMouseGesturesParams {
@@ -15,8 +16,8 @@ interface EditorMouseGesturesParams {
 
 /**
  * The mouse gestures the editor adds to Monaco's own: a right-click opens
- * the native context menu, Cmd/Ctrl + click peeks a definition, and a file
- * dragged from the explorer drops in as its path.
+ * the native context menu, Cmd/Ctrl + click opens a name's docs or peeks its
+ * definition, and a file dragged from the explorer drops in as its path.
  */
 export function useEditorMouseGestures({
     editor,
@@ -70,7 +71,7 @@ export function useEditorMouseGestures({
         };
     }, [editor]);
 
-    // Cmd (Mac) / Ctrl (Win/Linux) + click peeks a DSL symbol's definition.
+    // Cmd (Mac) / Ctrl (Win/Linux) + click peeks a definition no docs cover.
     useEffect(() => {
         if (!editor || !dslReady) {
             return;
@@ -79,11 +80,19 @@ export function useEditorMouseGestures({
             if (!e.event.metaKey && !e.event.ctrlKey) {
                 return;
             }
-            if (e.target.position == null || !editor.getModel()) {
+            const position = e.target.position;
+            const model = editor.getModel();
+            if (position == null || !model) {
                 return;
             }
             editor.focus();
-            editor.trigger('api', 'editor.action.peekDefinition', {});
+            // Monaco's own Cmd/Ctrl + click goes to the definition, which
+            // opens the docs of a name they cover; anything else peeks.
+            void hasDefinitionDocs(model, position).then((docs) => {
+                if (!docs) {
+                    editor.trigger('api', 'editor.action.peekDefinition', {});
+                }
+            });
         });
         return () => disposable.dispose();
     }, [editor, dslReady]);

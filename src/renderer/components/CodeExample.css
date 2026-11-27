@@ -13,6 +13,16 @@
     position: absolute;
 }
 
+/* Holds the examples' hovers, which place themselves against the window. */
+.code-example-overflow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    width: 0;
+    height: 0;
+}
+
 /* The editor draws the code; the static copy keeps its box, background and
    text. */
 .code-example.live > pre > code,

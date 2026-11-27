@@ -30,12 +30,39 @@ test('a guide example hovers like the patch editor', async ({ window }) => {
             timeout: 2_500,
         });
     }).toPass({ timeout: 30_000 });
+    // Drawn outside the docs, so no card clips it or paints over it.
+    await expect(
+        window.locator(`.code-example-overflow ${HOVER}`).first(),
+    ).toBeVisible();
 
     // The example takes no input.
     const before = await example.locator('.view-lines').innerText();
     await sine.click();
     await window.keyboard.type('xyz');
     expect(await example.locator('.view-lines').innerText()).toBe(before);
+});
+
+test('go to definition on a documented name opens its docs', async ({
+    window,
+}) => {
+    await openUntitledBuffer(window);
+    await window.getByRole('button', { name: 'Docs' }).click();
+    const docs = window.locator('.docs-panel');
+    await docs.getByRole('button', { name: 'Guide' }).click();
+    const sine = docs
+        .locator('.code-example.live .view-line span span')
+        .filter({ hasText: /\$sine/ })
+        .first();
+    await expect(sine).toBeVisible({ timeout: 20_000 });
+
+    const sineCard = docs.locator('.module-card').filter({
+        has: window.locator('h3 code', { hasText: '$sine(' }),
+    });
+    await expect(async () => {
+        await sine.click({ modifiers: ['ControlOrMeta'] });
+        await expect(sineCard.first()).toBeVisible({ timeout: 2_500 });
+    }).toPass({ timeout: 30_000 });
+    await expect(window.locator('.peekview-widget')).toHaveCount(0);
 });
 
 test("a patch's diagnostics are its own while examples show", async ({

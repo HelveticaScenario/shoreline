@@ -7,6 +7,7 @@
  * kept apart from the patch buffers (see docsExampleFiles).
  */
 
+import type * as TS from 'typescript';
 import type {
     CodeFixAction,
     CompletionInfo,
@@ -525,6 +526,34 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return view ? sites.filter((site) => site.start < view.length) : sites;
     }
 
+    /**
+     * The fully qualified name of the declaration at `position` in a lib, as
+     * `$mi` or `ModuleChainMi.chorus`, or null where nothing is declared.
+     */
+    async getDeclarationName(
+        fileName: string,
+        position: number,
+    ): Promise<string | null> {
+        const program = this.getLanguageService().getProgram();
+        const sourceFile = program?.getSourceFile(fileName);
+        if (!program || !sourceFile) {
+            return null;
+        }
+        const nodeAt = (node: TS.Node): TS.Node | undefined =>
+            node.getStart(sourceFile) <= position && position < node.end
+                ? (ts.forEachChild(node, nodeAt) ?? node)
+                : undefined;
+        const node = nodeAt(sourceFile);
+        const symbol =
+            node && program.getTypeChecker().getSymbolAtLocation(node);
+        return symbol
+            ? program
+                  .getTypeChecker()
+                  .getFullyQualifiedName(symbol)
+                  .replace(/^global\./, '')
+            : null;
+    }
+
     async getLocalRefactors(
         fileName: string,
         start: number,
@@ -598,6 +627,7 @@ export type DslTypeScriptWorkerApi = Pick<
     | 'getLocalRefactors'
     | 'getLocalRefactorEdits'
     | 'getTrackRenameError'
+    | 'getDeclarationName'
 >;
 
 self.onmessage = () => {
