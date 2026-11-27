@@ -413,6 +413,11 @@ pub trait Sampleable: MessageHandler + Send {
     /// `has_prepare_resources` flag in their `#[module(...)]` attribute to
     /// delegate to `prepare_resources_impl` on the inner module struct.
     fn prepare_resources(&self, _resources: Resources<'_>) {}
+    /// Whether [`prepare_resources`](Self::prepare_resources) reads the
+    /// files, so a caller can skip gathering them for modules that do not.
+    fn prepares_resources(&self) -> bool {
+        false
+    }
     /// Downcast to concrete type for state transfer.
     fn as_any(&self) -> &dyn std::any::Any;
     /// Transfer runtime state from an old module to this newly-constructed module.

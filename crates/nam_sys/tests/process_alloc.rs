@@ -28,9 +28,15 @@ fn process_never_allocates() {
     let file = model("A2.nam");
     let built = nam_sys::count_allocations(|| drop(NamDsp::new(&file, 48_000.0, 128)));
     assert!(built > 0, "the tracker must see the runtime's allocations");
-    for name in MODELS {
+    for (name, size) in MODELS
+        .iter()
+        .flat_map(|name| [None, Some(0.0), Some(1.0)].map(|size| (name, size)))
+    {
         let file = model(name);
         let mut dsp = NamDsp::new(&file, 48_000.0, 128).expect("build");
+        if let Some(size) = size {
+            dsp.set_size(size);
+        }
         let input: Vec<f32> = (0..1_000).map(|i| (i as f32 * 0.01).sin() * 0.3).collect();
         let mut output = vec![0.0; input.len()];
         let mut ok = true;
@@ -40,10 +46,10 @@ fn process_never_allocates() {
                 ok &= dsp.process(std::slice::from_ref(x), std::slice::from_mut(y));
             }
         });
-        assert!(ok, "{name}");
+        assert!(ok, "{name} {size:?}");
         assert_eq!(
             count, 0,
-            "{name} allocated or freed {count} times while processing"
+            "{name} at size {size:?} allocated or freed {count} times while processing"
         );
     }
 }

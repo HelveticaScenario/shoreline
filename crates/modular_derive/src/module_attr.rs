@@ -576,6 +576,9 @@ fn impl_module_macro_attr(
     // Check for has_prepare_resources flag
     let prepare_resources_impl = if attr_args.has_prepare_resources {
         quote! {
+            fn prepares_resources(&self) -> bool {
+                true
+            }
             fn prepare_resources(&self, resources: crate::types::Resources<'_>) {
                 // SAFETY: Called on the main thread between construction and
                 // queueing the module for the audio thread. No other

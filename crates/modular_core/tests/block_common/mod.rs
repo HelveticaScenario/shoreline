@@ -135,8 +135,9 @@ pub fn assemble_settled<'a>(
 }
 
 /// The NAM models every patch built here can name: NeuralAmpModelerCore's
-/// example A2 capture at `/a2.nam`, and its example capture with a lite
-/// version at `/slim.nam`.
+/// example A2 capture at `/a2.nam`, and its example captures with a lite
+/// version at `/slim.nam` (tiers as separate models) and `/slim_wavenet.nam`
+/// (tiers within one network).
 pub fn nam_models() -> &'static HashMap<String, Arc<NamModelData>> {
     static MODELS: LazyLock<HashMap<String, Arc<NamModelData>>> = LazyLock::new(|| {
         let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -145,6 +146,10 @@ pub fn nam_models() -> &'static HashMap<String, Arc<NamModelData>> {
         HashMap::from([
             ("/a2.nam".to_string(), load("A2.nam")),
             ("/slim.nam".to_string(), load("slimmable_container.nam")),
+            (
+                "/slim_wavenet.nam".to_string(),
+                load("slimmable_wavenet.nam"),
+            ),
         ])
     });
     &MODELS

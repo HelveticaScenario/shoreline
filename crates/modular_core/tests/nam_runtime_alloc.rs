@@ -12,7 +12,11 @@ use serde_json::json;
 fn rendering_never_allocates_in_the_runtime() {
     let seen = nam_sys::count_allocations(|| drop(std::hint::black_box(vec![0u8; 64])));
     assert!(seen > 0, "the tracker must see this binary's allocations");
-    for (model, quality) in [("/a2.nam", "full"), ("/slim.nam", "lite")] {
+    for (model, quality) in [
+        ("/a2.nam", "full"),
+        ("/slim.nam", "lite"),
+        ("/slim_wavenet.nam", "lite"),
+    ] {
         let params =
             json!({ "input": poly_cable("src", LANES), "model": model, "quality": quality });
         let count =

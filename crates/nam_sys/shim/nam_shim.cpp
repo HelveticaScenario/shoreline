@@ -72,19 +72,6 @@ void nam_file_free(NamFile* file)
   delete file;
 }
 
-// The rate the model was trained at, or -1 when the file does not say.
-double nam_file_sample_rate(const NamFile* file)
-{
-  try
-  {
-    return nam::get_sample_rate_from_nam_file(file->config);
-  }
-  catch (...)
-  {
-    return -1.0;
-  }
-}
-
 NamDsp* nam_dsp_new(const NamFile* file, double sample_rate, int max_frames, char* err, std::size_t err_len)
 {
   try
@@ -152,6 +139,13 @@ int nam_dsp_set_size(NamDsp* dsp, double size)
     if (slimmable == nullptr)
       return 0;
     slimmable->SetSlimmableSize(size);
+    // Some models only stage the new tier and switch to it, freeing the old
+    // one, on their next process call; one frame here makes that happen on
+    // this thread instead of the audio thread.
+    dsp->in[0] = 0.0;
+    NAM_SAMPLE* in_ptr = dsp->in.data();
+    NAM_SAMPLE* out_ptr = dsp->out.data();
+    dsp->dsp->process(&in_ptr, &out_ptr, 1);
     dsp->dsp->prewarm();
     return 1;
   }
@@ -161,7 +155,7 @@ int nam_dsp_set_size(NamDsp* dsp, double size)
   }
 }
 
-// Each level getter returns 1 and writes `value` when the model knows it.
+// Returns 1 and writes `value` when the model knows its loudness.
 int nam_dsp_loudness(NamDsp* dsp, double* value)
 {
   try
@@ -169,21 +163,6 @@ int nam_dsp_loudness(NamDsp* dsp, double* value)
     if (!dsp->dsp->HasLoudness())
       return 0;
     *value = dsp->dsp->GetLoudness();
-    return 1;
-  }
-  catch (...)
-  {
-    return 0;
-  }
-}
-
-int nam_dsp_input_level(NamDsp* dsp, double* value)
-{
-  try
-  {
-    if (!dsp->dsp->HasInputLevel())
-      return 0;
-    *value = dsp->dsp->GetInputLevel();
     return 1;
   }
   catch (...)

@@ -663,6 +663,23 @@ pub struct PatchSubmission {
     pub reset_clock: bool,
 }
 
+/// Owned copies of the loaded files, for building modules outside a patch
+/// build.
+#[derive(Default)]
+pub struct LoadedFiles {
+    pub wav_data: HashMap<String, Arc<modular_core::types::WavData>>,
+    pub nam_data: HashMap<String, Arc<modular_core::dsp::fx::nam::NamModelData>>,
+}
+
+impl LoadedFiles {
+    pub fn resources(&self) -> modular_core::types::Resources<'_> {
+        modular_core::types::Resources {
+            wav_data: &self.wav_data,
+            nam_data: &self.nam_data,
+        }
+    }
+}
+
 #[napi(object)]
 pub struct ApplyPatchError {
     pub message: String,
@@ -1501,7 +1518,7 @@ impl AudioState {
         module_type: &str,
         params: serde_json::Value,
         sample_rate: f32,
-        resources: modular_core::types::Resources<'_>,
+        files: &dyn Fn() -> LoadedFiles,
     ) -> std::result::Result<Vec<RebuiltModule>, String> {
         let constructors = modular_core::dsp::get_constructors();
         let constructor = constructors
@@ -1517,6 +1534,7 @@ impl AudioState {
         // take it; the edit still lands in any other patch it belongs in.
         let mut disconnected = None;
         let mut rebuilt = Vec::with_capacity(targets.len());
+        let mut loaded: Option<LoadedFiles> = None;
         for index in targets {
             let (update_id, _, settlement) = &patches[index];
             let mut deserialized =
@@ -1530,7 +1548,9 @@ impl AudioState {
                 continue;
             }
             settlement.settle_rebuilt(id, module.as_ref());
-            module.prepare_resources(resources);
+            if module.prepares_resources() {
+                module.prepare_resources(loaded.get_or_insert_with(files).resources());
+            }
             rebuilt.push((module, *update_id));
         }
         match disconnected {
@@ -5731,7 +5751,7 @@ mod tests {
                         "$signal",
                         signal(i as f64),
                         44_100.0,
-                        modular_core::types::Resources::wavs(&HashMap::new()),
+                        &LoadedFiles::default,
                     )
                     .unwrap()
                 {
@@ -5877,7 +5897,7 @@ mod tests {
                 "$multimode",
                 params,
                 44_100.0,
-                modular_core::types::Resources::wavs(&HashMap::new()),
+                &LoadedFiles::default,
             )
             .unwrap()
             .remove(0)
@@ -5892,13 +5912,7 @@ mod tests {
         let reader = serde_json::json!({ "input": cable_to("filter", "lp"), "offset": 1.0 });
         assert!(
             state
-                .rebuild_module(
-                    "y",
-                    "$add",
-                    reader,
-                    44_100.0,
-                    modular_core::types::Resources::wavs(&HashMap::new())
-                )
+                .rebuild_module("y", "$add", reader, 44_100.0, &LoadedFiles::default)
                 .is_err()
         );
     }
@@ -5911,13 +5925,9 @@ mod tests {
         let queued = vec![module_spec("y", "$add", reader(1.0))];
         submit_filter_patch(&state, queued, 2, QueuedTrigger::NextBar);
         let rebuilt = state
-            .rebuild_module(
-                "y",
-                "$add",
-                reader(2.0),
-                44_100.0,
-                modular_core::types::Resources::wavs(&HashMap::new()),
-            )
+            .rebuild_module("y", "$add", reader(2.0), 44_100.0, &|| {
+                panic!("a module that reads no files gathers none")
+            })
             .unwrap();
         assert_eq!(
             rebuilt
@@ -5976,7 +5986,7 @@ mod tests {
                 "$add",
                 serde_json::json!({ "input": cable("st"), "offset": 2.0 }),
                 44_100.0,
-                modular_core::types::Resources::wavs(&HashMap::new()),
+                &LoadedFiles::default,
             )
             .unwrap()
             .remove(0)
@@ -6146,7 +6156,7 @@ mod tests {
                     "$add",
                     serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
                     44_100.0,
-                    modular_core::types::Resources::wavs(&HashMap::new()),
+                    &LoadedFiles::default,
                 )
                 .unwrap()
                 .remove(0)
@@ -6165,7 +6175,7 @@ mod tests {
                 "$erratic",
                 serde_json::json!({ "input": cable("saw"), "amount": 2.0 }),
                 44_100.0,
-                modular_core::types::Resources::wavs(&HashMap::new()),
+                &LoadedFiles::default,
             )
             .unwrap()
             .remove(0)
@@ -6204,7 +6214,7 @@ mod tests {
                 "$add",
                 serde_json::json!({ "input": cable("saw"), "offset": 2.0 }),
                 44_100.0,
-                modular_core::types::Resources::wavs(&HashMap::new()),
+                &LoadedFiles::default,
             )
             .unwrap()
             .into_iter()

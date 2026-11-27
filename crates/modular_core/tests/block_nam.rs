@@ -144,3 +144,15 @@ fn a_quality_edit_swaps_the_model() {
         render(&first, &[BLOCK_SIZE]).0
     );
 }
+
+#[test]
+fn only_file_reading_modules_prepare_resources() {
+    let patch = build(
+        ProcessingMode::Block,
+        ProcessingMode::Block,
+        "$nam",
+        params(),
+    );
+    assert!(patch.sampleables["dut"].prepares_resources());
+    assert!(!patch.sampleables["src"].prepares_resources());
+}

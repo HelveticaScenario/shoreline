@@ -3,8 +3,8 @@
 //!
 //! Models are built and prewarmed on the main thread in `prepare_resources`,
 //! one per lane, and handed to the lanes in `on_patch_update` only when the
-//! file changed; otherwise a lane keeps the model it runs, with its history,
-//! across patch edits.
+//! file or `quality` changed; otherwise a lane keeps the model it runs, with
+//! its history, across patch edits.
 
 mod model;
 
@@ -55,7 +55,7 @@ struct NamParams {
     #[deserr(default)]
     gain: Option<PolySignal>,
     #[input(
-        "output level in dB; 0 makes every capture about equally loud",
+        "output level in dB; at 0, captures that record their loudness play about equally loud",
         type = control,
         default = 0.0,
         range = (-24.0, 24.0),
@@ -63,7 +63,7 @@ struct NamParams {
     #[deserr(default)]
     level: Option<PolySignal>,
     #[input(
-        "which version to run of a capture that ships a lite one beside it; `full` costs several times the CPU but may sound better with some captures, and other captures ignore it",
+        "which version to play of a capture that ships a lite one; other captures ignore it",
         default = "lite"
     )]
     #[serde(default)]
@@ -301,8 +301,8 @@ impl Nam {
 
 impl crate::types::PatchUpdateHandler for Nam {
     /// Hands each lane its freshly built model unless it already runs one
-    /// from the same file. The model it gives up drops with the params on
-    /// the main thread.
+    /// from the same file at the same quality. The model it gives up drops
+    /// with the params on the main thread.
     fn on_patch_update(&mut self) {
         let Some(built) = &mut self.params.built else {
             self.state.source = 0;

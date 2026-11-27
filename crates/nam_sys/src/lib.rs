@@ -28,7 +28,6 @@ unsafe extern "C" {
         err_len: usize,
     ) -> *mut RawFile;
     fn nam_file_free(file: *mut RawFile);
-    fn nam_file_sample_rate(file: *const RawFile) -> f64;
     fn nam_dsp_new(
         file: *const RawFile,
         sample_rate: f64,
@@ -45,7 +44,6 @@ unsafe extern "C" {
     ) -> c_int;
     fn nam_dsp_set_size(dsp: *mut RawDsp, size: f64) -> c_int;
     fn nam_dsp_loudness(dsp: *mut RawDsp, value: *mut f64) -> c_int;
-    fn nam_dsp_input_level(dsp: *mut RawDsp, value: *mut f64) -> c_int;
 }
 
 const ERROR_LEN: usize = 512;
@@ -88,13 +86,6 @@ impl NamFile {
         NonNull::new(raw)
             .map(|raw| Self { raw })
             .ok_or_else(|| error_text(&err))
-    }
-
-    /// The rate the model was trained at, if the file records it.
-    pub fn sample_rate(&self) -> Option<f64> {
-        // SAFETY: `raw` is a live file.
-        let rate = unsafe { nam_file_sample_rate(self.raw.as_ptr()) };
-        (rate > 0.0).then_some(rate)
     }
 }
 
@@ -140,13 +131,8 @@ impl NamDsp {
             .ok_or_else(|| error_text(&err))
     }
 
-    /// The most samples one [`process`](Self::process) call takes.
-    pub fn max_frames(&self) -> usize {
-        self.max_frames
-    }
-
     /// Runs `input` through the model into `output`, in chunks of at most
-    /// [`max_frames`](Self::max_frames). Never allocates. Returns `false`,
+    /// the `max_frames` it was built with. Never allocates. Returns `false`,
     /// with `output` partly written, if the model failed.
     pub fn process(&mut self, input: &[f32], output: &mut [f32]) -> bool {
         let len = input.len().min(output.len());
@@ -184,14 +170,6 @@ impl NamDsp {
         let mut value = 0.0;
         // SAFETY: `raw` is live; the shim only reads the model.
         (unsafe { nam_dsp_loudness(self.raw.as_ptr(), &mut value) } != 0).then_some(value)
-    }
-
-    /// The input level, in dBu, that reaches 0 dBFS in the model, if the
-    /// file says.
-    pub fn input_level(&self) -> Option<f64> {
-        let mut value = 0.0;
-        // SAFETY: `raw` is live; the shim only reads the model.
-        (unsafe { nam_dsp_input_level(self.raw.as_ptr(), &mut value) } != 0).then_some(value)
     }
 }
 

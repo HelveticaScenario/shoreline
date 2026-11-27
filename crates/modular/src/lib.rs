@@ -54,7 +54,7 @@ use napi_derive::napi;
 
 use crate::audio::{
     ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioState, CurrentAudioState,
-    DeviceCacheSnapshot, HostDeviceInfo, PatchSubmission, TransportSnapshot,
+    DeviceCacheSnapshot, HostDeviceInfo, LoadedFiles, PatchSubmission, TransportSnapshot,
 };
 use crate::commands::{GraphCommand, QueuedTrigger, TransportMeta};
 use crate::midi::MidiInputManager;
@@ -1031,7 +1031,12 @@ impl Synthesizer {
             .load_for(&patch, |path| wav_cache.asset_file(path))
         {
             Ok(loaded) => loaded,
-            Err(errors) => {
+            Err(mut errors) => {
+                // The patch does not run, so its other validation errors are
+                // reported with these.
+                if let Err(more) = crate::validation::validate_patch(&patch, &schema()) {
+                    errors.extend(more);
+                }
                 return PatchUpdateResult {
                     errors: vec![ApplyPatchError {
                         message: "Validation failed".to_string(),
@@ -1110,8 +1115,6 @@ impl Synthesizer {
             .get(&module_type)
             .map(|builder| builder(&params));
 
-        let wav_data = self.wav_cache.snapshot();
-        let nam_data = self.nam_cache.snapshot();
         // Uncached: slider values would pollute the params cache.
         let rebuilt = self
             .state
@@ -1120,9 +1123,9 @@ impl Synthesizer {
                 &module_type,
                 params,
                 self.streams.sample_rate as f32,
-                modular_core::types::Resources {
-                    wav_data: &wav_data,
-                    nam_data: &nam_data,
+                &|| LoadedFiles {
+                    wav_data: self.wav_cache.snapshot(),
+                    nam_data: self.nam_cache.snapshot(),
                 },
             )
             .map_err(napi::Error::from_reason)?;
