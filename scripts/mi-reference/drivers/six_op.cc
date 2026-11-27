@@ -2,9 +2,10 @@
 // Operator's control model: a lane holds one more voice than it plays at
 // once, each note-on takes the next silent one and fades out the oldest note
 // past the count, SixOpEngine's logic runs for its sounding voices and their
-// fm::Voice<6>'s envelopes, LFOs and level scaling every sample, and the
+// fm::Voice<6>'s envelopes, LFOs and level scaling every sample, the
 // operators render through Plaits' own compiled render calls one sample at a
-// time. The pitch
+// time, and each voice passes through Plaits' output stage before the voices
+// are summed. The pitch
 // is exact: the note's frequency times 2^(pitch modulation), the note number
 // for keyboard and rate scaling taken from that frequency. A patch change
 // renders at once. Each case is a fresh engine from its own random seed. Each
@@ -32,6 +33,8 @@ const float kRate = 48000.0f;
 const int kSamples = 8000;
 const float kFade = 1.0f / (5.0e-3f * kRate);
 const int kMaxVoices = 8;
+// The most a lane's summed voices reach: the module's output range.
+const float kAccentTrim = 2.0f;
 const int kSlots = kMaxVoices + 1;
 const float kAmplitudeFollow = std::min(1.0f / ((12.0f / 48000.0f) * kRate), 1.0f);
 
@@ -174,6 +177,9 @@ struct SixOp {
       const int i = (active + k) % in_use;
       if (life[i] == SILENT) next = i;
     }
+    for (int i = in_use; i < kSlots && next < 0; ++i) {
+      if (life[i] == SILENT) next = i;
+    }
     if (next < 0) next = Oldest(in_use, -1, false);
     ++notes;
     Voice<6>& v = voice[next].voice_;
@@ -196,7 +202,7 @@ struct SixOp {
     started[next] = notes;
     active = next;
     for (int i = in_use; i < kSlots; ++i) {
-      if (life[i] == PLAYING) life[i] = FADING;
+      if (i != next && life[i] == PLAYING) life[i] = FADING;
     }
     for (;;) {
       int others = 0;
@@ -220,12 +226,6 @@ struct SixOp {
       gate = false;
       voice[active].mutable_lfo()->Scrub(2.0f * kRate * envelope);
       voice[active].LoadPatch(patch);
-      Voice<6>::Parameters* p = voice[active].mutable_parameters();
-      p->sustain = true;
-      p->gate = false;
-      pitch_[active] = pitch;
-      p->velocity = accent;
-      p->envelope_control = envelope;
     } else {
       droning = false;
       const bool high = gate_in > 0;
@@ -235,15 +235,15 @@ struct SixOp {
         voice[active].mutable_lfo()->Reset();
       }
       gate = high;
-      Voice<6>::Parameters* p = voice[active].mutable_parameters();
-      p->sustain = false;
-      p->gate = high;
-      pitch_[active] = pitch;
-      p->velocity = accent;
-      p->envelope_control = envelope;
       voice[active].mutable_lfo()->Step(1.0f);
     }
-    voice[active].mutable_parameters()->brightness = brightness;
+    Voice<6>::Parameters* p = voice[active].mutable_parameters();
+    p->sustain = gate_in < 0;
+    p->gate = gate_in > 0;
+    pitch_[active] = pitch;
+    p->velocity = accent;
+    p->envelope_control = envelope;
+    p->brightness = brightness;
     voice[active].set_modulations(voice[active].lfo());
     for (int i = 0; i < kSlots; ++i) {
       if (i == active || life[i] == SILENT) continue;
@@ -265,6 +265,7 @@ struct SixOp {
       if (voice[i].patch_) {
         RenderVoice(voice[i].voice_, voice[i].parameters_, pitch_[i], &sample);
       }
+      sample = SoftClip(sample * 0.25f);
       if (life[i] == PLAYING) {
         out += sample;
       } else {
@@ -273,7 +274,7 @@ struct SixOp {
         if (gain[i] <= 0.0f) life[i] = SILENT;
       }
     }
-    return SoftClip(out * 0.25f);
+    return std::min(std::max(out, -kAccentTrim), kAccentTrim);
   }
 };
 

@@ -2,11 +2,11 @@
  * The workspace's path completions, read once and kept until the workspace's
  * files change, so completing never waits on the main process.
  */
+import type { SyxFileVoices } from '../../../shared/dx7Voice';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
 import {
     assetPaths,
     type PathSuggestion,
-    type SyxFileVoices,
     workspaceSuggestions,
 } from './workspacePathCompletion';
 
@@ -24,13 +24,13 @@ export function createWorkspaceAssetIndex(source: WorkspaceAssetSource): {
 } {
     let cached: Promise<readonly PathSuggestion[]> | null = null;
     const read = async (): Promise<readonly PathSuggestion[]> => {
-        const tree = await source.listFiles();
-        const syxPaths = assetPaths(tree)
+        const assets = assetPaths(await source.listFiles());
+        const syxPaths = assets
             .filter((asset) => asset.kind === 'syx')
             .map((asset) => asset.path);
         const voices =
             syxPaths.length > 0 ? await source.listSyxVoices(syxPaths) : [];
-        return workspaceSuggestions(tree, voices);
+        return workspaceSuggestions(assets, voices);
     };
     const dispose = source.onTreeChange(() => {
         cached = null;

@@ -10,6 +10,13 @@ pub struct SyxVoice {
     pub packed: [u8; PACKED_SIZE],
 }
 
+impl SyxVoice {
+    /// The packed bytes as the hex a `$mi.sixOp` voice param carries.
+    pub fn data(&self) -> String {
+        super::dx7_voice::encode_hex(&self.packed)
+    }
+}
+
 const BANK_VOICES: usize = 32;
 const BANK_SIZE: usize = BANK_VOICES * PACKED_SIZE;
 const SINGLE_SIZE: usize = 155;
@@ -28,6 +35,7 @@ pub fn parse_syx(bytes: &[u8]) -> Result<Vec<SyxVoice>, String> {
         };
     }
     let mut voices = Vec::new();
+    let mut cut_short = None;
     let mut rest = bytes;
     while let Some(start) = rest.iter().position(|&b| b == 0xf0) {
         let message = &rest[start..];
@@ -37,27 +45,41 @@ pub fn parse_syx(bytes: &[u8]) -> Result<Vec<SyxVoice>, String> {
             .iter()
             .position(|&b| b >= 0x80)
             .map_or(message.len(), |i| i + 1);
-        voices.extend(message_voices(&message[..end]));
+        match message_voices(&message[..end]) {
+            Ok(found) => voices.extend(found),
+            Err(short) => cut_short = cut_short.or(Some(short)),
+        }
         rest = &message[end..];
     }
     if voices.is_empty() {
-        return Err("the file holds no DX7 voice or bank dump".into());
+        return Err(cut_short.unwrap_or_else(|| "the file holds no DX7 voice or bank dump".into()));
     }
     Ok(voices)
 }
 
 /// The voices of one sysex message, from its F0 up to but not including its
 /// F7: a Yamaha (43) dump of format 0 (one voice) or 9 (32 voices), whose
-/// data follows a six-byte header.
-fn message_voices(message: &[u8]) -> Vec<SyxVoice> {
+/// data follows a six-byte header. Any other message holds none; a dump with
+/// less data than its format needs is an error saying how much it holds.
+fn message_voices(message: &[u8]) -> Result<Vec<SyxVoice>, String> {
     let [0xf0, 0x43, _, format, _, _, data @ ..] = message else {
-        return Vec::new();
+        return Ok(Vec::new());
     };
-    match format {
-        0 if data.len() >= SINGLE_SIZE => vec![single_voice(&data[..SINGLE_SIZE])],
-        9 if data.len() >= BANK_SIZE => bank_voices(&data[..BANK_SIZE]),
-        _ => Vec::new(),
+    let (size, kind) = match format {
+        0 => (SINGLE_SIZE, "single-voice"),
+        9 => (BANK_SIZE, "32-voice"),
+        _ => return Ok(Vec::new()),
+    };
+    if data.len() < size {
+        return Err(format!(
+            "the {kind} dump is cut short: it holds {} of its {size} bytes",
+            data.len()
+        ));
     }
+    Ok(match format {
+        0 => vec![single_voice(&data[..SINGLE_SIZE])],
+        _ => bank_voices(&data[..BANK_SIZE]),
+    })
 }
 
 fn bank_voices(bank: &[u8]) -> Vec<SyxVoice> {
@@ -172,13 +194,13 @@ mod tests {
 
     #[test]
     fn reads_every_builtin_voice() {
-        use crate::dsp::mi::six_op::test_voices::{PLAITS_VOICES, asset};
-        for path in PLAITS_VOICES {
-            let voices = parse_syx(&std::fs::read(asset(path)).unwrap()).unwrap();
+        use crate::dsp::mi::six_op::test_voices::{PLAITS_VOICES, plaits_file};
+        for (index, path) in PLAITS_VOICES.iter().enumerate() {
+            let voices = parse_syx(&plaits_file(index)).unwrap();
             assert_eq!(voices.len(), 1, "{path}");
             assert!(!voices[0].name.is_empty(), "{path}");
         }
-        let first = parse_syx(&std::fs::read(asset(PLAITS_VOICES[0])).unwrap()).unwrap();
+        let first = parse_syx(&plaits_file(0)).unwrap();
         assert_eq!(first[0].name, "SOLID BASS");
     }
 
@@ -202,6 +224,17 @@ mod tests {
         })))
         .unwrap();
         assert_eq!(voices[0].name, "BASS   3");
+    }
+
+    #[test]
+    fn a_cut_short_dump_says_so() {
+        let mut dump = bulk_dump(&bank());
+        dump.truncate(4006);
+        let error = parse_syx(&dump).unwrap_err();
+        assert!(
+            error.contains("cut short") && error.contains("4000 of its 4096"),
+            "{error}"
+        );
     }
 
     #[test]

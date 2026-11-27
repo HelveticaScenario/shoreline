@@ -254,7 +254,7 @@ function makeProvider(): languages.CompletionItemProvider {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     registerWorkspacePathCompletionProvider(monaco, async () =>
-        workspaceSuggestions(TREE, VOICES),
+        workspaceSuggestions(assetPaths(TREE), VOICES),
     );
     return captured!;
 }
@@ -357,7 +357,7 @@ describe('workspace path completion', () => {
                 },
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any,
-            async () => workspaceSuggestions(tree, []),
+            async () => workspaceSuggestions(assetPaths(tree), []),
         );
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const any = {} as any;

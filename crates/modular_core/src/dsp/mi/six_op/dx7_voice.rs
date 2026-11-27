@@ -63,7 +63,8 @@ fn decode_hex(hex: &str) -> Option<[u8; PACKED_SIZE]> {
     Some(out)
 }
 
-fn encode_hex(bytes: &[u8]) -> String {
+/// `bytes` as the lowercase hex a voice's `data` holds.
+pub(super) fn encode_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 

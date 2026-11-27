@@ -37,10 +37,9 @@ export function useWorkspace() {
      *  one. */
     const choose = async () => {
         const workspace = await electronAPI.filesystem.selectWorkspace();
-        if (workspace) {
-            setRoot(workspace.path);
-            await refreshFileTree();
-        }
+        // Selecting a workspace announces a tree change, which refreshes the
+        // tree.
+        if (workspace) setRoot(workspace.path);
     };
 
     return { choose, fileTree, refreshFileTree, root };

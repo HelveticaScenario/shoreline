@@ -1,9 +1,16 @@
+import type { SyxVoiceInfo } from '@modular/core';
+
 /** One voice of a `.syx` file as the engine reports it. */
-export interface SyxVoice {
-    name: string;
-    /** The voice's 128 packed bytes, as hex. */
-    data: string;
+export type SyxVoice = SyxVoiceInfo;
+
+/** The voice names of one workspace `.syx` file. */
+export interface SyxFileVoices {
+    path: string;
+    names: string[];
 }
+
+/** A fragment naming a voice by its index in the file. */
+const INDEX_FRAGMENT = /^@\d+$/;
 
 /** The `voice` param value the engine reads: the voice's bytes themselves. */
 export interface Dx7VoiceRef {
@@ -47,7 +54,7 @@ export function splitVoice(value: string): {
 export function voiceFragments(names: readonly string[]): string[] {
     const seen = new Set<string>();
     return names.map((name, index) => {
-        if (seen.has(name) || /^@\d+$/.test(name)) return `@${index}`;
+        if (seen.has(name) || INDEX_FRAGMENT.test(name)) return `@${index}`;
         seen.add(name);
         return name;
     });
@@ -69,7 +76,7 @@ export function selectVoice(
     const index =
         fragment === null
             ? 0
-            : /^@\d+$/.test(fragment)
+            : INDEX_FRAGMENT.test(fragment)
               ? Number(fragment.slice(1))
               : fragments.indexOf(fragment);
     const voice = voices[index];

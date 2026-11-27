@@ -1092,12 +1092,14 @@ function inWavWorkspace<T>(load: (path: string) => T): (path: string) => T {
     };
 }
 
+const loadSyx = inWavWorkspace((syxPath) => synth.loadSyx(syxPath));
+
 const syxVoiceNames = createSyxVoiceNames(
     (workspacePath) =>
         currentWorkspaceRoot
             ? path.join(currentWorkspaceRoot, workspacePath)
             : null,
-    inWavWorkspace((syxPath) => synth.loadSyx(syxPath)),
+    loadSyx,
 );
 
 registerIPCHandler('FS_LIST_SYX_VOICES', (paths) => syxVoiceNames(paths));
@@ -1127,7 +1129,7 @@ registerIPCHandler(
                     synth.loadMediaAudio(mediaPath),
                 ),
                 loadWav: inWavWorkspace((wavPath) => synth.loadWav(wavPath)),
-                loadSyx: inWavWorkspace((syxPath) => synth.loadSyx(syxPath)),
+                loadSyx,
             });
             patch.moduleIdRemaps = [];
 

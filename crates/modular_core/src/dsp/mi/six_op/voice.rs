@@ -242,12 +242,6 @@ impl FmVoice {
         self.lfo.set(&patch.lfo, rates.one_hz);
     }
 
-    /// Forgets the gate, so the next high starts a note even if the voice
-    /// stopped rendering while its gate was high.
-    pub fn forget_gate(&mut self) {
-        self.gate = false;
-    }
-
     /// Returns the operators, envelopes and gate to where `FMVoice::Init`
     /// leaves them, keeping the patch: a voice faded out while its envelopes
     /// still sounded starts its next note from silence, as a fresh one does.

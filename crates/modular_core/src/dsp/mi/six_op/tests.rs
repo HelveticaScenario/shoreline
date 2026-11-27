@@ -15,19 +15,26 @@ fn knobs(brightness: f32, envelope: f32, accent: f32) -> Knobs {
     }
 }
 
-/// Plaits' patch `patch` of `bank`, from the builtin files.
-fn voice(bank: f32, patch: f32) -> &'static Dx7Voice {
+/// Plaits' 96 patches, bank by bank, from the builtin files.
+fn voices() -> &'static [Dx7Voice] {
     static VOICES: std::sync::LazyLock<Vec<Dx7Voice>> = std::sync::LazyLock::new(|| {
         test_voices::PLAITS_VOICES
             .iter()
-            .map(|path| {
-                let bytes = std::fs::read(test_voices::asset(path)).unwrap();
-                let v = parse_syx(&bytes).unwrap().remove(0);
+            .enumerate()
+            .map(|(index, path)| {
+                let v = parse_syx(&test_voices::plaits_file(index))
+                    .unwrap()
+                    .remove(0);
                 Dx7Voice::new(path.to_string(), v.name, v.packed)
             })
             .collect()
     });
-    &VOICES[bank as usize * 32 + patch as usize]
+    &VOICES
+}
+
+/// Plaits' patch `patch` of `bank`.
+fn voice(bank: usize, patch: usize) -> &'static Dx7Voice {
+    &voices()[bank * 32 + patch]
 }
 
 /// The builtin voice of file stem `name`.
@@ -37,7 +44,7 @@ fn builtin(name: &str) -> &'static Dx7Voice {
         .iter()
         .position(|p| p.ends_with(&file))
         .unwrap();
-    voice((index / 32) as f32, (index % 32) as f32)
+    &voices()[index]
 }
 
 fn new_lane(seed: u32) -> Lane {
@@ -71,8 +78,9 @@ fn matches_plaits() {
             record[1],
             knobs(record[2], record[3], record[4]),
             gate,
-            voice(record[6], record[7]),
+            voice(record[6] as usize, record[7] as usize),
             record[8] as usize,
+            1.0,
             &state,
         );
         actual.push(out);
@@ -95,8 +103,8 @@ fn every_algorithm_compiles() {
 fn render(
     sample_rate: f32,
     hz: f32,
-    bank: f32,
-    patch: f32,
+    bank: usize,
+    patch: usize,
     gated: bool,
     envelope: f32,
     seconds: f32,
@@ -113,6 +121,7 @@ fn render(
                 gate,
                 voice(bank, patch),
                 2,
+                1.0,
                 &state,
             )
         })
@@ -125,11 +134,11 @@ fn render(
 #[test]
 fn sounds_the_same_at_any_rate() {
     for (bank, patch, envelope, tolerance) in [
-        (0.0, 2.0, 2.5, 0.02),
-        (2.0, 1.0, 2.5, 0.02),
-        (1.0, 0.0, 2.5, 0.02),
-        (0.0, 13.0, 3.0, 0.02),
-        (2.0, 29.0, 2.0, 0.05),
+        (0, 2, 2.5, 0.02),
+        (2, 1, 2.5, 0.02),
+        (1, 0, 2.5, 0.02),
+        (0, 13, 3.0, 0.02),
+        (2, 29, 2.0, 0.05),
     ] {
         let hz = voct_to_hz(-1.0);
         assert_rate_independent(
@@ -148,12 +157,12 @@ fn rms(x: &[f32]) -> f32 {
 /// 20 ms windows through attack, decay and release.
 #[test]
 fn envelopes_take_the_same_time_at_any_rate() {
-    let windows = |sample_rate: f32, bank: f32, patch: f32, envelope: f32| {
+    let windows = |sample_rate: f32, bank: usize, patch: usize, envelope: f32| {
         let out = render(sample_rate, 220.0, bank, patch, true, envelope, 1.0);
         let window = (0.02 * sample_rate) as usize;
         out.chunks_exact(window).map(rms).collect::<Vec<_>>()
     };
-    for (bank, patch, envelope) in [(1.0, 0.0, 2.5), (0.0, 0.0, 1.0), (1.0, 20.0, 4.0)] {
+    for (bank, patch, envelope) in [(1, 0, 2.5), (0, 0, 1.0), (1, 20, 4.0)] {
         let reference = windows(48000.0, bank, patch, envelope);
         let loudest = reference.iter().fold(0.0f32, |m, &a| m.max(a));
         for sample_rate in [44100.0, 96000.0] {
@@ -177,7 +186,7 @@ fn envelopes_take_the_same_time_at_any_rate() {
 fn runs_backward() {
     let state = SixOpState::new(48000.0);
     // Patches without feedback or fixed-frequency operators.
-    for (bank, patch) in [(0.0, 2.0), (2.0, 1.0)] {
+    for (bank, patch) in [(0, 2), (2, 1)] {
         let render = |f0: f32| {
             let mut lane = new_lane(1);
             (0..4800)
@@ -188,6 +197,7 @@ fn runs_backward() {
                         None,
                         voice(bank, patch),
                         2,
+                        1.0,
                         &state,
                     )
                 })
@@ -226,11 +236,12 @@ fn non_finite_knobs_hold() {
             0.005,
             knobs(2.0, 2.0, 2.0),
             gate,
-            voice(2.0, 2.0),
+            voice(2, 2),
             2,
+            1.0,
             &state,
         );
-        let b = glitched.step(0.005, knobs(v, v, v), gate, voice(2.0, 2.0), 2, &state);
+        let b = glitched.step(0.005, knobs(v, v, v), gate, voice(2, 2), 2, 1.0, &state);
         assert_eq!(a, b, "sample {n}");
     }
 }
@@ -258,12 +269,13 @@ fn stays_finite() {
                         f0,
                         knobs(knob, 5.0 - knob, 5.0),
                         gate,
-                        voice(bank as f32, patch as f32),
+                        voice(bank, patch),
                         2,
+                        1.0,
                         &state,
                     );
                     assert!(
-                        out.is_finite() && out.abs() <= 1.0,
+                        out.is_finite() && out.abs() <= ACCENT_TRIM,
                         "{sample_rate} Hz, bank {bank} patch {patch}, sample {n}: {out}"
                     );
                 }
@@ -285,7 +297,7 @@ fn envelope_knob_runs_from_snappy_to_slow() {
     // Windows until the attack reaches half its peak.
     let attack = |envelope: f32| {
         let levels = envelope_of(
-            &render(sample_rate, 261.63, 2.0, 20.0, true, envelope, 4.0),
+            &render(sample_rate, 261.63, 2, 20, true, envelope, 4.0),
             sample_rate,
         );
         let held = &levels[..levels.len() / 2];
@@ -302,7 +314,7 @@ fn envelope_knob_runs_from_snappy_to_slow() {
     // level at the fall.
     let release = |envelope: f32| {
         let levels = envelope_of(
-            &render(sample_rate, 261.63, 2.0, 11.0, true, envelope, 8.0),
+            &render(sample_rate, 261.63, 2, 11, true, envelope, 8.0),
             sample_rate,
         );
         let fall = levels.len() / 2;
@@ -330,8 +342,9 @@ fn a_gate_patched_again_rises() {
             0.005,
             knobs(2.5, 2.5, 4.0),
             Some(true),
-            voice(0.0, 0.0),
+            voice(0, 0),
             2,
+            1.0,
             &state,
         );
     }
@@ -340,8 +353,9 @@ fn a_gate_patched_again_rises() {
         0.005,
         knobs(2.5, 2.5, 4.0),
         None,
-        voice(0.0, 0.0),
+        voice(0, 0),
         2,
+        1.0,
         &state,
     );
     assert!(!lane.gate);
@@ -361,12 +375,13 @@ fn a_retrigger_leaves_the_last_note_sounding() {
             Some(gate),
             voice,
             2,
+            1.0,
             &state,
         )
     };
     let mut worst = (0.0f32, "");
     for (index, path) in test_voices::PLAITS_VOICES.iter().enumerate() {
-        let voice = voice((index / 32) as f32, (index % 32) as f32);
+        let voice = &voices()[index];
         if !voice.patch().reset_phase {
             continue;
         }
@@ -388,31 +403,39 @@ fn a_retrigger_leaves_the_last_note_sounding() {
     );
 }
 
+/// The sharpest step (largest second difference) in the 60 samples after
+/// each note-on of a minor phrase from the second note on: a note every
+/// quarter second, held for half of it.
+fn note_on_steps(voice: &Dx7Voice, (b, e, a): (f32, f32, f32), voices: usize) -> [f32; 7] {
+    let state = SixOpState::new(48000.0);
+    let semitones = [0.0f32, 3.0, 2.0, 7.0];
+    let mut lane = new_lane(1);
+    let out: Vec<f32> = (0..96000)
+        .map(|n| {
+            let f0 = voct_to_hz(-2.0 + semitones[n / 12000 % 4] / 12.0) / 48000.0;
+            let gate = Some(n % 12000 < 6000);
+            lane.step(f0, knobs(b, e, a), gate, voice, voices, 1.0, &state)
+        })
+        .collect();
+    std::array::from_fn(|i| {
+        let n = (i + 1) * 12000;
+        (n..n + 60)
+            .map(|m| (out[m] - 2.0 * out[m - 1] + out[m - 2]).abs())
+            .fold(0.0f32, f32::max)
+    })
+}
+
 /// A fast attack rises over about as long as Plaits' block, not in a sample:
 /// bells with a snappy envelope, notes starting in the last ones' tails, step
 /// no more at a note-on than Plaits' own engine does (0.0114 there), whether
 /// the voice playing it is fresh or one a newer note faded out.
 #[test]
 fn a_fast_attack_ramps() {
-    let state = SixOpState::new(48000.0);
-    let bells = builtin("bells");
-    let semitones = [0.0f32, 3.0, 2.0, 7.0];
     for voices in [1, 2, 3, 8] {
-        let mut lane = new_lane(1);
-        let out: Vec<f32> = (0..96000)
-            .map(|n| {
-                let f0 = voct_to_hz(-2.0 + semitones[n / 12000 % 4] / 12.0) / 48000.0;
-                let gate = Some(n % 12000 < 6000);
-                lane.step(f0, knobs(0.0, 0.17, 0.0), gate, bells, voices, &state)
-            })
-            .collect();
-        for note in 1..8 {
-            let n = note * 12000;
-            let step = (n..n + 60)
-                .map(|m| (out[m] - 2.0 * out[m - 1] + out[m - 2]).abs())
-                .fold(0.0f32, f32::max);
+        let steps = note_on_steps(builtin("bells"), (0.0, 0.17, 0.0), voices);
+        for (note, step) in steps.iter().enumerate() {
             assert!(
-                step < 0.012,
+                *step < 0.012,
                 "{voices} voices, note {note}: second difference {step}"
             );
         }
@@ -434,7 +457,15 @@ fn a_note_past_the_count_fades_the_oldest() {
                 } else {
                     n < 18000
                 };
-                lane.step(0.004, knobs(2.5, 2.5, 0.0), Some(gate), e_piano, 1, &state)
+                lane.step(
+                    0.004,
+                    knobs(2.5, 2.5, 0.0),
+                    Some(gate),
+                    e_piano,
+                    1,
+                    1.0,
+                    &state,
+                )
             })
             .collect::<Vec<f32>>()
     };
@@ -444,34 +475,54 @@ fn a_note_past_the_count_fades_the_oldest() {
     assert_eq!(both[faded..], second[faded..]);
 }
 
-/// A note-on that restarts the phases of a voice still sounding fades the
-/// cut-off sound out rather than stepping it: cs-80 restarts its phases at
-/// every note-on, and three of its operators never fall silent.
+/// Fading out the oldest note while a new one starts never steps the output,
+/// even for cs-80, which restarts its phases at every note-on and has three
+/// operators that never fall silent.
 #[test]
-fn a_restarted_voice_fades_out() {
-    let state = SixOpState::new(48000.0);
+fn fading_the_oldest_note_never_steps() {
     let cs80 = builtin("cs-80");
     assert!(cs80.patch().reset_phase);
-    let semitones = [0.0f32, 3.0, 2.0, 7.0];
-    let mut lane = new_lane(1);
-    let out: Vec<f32> = (0..96000)
-        .map(|n| {
-            let f0 = voct_to_hz(-2.0 + semitones[n / 12000 % 4] / 12.0) / 48000.0;
-            lane.step(
-                f0,
-                knobs(2.23, 2.17, 1.075),
-                Some(n % 12000 < 6000),
-                cs80,
-                2,
-                &state,
-            )
-        })
-        .collect();
-    for note in 1..8 {
-        let n = note * 12000;
-        let step = (n..n + 60)
-            .map(|m| (out[m] - 2.0 * out[m - 1] + out[m - 2]).abs())
-            .fold(0.0f32, f32::max);
-        assert!(step < 0.02, "note {note}: second difference {step}");
+    for (note, step) in note_on_steps(cs80, (2.23, 2.17, 1.075), 2)
+        .iter()
+        .enumerate()
+    {
+        assert!(*step < 0.02, "note {note}: second difference {step}");
     }
+}
+
+/// Each note plays at the level its own accent set: a new note leaves the
+/// notes still sounding at theirs.
+#[test]
+fn each_note_keeps_its_accent() {
+    let state = SixOpState::new(48000.0);
+    // A voice without LFO depth, so the notes' modulations agree whichever
+    // note is the active one.
+    let voice = voices()
+        .iter()
+        .find(|v| v.patch().lfo.amp_mod_depth == 0.0 && v.patch().lfo.pitch_mod_depth == 0.0)
+        .unwrap();
+    let render = |second_note: bool| {
+        let mut lane = new_lane(1);
+        (0..6000)
+            .map(|n| {
+                let (gate, level) = if n < 2100 {
+                    (n < 2000, 2.0)
+                } else {
+                    (second_note, 0.0)
+                };
+                lane.step(
+                    0.004,
+                    knobs(2.5, 2.5, 0.0),
+                    Some(gate),
+                    voice,
+                    2,
+                    level,
+                    &state,
+                )
+            })
+            .collect::<Vec<f32>>()
+    };
+    let (silent_second, first_alone) = (render(true), render(false));
+    assert!(first_alone[2100..2500].iter().any(|v| v.abs() > 1e-3));
+    assert_eq!(silent_second, first_alone);
 }

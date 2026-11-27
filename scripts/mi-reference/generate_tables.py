@@ -250,6 +250,14 @@ def write_dx7_voices(resources):
         *[f"    {json.dumps(path.removeprefix('builtin/'))}," for path, _ in entries],
         "];",
         "",
+        "/// The `.syx` file of Plaits' patch `index`, bank by bank.",
+        "pub fn plaits_file(index: usize) -> Vec<u8> {",
+        "    let path = std::path::Path::new(env!(\"CARGO_MANIFEST_DIR\"))",
+        "        .join(\"../../assets/builtin\")",
+        "        .join(PLAITS_VOICES[index]);",
+        "    std::fs::read(path).unwrap()",
+        "}",
+        "",
     ]
     DX7_RUST.parent.mkdir(parents=True, exist_ok=True)
     DX7_RUST.write_text("\n".join(rust))
