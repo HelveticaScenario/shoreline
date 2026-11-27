@@ -58,7 +58,7 @@ const LEAKS: [string, RegExp][] = [
     ['object', /\[object /],
 ];
 
-/** The chain path after `.`, e.g. `unstable.shape.fold` for `$unstable.shape.fold`. */
+/** The chain path after `.`, e.g. `mi.chorus` for `$mi.chorus`. */
 function chainPath(name: string): string {
     return name.replace(/^\$/, '');
 }
@@ -227,19 +227,17 @@ const EDITOR_SPECS: EditorSpec[] = [
             ],
         };
     }),
-    ...[...DSL_MODULE_ENTRIES, ...GLOBAL_ENTRIES].map(
-        (fn): EditorSpec => ({
-            anchor: fn.name,
-            chainable: CHAINABLE.has(fn.name),
-            hoverMetas: functionMetas(fn),
-            name: fn.name,
-            // A rest param typed by a type param infers an empty tuple with
-            // no arguments, so signature help names no param.
-            signatures: fn.params
-                .filter((p) => !(p.rest && GENERIC.has(fn.name)))
-                .map((p) => ({ meta: p.meta, param: p.name })),
-        }),
-    ),
+    ...[...DSL_MODULE_ENTRIES, ...GLOBAL_ENTRIES].map((fn): EditorSpec => ({
+        anchor: fn.name,
+        chainable: CHAINABLE.has(fn.name),
+        hoverMetas: functionMetas(fn),
+        name: fn.name,
+        // A rest param typed by a type param infers an empty tuple with
+        // no arguments, so signature help names no param.
+        signatures: fn.params
+            .filter((p) => !(p.rest && GENERIC.has(fn.name)))
+            .map((p) => ({ meta: p.meta, param: p.name })),
+    })),
 ];
 
 /** One card a Docs panel tab lists, with the ranges it must show. */

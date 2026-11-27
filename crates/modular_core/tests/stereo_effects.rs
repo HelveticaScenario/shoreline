@@ -12,22 +12,10 @@ use common::from_graph;
 const SAMPLE_RATE: f32 = 48_000.0;
 const FRAMES: usize = 20_000;
 
-const EFFECTS: &[&str] = &[
-    "$dattorro",
-    "$plate",
-    "$unstable.reverb",
-    "$unstable.reverb2",
-    "$reverb",
-    "$mi.chorus",
-];
+const EFFECTS: &[&str] = &["$dattorro", "$plate", "$hall", "$reverb", "$mi.chorus"];
 
 /// The effects whose tank keeps each side of the input apart.
-const SIDED: &[&str] = &[
-    "$unstable.reverb",
-    "$unstable.reverb2",
-    "$reverb",
-    "$mi.chorus",
-];
+const SIDED: &[&str] = &["$hall", "$reverb", "$mi.chorus"];
 
 fn cable(module: &str, lane: usize) -> Value {
     json!({ "type": "cable", "module": module, "port": "output", "lane": lane })
@@ -104,14 +92,12 @@ fn a_hard_left_input_reaches_the_left_side() {
 
 #[test]
 fn a_wider_reverb_keeps_more_of_a_panned_input_on_its_side() {
-    for effect in ["$unstable.reverb", "$unstable.reverb2"] {
-        let bias = |width: f32| {
-            let (left, right) = hard_left(effect, json!({ "decay": 2.0, "width": width }));
-            energy(&left) / energy(&right).max(1e-9)
-        };
-        let (wide, narrow) = (bias(5.0), bias(-5.0));
-        assert!(wide > narrow, "{effect}: wide={wide}, narrow={narrow}");
-    }
+    let bias = |width: f32| {
+        let (left, right) = hard_left("$hall", json!({ "decay": 2.0, "width": width }));
+        energy(&left) / energy(&right).max(1e-9)
+    };
+    let (wide, narrow) = (bias(5.0), bias(-5.0));
+    assert!(wide > narrow, "wide={wide}, narrow={narrow}");
 }
 
 /// A chord sounds through an effect as its voices summed, each at its own

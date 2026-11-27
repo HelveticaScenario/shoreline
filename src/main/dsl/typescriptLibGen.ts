@@ -1698,8 +1698,7 @@ function buildConfigArg(moduleSchema: Schema): {
 } {
     const { paramsSchema } = moduleSchema;
     const schemaProperties = paramsSchema.properties as
-        | Record<string, JSONSchema | undefined>
-        | undefined;
+        Record<string, JSONSchema | undefined> | undefined;
     const schemaRequired: readonly string[] = paramsSchema.required || [];
     const positionalKeys = new Set(
         (moduleSchema.positionalArgs || []).map((a) => a.name),
@@ -1767,8 +1766,7 @@ function buildSignature(
 ): { args: string[]; docLines: string[] } {
     const { paramsSchema } = moduleSchema;
     const schemaProperties = paramsSchema.properties as
-        | Record<string, JSONSchema | undefined>
-        | undefined;
+        Record<string, JSONSchema | undefined> | undefined;
     const schemaRequired: readonly string[] = paramsSchema.required || [];
     const positionals = (moduleSchema.positionalArgs || []).slice(
         opts.positionalStart,
@@ -2145,9 +2143,9 @@ export function generateDSL(schemas: Schemas): string {
     );
 
     // Flat modules (`$lpf`) become direct members; dotted modules
-    // (`$unstable.shape.fold`) nest under a namespace tree of any depth
-    // (`.unstable.shape.fold`), mirroring the global namespace and keeping leaf
-    // names like `fold` from colliding with flat modules like `$fold`.
+    // (`$mi.chorus`) nest under a namespace tree of any depth (`.mi.chorus`),
+    // mirroring the global namespace and keeping leaf names from colliding with
+    // flat modules.
     interface ChainTypeNode {
         leaves: Schema[];
         children: Map<string, ChainTypeNode>;
@@ -2175,9 +2173,8 @@ export function generateDSL(schemas: Schemas): string {
     const sortedChildren = (node: ChainTypeNode): string[] =>
         [...node.children.keys()].sort();
 
-    // Emit a sub-interface for every namespace node, so `.unstable.shape.fold`
-    // yields `ModuleChainUnstable { shape: ModuleChainUnstableShape }` and
-    // `ModuleChainUnstableShape { fold(...) }`.
+    // Emit a sub-interface for every namespace node, so `.mi.chorus` yields
+    // `ModuleChainMi { chorus(...) }`.
     const emitNamespaceInterfaces = (
         node: ChainTypeNode,
         path: string[],
