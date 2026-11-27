@@ -103,15 +103,15 @@ fn tanh_clip(x: f32, ceiling: f32, inv_ceiling: f32) -> f32 {
 const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
     summary: "Clip peaks gently",
     description: "Leaves a signal untouched until it nears the ceiling, then rounds its peaks \
-                  off so they never pass it. Put it last on a mix or a hot track to catch \
-                  peaks without the harshness of hard clipping. `_tanh` saturates toward \
+                  off so they never pass it. Each lane is clipped on its own, so fold a chord \
+                  or a mix down to its final lanes first to catch its summed peaks. `_tanh` saturates toward \
                   the same ceiling along a tanh curve instead, and ignores `knee`.",
     categories: &[ReferenceCategory::Distortion, ReferenceCategory::Dynamics],
     sections: &[],
     examples: &[
         DocExample {
             title: "Catch a hot chord",
-            code: "chord: $saw('c3:m9').mul(5).softClip()",
+            code: "chord: $saw('c3:m9').setLanes(1).softClip()",
         },
         DocExample {
             title: "Hard-edged bass",
@@ -282,16 +282,6 @@ mod tests {
     }
 
     #[test]
-    fn tanh_output_settles_to_the_ceiling() {
-        let mut clip = make(3.0, 2.0);
-        clip.params.input = PolySignal::mono(Signal::Volts(-12.0));
-        for _ in 0..2000 {
-            clip.update(SR);
-        }
-        assert!((clip.outputs.tanh.get(0) + 3.0).abs() < 1e-3);
-    }
-
-    #[test]
     fn hot_saw_never_passes_the_ceiling() {
         for knee in [0.0f32, 2.0, 5.0] {
             for hz in [55.0f32, 440.0, 3000.0] {
@@ -329,5 +319,6 @@ mod tests {
             clip.update(SR);
         }
         assert!((clip.outputs.clip.get(0) + 3.0).abs() < 1e-3);
+        assert!((clip.outputs.tanh.get(0) + 3.0).abs() < 1e-3);
     }
 }
