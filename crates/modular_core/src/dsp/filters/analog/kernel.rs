@@ -3,8 +3,7 @@
 
 use crate::dsp::filters::resonant_svf::{Response, prewarped_gain};
 
-/// Resonance setting at which every topology's loop reaches
-/// self-oscillation.
+/// Resonance setting at which a loop that self-oscillates reaches it.
 pub(crate) const RESONANCE_AT_SELF_OSCILLATION: f32 = 4.5;
 
 /// The engine's sample rate and the rate the kernel runs at.
@@ -41,7 +40,7 @@ pub(crate) trait Kernel: Copy + Default {
     type Options: Copy + PartialEq;
     type Coeffs: Copy + Default;
     type State: Copy + Default;
-    /// Input volts per unit of the kernel's saturation curve.
+    /// Volts per unit of the kernel's input and outputs.
     const VOLTS: f32;
 
     /// Coefficients for the outputs in `taps`.
