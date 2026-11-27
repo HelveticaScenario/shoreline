@@ -165,7 +165,8 @@ pub(crate) use analog_filter;
 /// (12 and 24 dB outputs, 12 the default) or `four` (6 to 24 dB, 24 the
 /// default); `bandpass` or `notch` followed by the default output, `db12`
 /// or `db24`, a notch optionally by what its resonance does; or `allpass`.
-/// Then [`analog_filter`]'s fields up to `drive`.
+/// Then [`analog_filter`]'s fields up to `drive`. Every kind gets the usual
+/// `drive` param; a module without one calls [`analog_filter`] directly.
 macro_rules! analog_kind {
     (lowpass, $outputs:ident, $($head:tt)*) => {
         $crate::dsp::filters::analog::module_macro::analog_kind! {
