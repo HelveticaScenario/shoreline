@@ -21,6 +21,7 @@ use crate::{
                 SlotOrder, centred_position, detune_octaves, spread_position, unison_gain,
             },
             wrap_phase,
+            zero_cross_mute::{Crossing, ZeroCrossMute},
         },
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -169,13 +170,7 @@ struct VoiceState {
     /// residual band-limits the next sample, so the saw's own wrap
     /// correction must not fire there as well.
     restarted: bool,
-    /// Whether this voice's zero-cross mute has released. Stays false while the
-    /// voice is held silent after a fresh start, then latches true at the first
-    /// output zero crossing. Carried-over voices arrive with this true.
-    gate_open: bool,
-    /// Previous (un-muted) saw value, used to detect the releasing zero
-    /// crossing.
-    prev_out: f32,
+    mute: ZeroCrossMute,
 }
 
 /// Module-level state for the Supersaw module.
@@ -254,19 +249,17 @@ impl Supersaw {
         // state below.
         let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
         self.lane_state = vec![VoiceState::default(); voices * PORT_MAX_LANES].into_boxed_slice();
-        // Arm each fresh voice's zero-cross mute. prev_out is the naive saw
-        // at the voice's starting phase so the mute holds until the output
-        // genuinely crosses zero (it would release immediately if left at 0).
-        // For carried-over voices these values are overwritten by
-        // `transfer_state_from`, keeping an already-sounding voice un-muted.
-        // The sync source starts read at the same offset as the saw, so its
-        // first sample sees no glide.
-        let gate_open = !self.params.wait_for_zero_cross;
+        // Arm each fresh voice's zero-cross mute from the naive saw at the
+        // voice's starting phase, so the mute holds until the output genuinely
+        // crosses zero. For carried-over voices `transfer_state_from`
+        // overwrites these, keeping an already-sounding voice un-muted. The
+        // sync source starts read at the same offset as the saw, so its first
+        // sample sees no glide.
+        let wait = self.params.wait_for_zero_cross;
         for (voice, row) in self.lane_state.chunks_mut(PORT_MAX_LANES).enumerate() {
             let offset = voice_phase(voice, voices);
             for cell in row {
-                cell.gate_open = gate_open;
-                cell.prev_out = 2.0 * offset - 1.0;
+                cell.mute.start(wait, Some(2.0 * offset - 1.0));
                 cell.sync_offset = offset;
             }
         }
@@ -556,16 +549,7 @@ impl VoiceState {
         // so only the rising (negative→positive) crossing on the ramp
         // counts. Releasing on the ramp means the first contributed
         // sample is ~0.
-        let contribution = if self.gate_open {
-            saw
-        } else if self.prev_out <= 0.0 && saw >= 0.0 {
-            self.gate_open = true;
-            saw
-        } else {
-            0.0
-        };
-        self.prev_out = saw;
-        contribution
+        self.mute.pass(saw, Crossing::Rising)
     }
 
     /// Advance the sync source by `dt`, read `offset` ahead; when it
@@ -964,8 +948,7 @@ mod tests {
             ..params(mono(0.0), 1, 0.0)
         });
         s.lane_state[0].phase = 0.25;
-        s.lane_state[0].prev_out = -0.5;
-        s.lane_state[0].gate_open = false;
+        s.lane_state[0].mute = ZeroCrossMute::Waiting(Some(-0.5));
 
         let out: Vec<f32> = (0..200)
             .map(|_| {
@@ -1052,7 +1035,6 @@ mod tests {
         // share its band-limiting, and neither overshoots.
         let mut cell = VoiceState {
             phase: 0.3,
-            gate_open: true,
             ..Default::default()
         };
         let first = cell.step(0.01, 0.995, Some(5.0), None);

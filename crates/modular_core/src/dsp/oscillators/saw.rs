@@ -8,7 +8,10 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_ratio},
-        utils::{sanitize, wrap_phase_f64},
+        utils::{
+            sanitize, wrap_phase_f64,
+            zero_cross_mute::{Crossing, ZeroCrossMute},
+        },
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
@@ -87,14 +90,7 @@ struct LaneState {
     /// `transfer_state_from` arrives with this already set, so it keeps its
     /// phase for continuity instead of re-seeding.
     seeded: bool,
-    /// Whether the zero-cross mute has released. Stays false while a freshly
-    /// started voice is held silent, then latches true at the first output
-    /// zero crossing. Carried-over (already-sounding) voices arrive with this
-    /// true, so they keep playing without re-muting.
-    gate_open: bool,
-    /// Previous (un-muted) output sample, used to detect the zero crossing that
-    /// releases the mute.
-    prev_out: f32,
+    mute: ZeroCrossMute,
     resets: Resets,
 }
 
@@ -172,13 +168,15 @@ impl LaneState {
             self.phase = (zero_cross - 2.0 * read_offset).rem_euclid(1.0);
             self.resets.seed(self.phase as f32);
             self.seeded = true;
-            // Arm the zero-cross mute. With no offset the read starts on the
-            // crossing, so prev_out is 0 and the mute releases on the first
-            // sample; an offset starts it earlier, holding silence until the
-            // output reaches the crossing.
-            self.gate_open = !wait_for_zero_cross;
+            // Arm the zero-cross mute from the wave at the read's start. With
+            // no offset the read starts on the crossing, so the mute releases
+            // on the first sample; an offset starts it earlier, holding
+            // silence until the output reaches the crossing.
             let read_start = (zero_cross - read_offset).rem_euclid(1.0);
-            self.prev_out = naive_triangle(read_start, s) as f32 * 5.0;
+            self.mute.start(
+                wait_for_zero_cross,
+                Some(naive_triangle(read_start, s) as f32 * 5.0),
+            );
         }
 
         let (synced, reset) = self.resets.step(
@@ -242,21 +240,12 @@ impl LaneState {
         // crossing that matches the seed's longer segment counts: rising
         // (negative→positive) for saw-side shapes, falling for ramp-side.
         // Releasing on the gentle slope means the first audible sample is ~0.
-        let crossed = if s >= 0.5 {
-            self.prev_out <= 0.0 && out >= 0.0
+        let crossing = if s >= 0.5 {
+            Crossing::Rising
         } else {
-            self.prev_out >= 0.0 && out <= 0.0
+            Crossing::Falling
         };
-        let sample = if self.gate_open {
-            out
-        } else if crossed {
-            self.gate_open = true;
-            out
-        } else {
-            0.0
-        };
-        self.prev_out = out;
-        sample
+        self.mute.pass(out, crossing)
     }
 }
 

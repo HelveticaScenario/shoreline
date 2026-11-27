@@ -9,6 +9,7 @@ pub mod rng;
 pub mod saturation;
 pub mod unison_phase;
 pub mod unison_voices;
+pub mod zero_cross_mute;
 
 use crate::dsp::consts::{LUT_PITCH_RATIO_HIGH, LUT_PITCH_RATIO_LOW};
 
