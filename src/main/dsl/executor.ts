@@ -727,6 +727,13 @@ export function executePatchScript(
             'DSL execution error: "_mediaAudio" module not found in schemas',
         );
     }
+    const $left = userNamespaceTree['$left'];
+    const $right = userNamespaceTree['$right'];
+    if (typeof $left !== 'function' || typeof $right !== 'function') {
+        throw new Error(
+            'DSL execution error: "$scopeXY" requires "$left" and "$right" modules',
+        );
+    }
     const videoBuilder = new VideoGraphBuilder({
         controlValue: (moduleId) => {
             const slider = controls.sliders.find(
@@ -742,6 +749,9 @@ export function executePatchScript(
         publishTap: (output, slot) => {
             _videoTap(output, slot);
         },
+        side: (output, side) =>
+            (side === 'left' ? $left : $right)(output) as Collection,
+        channelsOf: (output) => builder.channelsOf(output),
         cvSignal: (id) =>
             signal(0, { ...VIDEO_CV_RANGE, id }) as CollectionWithRange,
         mediaAudio: (path, playback) => {
