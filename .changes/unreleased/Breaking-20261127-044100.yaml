@@ -1,0 +1,11 @@
+kind: Breaking
+body: |-
+    `$unstable.reverb2` is now `$hall`, with the same sound and params. It is marked experimental, so its sound and params may still change.
+
+    ```js
+    // before
+    pad: $saw("c3").unstable.reverb2({ decay: 2 }).wet(2)
+    // after
+    pad: $saw("c3").hall({ decay: 2 }).wet(2)
+    ```
+time: 2026-11-27T04:41:00.26456-05:00

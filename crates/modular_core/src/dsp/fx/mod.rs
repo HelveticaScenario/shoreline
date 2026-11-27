@@ -16,11 +16,11 @@ pub mod cheby;
 pub mod dattorro;
 pub mod filterdc;
 pub mod fold;
+pub mod hall;
 pub mod overdrive;
 pub mod plate;
 pub mod quant_noise;
 pub mod reverb;
-pub mod reverb2;
 pub mod segment;
 pub mod soft_clip;
 
@@ -33,7 +33,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     plate::Plate::install_constructor(map);
     quant_noise::QuantNoise::install_constructor(map);
     reverb::Reverb::install_constructor(map);
-    reverb2::Reverb2::install_constructor(map);
+    hall::Hall::install_constructor(map);
     segment::Segment::install_constructor(map);
     soft_clip::SoftClip::install_constructor(map);
     beads::BeadsReverb::install_constructor(map);
@@ -52,7 +52,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     plate::Plate::install_params_deserializer(map);
     quant_noise::QuantNoise::install_params_deserializer(map);
     reverb::Reverb::install_params_deserializer(map);
-    reverb2::Reverb2::install_params_deserializer(map);
+    hall::Hall::install_params_deserializer(map);
     segment::Segment::install_params_deserializer(map);
     soft_clip::SoftClip::install_params_deserializer(map);
     beads::BeadsReverb::install_params_deserializer(map);
@@ -72,7 +72,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         plate::Plate::get_schema(),
         quant_noise::QuantNoise::get_schema(),
         reverb::Reverb::get_schema(),
-        reverb2::Reverb2::get_schema(),
+        hall::Hall::get_schema(),
         segment::Segment::get_schema(),
         soft_clip::SoftClip::get_schema(),
         beads::BeadsReverb::get_schema(),

@@ -142,7 +142,7 @@ fn householder4(v: &mut [f32; HALF_LINES]) {
 #[derive(Clone, Deserr, JsonSchema, Connect, LaneCount)]
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct Reverb2Params {
+struct HallParams {
     #[input(
         "signal to reverberate: every lane's left side feeds the left and its right side the right, and a mono lane feeds both",
         type = audio,
@@ -208,7 +208,7 @@ struct Reverb2Params {
 
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct Reverb2Outputs {
+struct HallOutputs {
     #[output(
         "output",
         "stereo reverb, fully wet, as one stereo lane",
@@ -224,7 +224,7 @@ struct Reverb2Outputs {
 /// `init()`; runtime state (filter memories, LFO phases) carries across patch
 /// updates so the tail never glitches on an edit.
 #[derive(Default)]
-struct Reverb2State {
+struct HallState {
     // Per-side input sections.
     predelay_l: DelayLine,
     predelay_r: DelayLine,
@@ -283,7 +283,7 @@ struct Reverb2State {
 
 // ─── Module ──────────────────────────────────────────────────────────────────
 
-const REVERB2_DOCS: ModuleDocs = ModuleDocs {
+const HALL_DOCS: ModuleDocs = ModuleDocs {
     summary: "Hall reverb with darkening tail",
     description: "A dense stereo reverb whose bass and treble ring out for different times, like \
                   a real hall where the highs die first. Keeps a stereo source's left and right \
@@ -297,26 +297,27 @@ const REVERB2_DOCS: ModuleDocs = ModuleDocs {
             const notes = $`c5 g4 eb5 ~`
             melody: $sine(notes)
               .amp($perc(notes, { decay: 0.15 }))
-              .unstable.reverb2({ decay: 4, damping: 4 })
+              .hall({ decay: 4, damping: 4 })
               .wet(3)
         "#,
     }],
 };
 
 #[module(
-    name = "$unstable.reverb2", stereo = stereo,
-    docs = REVERB2_DOCS,
+    name = "$hall", stereo = stereo,
+    docs = HALL_DOCS,
     lanes = 1,
     has_init,
-    args(input)
+    args(input),
+    experimental
 )]
-pub struct Reverb2 {
-    outputs: Reverb2Outputs,
-    state: Reverb2State,
-    params: Reverb2Params,
+pub struct Hall {
+    outputs: HallOutputs,
+    state: HallState,
+    params: HallParams,
 }
 
-impl Reverb2 {
+impl Hall {
     /// Allocate the delay lines and cache every sample-rate-only constant.
     /// Runs once at construction on the main thread, where allocation is legal.
     fn init(&mut self, sample_rate: f32) {
@@ -580,7 +581,7 @@ impl Reverb2 {
     }
 }
 
-message_handlers!(impl Reverb2 {});
+message_handlers!(impl Hall {});
 
 #[cfg(test)]
 mod tests {
@@ -600,7 +601,7 @@ mod tests {
     fn make_reverb_at(params: serde_json::Value, sample_rate: f32) -> Box<dyn Sampleable> {
         let constructors = get_constructors();
         let deserializers = get_params_deserializers();
-        let deserializer = deserializers.get("$unstable.reverb2").unwrap();
+        let deserializer = deserializers.get("$hall").unwrap();
         let mut cached = deserializer(params).unwrap();
         // Built as a patch builds a stereo module: one lane of two sides, with
         // each input lane on both sides, as a mono producer reaches it.
@@ -614,8 +615,8 @@ mod tests {
             f64_inputs: false,
             channels: 2,
         };
-        constructors.get("$unstable.reverb2").unwrap()(
-            "test-reverb2",
+        constructors.get("$hall").unwrap()(
+            "test-hall",
             sample_rate,
             deserialized,
             TEST_BLOCK_SIZE,
@@ -662,12 +663,12 @@ mod tests {
         use crate::poly::{PairSignal, PolySignal};
         use crate::types::{OutputStruct, Signal};
 
-        let mut outputs = super::Reverb2Outputs::default();
+        let mut outputs = super::HallOutputs::default();
         outputs.set_all_lanes(2);
-        let mut m = super::Reverb2 {
+        let mut m = super::Hall {
             outputs,
             state: Default::default(),
-            params: super::Reverb2Params {
+            params: super::HallParams {
                 input: PairSignal::from_mono(PolySignal::mono(Signal::Volts(f32::NAN))),
                 decay: None,
                 damping: None,
