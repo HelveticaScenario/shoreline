@@ -1,3 +1,0 @@
-kind: New
-body: 'New `phaseOffset` on `$mi.formant` starts the grains part way through their cycle, so a `$super` stack of it holds a steady level instead of swelling as the copies drift: `$super(''a2'', (freq, { phaseOffset }) => $mi.formant(freq, { phaseOffset }))`.'
-time: 2026-11-26T04:41:35.713184-05:00

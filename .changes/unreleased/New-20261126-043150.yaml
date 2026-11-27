@@ -1,3 +1,0 @@
-kind: New
-body: 'New `phaseOffset` on `$mi.waveshaper` starts the waveform part way through its cycle, so a `$super` stack of it holds a steady level instead of swelling as the copies drift: `$super(''a2'', (freq, { phaseOffset }) => $mi.waveshaper(freq, { phaseOffset }))`.'
-time: 2026-11-26T04:31:50.831788-05:00

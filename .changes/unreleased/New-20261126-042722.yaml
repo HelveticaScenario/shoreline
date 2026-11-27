@@ -1,3 +1,0 @@
-kind: New
-body: 'New `phaseOffset` on `$mi.divideDown` starts the oscillator part way through the cycle of its lowest saw, so a `$super` stack of it holds a steady level instead of swelling as the copies drift: `$super(''a2'', (freq, { phaseOffset }) => $mi.divideDown(freq, { phaseOffset }))`.'
-time: 2026-11-26T04:27:22.409527-05:00

@@ -1,3 +1,0 @@
-kind: New
-body: 'New `phaseOffset` on `$mi.waveTerrain` starts the circle part way round the surface, so a `$super` stack of it holds a steady level instead of swelling as the copies drift: `$super(''a2'', (freq, { phaseOffset }) => $mi.waveTerrain(freq, { phaseOffset }))`.'
-time: 2026-11-26T04:42:41.377062-05:00
