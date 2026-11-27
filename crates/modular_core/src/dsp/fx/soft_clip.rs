@@ -48,7 +48,7 @@ struct SoftClipOutputs {
     clip: PolyOutput,
     #[output(
         "tanh",
-        "the signal saturated along a tanh curve toward the ceiling, coloured at every level",
+        "the signal rounded into the ceiling along a tanh curve, which eases in sooner and approaches it more gradually",
         type = cv,
     )]
     tanh: PolyOutput,
@@ -92,12 +92,17 @@ fn soft_clip(x: f32, threshold: f32, width: f32) -> f32 {
     y.copysign(x)
 }
 
-/// `ceiling · tanh(x / ceiling)`: unity gain at the origin, reaching the
-/// ceiling at three times it. `inv_ceiling` is 0 for a ceiling of 0, which
-/// silences the output.
+/// `x` unchanged up to `threshold`, then a tanh knee `width` wide that leaves
+/// it with unity slope and reaches `threshold + width` (the ceiling) three
+/// widths past it. A `width` of 0 clips hard; with a `threshold` of 0 this is
+/// `ceiling · tanh(x / ceiling)`.
 #[inline(always)]
-fn tanh_clip(x: f32, ceiling: f32, inv_ceiling: f32) -> f32 {
-    ceiling * tanh_pade(x * inv_ceiling)
+fn tanh_clip(x: f32, threshold: f32, width: f32) -> f32 {
+    let a = x.abs();
+    if a <= threshold {
+        return x;
+    }
+    (threshold + width * tanh_pade((a - threshold) / width)).copysign(x)
 }
 
 const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
@@ -105,8 +110,8 @@ const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
     description: "Leaves a signal untouched until it nears the ceiling, then rounds its peaks \
                   off so they never pass it. In `$setEndOfChainCb` it catches the whole \
                   mix's peaks before the output, as the ceiling defaults to the output's full \
-                  scale; elsewhere it clips each lane on its own. `_tanh` saturates toward the \
-                  same ceiling along a tanh curve instead, and ignores `knee`.",
+                  scale; elsewhere it clips each lane on its own. `_tanh` rounds into the same \
+                  ceiling along a tanh curve, saturating at every level when `knee` is 5.",
     categories: &[ReferenceCategory::Distortion, ReferenceCategory::Dynamics],
     sections: &[],
     examples: &[
@@ -124,7 +129,7 @@ const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Warm tanh drive",
-            code: "lead: $saw('a3').lpf('a5').mul(2).softClip(5)._tanh",
+            code: "lead: $saw('a3').lpf('a5').mul(2).softClip(5, 5)._tanh",
         },
     ],
 };
@@ -162,9 +167,9 @@ impl SoftClip {
             // the ceiling as well. A downsampler paused while its output goes
             // unread settles within a few samples of being read again.
             let ceiling = (*state.ceiling).max(0.0);
+            let (threshold, width) = knee_shape(ceiling, *state.knee);
             let (even, odd) = state.up.process(p.input.get_value(lane));
             if clip_read {
-                let (threshold, width) = knee_shape(ceiling, *state.knee);
                 let y = state.down.process(
                     soft_clip(even, threshold, width),
                     soft_clip(odd, threshold, width),
@@ -172,10 +177,10 @@ impl SoftClip {
                 self.outputs.clip.set(lane, y.clamp(-ceiling, ceiling));
             }
             if tanh_read {
-                let inv = if ceiling > 0.0 { ceiling.recip() } else { 0.0 };
-                let y = state
-                    .tanh_down
-                    .process(tanh_clip(even, ceiling, inv), tanh_clip(odd, ceiling, inv));
+                let y = state.tanh_down.process(
+                    tanh_clip(even, threshold, width),
+                    tanh_clip(odd, threshold, width),
+                );
                 self.outputs.tanh.set(lane, y.clamp(-ceiling, ceiling));
             }
         }
@@ -278,12 +283,39 @@ mod tests {
     }
 
     #[test]
-    fn tanh_has_unity_slope_and_reaches_the_ceiling() {
-        let inv = 1.0 / 4.0;
-        assert!((tanh_clip(0.01, 4.0, inv) - 0.01).abs() < 1e-6);
-        assert_eq!(tanh_clip(12.0, 4.0, inv), 4.0);
-        assert_eq!(tanh_clip(-30.0, 4.0, inv), -4.0);
-        assert_eq!(tanh_clip(3.0, 0.0, 0.0), 0.0);
+    fn tanh_curve_is_continuous_monotonic_and_capped() {
+        for knee in [0.0f32, 0.5, 2.0, 5.0] {
+            let (t, w) = knee_shape(5.0, knee);
+            let mut prev = tanh_clip(-30.0, t, w);
+            for i in -3000..=3000 {
+                let x = i as f32 * 0.01;
+                let y = tanh_clip(x, t, w);
+                assert!(y >= prev - 1e-6, "knee {knee}: not monotonic at {x}");
+                assert!(
+                    y.abs() <= 5.0 + 1e-6,
+                    "knee {knee}: {y} past ceiling at {x}"
+                );
+                if knee > 0.0 {
+                    assert!((y - prev).abs() <= 0.01 + 1e-5, "knee {knee}: jump at {x}");
+                }
+                prev = y;
+            }
+            assert_eq!(tanh_clip(30.0, t, w), 5.0);
+        }
+    }
+
+    #[test]
+    fn tanh_knee_matches_the_clip_threshold_and_full_knee_is_plain_tanh() {
+        let (t, w) = knee_shape(5.0, 2.0);
+        for x in [-3.0f32, -1.2, 0.0, 0.7, 3.0] {
+            assert_eq!(tanh_clip(x, t, w), x);
+        }
+        let (t, w) = knee_shape(4.0, 5.0);
+        for x in [-9.0f32, -2.0, 0.01, 1.0, 3.5, 12.0] {
+            assert!((tanh_clip(x, t, w) - 4.0 * tanh_pade(x / 4.0)).abs() < 1e-6);
+        }
+        let (t, w) = knee_shape(0.0, 2.0);
+        assert_eq!(tanh_clip(3.0, t, w), 0.0);
     }
 
     #[test]
