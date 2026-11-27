@@ -20,6 +20,14 @@ struct SoftClipParams {
     #[input("signal to clip", type = audio)]
     input: PolySignal,
     #[input(
+        "how gradually the signal rounds into the ceiling: 0 clips hard, 5 starts rounding from silence",
+        type = control,
+        default = 2.0,
+        range = (0.0, 5.0),
+    )]
+    #[deserr(default)]
+    knee: Option<PolySignal>,
+    #[input(
         "the level the output never rises past",
         type = control,
         default = 20.0,
@@ -29,14 +37,6 @@ struct SoftClipParams {
     )]
     #[deserr(default)]
     ceiling: Option<PolySignal>,
-    #[input(
-        "how gradually the signal rounds into the ceiling: 0 clips hard, 5 starts rounding from silence",
-        type = control,
-        default = 2.0,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    knee: Option<PolySignal>,
 }
 
 const _: () = assert!(SoftClipParams::CEILING_DEFAULT == OUTPUT_FULL_SCALE_VOLTS);
@@ -125,7 +125,7 @@ const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
         },
         DocExample {
             title: "Hard-edged bass",
-            code: "bass: $sine('c2').mul(3).softClip(4, 0.5)",
+            code: "bass: $sine('c2').mul(3).softClip(0.5, 4)",
         },
         DocExample {
             title: "Warm tanh drive",
@@ -134,7 +134,7 @@ const SOFT_CLIP_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[module(name = "$softClip", docs = SOFT_CLIP_DOCS, args(input, ceiling, knee), experimental)]
+#[module(name = "$softClip", docs = SOFT_CLIP_DOCS, args(input, knee, ceiling), experimental)]
 pub struct SoftClip {
     outputs: SoftClipOutputs,
     lane_state: Box<[LaneState]>,
