@@ -1,5 +1,6 @@
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import { applyDslLibToMonaco } from './monacoHelpers';
+import { EDITOR_COMPILER_OPTIONS } from './compilerOptions';
 import { registerDollarQuoteQuickFix } from './dollarQuoteQuickFix';
 import { registerJsDocLinkProviders } from './jsDocLinkProviders';
 import { registerRenameProvider } from './renameProvider';
@@ -66,18 +67,7 @@ export function setupMonacoJavascript(
     console.log('Monaco TS version:', ts);
     const jsDefaults = ts.javascriptDefaults;
 
-    jsDefaults.setCompilerOptions({
-        allowJs: true,
-        allowNonTsExtensions: true,
-        // Top-level labels are track labels, which no statement jumps to.
-        allowUnusedLabels: true,
-        checkJs: true,
-        lib: ['esnext'],
-        module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.NodeJs,
-        noEmit: true,
-        target: ts.ScriptTarget.ES2020,
-    });
+    jsDefaults.setCompilerOptions(EDITOR_COMPILER_OPTIONS);
 
     jsDefaults.setDiagnosticsOptions({
         noSemanticValidation: false,

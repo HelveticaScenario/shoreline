@@ -2,13 +2,27 @@
     position: relative;
 }
 
-/* Clear of the copy button's corner. */
-.code-example pre {
+/* Clear of the copy button's corner. Whole pixels per line, as the editor
+   laid over the code draws them. */
+.code-example > pre {
     padding-right: 36px;
+    line-height: round(1.5em, 1px);
+}
+
+.code-example-editor {
+    position: absolute;
+}
+
+/* The editor draws the code; the static copy keeps its box, background and
+   text. */
+.code-example.live > pre > code,
+.code-example.live > pre > code * {
+    color: transparent;
 }
 
 .code-example-copy {
     position: absolute;
+    z-index: 1;
     top: 6px;
     right: 6px;
     display: flex;

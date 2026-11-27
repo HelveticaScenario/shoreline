@@ -224,3 +224,19 @@ export function buildEditorMenuItems(
     }
     return out;
 }
+
+/** The context menu of a read-only editor: navigation, Peek and Copy. */
+export function buildReadOnlyEditorMenuItems(
+    ed: editor.ICodeEditor,
+): (ContextMenuItemDescriptor | null)[] {
+    return [
+        ...NAVIGATION.map((spec) => actionDescriptor(ed, spec)),
+        {
+            items: PEEK.map((spec) => actionDescriptor(ed, spec)),
+            kind: 'submenu',
+            label: 'Peek',
+        },
+        null,
+        { kind: 'role', role: 'copy' },
+    ];
+}

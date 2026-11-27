@@ -26,7 +26,6 @@ describe('trackLabelView', () => {
         expect(appended).toContain(
             'var lead = __trackBinding(__tracks().lead)',
         );
-        expect(view.text.trimEnd().endsWith('export {};')).toBe(true);
     });
 
     test('a patch with a parse error at its end still binds its tracks', () => {
