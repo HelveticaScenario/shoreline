@@ -31,10 +31,11 @@ pub struct PdOscillator {
     previous_pw: f32,
     /// Whether the slave is past its peak.
     high: bool,
-    /// The phase offsets the master and slave have travelled so far, in
-    /// `[0, 1)`.
+    /// The phase offset the master has travelled so far, in `[0, 1)`.
     offset: f32,
-    slave_offset: f32,
+    /// How much of `ratio` times the master's travel the slave has yet to
+    /// make, under a cycle.
+    slave_behind: f32,
     /// Plaits' `ParameterInterpolator`s across the two substeps.
     master_frequency: Ramp,
     slave_frequency: Ramp,
@@ -56,7 +57,7 @@ impl Default for PdOscillator {
             previous_pw: 0.5,
             high: false,
             offset: 0.0,
-            slave_offset: 0.0,
+            slave_behind: 0.0,
             master_frequency: ramp(0.0),
             slave_frequency: ramp(0.01),
             pw: ramp(0.5),
@@ -90,15 +91,16 @@ fn travel(target: f32, travelled: &mut f32, left: usize, frequency: f32, max: f3
 }
 
 impl PdOscillator {
-    /// Starts a fresh oscillator `offset` of a cycle into its waveform, with the
+    /// Starts a fresh oscillator `offset` cycles into its waveform, with the
     /// slave where it would be had it started with the master at `ratio` times
-    /// its frequency.
+    /// its frequency. Free running at a non-integer ratio, an offset a whole
+    /// cycle further on starts the slave elsewhere.
     pub fn seed(&mut self, offset: f32, ratio: f32) {
         let pw = self.previous_pw;
-        self.master_phase = offset;
-        self.offset = offset;
-        self.slave_offset = wrap(offset * ratio);
-        self.slave_phase = self.slave_offset;
+        self.master_phase = wrap(offset);
+        self.offset = self.master_phase;
+        self.slave_behind = 0.0;
+        self.slave_phase = wrap(offset * ratio);
         self.high = self.slave_phase >= pw;
         self.next_sample = triangle(self.slave_phase, pw, 1.0 / pw, 1.0 / (1.0 - pw));
     }
@@ -106,9 +108,12 @@ impl PdOscillator {
     /// The two substeps of one output sample: the phasor offset by
     /// `amount` × the triangle. Frequencies are in cycles per substep (finite,
     /// negative runs backward) and are held to ±`max`. The master travels to
-    /// the phase `offset` (in `[0, 1)`) and the slave to `ratio` times it, each
-    /// by the shortest way and as fast as the frequency limit allows, so a
-    /// voice that moves to an offset plays as one seeded there does.
+    /// the phase `offset` (in `[0, 1)`) by the shortest way, as fast as the
+    /// frequency limit allows, and the slave travels `ratio` times as far, so
+    /// an offset moving at a steady speed plays as the frequency raised by it,
+    /// across the wrap too. A voice that has travelled `d` cycles plays as one
+    /// seeded `d` cycles further on; synced, the master's next wrap restarts
+    /// the slave, so from then on it plays as one seeded at `offset`.
     #[inline(always)]
     #[expect(
         clippy::too_many_arguments,
@@ -147,16 +152,13 @@ impl PdOscillator {
             let master_frequency = self.master_frequency.next_value();
             let slave_frequency = self.slave_frequency.next_value();
             let left = OVERSAMPLING - substep;
-            let master_frequency =
-                master_frequency + travel(offset, &mut self.offset, left, master_frequency, max);
-            let slave_frequency = slave_frequency
-                + travel(
-                    wrap(offset * ratio),
-                    &mut self.slave_offset,
-                    left,
-                    slave_frequency,
-                    max,
-                );
+            let shift = travel(offset, &mut self.offset, left, master_frequency, max);
+            let master_frequency = master_frequency + shift;
+            let behind = self.slave_behind + ratio * shift;
+            let behind = behind - behind.trunc();
+            let slave_shift = behind.clamp(-max - slave_frequency, max - slave_frequency);
+            self.slave_behind = behind - slave_shift;
+            let slave_frequency = slave_frequency + slave_shift;
             let pw = self.pw.next_value();
             let slope_up = 1.0 / pw;
             let slope_down = 1.0 / (1.0 - pw);

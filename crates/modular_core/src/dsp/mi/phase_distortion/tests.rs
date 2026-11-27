@@ -262,8 +262,9 @@ fn phase_offset_shifts_the_waveform_in_time() {
     }
 }
 
-/// An offset that moves, or jumps, ends where a voice started at it plays,
-/// within the rounding its phases gather on the way.
+/// An offset that moves, or jumps, without crossing the wrap ends where a
+/// voice started at it plays, within the rounding its phases gather on the
+/// way.
 #[test]
 fn moving_phase_offset_lands_on_the_held_one() {
     let state = PhaseDistortionState::new(48000.0);
@@ -273,7 +274,7 @@ fn moving_phase_offset_lands_on_the_held_one() {
         let mut jumped = Voice::default();
         for n in 0..6000 {
             let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
-            let jump = if n < 100 { 0.9 } else { 0.4 };
+            let jump = if n < 100 { 0.7 } else { 0.4 };
             let a = render(
                 &mut held,
                 0.01,
@@ -336,5 +337,51 @@ fn non_finite_phase_offset_holds() {
             &state,
         );
         assert!((a - b).abs() < 1e-6, "sample {n}: {a} vs {b}");
+    }
+}
+
+/// An offset moving at a steady speed plays as the frequency raised by that
+/// speed, so modulating it across the wrap at a non-integer ratio moves the
+/// slave as smoothly as the master, synced or free running.
+#[test]
+fn phase_offset_crossing_the_wrap_moves_smoothly() {
+    let max = PhaseDistortionState::new(48000.0).max_frequency;
+    let (master, ratio, speed) = (0.005, 3.2, 1e-4);
+    for sync in [true, false] {
+        let mut glided = PdOscillator::default();
+        let mut sped = PdOscillator::default();
+        glided.seed(0.9, ratio);
+        sped.seed(0.9, ratio);
+        let mut offset = 0.9f32;
+        for n in 0..4000 {
+            let moving = (500..2500).contains(&n);
+            if moving {
+                offset += speed;
+            }
+            let raise = if moving { speed / 2.0 } else { 0.0 };
+            let a = glided.render(
+                sync,
+                master,
+                master * ratio,
+                0.6,
+                2.5,
+                offset.fract(),
+                ratio,
+                max,
+            );
+            let b = sped.render(
+                sync,
+                master + raise,
+                (master + raise) * ratio,
+                0.6,
+                2.5,
+                0.9,
+                ratio,
+                max,
+            );
+            for (a, b) in a.into_iter().zip(b) {
+                assert!((a - b).abs() < 1e-3, "sync {sync}, sample {n}: {a} vs {b}");
+            }
+        }
     }
 }
