@@ -8,6 +8,7 @@
  *      DSL builds, in `dslModules`.
  *   2. `@example` JSDoc tags hand-written in `typescriptLibGen.ts`.
  *   3. ```js fenced blocks in hand-written JSDoc there.
+ *   4. ```js fenced blocks in the Docs panel's guide.
  *
  * Each one must run through `executePatchScript` without error and produce a
  * graph that passes the engine's own `validatePatchGraph`. A failure here
@@ -61,8 +62,9 @@ const EXECUTION_OPTIONS: DSLExecutionOptions = {
 
 interface DocExample {
     /** Where the example came from: a module's or global's docs, an
-     *  `@example` tag, or a ```js fence in hand-written JSDoc. */
-    kind: 'module' | 'global' | 'tag' | 'fence';
+     *  `@example` tag, a ```js fence in hand-written JSDoc, or the
+     *  guide. */
+    kind: 'module' | 'global' | 'tag' | 'fence' | 'guide';
     /** Ordinal within the generated source, for stable test labels. */
     ordinal: number;
     /** The example source code. */
@@ -174,6 +176,11 @@ function structuredExamples(
     }));
 }
 
+const guideSources = import.meta.glob<string>(
+    '../../../renderer/docs/guide/*.mdx',
+    { eager: true, import: 'default', query: '?raw' },
+);
+
 const generated = buildLibSource(schemas);
 const fromDocs = [
     ...schemas.flatMap((m) => structuredExamples('module', m.name, m.docs)),
@@ -183,6 +190,14 @@ const fromDocs = [
     ...dslModules(schemas)
         .map(functionToReferenceEntry)
         .flatMap((m) => structuredExamples('module', m.name, m.docs)),
+    ...Object.entries(guideSources).flatMap(([file, source]) =>
+        [...source.matchAll(FENCE_RE)].map((fence, ordinal) => ({
+            code: fence[1].replace(/\s+$/, ''),
+            kind: 'guide' as const,
+            label: `${file}: ${makeLabel(fence[1])}`,
+            ordinal,
+        })),
+    ),
 ];
 const docsCode = new Set(fromDocs.map((e) => e.code));
 // The generated JSDoc repeats each entry's first example; count it once.

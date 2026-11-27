@@ -584,3 +584,157 @@
         color: var(--text-secondary);
     }
 }
+
+/* The Guide page: chapters on the left, the open chapter on the right. */
+.docs-panel .guide {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+}
+
+.docs-panel .guide-nav {
+    flex: 0 0 200px;
+    padding: var(--sp-1);
+    overflow-y: auto;
+    border-right: 1px solid var(--border-subtle);
+}
+
+.docs-panel .guide-nav ol,
+.docs-panel .guide-nav ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.docs-panel .guide-nav button {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    padding: 2px 6px;
+    background: none;
+    border: none;
+    border-radius: 3px;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.docs-panel .guide-nav button:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.docs-panel .guide-nav button.active {
+    color: var(--accent-primary);
+}
+
+.docs-panel .guide-nav ul button {
+    padding-left: calc(6px + 2ch + 8px);
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+.docs-panel .guide-number {
+    flex: 0 0 2ch;
+    text-align: right;
+    color: var(--text-muted);
+}
+
+.docs-panel .guide-page {
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-1) var(--sp-2);
+    overflow-y: auto;
+}
+
+.docs-panel .guide-page > * {
+    max-width: 80ch;
+}
+
+.docs-panel .guide-header {
+    margin-bottom: var(--sp-2);
+}
+
+.docs-panel .guide-header h2 {
+    margin: 2px 0 4px;
+    font-size: 1.4em;
+}
+
+.docs-panel .guide-eyebrow {
+    color: var(--accent-primary);
+    font-size: 0.8em;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.docs-panel .guide-lede {
+    margin: 0;
+    color: var(--text-secondary);
+}
+
+.docs-panel .guide-page h3 {
+    margin-top: var(--sp-2);
+    font-size: 1.1em;
+}
+
+.docs-panel .guide-page .doc-table td::before {
+    content: none;
+}
+
+.docs-panel .guide-tip {
+    margin: var(--sp-2) 0;
+    padding: var(--sp-1);
+    border-left: 2px solid var(--accent-primary);
+    background: var(--bg-tertiary);
+}
+
+.docs-panel .guide-tip p {
+    margin: 4px 0 0;
+}
+
+.docs-panel .guide-pager {
+    display: flex;
+    gap: var(--sp-1);
+    margin-top: var(--sp-2);
+    padding: var(--sp-1) 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.docs-panel .guide-pager button {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    background: none;
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.docs-panel .guide-pager button:hover {
+    background: var(--bg-hover);
+}
+
+.docs-panel .guide-pager .guide-pager-next {
+    margin-left: auto;
+    text-align: right;
+}
+
+/* Narrow, the chapters sit above the page. */
+@container (max-width: 479px) {
+    .docs-panel .guide {
+        flex-direction: column;
+    }
+
+    .docs-panel .guide-nav {
+        flex: 0 0 auto;
+        max-height: 30%;
+        border-right: none;
+        border-bottom: 1px solid var(--border-subtle);
+    }
+}

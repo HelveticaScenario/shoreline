@@ -1,0 +1,33 @@
+## Sliders
+
+`$slider(label, value, min, max)` puts a slider in the Control panel. Drag it
+while the patch plays and the sound follows; the new value is written back
+into your code, so it is still there next time.
+
+```js
+const cutoff = $slider('Cutoff', 'c5', 'c3', 'c8')
+bass: $saw($`c2 c2 eb2 g1`).lpf(cutoff, 2)
+```
+
+The value, minimum and maximum share one unit: volts, notes or Hz.
+
+## Buttons
+
+| Write                        | Gives                                           |
+| ---------------------------- | ----------------------------------------------- |
+| `$btn('Play')`               | a gate, high while you hold the button          |
+| `$btn('Hit').hold(0.1)`      | a gate 100 ms long for each press               |
+| `$toggleBtn('Drone', false)` | a switch that flips on each click and stays put |
+
+```js
+lead: $sine('c4').amp($adsr($btn('Play')))
+```
+
+## Scopes
+
+Add `.scope()` to a signal to draw an oscilloscope beside that line in the
+editor:
+
+```js
+lfo: $sine('2hz').scope()
+```

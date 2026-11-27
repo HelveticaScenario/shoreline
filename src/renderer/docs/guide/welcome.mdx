@@ -1,0 +1,20 @@
+## A first sound
+
+A line that starts with a name and a colon is a **track**. Open a new file
+(<Key command="shoreline.newFile" />), type this and press <Key command="shoreline.updatePatch" /> to hear it.
+<Key command="shoreline.stop" /> stops.
+
+```js
+tone: $sine('c4')
+```
+
+Change `c4` to `e4` and press <Key command="shoreline.updatePatch" /> again:
+the new version takes over without a gap. That is the whole workflow.
+
+<Tip title="Help as you type">
+
+Autocomplete lists every module after `$`, each with a short description, and
+hovering over a name shows its docs. The **Modules** and **Globals** pages of
+this panel list everything, with examples to copy.
+
+</Tip>

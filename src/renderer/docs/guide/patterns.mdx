@@ -1,0 +1,59 @@
+## Mini-notation
+
+A string written `` $`...` `` is a **pattern**. It plays once per bar, in time
+with the clock, and gives the pitch of the current note plus a gate that is
+high while the note plays.
+
+```js
+const seq = $`c3 eb3 g3 [bb3 c4]`
+melody: $saw(seq).lpf('c5', 1).amp($adsr(seq))
+```
+
+| Write           | Plays                                                 |
+| --------------- | ----------------------------------------------------- |
+| `c3 eb3 g3`     | notes sharing the bar equally                         |
+| `c3 [e3 g3]`    | a group squeezed into one step                        |
+| `c3 ~ e3 ~`     | `~` or `-` is a rest: the gate drops, the pitch holds |
+| `c*8`           | one step repeated eight times                         |
+| `<c3 f3 g3> e4` | one element per bar, taking turns                     |
+| `c4 e4 g4, c3`  | patterns separated by commas, playing together        |
+| `c3:M7`         | a chord, each note on a voice of its own              |
+| `d3(dorian)`    | every note of a scale at once                         |
+
+The `$cycle` page on the Modules tab has the full syntax: chord symbols,
+scales and tunings, and parts that drift against each other.
+
+## Envelopes
+
+Pass the same pattern to the oscillator and to an envelope: the oscillator
+follows its pitch and the envelope follows its gate, so every note gets its
+own shape.
+
+```js
+const notes = $`c3 eb3 g3 bb3`
+melody: $saw(notes).lpf($adsr(notes, { decay: 0.2 }).range('c4', 'c7'), 2)
+```
+
+Here the envelope opens the filter on each note instead of the level, for a
+plucky sound. Setting `decay` without `sustain` drops the sustain to 0.
+
+## Chord changes
+
+```js
+const seq = $`<c3:M7 a2:m7 d3:m9 g2:7^1>`
+chords: $saw(seq).lpf('c5', 1).amp($adsr(seq))
+```
+
+## Drums and tempo
+
+The drum modules play a hit on each note of a pattern; the notes' pitches
+don't matter, so any note name will do.
+
+```js
+$setTempo(124)
+kick: $tr808.kick($`c ~ c ~`)
+snare: $tr808.snare($`~ c ~ c`)
+hats: $tr808.hiHat($`c*8`)
+```
+
+`$setTempo` sets the beats per minute for every pattern in the patch.

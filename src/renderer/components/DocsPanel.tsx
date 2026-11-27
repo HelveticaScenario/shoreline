@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { VideoDocs } from './VideoDocs';
 import { BuiltinDocs } from './BuiltinDocs';
+import { GuideDocs } from './GuideDocs';
 import { LinkifyTypes, TypeLink } from './DocsTypeLinks';
 import { ReferenceBrowser } from './ReferenceBrowser';
 import { useQuoteExample } from '../hooks/useQuoteExample';
@@ -23,9 +24,10 @@ import './DocsPanel.css';
 
 /** The pages that browse reference entries. */
 type BrowserPage = 'modules' | 'globals';
-type Page = BrowserPage | 'types' | 'video' | 'builtins';
+type Page = 'guide' | BrowserPage | 'types' | 'video' | 'builtins';
 
 const PAGES: { id: Page; label: string }[] = [
+    { id: 'guide', label: 'Guide' },
     { id: 'modules', label: 'Modules' },
     { id: 'types', label: 'Types' },
     { id: 'globals', label: 'Globals' },
@@ -162,6 +164,7 @@ const TypeCard: React.FC<TypeCardProps> = ({
 export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
     const [activePage, setActivePage] = useState<Page>('modules');
     const [filters, setFilters] = useState(NO_FILTERS);
+    const [guideChapter, setGuideChapter] = useState('welcome');
     const [moduleEntries, setModuleEntries] = useState<ReferenceEntry[]>([]);
     // A fresh object per reveal, so revealing the same type again scrolls back to it.
     const [revealedType, setRevealedType] = useState<{
@@ -250,6 +253,13 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
 
     const renderContent = () => {
         switch (activePage) {
+            case 'guide':
+                return (
+                    <GuideDocs
+                        chapterId={guideChapter}
+                        onChapterChange={setGuideChapter}
+                    />
+                );
             case 'video':
                 return <VideoDocs />;
             case 'builtins':
@@ -331,7 +341,7 @@ export const DocsPanel: React.FC<DocsPanelProps> = ({ target, hidden }) => {
             <div
                 ref={contentRef}
                 className={
-                    isBrowserPage(activePage)
+                    isBrowserPage(activePage) || activePage === 'guide'
                         ? 'docs-content docs-content-split'
                         : 'docs-content'
                 }
