@@ -14,11 +14,8 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 
 use super::kernel::{DB24, Kernel, Rates, Taps, loop_gain};
-use super::runner::{AnalogLane, AnalogPorts, AnalogState, CoeffKey, Inputs, run};
-use crate::dsp::filters::resonant_svf::FilterParams;
+use super::module_macro::analog_filter;
 use crate::dsp::utils::sanitize;
-use crate::poly::{PolyOutput, PolySignal};
-use crate::types::{OutputStruct, PatchUpdateHandler};
 
 /// Each integrator's time constant, in seconds at a cutoff of 1 rad/s. The
 /// cutoff is the last peak of the passband; the nulls sit at 2 and 3 times
@@ -202,122 +199,16 @@ const LPF_LEAPFROG_DOCS: ModuleDocs = ModuleDocs {
     ],
 };
 
-#[params]
-#[derive(Clone, deserr::Deserr, schemars::JsonSchema, Connect, LaneCount)]
-#[serde(rename_all = "camelCase")]
-#[deserr(rename_all = camelCase, deny_unknown_fields)]
-struct LpfLeapfrogParams {
-    #[input("the sound to filter", type = audio)]
-    input: PolySignal,
-    #[input(
-        "cutoff frequency: the last peak before the wall; tops out just under half the sample rate",
-        type = frequency,
-        range = (-3.71, ..),
-    )]
-    cutoff: PolySignal,
-    #[input(
-        "feedback around the filter: a peak rises below the cutoff as the level under it falls; self-oscillates from about 4.5",
-        type = control,
-        default = 0.0,
-        range = (0.0, 5.0),
-    )]
-    #[deserr(default)]
-    resonance: Option<PolySignal>,
-    #[input(
-        "run at twice the engine rate: less aliasing from clipping and self-oscillation, and truer nulls at high cutoffs; false costs less CPU"
-    )]
-    #[serde(default = "crate::dsp::utils::default_true")]
-    #[deserr(default = crate::dsp::utils::default_true())]
-    high_res: bool,
-}
-
-#[derive(Outputs, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
-struct LpfLeapfrogOutputs {
-    #[output("output", "5-pole near-elliptic lowpass", type = cv, default)]
-    output: PolyOutput,
-}
-
-impl AnalogPorts for LpfLeapfrogOutputs {
-    fn taps(connected: &<Self as OutputStruct>::Connected) -> Taps {
-        let mut taps = [false; 4];
-        taps[DB24] = connected.output;
-        taps
-    }
-
-    fn ports(&mut self) -> [Option<&mut PolyOutput>; 4] {
-        let mut ports = [None, None, None, None];
-        ports[DB24] = Some(&mut self.output);
-        ports
-    }
-}
-
-#[module(
-    name = "$lpfLeapfrog",
+analog_filter! {
     docs = LPF_LEAPFROG_DOCS,
-    args(input, cutoff, resonance),
-    has_init,
-    patch_update,
-    experimental
-)]
-pub struct LpfLeapfrog {
-    outputs: LpfLeapfrogOutputs,
-    state: AnalogState<Leapfrog>,
-    lane_state: Box<[AnalogLane<Leapfrog>]>,
-    params: LpfLeapfrogParams,
+    name = "$lpfLeapfrog",
+    ident = LpfLeapfrog,
+    kernel = Leapfrog,
+    response = (),
+    freq = cutoff,
+    freq_doc = "cutoff frequency: the last peak before the wall; tops out just under half the sample rate",
+    resonance_doc = "feedback around the filter: a peak rises below the cutoff as the level under it falls; self-oscillates from about 4.5",
+    outputs = {
+        output[DB24] = "output": "5-pole near-elliptic lowpass", default;
+    },
 }
-
-impl LpfLeapfrog {
-    fn init(&mut self, _sample_rate: f32) {
-        let base = crate::dsp::utils::rng::seed_base(self);
-        for (lane, state) in self.lane_state.iter_mut().enumerate() {
-            state.seed(base, lane);
-        }
-    }
-
-    /// The connected output and `highRes`.
-    fn key(&self) -> CoeffKey<Leapfrog> {
-        (
-            LpfLeapfrogOutputs::taps(&self.connected()),
-            self.params.high_res,
-            (),
-        )
-    }
-
-    fn update(&mut self, sample_rate: f32) {
-        let lanes = self.lane_count();
-        let key = self.key();
-        run::<Leapfrog>(
-            (),
-            lanes,
-            &Inputs {
-                input: &self.params.input,
-                filter: FilterParams {
-                    cutoff: &self.params.cutoff,
-                    resonance: &self.params.resonance,
-                    default_resonance: 0.0,
-                },
-                drive: &None,
-            },
-            key,
-            sample_rate,
-            &mut self.state,
-            &mut self.lane_state,
-            self.outputs.ports(),
-        );
-    }
-}
-
-impl PatchUpdateHandler for LpfLeapfrog {
-    fn on_patch_update(&mut self) {
-        let key = self.key();
-        self.state.on_patch_update(
-            key,
-            &self.params.cutoff,
-            &self.params.resonance,
-            &mut self.lane_state,
-        );
-    }
-}
-
-message_handlers!(impl LpfLeapfrog {});
