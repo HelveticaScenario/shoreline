@@ -27,6 +27,8 @@ import type {
 import { initialize } from 'monaco-editor/esm/vs/common/initialize.js';
 import { typescript as ts } from 'monaco-editor/esm/vs/language/typescript/lib/typescriptServices.js';
 import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js';
+import type { AssetKind } from '../../../shared/assetFiles';
+import { assetKindAt } from '../../../shared/dsl/assetArguments';
 import { trackNameError } from '../../../shared/dsl/trackLabels';
 import { declarationNameAt } from './declarationName';
 import { isDocsExample, isVisibleFrom } from './docsExampleFiles';
@@ -526,6 +528,29 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return view ? sites.filter((site) => site.start < view.length) : sites;
     }
 
+    /** The kind of file the string literal at `position` names, if its call tells. */
+    async getAssetKind(
+        fileName: string,
+        position: number,
+        tables: SignalSiteTables,
+    ): Promise<AssetKind | null> {
+        const sourceFile = this.getLanguageService()
+            .getProgram()
+            ?.getSourceFile(fileName);
+        if (!sourceFile) {
+            return null;
+        }
+        const chainable = new Set(
+            Object.entries(tables.modules)
+                .filter(([, info]) => info.chainable)
+                .map(([name]) => name),
+        );
+        return (
+            assetKindAt(ts, sourceFile, tables.assets, chainable, position) ??
+            null
+        );
+    }
+
     /** `declarationNameAt` over the current program, or null before one exists. */
     async getDeclarationName(
         fileName: string,
@@ -607,6 +632,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
 export type DslTypeScriptWorkerApi = Pick<
     DslTypeScriptWorker,
     | 'getSignalSites'
+    | 'getAssetKind'
     | 'getLocalRefactors'
     | 'getLocalRefactorEdits'
     | 'getTrackRenameError'

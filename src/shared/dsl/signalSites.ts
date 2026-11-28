@@ -21,6 +21,7 @@ import {
     type OutputResolutionRecord,
     type ResolvableOutput,
 } from './outputResolutionRule';
+import type { AssetArguments } from './assetArguments';
 import { type Channels, collectionChannels, liftedChannels } from './channels';
 import { FIRST_LINE_COLUMN_OFFSET } from './spanTypes';
 import { parseTrackLabel } from './trackLabels';
@@ -63,7 +64,10 @@ export type ChainMethods = Readonly<
  */
 export const FOLLOWS_RECEIVER: ReadonlySet<string> = new Set(['scope']);
 
-/** Everything about the DSL the collector needs; plain data, built in main. */
+/**
+ * Everything about the DSL the collector and path completion need; plain
+ * data, built in main.
+ */
 export interface SignalSiteTables {
     /** Outputs of each root type, keyed by its qualified type name. */
     roots: Record<string, ResolvableOutput[]>;
@@ -76,6 +80,8 @@ export interface SignalSiteTables {
     monoTypes: string[];
     /** Members that are mono on a value of each qualified type name. */
     monoMembers: Record<string, string[]>;
+    /** The file kind of each positional argument of the calls that take files. */
+    assets: AssetArguments;
 }
 
 /** One value position in a patch. */
@@ -416,8 +422,7 @@ export function collectSignalSites(
     ): { receiver: TS.Expression; module: ModuleSiteInfo } | undefined => {
         const names: string[] = [];
         let found:
-            | { receiver: TS.Expression; module: ModuleSiteInfo }
-            | undefined;
+            { receiver: TS.Expression; module: ModuleSiteInfo } | undefined;
         let node: TS.Expression = callee;
         while (ts.isPropertyAccessExpression(node)) {
             names.unshift(node.name.text);
