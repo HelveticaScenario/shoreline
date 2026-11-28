@@ -225,8 +225,7 @@ const APF_WASP_DOCS: ModuleDocs = ModuleDocs {
             title: "Phaser",
             code: r#"
                 chord: $saw('c3:M9')
-                  .apfWasp($sine('0.3hz').range('c4', 'c7'), 2)
-                  .wet(2.5)
+                  .apfWasp($sine('0.3hz').range('c4', 'c7'), 2).wet(2.5)
                   .gain(4.5)
             "#,
         },
@@ -234,8 +233,7 @@ const APF_WASP_DOCS: ModuleDocs = ModuleDocs {
             title: "Sharper sweep",
             code: r#"
                 lead: $pulse('c3')
-                  .apfWasp($sine('0.2hz').range('c5', 'c7'), 4)
-                  .wet(2.5)
+                  .apfWasp($sine('0.2hz').range('c5', 'c7'), 4).wet(2.5)
             "#,
         },
     ],

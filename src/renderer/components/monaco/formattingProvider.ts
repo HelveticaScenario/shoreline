@@ -4,6 +4,7 @@ import * as prettierEstree from 'prettier/plugins/estree';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { PrettierConfig, QuoteStyle } from '../../../shared/ipcTypes';
 import { quoteStylePlugin } from './quoteStyle';
+import { wetChainPlugin } from './wetChain';
 
 export const DEFAULT_PRETTIER_OPTIONS = {
     printWidth: 60,
@@ -48,7 +49,12 @@ export async function formatDsl(
         ...resolvePrettierOptions(userConfig),
         // Parser and plugins must not be overridden
         parser: 'babel',
-        plugins: [prettierBabel, prettierEstree as never, quoteStylePlugin],
+        plugins: [
+            prettierBabel,
+            prettierEstree as never,
+            quoteStylePlugin,
+            wetChainPlugin,
+        ],
     });
     return formatted.trimEnd();
 }
