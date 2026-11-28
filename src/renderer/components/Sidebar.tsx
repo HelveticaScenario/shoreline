@@ -6,31 +6,26 @@ import {
     Settings,
     SlidersHorizontal,
 } from 'lucide-react';
-import { type ReactNode, useEffect, useState } from 'react';
+import { type ReactNode, useEffect, useLayoutEffect, useState } from 'react';
+import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import type { AppConfig } from '../../shared/ipcTypes';
 import { registerCommand, unregisterCommand } from '../keybindings/commands';
 import { DocsPanel } from './DocsPanel';
 import type { DocsState } from '../hooks/useBottomPanel';
-import { Sash } from './Sash';
 import { SettingsPanel } from './SettingsPanel';
-import {
-    SIDEBAR_MIN_WIDTH,
-    sidebarMaxWidth,
-    sidebarPanelStyle,
-    useSidebarOpen,
-    useSidebarSide,
-    useSidebarWidth,
-} from './sidebarLayout';
+import { useStoredPanelSize } from '../hooks/useStoredPanelSize';
+import { useSidebarOpen, useSidebarSide } from './sidebarLayout';
 import './Sidebar.css';
 
 export type SidebarTab =
-    | 'explorer'
-    | 'control'
-    | 'perform'
-    | 'docs'
-    | 'settings';
+    'explorer' | 'control' | 'perform' | 'docs' | 'settings';
 
 const OPEN_SETTINGS_COMMAND = 'shoreline.openSettings';
+const WIDTH_STORAGE_KEY = 'modular_sidebar_width';
+const SIDEBAR_DEFAULT_WIDTH = 344;
+const SIDEBAR_MIN_WIDTH = 160;
+/** Room kept for the editor column when the sidebar grows. */
+const WORKSPACE_MIN_WIDTH = 240;
 
 const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
     { id: 'explorer', label: 'Explorer', icon: Files },
@@ -41,6 +36,8 @@ const TABS: { id: SidebarTab; label: string; icon: LucideIcon }[] = [
 ];
 
 interface SidebarProps {
+    /** The editor column the sidebar stands beside. */
+    children: ReactNode;
     explorerContent: ReactNode;
     controlContent: ReactNode;
     performContent: ReactNode;
@@ -53,7 +50,13 @@ interface SidebarProps {
     configLoaded: boolean;
 }
 
+/**
+ * The editor column beside a resizable sidebar panel, with the activity bar
+ * on the window's outer edge. The panel's width is remembered across
+ * launches.
+ */
 export function Sidebar({
+    children,
     explorerContent,
     controlContent,
     performContent,
@@ -75,8 +78,26 @@ export function Sidebar({
     const activeTab =
         selectedTab === 'docs' && !docsHere ? 'explorer' : selectedTab;
     const activeLabel = TABS.find(({ id }) => id === activeTab)?.label;
-    const [width, setWidth] = useSidebarWidth();
     const side = useSidebarSide(config.sidebarSide, configLoaded);
+    const panelRef = usePanelRef();
+    const width = useStoredPanelSize(
+        WIDTH_STORAGE_KEY,
+        SIDEBAR_DEFAULT_WIDTH,
+        panelRef,
+    );
+    const restoreWidth = width.restore;
+
+    // A closed panel stays mounted at zero width, so the panels inside keep
+    // their state. Moving it to the other side lays the group
+    // out afresh, so the width is applied again.
+    useLayoutEffect(() => {
+        if (open) {
+            panelRef.current?.expand();
+            restoreWidth();
+        } else {
+            panelRef.current?.collapse();
+        }
+    }, [open, side, panelRef, restoreWidth]);
 
     useEffect(() => {
         registerCommand(
@@ -100,26 +121,26 @@ export function Sidebar({
         setSelectedTab(id);
     };
 
-    return (
-        <div className={`app-sidebar ${side} ${open ? '' : 'collapsed'}`}>
-            {open && (
-                <Sash
-                    panelId="app-sidebar-panel"
-                    axis="x"
-                    grow={side === 'right' ? -1 : 1}
-                    min={SIDEBAR_MIN_WIDTH}
-                    max={sidebarMaxWidth}
-                    label="Resize sidebar"
-                    className="app-sidebar-sash"
-                    onSizeChange={setWidth}
-                />
-            )}
-            {/* Stays mounted while closed so panels keep their state. */}
+    const sidebarPanel = (
+        <Panel
+            style={{ overflow: 'hidden' }}
+            key="sidebar"
+            id="sidebar"
+            className="app-sidebar-panel-frame"
+            panelRef={panelRef}
+            defaultSize={width.defaultSize}
+            minSize={SIDEBAR_MIN_WIDTH}
+            collapsible
+            // Dragging the panel shut closes it, as in VS Code.
+            onResize={() => {
+                if (open && panelRef.current?.isCollapsed()) setOpen(false);
+            }}
+            groupResizeBehavior="preserve-pixel-size"
+        >
             <section
                 id="app-sidebar-panel"
                 className="app-sidebar-panel"
                 aria-labelledby="app-sidebar-title"
-                style={sidebarPanelStyle(width)}
                 hidden={!open}
             >
                 <h2 id="app-sidebar-title" className="app-sidebar-title">
@@ -147,6 +168,38 @@ export function Sidebar({
                     />
                 </div>
             </section>
+        </Panel>
+    );
+    const sash = open && (
+        <Separator
+            key="sash"
+            className={`app-sash ${side === 'right' ? 'into-next' : 'into-previous'}`}
+            aria-label="Resize sidebar"
+        />
+    );
+    const workspace = (
+        <Panel
+            style={{ overflow: 'hidden' }}
+            key="workspace"
+            id="workspace"
+            className="app-sidebar-workspace"
+            minSize={WORKSPACE_MIN_WIDTH}
+        >
+            {children}
+        </Panel>
+    );
+
+    return (
+        <div className={`app-sidebar ${side} ${open ? '' : 'collapsed'}`}>
+            <Group
+                className="app-sidebar-group"
+                orientation="horizontal"
+                onLayoutChanged={width.onLayoutChanged}
+            >
+                {side === 'left'
+                    ? [sidebarPanel, sash, workspace]
+                    : [workspace, sash, sidebarPanel]}
+            </Group>
             <nav className="app-activity-bar" aria-label="Sidebar panels">
                 {tabs.map(({ id, label, icon: Icon }) => {
                     const shown = shownTab === id;

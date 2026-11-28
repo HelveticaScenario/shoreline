@@ -126,6 +126,7 @@
         "react": "^19.3.1",
         "react-dom": "^19.3.1",
         "react-markdown": "^10.1.0",
+        "react-resizable-panels": "^4.26.0",
         "tinykeys": "^3.0.0",
         "typescript": "~5.9.3",
         "uuid": "^14.0.3",

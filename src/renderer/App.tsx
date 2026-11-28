@@ -285,51 +285,6 @@ function App() {
             />
 
             <main className="app-main">
-                <div className="app-workspace">
-                    {!workspace.root ? (
-                        <div className="empty-state">
-                            <button
-                                className="open-folder-button"
-                                onClick={fileActions.switchWorkspace}
-                            >
-                                Open Folder
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="editor-panel">
-                            <VideoBackdrop
-                                codeBackdropOpacity={codeBackdropOpacity}
-                                performanceScale={performanceScale}
-                            />
-                            <PatchEditor
-                                value={patchCode}
-                                runningBufferId={patch.runningBufferId}
-                                currentFile={activeBufferId}
-                                viewStates={files.viewStates}
-                                openFiles={buffers.map(getBufferId)}
-                                onChange={handleEditorChange}
-                                onEditorChange={setEditorInstance}
-                                scopeViews={patchUi.scopeViews}
-                                scopeDecorations={patchUi.scopeDecorations}
-                                videoPreviewDecorations={
-                                    patchUi.videoPreviews.decorations
-                                }
-                                videoPreviewZones={patchUi.videoPreviews.zones}
-                                onRegisterScopeCanvas={scopeCanvases.register}
-                                onUnregisterScopeCanvas={
-                                    scopeCanvases.unregister
-                                }
-                            />
-                            <PerformancePreview />
-                        </div>
-                    )}
-                    <BottomPanel
-                        state={bottomPanel}
-                        mixer={
-                            <VuMeterPanel mixer={mixer} onJump={jumpToTrack} />
-                        }
-                    />
-                </div>
                 <Sidebar
                     docs={bottomPanel.docs}
                     config={appConfig}
@@ -366,7 +321,56 @@ function App() {
                             onJump={controlActions.jumpTo}
                         />
                     }
-                />
+                >
+                    <BottomPanel
+                        state={bottomPanel}
+                        mixer={
+                            <VuMeterPanel mixer={mixer} onJump={jumpToTrack} />
+                        }
+                    >
+                        {!workspace.root ? (
+                            <div className="empty-state">
+                                <button
+                                    className="open-folder-button"
+                                    onClick={fileActions.switchWorkspace}
+                                >
+                                    Open Folder
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="editor-panel">
+                                <VideoBackdrop
+                                    codeBackdropOpacity={codeBackdropOpacity}
+                                    performanceScale={performanceScale}
+                                />
+                                <PatchEditor
+                                    value={patchCode}
+                                    runningBufferId={patch.runningBufferId}
+                                    currentFile={activeBufferId}
+                                    viewStates={files.viewStates}
+                                    openFiles={buffers.map(getBufferId)}
+                                    onChange={handleEditorChange}
+                                    onEditorChange={setEditorInstance}
+                                    scopeViews={patchUi.scopeViews}
+                                    scopeDecorations={patchUi.scopeDecorations}
+                                    videoPreviewDecorations={
+                                        patchUi.videoPreviews.decorations
+                                    }
+                                    videoPreviewZones={
+                                        patchUi.videoPreviews.zones
+                                    }
+                                    onRegisterScopeCanvas={
+                                        scopeCanvases.register
+                                    }
+                                    onUnregisterScopeCanvas={
+                                        scopeCanvases.unregister
+                                    }
+                                />
+                                <PerformancePreview />
+                            </div>
+                        )}
+                    </BottomPanel>
+                </Sidebar>
             </main>
             <BottomBar
                 tab={bottomPanel.tab}

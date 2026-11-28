@@ -3,46 +3,39 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .app-sidebar {
-    position: relative;
     display: flex;
     flex-direction: row;
-    height: 100%;
-    background: var(--bg-secondary);
-    border-left: 1px solid var(--border-subtle);
-    font-size: var(--font-size);
+    flex: 1;
+    min-width: 0;
 }
 
 /* The activity bar stays on the window's outer edge. */
 .app-sidebar.left {
-    order: -1;
     flex-direction: row-reverse;
-    border-left: none;
-    border-right: 1px solid var(--border-subtle);
+}
+
+.app-sidebar-group {
+    flex: 1;
+    min-width: 0;
+}
+
+.app-sidebar-panel-frame {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    font-size: var(--font-size);
 }
 
 .app-sidebar-panel {
     display: flex;
     flex-direction: column;
-    width: 32ch;
+    flex: 1;
+    min-height: 0;
     border-bottom: 1px solid var(--border-subtle);
 }
 
 .app-sidebar-panel[hidden] {
     display: none;
-}
-
-.app-sidebar-sash {
-    left: -1px;
-}
-
-.app-sidebar.left .app-sidebar-sash {
-    left: auto;
-    right: -1px;
-}
-
-.app-sidebar.left .app-sidebar-sash::after {
-    left: auto;
-    right: 0;
 }
 
 .app-sidebar-title {
@@ -122,10 +115,4 @@
 .app-activity-bar-item:focus-visible {
     outline: 1px solid var(--text-secondary);
     outline-offset: -1px;
-}
-
-/* With the panel closed, the sidebar's own border is the bar's only edge. */
-.app-sidebar.collapsed .app-activity-bar {
-    border-left: none;
-    border-right: none;
 }

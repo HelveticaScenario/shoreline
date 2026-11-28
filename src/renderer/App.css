@@ -47,11 +47,106 @@
 
 /* The editor with the bottom panel beneath it; the sidebar stands beside both. */
 .app-workspace {
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.app-workspace-editor {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-width: 0;
-    border-bottom: 1px solid var(--border-subtle);
+}
+
+/* A sash is the 1px border between two panels. Its grab strip reaches into
+   the panel it sizes, `into-previous` or `into-next`, leaving the editor's
+   scrollbar alone. */
+.app-sash {
+    position: relative;
+    z-index: 20;
+    outline: none;
+}
+
+.app-sash[aria-orientation='vertical'] {
+    width: 5px;
+}
+
+.app-sash[aria-orientation='horizontal'] {
+    height: 5px;
+}
+
+.app-sash.into-previous[aria-orientation='vertical'] {
+    margin-left: -4px;
+}
+
+.app-sash.into-next[aria-orientation='vertical'] {
+    margin-right: -4px;
+}
+
+.app-sash.into-next[aria-orientation='horizontal'] {
+    margin-bottom: -4px;
+}
+
+.app-sash::before,
+.app-sash::after {
+    content: '';
+    position: absolute;
+}
+
+.app-sash::before {
+    background: var(--border-subtle);
+}
+
+.app-sash::after {
+    background: transparent;
+    transition: background-color 0.1s;
+}
+
+.app-sash[aria-orientation='vertical']::before,
+.app-sash[aria-orientation='vertical']::after {
+    top: 0;
+    bottom: 0;
+}
+
+.app-sash[aria-orientation='horizontal']::before,
+.app-sash[aria-orientation='horizontal']::after {
+    left: 0;
+    right: 0;
+    top: 0;
+}
+
+.app-sash.into-previous[aria-orientation='vertical']::before,
+.app-sash.into-previous[aria-orientation='vertical']::after {
+    right: 0;
+}
+
+.app-sash.into-next[aria-orientation='vertical']::before,
+.app-sash.into-next[aria-orientation='vertical']::after {
+    left: 0;
+}
+
+.app-sash[aria-orientation='vertical']::before {
+    width: 1px;
+}
+
+.app-sash[aria-orientation='horizontal']::before {
+    height: 1px;
+}
+
+.app-sash[aria-orientation='vertical']::after {
+    width: 2px;
+}
+
+.app-sash[aria-orientation='horizontal']::after {
+    height: 2px;
+}
+
+.app-sash[data-separator='hover']::after {
+    transition-delay: 0.3s;
+    background: var(--accent-primary);
+}
+
+.app-sash[data-separator='active']::after,
+.app-sash[data-separator='focus']::after {
+    transition-delay: 0s;
+    background: var(--accent-primary);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
