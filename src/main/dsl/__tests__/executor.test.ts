@@ -2235,6 +2235,27 @@ describe('script execution environment', () => {
         ).toThrow(/loading files — loaded files stay cached/);
     }, 15_000);
 
+    test('a timeout spent loading uncached .syx files promises no re-run progress', () => {
+        expect(() =>
+            executePatchScript(
+                "out: $mi.sixOp('c3', '/dx7/rom.syx')",
+                schemas,
+                {
+                    ...DEFAULT_EXECUTION_OPTIONS,
+                    loaders: {
+                        syx: () => {
+                            const end = performance.now() + 10_000;
+                            while (performance.now() < end) {
+                                // Burn wall-clock time, like reading a slow disk.
+                            }
+                            return [{ name: 'VOICE', data: '00'.repeat(128) }];
+                        },
+                    },
+                },
+            ),
+        ).toThrow(/s of it loading files$/);
+    }, 15_000);
+
     test('top-level return ends the patch script early', () => {
         const patch = execPatch('out: $sine("c")\nreturn\nout2: $saw("c")');
         expect(findModules(patch, '$sine').length).toBe(1);

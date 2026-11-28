@@ -40,18 +40,24 @@ export interface AssetLoaders {
     mediaAudio: (path: string) => LoadedWav | null;
 }
 
-const LOADER_NAMES: Record<keyof AssetLoaders, string> = {
-    wav: 'WAV',
-    syx: '.syx',
-    mediaAudio: 'media audio',
+/** Each loader's name in errors, and whether the engine keeps what it read. */
+const LOADERS: Record<keyof AssetLoaders, { name: string; cached: boolean }> = {
+    wav: { name: 'WAV', cached: true },
+    syx: { name: '.syx', cached: false },
+    mediaAudio: { name: 'media audio', cached: true },
 };
+
+/** Whether a second load of the same file is served from the engine's cache. */
+export function loaderCaches(loader: keyof AssetLoaders): boolean {
+    return LOADERS[loader].cached;
+}
 
 /** The error for a host that gives no `loader`, naming `fn`. */
 export function loaderUnavailable(
     fn: string,
     loader: keyof AssetLoaders,
 ): Error {
-    return new Error(`${fn}: ${LOADER_NAMES[loader]} loading is not available`);
+    return new Error(`${fn}: ${LOADERS[loader].name} loading is not available`);
 }
 
 /** Runs the `loader` host call on `path`, or throws an error naming `fn`. */

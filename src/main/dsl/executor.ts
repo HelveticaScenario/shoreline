@@ -66,6 +66,7 @@ import { VIDEO_DOCS } from '../../shared/dsl/videoDocs';
 import { enoscScalePresets } from '../../shared/dsl/enoscScales';
 import { assetPath } from './assetPath';
 import {
+    loaderCaches,
     loaderUnavailable,
     wavRef,
     type AssetLoaders,
@@ -744,27 +745,36 @@ export function executePatchScript(
     // Wall-clock time this run spends inside synchronous host loads. The vm
     // timeout below measures total wall-clock time of the run, so this
     // distinguishes a patch stuck in a loop from one legitimately spending
-    // its budget reading files from disk. `assetLoadStart` marks a load in
-    // flight: the timeout terminates all JS in the isolate, so the
+    // its budget reading files from disk. `cachedMs` is the part spent in
+    // loads the engine caches, which a re-run skips. `inFlight` marks a
+    // load in progress: the timeout terminates all JS in the isolate, so the
     // post-load accumulation may never run and the catch block below must
     // count the interrupted load itself.
-    let assetLoadMs = 0;
-    let assetLoadStart: number | null = null;
+    const loading: {
+        totalMs: number;
+        cachedMs: number;
+        inFlight: { start: number; cached: boolean } | null;
+    } = { totalMs: 0, cachedMs: 0, inFlight: null };
 
     /** Runs a host load, billing its time to asset loading. */
     const loadAsset: LoadAsset = (fn, loader, path) => {
         const load = options.loaders?.[loader];
         if (!load) throw loaderUnavailable(fn, loader);
-        const loadStart = performance.now();
-        assetLoadStart = loadStart;
+        const current = {
+            start: performance.now(),
+            cached: loaderCaches(loader),
+        };
+        loading.inFlight = current;
         try {
             return load(path) as ReturnType<AssetLoaders[typeof loader]>;
         } finally {
             // Also on throw: the time was still spent loading, and a
-            // stale assetLoadStart would bill everything after a caught
-            // load failure — even an infinite loop — to asset loading.
-            assetLoadMs += performance.now() - loadStart;
-            assetLoadStart = null;
+            // stale inFlight would bill everything after a caught load
+            // failure — even an infinite loop — to asset loading.
+            const ms = performance.now() - current.start;
+            loading.totalMs += ms;
+            if (current.cached) loading.cachedMs += ms;
+            loading.inFlight = null;
         }
     };
     context.setAssetLoader(loadAsset);
@@ -1038,17 +1048,22 @@ export function executePatchScript(
         ) {
             // The timeout counts wall-clock time, including synchronous host
             // call-outs. When most of the budget went to loading files
-            // (slow/cold disk, big library), say so — the engine keeps the
-            // audio it has decoded, so a re-run makes progress.
+            // (slow/cold disk, big library), say so, and when most of it went
+            // to files the engine caches, a re-run makes progress.
             const seconds = executionTimeoutMs / 1000;
-            const totalLoadMs =
-                assetLoadMs +
-                (assetLoadStart !== null
-                    ? performance.now() - assetLoadStart
-                    : 0);
+            const { inFlight } = loading;
+            const inFlightMs =
+                inFlight !== null ? performance.now() - inFlight.start : 0;
+            const totalLoadMs = loading.totalMs + inFlightMs;
+            const totalCachedMs =
+                loading.cachedMs + (inFlight?.cached ? inFlightMs : 0);
+            const rerun =
+                totalCachedMs >= executionTimeoutMs / 2
+                    ? ' — loaded files stay cached, so run again to continue'
+                    : '';
             const message =
                 totalLoadMs >= executionTimeoutMs / 2
-                    ? `DSL execution error: Patch script timed out after ${seconds}s, ${(totalLoadMs / 1000).toFixed(1)}s of it loading files — loaded files stay cached, so run again to continue`
+                    ? `DSL execution error: Patch script timed out after ${seconds}s, ${(totalLoadMs / 1000).toFixed(1)}s of it loading files${rerun}`
                     : `DSL execution error: Patch script timed out after ${seconds}s — check for infinite loops`;
             throw new Error(message, { cause: error });
         }
