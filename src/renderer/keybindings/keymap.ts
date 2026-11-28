@@ -222,6 +222,9 @@ export function installKeymap(
     target: Window | HTMLElement = window,
 ): InstallKeymapResult {
     commandBindings = buildCommandBindings(entries);
+    for (const listener of bindingListeners) {
+        listener();
+    }
     const groups = groupByKey(entries);
     const map = buildBindingMap(groups);
     // Stop chord leaders (e.g. the Cmd+K of "Cmd+K Cmd+C") from reaching Monaco
@@ -297,6 +300,16 @@ function installChordLeaderGuard(
 // to a command. The raw binding (chord-capable) drives the palette's key
 // chips; the application menu derives a single-combo Electron accelerator.
 let commandBindings: Record<string, string> = {};
+
+const bindingListeners = new Set<() => void>();
+
+/** Calls `listener` after each install replaces the command bindings. */
+export function subscribeCommandBindings(listener: () => void): () => void {
+    bindingListeners.add(listener);
+    return () => {
+        bindingListeners.delete(listener);
+    };
+}
 
 function buildCommandBindings(
     entries: readonly ResolvedKeybinding[],

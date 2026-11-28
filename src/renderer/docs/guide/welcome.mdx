@@ -1,0 +1,24 @@
+## A first sound
+
+A line that starts with a name and a colon is a **track**. Open a new file
+with <Key command="shoreline.newFile" />, type the line below, then press
+<Key command="shoreline.updatePatch" /> to play it.
+
+```js
+tone: $sine('c4')
+```
+
+While it plays, change `` `c4` `` to `` `e4` `` and press
+<Key command="shoreline.updatePatch" /> again. The new version takes over at
+the start of the next bar, and the sound never stops: the sine just moves to
+the new note. That is the whole workflow: change something, update, listen.
+When you've heard enough, press <Key command="shoreline.stop" /> to stop.
+
+<Tip title="Help as you type">
+
+Type `$` and autocomplete lists every module. Once one is in your code, hover
+over its name, like `$sine` above, to read what it does, with an example. While
+you type its arguments, the editor shows what each one is for. When you'd rather
+browse, the **Modules** and **Globals** pages of this panel list everything.
+
+</Tip>

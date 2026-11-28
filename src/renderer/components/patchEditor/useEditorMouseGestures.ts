@@ -1,9 +1,13 @@
 import { useEffect, useEffectEvent } from 'react';
 import type { editor } from 'monaco-editor';
 import electronAPI from '../../electronAPI';
-import { buildEditorMenuItems } from '../../keybindings/editorMenuItems';
+import {
+    buildEditorMenuItems,
+    placeContextMenuCaret,
+} from '../../keybindings/editorMenuItems';
 import { dispatchCommand } from '../../keybindings/dispatch';
 import { installWorkspacePathDrop } from '../monaco/workspacePathCompletion';
+import { hasDefinitionDocs } from '../monaco/definitionDocs';
 import type { EditorCodeFormat } from './codeFormat';
 
 interface EditorMouseGesturesParams {
@@ -15,8 +19,8 @@ interface EditorMouseGesturesParams {
 
 /**
  * The mouse gestures the editor adds to Monaco's own: a right-click opens
- * the native context menu, Cmd/Ctrl + click peeks a definition, and a file
- * dragged from the explorer drops in as its path.
+ * the native context menu, Cmd/Ctrl + click opens a name's docs or peeks its
+ * definition, and a file dragged from the explorer drops in as its path.
  */
 export function useEditorMouseGestures({
     editor,
@@ -36,20 +40,11 @@ export function useEditorMouseGestures({
             // Focus on every right-click (editor convention) so the native
             // clipboard roles act on this editor.
             editor.focus();
-            const position = e.target.position;
-            const selection = editor.getSelection();
-            // Right-clicking outside the current selection collapses the caret
-            // to the click point so paste lands where the user clicked; an
-            // existing selection is preserved so copy/cut act on it.
-            if (
-                position &&
-                (!selection || !selection.containsPosition(position))
-            ) {
-                editor.setPosition(position);
-            }
+            placeContextMenuCaret(editor, e.target.position);
             void electronAPI.showContextMenu({
-                type: 'editor',
                 items: buildEditorMenuItems(editor),
+                target: 'editor',
+                type: 'editor',
             });
         });
         const disposeCommandSub = electronAPI.onContextMenuCommand((action) => {
@@ -70,7 +65,7 @@ export function useEditorMouseGestures({
         };
     }, [editor]);
 
-    // Cmd (Mac) / Ctrl (Win/Linux) + click peeks a DSL symbol's definition.
+    // Cmd (Mac) / Ctrl (Win/Linux) + click peeks a definition no docs cover.
     useEffect(() => {
         if (!editor || !dslReady) {
             return;
@@ -79,11 +74,25 @@ export function useEditorMouseGestures({
             if (!e.event.metaKey && !e.event.ctrlKey) {
                 return;
             }
-            if (e.target.position == null || !editor.getModel()) {
+            const position = e.target.position;
+            const model = editor.getModel();
+            if (position == null || !model) {
                 return;
             }
             editor.focus();
-            editor.trigger('api', 'editor.action.peekDefinition', {});
+            // Monaco's own Cmd/Ctrl + click goes to the definition, which
+            // opens the docs of a name they cover; anything else peeks. That
+            // go-to has moved the caret by the time the lookup answers, so
+            // the peek is placed back at the clicked name.
+            void hasDefinitionDocs(model, position)
+                .catch(() => false)
+                .then((docs) => {
+                    if (docs || editor.getModel() !== model) {
+                        return;
+                    }
+                    editor.setPosition(position);
+                    editor.trigger('api', 'editor.action.peekDefinition', {});
+                });
         });
         return () => disposable.dispose();
     }, [editor, dslReady]);
