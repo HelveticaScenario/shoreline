@@ -1,6 +1,6 @@
 kind: Breaking
 body: |-
-    The `$unstable` modules are gone. `$unstable.reverb2` is now `$hall`, with the same sound and params, and is marked experimental, so its sound and params may still change. `$unstable.reverb` is removed: `$hall` takes the same params, so a call keeps its arguments, but the sound changes. The `$unstable.shape.*` modules are removed: use `$overdrive`, `$fold`, `$cheby` or `$softClip`, and retune `drive` or `amount` by ear, since their curves differ.
+    The rest of the `$unstable` modules are gone too. `$unstable.reverb2` is now `$hall`, with the same sound and params, and is marked experimental, so its sound and params may still change. `$unstable.reverb` is removed: `$hall` takes the same params, so a call keeps its arguments, but the sound changes. The `$unstable.shape.*` modules are removed: use `$overdrive`, `$fold`, `$cheby` or `$softClip`, and retune `drive` or `amount` by ear, since their curves differ.
 
     ```js
     // before
