@@ -297,8 +297,7 @@ const HALL_DOCS: ModuleDocs = ModuleDocs {
             const notes = $`c5 g4 eb5 ~`
             melody: $sine(notes)
               .amp($perc(notes, { decay: 0.15 }))
-              .hall({ decay: 4, damping: 4 })
-              .wet(3)
+              .hall({ decay: 4, damping: 4 }).wet(3)
         "#,
     }],
 };

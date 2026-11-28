@@ -1,8 +1,8 @@
-//! `$lpf`, `$hpf`, `$bpf`, `$notch` and their Sallen-Key, ladder, diode,
-//! OTA and Wasp counterparts: each output has its response, the analog
-//! models self-oscillate in tune, or for the Wasp resonate in tune short of
-//! it, and stay bounded, and an output renders the same whichever others
-//! are read.
+//! `$lpf`, `$hpf`, `$bpf`, `$notch`, their Sallen-Key, ladder, diode,
+//! OTA and Wasp counterparts and `$lpfLeapfrog`: each output has its
+//! response, the analog models self-oscillate in tune, or for the Wasp
+//! resonate in tune short of it, and stay bounded, and an output renders
+//! the same whichever others are read.
 
 use modular_core::dsp::schema;
 use modular_core::dsp::utils::rng::TEST_SEED_BASE;
@@ -126,6 +126,9 @@ const ANALOG: [&str; 18] = [
     "$notchOta",
     "$apfOta",
 ];
+
+/// The leapfrog lowpass, which has the one output and sings below its cutoff.
+const LEAPFROG: &str = "$lpfLeapfrog";
 
 /// The Wasp filters, which have the one slope and never self-oscillate.
 const WASP: [&str; 5] = ["$lpfWasp", "$hpfWasp", "$bpfWasp", "$notchWasp", "$apfWasp"];
@@ -471,7 +474,7 @@ fn clean_filters_never_self_oscillate() {
 
 #[test]
 fn analog_filters_stay_bounded_under_audio_rate_modulation() {
-    for module_type in ANALOG {
+    for module_type in ANALOG.into_iter().chain([LEAPFROG]) {
         for resonance in [0.0, 4.0, 5.0] {
             let out = render(module_type, 110.0, 5.0, cable("mod"), resonance, 24_000);
             for (port, samples) in out {
@@ -511,7 +514,7 @@ fn outputs_render_the_same_whichever_others_are_read() {
             64,
         );
     }
-    for module_type in all().chain(WASP) {
+    for module_type in all().chain(WASP).chain([LEAPFROG]) {
         let ports: Vec<String> = schema()
             .into_iter()
             .find(|s| s.name == module_type)
@@ -538,5 +541,45 @@ fn outputs_render_the_same_whichever_others_are_read() {
         for params in variants {
             check_connections_agree(module_type, params, &ports, 2e-2, 192);
         }
+    }
+}
+
+#[test]
+fn the_leapfrog_is_a_rippling_brick_wall_with_nulls_at_2_and_3_times_the_cutoff() {
+    let gain = |ratio| gain_db(LEAPFROG, ratio)[0];
+    // The passband ripples between its peaks, at 2/3 of the cutoff and at
+    // the cutoff, and the troughs between them.
+    for ratio in [0.05, 2.0 / 3.0, 1.0] {
+        assert!(gain(ratio).abs() < 0.25, "{ratio}×: {} dB", gain(ratio));
+    }
+    for ratio in [0.25, 0.5, 0.8, 0.9] {
+        let db = gain(ratio);
+        assert!((-2.5..-0.5).contains(&db), "{ratio}×: {db} dB");
+    }
+    assert!(gain(1.25) < -20.0, "1.25×: {} dB", gain(1.25));
+    assert!(gain(1.5) < -36.0, "1.5×: {} dB", gain(1.5));
+    for ratio in [2.5, 4.0, 8.0] {
+        assert!(gain(ratio) < -60.0, "{ratio}×: {} dB", gain(ratio));
+    }
+    for ratio in [2.0, 3.0] {
+        assert!(gain(ratio) < -80.0, "{ratio}×: {} dB", gain(ratio));
+    }
+}
+
+#[test]
+fn the_leapfrog_self_oscillates_at_0_73_of_its_cutoff() {
+    for cutoff in [250.0, 1000.0, 4000.0] {
+        let quiet = render(LEAPFROG, 110.0, 0.001, json!(hz(cutoff)), 4.4, 48_000);
+        assert!(
+            peak(&quiet[0].1) < 0.05,
+            "{cutoff} Hz: {} V",
+            peak(&quiet[0].1)
+        );
+        let out = render(LEAPFROG, 110.0, 0.001, json!(hz(cutoff)), 5.0, 48_000);
+        let (volts, freq) = (peak(&out[0].1), frequency(&out[0].1));
+        assert!(
+            (0.2..16.0).contains(&volts) && (freq / cutoff / 0.73 - 1.0).abs() < 0.025,
+            "{cutoff} Hz: {volts} V at {freq} Hz"
+        );
     }
 }
