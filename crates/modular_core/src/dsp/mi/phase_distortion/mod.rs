@@ -260,7 +260,14 @@ impl Voice {
     #[inline(always)]
     fn step(&mut self, c: Controls, sync: bool, state: &PhaseDistortionState) -> f32 {
         if self.offset.seed() {
-            self.oscillator.seed(c.offset, c.ratio);
+            self.oscillator.seed(
+                c.offset,
+                c.ratio,
+                c.modulator,
+                c.pw,
+                c.amount,
+                state.max_frequency,
+            );
         }
         let phases = self.oscillator.render(
             sync,

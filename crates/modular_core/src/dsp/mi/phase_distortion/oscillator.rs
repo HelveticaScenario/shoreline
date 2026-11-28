@@ -66,6 +66,17 @@ impl Default for PdOscillator {
     }
 }
 
+/// `pw` kept far enough from the edges for a slave running at `slave`.
+#[inline(always)]
+fn width(slave: f32, pw: f32) -> f32 {
+    let speed = slave.abs();
+    if speed >= 0.25 {
+        0.5
+    } else {
+        constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
+    }
+}
+
 /// The slave's naive triangle, with its peak at `pw`, computed as Plaits'
 /// `ComputeNaiveSample` does for a pure triangle.
 #[inline(always)]
@@ -83,7 +94,18 @@ impl PdOscillator {
     /// slave where it would be had it started with the master at `ratio` times
     /// its frequency. Free running at a non-integer ratio, an offset a whole
     /// cycle further on starts the slave elsewhere.
-    pub fn seed(&mut self, offset: f32, ratio: f32) {
+    ///
+    ///
+    /// Away from offset 0 the shape starts at the first sample's `pw` and
+    /// `amount`, so the voice starts on its waveform rather than gliding into
+    /// it from the undistorted phasor.
+    pub fn seed(&mut self, offset: f32, ratio: f32, slave: f32, pw: f32, amount: f32, max: f32) {
+        if offset != 0.0 {
+            let pw = width(slave.clamp(-max, max), pw);
+            self.pw.set(pw, None);
+            self.phase_modulation.set(amount, None);
+            self.previous_pw = pw;
+        }
         let pw = self.previous_pw;
         self.master_phase = wrap(offset);
         self.offset.seed(offset);
@@ -120,12 +142,7 @@ impl PdOscillator {
     ) -> [f32; OVERSAMPLING] {
         let master = master.clamp(-max, max);
         let slave = slave.clamp(-max, max);
-        let speed = slave.abs();
-        let pw = if speed >= 0.25 {
-            0.5
-        } else {
-            constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
-        };
+        let pw = width(slave, pw);
         let length = Some(OVERSAMPLING as f32);
         self.master_frequency.set(master, length);
         self.slave_frequency.set(slave, length);

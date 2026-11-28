@@ -350,8 +350,8 @@ fn phase_offset_crossing_the_wrap_moves_smoothly() {
     for sync in [true, false] {
         let mut glided = PdOscillator::default();
         let mut sped = PdOscillator::default();
-        glided.seed(0.9, ratio);
-        sped.seed(0.9, ratio);
+        glided.seed(0.9, ratio, master * ratio, 0.6, 2.5, max);
+        sped.seed(0.9, ratio, master * ratio, 0.6, 2.5, max);
         let mut offset = 0.9f32;
         for n in 0..4000 {
             let moving = (500..2500).contains(&n);
@@ -470,6 +470,27 @@ fn offset_voice_waits_for_a_zero_crossing() {
     assert!(muted[..release].iter().all(|&v| v == 0.0));
     for (n, (m, o)) in muted.iter().zip(&open).enumerate().skip(release) {
         assert_eq!(m.to_bits(), o.to_bits(), "sample {n}");
+    }
+}
+
+/// A voice started at any offset starts on its waveform, so the mute opens
+/// with a step no larger than the wave's own steps.
+#[test]
+fn offset_voice_opens_without_a_jump() {
+    for n in 1..20 {
+        let mut m = module(true);
+        m.params.phase_offset = Some(PolySignal::mono(Signal::Volts(n as f32 * 0.05)));
+        let out = run(&mut m, 2000);
+        let largest = out[1000..]
+            .windows(2)
+            .map(|w| (w[1] - w[0]).abs())
+            .fold(0.0, f32::max);
+        let opening = out.iter().find(|&&v| v != 0.0).expect("the voice opens");
+        assert!(
+            opening.abs() <= largest,
+            "offset {}: opened on {opening}, steps reach {largest}",
+            n as f32 * 0.05
+        );
     }
 }
 
