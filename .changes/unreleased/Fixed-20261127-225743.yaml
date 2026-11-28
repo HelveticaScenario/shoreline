@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'When a patch times out while reading DX7 `.syx` files, the error no longer says running it again will continue: only samples and video sound stay loaded between runs.'
+time: 2026-11-27T22:57:43.631386-05:00
