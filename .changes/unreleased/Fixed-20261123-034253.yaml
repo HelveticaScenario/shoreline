@@ -1,3 +1,0 @@
-kind: Fixed
-body: Clicking and then double-clicking a file in the explorer before it has loaded no longer opens it twice.
-time: 2026-11-23T03:42:53.477636-05:00

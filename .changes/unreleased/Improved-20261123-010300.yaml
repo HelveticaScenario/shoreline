@@ -1,3 +1,0 @@
-kind: Improved
-body: '`$multimode` uses less CPU when only some of its outputs are patched, such as just its main output or `._lp`.'
-time: 2026-11-23T01:03:00.90068-05:00
