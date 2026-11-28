@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 
 use crate::drawing::Drawing;
 use crate::module_docs::{DocExample, ModuleDocs};
-use crate::poly::{PairSignal, PolyOutput};
+use crate::poly::{PairSignal, PolyOutput, PolySignal, PolySignalExt};
 use crate::reference_category::ReferenceCategory;
 
 #[params]
@@ -13,7 +13,7 @@ use crate::reference_category::ReferenceCategory;
 #[serde(rename_all = "camelCase")]
 #[deserr(rename_all = camelCase, deny_unknown_fields)]
 struct SvgParams {
-    #[input("the SVG drawing to trace")]
+    #[input("the SVG drawing to trace; with two or more top-level groups, each is a frame")]
     file: Drawing,
     #[input(
         "how far along the drawing the pen is, usually from `$ramp`; one cycle traces it once",
@@ -22,6 +22,15 @@ struct SvgParams {
         fold,
     )]
     phase: PairSignal,
+    #[input(
+        "which frame is drawn: 0 the first, 5 the last, blending between neighbours",
+        type = control,
+        default = 0.0,
+        range = (0.0, 5.0),
+        fold,
+    )]
+    #[deserr(default)]
+    position: Option<PolySignal>,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -43,19 +52,34 @@ const SVG_DOCS: ModuleDocs = ModuleDocs {
                   1, giving its position as a stereo signal, left–right on the left side and \
                   up–down on the right, for `$scopeXY` or a vector display. \
                   The drawing is fitted to ±5 V, and the pen jumps between separate strokes \
-                  without drawing, so a drawing made of one continuous line traces cleanest.",
+                  without drawing, so a drawing made of one continuous line traces cleanest. \
+                  A drawing whose top-level groups (an editor's layers) each hold one frame \
+                  animates as `position` sweeps through them, like a wavetable.",
     categories: &[ReferenceCategory::Phase],
     sections: &[],
-    examples: &[DocExample {
-        title: "Draw a plover",
-        code: r#"
+    examples: &[
+        DocExample {
+            title: "Draw a plover",
+            code: r#"
             const pen = $svg(
               'builtin/drawings/plover.svg',
               $ramp('20hz'),
             )
             $scopeXY(pen)
         "#,
-    }],
+        },
+        DocExample {
+            title: "Morph between frames",
+            code: r#"
+            const pen = $svg(
+              'builtin/drawings/shapes.svg',
+              $ramp('50hz'),
+              $sine('0.1hz').range(0, 5),
+            )
+            $scopeXY(pen)
+        "#,
+        },
+    ],
 };
 
 /// One stereo lane per phase lane.
@@ -67,7 +91,7 @@ fn svg_derive_lane_count(params: &SvgParams) -> usize {
     name = "$svg",
     docs = SVG_DOCS,
     lanes_derive = svg_derive_lane_count,
-    args(file, phase),
+    args(file, phase, position),
     stereo = stereo,
     experimental,
 )]
@@ -80,7 +104,11 @@ impl Svg {
     fn update(&mut self, _sample_rate: f32) {
         // Lane `l` side `c` is lane `l * 2 + c`.
         for lane in 0..self.lane_count() / 2 {
-            let [x, y] = self.params.file.trace(self.params.phase.get_folded(lane));
+            let p = &self.params;
+            let [x, y] = p.file.trace(
+                p.phase.get_folded(lane),
+                p.position.folded_or(lane, SvgParams::POSITION_DEFAULT),
+            );
             self.outputs.sample.set(lane * 2, x);
             self.outputs.sample.set(lane * 2 + 1, y);
         }

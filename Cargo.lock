@@ -1402,6 +1402,7 @@ dependencies = [
  "parking_lot",
  "paste",
  "regex",
+ "roxmltree",
  "rustfft",
  "schemars",
  "serde",

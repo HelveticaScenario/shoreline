@@ -114,6 +114,11 @@ export const BUILTIN_DRAWINGS: readonly BuiltinDrawing[] = [
         description:
             'A piping plover standing on one leg, with its eye, collar, wing and tail drawn in.',
     },
+    {
+        path: `${BUILTIN_PREFIX}drawings/shapes.svg`,
+        description:
+            'Three frames, a circle, a square and a star, each drawn clockwise from the top so they morph cleanly.',
+    },
 ];
 
 /** Every bundled wavetable WAV. */
