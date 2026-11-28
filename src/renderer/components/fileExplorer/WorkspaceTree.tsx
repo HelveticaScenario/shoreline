@@ -17,9 +17,11 @@ import {
     type DragEvent,
     type KeyboardEvent,
     type MouseEvent,
+    type RefObject,
 } from 'react';
 import {
     Tree,
+    type DragPreviewProps,
     type NodeApi,
     type NodeRendererProps,
     type TreeApi,
@@ -59,6 +61,27 @@ const RowContext = createContext<RowContext | null>(null);
 
 const isAsset = (entry: FileTreeEntry) =>
     entry.fileType !== undefined && entry.fileType !== 'patch';
+
+/** What the drag preview needs from the tree that renders it. */
+interface PreviewContext {
+    tree: RefObject<TreeApi<FileTreeEntry> | null>;
+    /** Whether a drag is over the tree. */
+    dragInside: boolean;
+}
+
+const PreviewContext = createContext<PreviewContext | null>(null);
+
+function EntryIcon({ node }: { node: NodeApi<FileTreeEntry> }) {
+    if (node.isInternal) {
+        return node.isOpen ? (
+            <FolderOpen className="tree-icon" aria-hidden />
+        ) : (
+            <Folder className="tree-icon" aria-hidden />
+        );
+    }
+    const FileIcon = FILE_ICONS[node.data.fileType ?? 'patch'];
+    return <FileIcon className="tree-icon" aria-hidden />;
+}
 
 const childrenOf = (entry: FileTreeEntry) =>
     entry.type === 'directory' ? (entry.children ?? []) : null;
@@ -127,6 +150,7 @@ export function WorkspaceTree({
     const [initialOpenState] = useState(readExpandedFolders);
     const [probeRef, { indent, rowHeight }] = useRowMetrics();
     const [setContainer, container, { width, height }] = useElementSize();
+    const [dragInside, setDragInside] = useState(false);
 
     const activeId =
         ctx.activeFilePath?.startsWith(`${ctx.workspaceRoot}/`) === true
@@ -151,68 +175,104 @@ export function WorkspaceTree({
             className="workspace-tree"
             ref={setContainer}
             onKeyDown={handleKeyDown}
+            onDragEnter={() => setDragInside(true)}
+            onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                    setDragInside(false);
+                }
+            }}
+            onDragEnd={() => setDragInside(false)}
+            onDrop={() => setDragInside(false)}
         >
             <div className="workspace-tree-probe" ref={probeRef} aria-hidden />
             {container && rowHeight > 0 && (
-                <RowContext.Provider value={ctx}>
-                    <Tree<FileTreeEntry>
-                        ref={treeRef}
-                        data={fileTree}
-                        idAccessor="path"
-                        childrenAccessor={childrenOf}
-                        openByDefault={false}
-                        initialOpenState={initialOpenState}
-                        selection={activeId}
-                        disableMultiSelection
-                        disableEdit
-                        disableDrop={({ parentNode, dragNodes }) =>
-                            dragNodes.every(
-                                (n) => n.parent?.id === parentNode.id,
-                            )
-                        }
-                        onActivate={(node) => openNode(node, ctx, true)}
-                        onToggle={() => {
-                            const tree = treeRef.current;
-                            if (tree) {
-                                storeExpandedFolders(tree.openState, fileTree);
+                <PreviewContext.Provider value={{ dragInside, tree: treeRef }}>
+                    <RowContext.Provider value={ctx}>
+                        <Tree<FileTreeEntry>
+                            ref={treeRef}
+                            data={fileTree}
+                            idAccessor="path"
+                            childrenAccessor={childrenOf}
+                            openByDefault={false}
+                            initialOpenState={initialOpenState}
+                            selection={activeId}
+                            disableMultiSelection
+                            disableEdit
+                            disableDrop={({ parentNode, dragNodes }) =>
+                                dragNodes.every(
+                                    (n) => n.parent?.id === parentNode.id,
+                                )
                             }
-                        }}
-                        onMove={({ dragNodes, parentNode }) => {
-                            const dir =
-                                parentNode && !parentNode.isRoot
-                                    ? `${parentNode.data.path}/`
-                                    : '';
-                            for (const node of dragNodes) {
-                                onMove(
-                                    node.data.path,
-                                    `${dir}${node.data.name}`,
-                                );
-                            }
-                        }}
-                        dndRootElement={container}
-                        renderCursor={NoCursor}
-                        renderDragPreview={NoDragPreview}
-                        width={width}
-                        height={height}
-                        rowHeight={rowHeight}
-                        indent={indent}
-                        className="workspace-tree-list"
-                        rowClassName="workspace-tree-row"
-                        aria-label="Workspace files"
-                    >
-                        {TreeRow}
-                    </Tree>
-                </RowContext.Provider>
+                            onActivate={(node) => openNode(node, ctx, true)}
+                            onToggle={() => {
+                                const tree = treeRef.current;
+                                if (tree) {
+                                    storeExpandedFolders(
+                                        tree.openState,
+                                        fileTree,
+                                    );
+                                }
+                            }}
+                            onMove={({ dragNodes, parentNode }) => {
+                                const dir =
+                                    parentNode && !parentNode.isRoot
+                                        ? `${parentNode.data.path}/`
+                                        : '';
+                                for (const node of dragNodes) {
+                                    onMove(
+                                        node.data.path,
+                                        `${dir}${node.data.name}`,
+                                    );
+                                }
+                            }}
+                            dndRootElement={container}
+                            renderCursor={NoCursor}
+                            renderDragPreview={DragPreview}
+                            width={width}
+                            height={height}
+                            rowHeight={rowHeight}
+                            // A screenful of rows past each edge, so a fast
+                            // scroll never shows blank space before they render.
+                            overscanCount={Math.ceil(height / rowHeight)}
+                            indent={indent}
+                            className="workspace-tree-list"
+                            rowClassName="workspace-tree-row"
+                            aria-label="Workspace files"
+                        >
+                            {TreeRow}
+                        </Tree>
+                    </RowContext.Provider>
+                </PreviewContext.Provider>
             )}
         </div>
     );
 }
 
 // Moves always land in a folder, whose rows highlight instead of a line
-// between rows, and the browser's own drag image follows the pointer out
-// of the tree into the editor.
+// between rows.
 const NoCursor = () => null;
-const NoDragPreview = () => null;
+
+/**
+ * The row a patch file or folder drag carries, shown only over the tree since
+ * such a drag can land nowhere else. An asset drag shows the browser's own
+ * drag image instead, which follows the pointer into the editor.
+ */
+function DragPreview({ id, offset, isDragging }: DragPreviewProps) {
+    const { dragInside, tree } = useContext(PreviewContext)!;
+    const node = id ? tree.current?.get(id) : null;
+    if (!isDragging || !dragInside || !offset || !node || isAsset(node.data)) {
+        return null;
+    }
+    return (
+        <div
+            className="tree-entry tree-drag-preview"
+            style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        >
+            <EntryIcon node={node} />
+            <span className="tree-name">{node.data.name}</span>
+        </div>
+    );
+}
 
 function TreeRow({
     node,
@@ -232,12 +292,6 @@ function TreeRow({
         !destination.isRoot &&
         (destination.id === node.id || destination.isAncestorOf(node));
 
-    const Icon = node.isInternal
-        ? node.isOpen
-            ? FolderOpen
-            : Folder
-        : FILE_ICONS[entry.fileType ?? 'patch'];
-
     const className = [
         'tree-entry',
         node.isInternal ? 'tree-folder' : 'tree-file',
@@ -250,17 +304,22 @@ function TreeRow({
         .filter(Boolean)
         .join(' ');
 
+    // Only an asset may land in the editor, as a copy of its path. Any other
+    // entry only moves, so the editor refuses it, and it keeps the tree's
+    // empty drag image so no ghost of it follows the pointer there.
     const handleDragStart = (e: DragEvent<HTMLDivElement>) => {
+        if (!asset) {
+            e.dataTransfer.effectAllowed = 'move';
+            return;
+        }
         const rect = e.currentTarget.getBoundingClientRect();
         e.dataTransfer.setDragImage(
             e.currentTarget,
             e.clientX - rect.left,
             e.clientY - rect.top,
         );
-        if (asset) {
-            e.dataTransfer.setData(WORKSPACE_PATH_MIME, `/${entry.path}`);
-            e.dataTransfer.effectAllowed = 'copyMove';
-        }
+        e.dataTransfer.setData(WORKSPACE_PATH_MIME, `/${entry.path}`);
+        e.dataTransfer.effectAllowed = 'copyMove';
     };
 
     return (
@@ -274,10 +333,10 @@ function TreeRow({
                 asset ? `Drag into the editor to use /${entry.path}` : undefined
             }
             onDoubleClick={() => openNode(node, ctx, false)}
-            onContextMenu={(e) => !asset && ctx.onContextMenu(e, entry)}
+            onContextMenu={(e) => ctx.onContextMenu(e, entry)}
             onDragStart={handleDragStart}
         >
-            <Icon className="tree-icon" aria-hidden />
+            <EntryIcon node={node} />
             {isRenaming ? (
                 <RenameInput
                     name={entry.name}

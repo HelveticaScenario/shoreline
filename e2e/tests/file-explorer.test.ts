@@ -206,4 +206,42 @@ test.describe('workspace tree', () => {
             )
             .toContain('/samples/kick.wav');
     });
+
+    test('a patch file drags only within the tree, never into the editor', async ({
+        window,
+    }) => {
+        await row(window, 'loose.js').dblclick();
+        await window.evaluate(() => {
+            window.addEventListener('dragstart', (e) => {
+                (window as { lastEffectAllowed?: string }).lastEffectAllowed =
+                    e.dataTransfer?.effectAllowed;
+            });
+        });
+        const preview = window.locator('.tree-drag-preview');
+        const source = (await row(window, 'loose.js').boundingBox())!;
+        const editor = (await window
+            .locator('.monaco-editor .view-lines')
+            .first()
+            .boundingBox())!;
+
+        await window.mouse.move(source.x + 20, source.y + source.height / 2);
+        await window.mouse.down();
+        await window.mouse.move(source.x + 25, source.y + 4, { steps: 3 });
+        await expect(preview).toHaveText('loose.js');
+
+        await window.mouse.move(editor.x + 50, editor.y + 20, { steps: 10 });
+        await expect(preview).toHaveCount(0);
+        await window.mouse.up();
+
+        expect(
+            await window.evaluate(
+                () =>
+                    (window as { lastEffectAllowed?: string })
+                        .lastEffectAllowed,
+            ),
+        ).toBe('move');
+        expect(
+            await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
+        ).toBe('// loose\n');
+    });
 });

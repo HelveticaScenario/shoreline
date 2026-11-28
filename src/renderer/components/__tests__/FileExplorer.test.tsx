@@ -21,6 +21,7 @@ vi.mock('../../keybindings/contextKeyBootstrap', () => ({
 }));
 
 import { FileExplorer } from '../FileExplorer';
+import electronAPI from '../../electronAPI';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
 
 const WORKSPACE = '/workspace';
@@ -179,5 +180,32 @@ describe('workspace-tree folders', () => {
         );
         renderExplorer({ renamingPath: null });
         expect(names()).toEqual(['samples', 'kick.wav', 'song.mjs']);
+    });
+});
+
+describe('workspace-tree context menu', () => {
+    test('right-clicking an asset opens the file menu for its path', () => {
+        window.localStorage.setItem(
+            'modular_expanded_folders',
+            JSON.stringify(['samples']),
+        );
+        renderExplorer({ renamingPath: null });
+
+        const asset = [...container!.querySelectorAll('.tree-entry')].find(
+            (el) => el.textContent === 'kick.wav',
+        )!;
+        act(() => {
+            asset.dispatchEvent(
+                new MouseEvent('contextmenu', { bubbles: true }),
+            );
+        });
+
+        expect(electronAPI.showContextMenu).toHaveBeenCalledWith(
+            expect.objectContaining({
+                isWorkspaceFile: true,
+                path: 'samples/kick.wav',
+                type: 'file',
+            }),
+        );
     });
 });

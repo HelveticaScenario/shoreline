@@ -380,6 +380,19 @@
     background: var(--bg-active);
 }
 
+.tree-drag-preview {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 100;
+    height: calc(var(--line-height) * 1em);
+    padding: 0 var(--sp-1);
+    pointer-events: none;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    opacity: 0.85;
+}
+
 .tree-file-asset {
     cursor: grab;
 }
