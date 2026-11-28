@@ -1,4 +1,4 @@
-use super::lane::{CombLane, Controls, Rates, damping_pole, loop_gain};
+use super::lane::{CombLane, Controls, Rates, damping_pole, loop_gain, ring_time};
 use crate::types::GlideMark;
 
 const SR: f32 = 48_000.0;
@@ -129,11 +129,39 @@ fn shortest_and_longest_delays_stay_in_the_line() {
     }
 }
 
+/// Decay in dB per second of `y`, from the RMS of two windows.
+fn decay_db_per_second(y: &[f32]) -> f32 {
+    let rms = |from: f32, to: f32| {
+        let w = &y[(from * SR) as usize..(to * SR) as usize];
+        (w.iter().map(|v| v * v).sum::<f32>() / w.len() as f32).sqrt()
+    };
+    20.0 * (rms(0.1, 0.2) / rms(0.6, 0.7)).log10() / 0.5
+}
+
+#[test]
+fn every_pitch_rings_for_the_same_time() {
+    for feedback in [3.0, -3.0] {
+        for freq in [-2.0, A3, 2.0] {
+            let y = render(controls(freq, feedback, 0.0), impulse, SR as usize);
+            let decay = decay_db_per_second(&y);
+            let expected = 60.0 / ring_time(feedback);
+            assert!(
+                (decay / expected - 1.0).abs() < 0.1,
+                "feedback {feedback} freq {freq}: {decay} dB/s, expected {expected}"
+            );
+        }
+    }
+}
+
 #[test]
 fn curves_span_their_ranges() {
-    assert_eq!(loop_gain(0.0), 0.0);
-    assert!((loop_gain(5.0) - 0.995).abs() < 1e-3);
-    assert_eq!(loop_gain(-3.0), -loop_gain(3.0));
+    assert_eq!(ring_time(0.0), 0.0);
+    assert!((ring_time(3.0) - 1.0).abs() < 0.05);
+    assert!((ring_time(-5.0) - 20.0).abs() < 1e-3);
+    assert_eq!(loop_gain(0.0, 100.0, SR), 0.0);
+    assert_eq!(loop_gain(-3.0, 100.0, SR), -loop_gain(3.0, 100.0, SR));
+    assert!(loop_gain(5.0, 2.0, SR) < 1.0);
+    assert!(loop_gain(3.0, 50.0, SR) > loop_gain(3.0, 500.0, SR));
     assert_eq!(damping_pole(0.0, SR), 0.0);
     let mut last = 0.0;
     for d in 1..=5 {

@@ -13,10 +13,13 @@ pub(super) const MIN_FREQ_VOCT: f32 = -3.71;
 /// Shortest delay in samples: the cubic read needs a sample on each side.
 const MIN_DELAY: f32 = 2.0;
 
-/// Decades `1 - g` falls across `feedback`'s range, `1 - g =
-/// 10^(-|feedback| · FEEDBACK_DECADES / 5)`: at ±5 the loop gain is 0.995,
-/// a ring of seconds at bass pitches.
-const FEEDBACK_DECADES: f32 = 2.3;
+/// Seconds the teeth take to fade by 60 dB at `feedback` ±5: long enough
+/// to sound endless.
+const LONGEST_RING: f32 = 20.0;
+
+/// Growth of the ring time per unit of `feedback`: about 40 ms at 1, 1 s at
+/// 3 and 4.4 s at 4.
+const RING_GROWTH: f32 = 4.5;
 
 /// Damping lowpass cutoff scale in Hz; `damp` 1 puts it near 10 kHz.
 const DAMP_HZ: f32 = 20_000.0;
@@ -28,10 +31,24 @@ const DAMP_OCTAVES: f32 = 1.6;
 /// unity fed a matching pitch saturates instead of growing without bound.
 const FEEDBACK_LIMIT: f32 = 5.0;
 
-/// Loop gain for `feedback`, signed like it: 0 at 0, rising toward 1.
-pub(super) fn loop_gain(feedback: f32) -> f32 {
+/// Seconds the teeth take to fade by 60 dB at `feedback`: 0 at 0, rising
+/// exponentially to `LONGEST_RING` at ±5.
+pub(super) fn ring_time(feedback: f32) -> f32 {
     let amount = feedback.abs().min(5.0);
-    (1.0 - 10f32.powf(-amount * FEEDBACK_DECADES / 5.0)).copysign(feedback)
+    LONGEST_RING * (RING_GROWTH.powf(amount) - 1.0) / (RING_GROWTH.powf(5.0) - 1.0)
+}
+
+/// Gain per pass around a loop `loop_samples` long that fades by 60 dB in
+/// `feedback`'s ring time, signed like `feedback`. Shorter loops pass more often, so
+/// they lose less on each pass and every pitch rings for the same time.
+pub(super) fn loop_gain(feedback: f32, loop_samples: f32, sample_rate: f32) -> f32 {
+    let ring = ring_time(feedback);
+    if ring == 0.0 {
+        return 0.0;
+    }
+    10f32
+        .powf(-3.0 * loop_samples / (sample_rate * ring))
+        .copysign(feedback)
 }
 
 /// Pole `b` of the damping lowpass `y += (1 - b)(x - y)` for `damp` at
@@ -46,15 +63,17 @@ pub(super) fn damping_pole(damp: f32, sample_rate: f32) -> f32 {
     (-std::f32::consts::TAU * cutoff / sample_rate).exp()
 }
 
-/// Delay in samples that puts the loop's lowest resonance at `hz`. A
-/// negative loop gain inverts each pass, so the line is half as long and
-/// the comb keeps its pitch with only odd harmonics. The damping lowpass's
-/// phase lag at `hz` is taken off the line so it stays in tune.
-fn tuned_delay(hz: f32, negative: bool, pole: f32, sample_rate: f32, max_delay: f32) -> f32 {
+/// The line's delay in samples that puts the loop's lowest resonance at
+/// `hz`, and the loop's whole length at `hz` once the damping lowpass's
+/// phase lag is added back. A negative loop gain inverts each pass, so the
+/// line is half as long and the comb keeps its pitch with only odd
+/// harmonics. Taking the lag off the line keeps the comb in tune.
+fn tuned_delay(hz: f32, negative: bool, pole: f32, sample_rate: f32, max_delay: f32) -> (f32, f32) {
     let w = std::f32::consts::TAU * hz / sample_rate;
     let lag = (pole * w.sin()).atan2(1.0 - pole * w.cos()) / w;
     let period = if negative { 0.5 } else { 1.0 } * sample_rate / hz;
-    (period - lag).clamp(MIN_DELAY, max_delay)
+    let delay = (period - lag).clamp(MIN_DELAY, max_delay);
+    (delay, delay + lag)
 }
 
 /// Per-lane settings derived from the controls; `NaN` keys = never computed.
@@ -156,12 +175,14 @@ impl CombLane {
         {
             return;
         }
-        let gain = loop_gain(feedback);
-        let pole = damping_pole(damp, rates.sample_rate);
+        let sr = rates.sample_rate;
+        let pole = damping_pole(damp, sr);
         let hz = C4_HZ_F32 * freq.max(MIN_FREQ_VOCT).exp2();
+        let (delay, loop_samples) = tuned_delay(hz, feedback < 0.0, pole, sr, rates.max_delay);
+        let gain = loop_gain(feedback, loop_samples, sr);
         self.tuning = Tuning {
             key,
-            delay: tuned_delay(hz, gain < 0.0, pole, rates.sample_rate, rates.max_delay),
+            delay,
             gain,
             input_gain: (1.0 - gain * gain).sqrt(),
             pole,

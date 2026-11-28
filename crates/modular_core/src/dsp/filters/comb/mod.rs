@@ -25,7 +25,7 @@ struct CombParams {
     )]
     freq: PolySignal,
     #[input(
-        "how long the teeth ring; negative keeps only odd harmonics, for a hollow tone",
+        "how long the teeth ring, the same on every note: about 1 second at 3 and near endless at 5; negative keeps only odd harmonics, for a hollow tone",
         type = control,
         default = 3.0,
         range = (-5.0, 5.0),
@@ -69,7 +69,7 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
             title: "A click plucks a string",
             code: r#"
                 pluck: $pPulse($clock[0]).comb('e2', {
-                  feedback: 4.8,
+                  feedback: 4,
                   damp: 2,
                 })
             "#,
@@ -78,7 +78,7 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
             title: "Hollow, odd-harmonic ring",
             code: r#"
                 tone: $pPulse($clock[0]).comb('a2', {
-                  feedback: -4.5,
+                  feedback: -4,
                   damp: 1,
                 })
             "#,
