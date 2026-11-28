@@ -17,6 +17,17 @@ pub struct DelayLine {
     mask: usize,
 }
 
+/// A side copies its left side's contents; lines of different lengths keep
+/// their own.
+impl crate::types::SeedSide for DelayLine {
+    fn seed_side(&mut self, left: &Self) {
+        if self.buffer.len() == left.buffer.len() {
+            self.buffer.copy_from_slice(&left.buffer);
+            self.write_ptr = left.write_ptr;
+        }
+    }
+}
+
 impl DelayLine {
     /// Create a new delay line that can hold up to `max_delay` samples.
     ///

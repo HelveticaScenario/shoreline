@@ -445,6 +445,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$notchLadder" | "$notchDiode" | "$notchOta" | "$bpfWasp" | "$notchWasp" => {
             json!({ "input": 0.0, "center": 0.0 })
         }
+        "$comb" => json!({ "input": 0.0, "freq": 0.0 }),
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
         "$comp" => json!({ "input": 0.0, "threshold": 0.0 }),
         "$erratic" => json!({ "input": 0.0, "amount": 1.0 }),

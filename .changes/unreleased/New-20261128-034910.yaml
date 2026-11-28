@@ -1,0 +1,3 @@
+kind: New
+body: 'New `$comb` filter: a delay tuned to a pitch that rings at it and its harmonics. Use it to tune noise and drums to notes, pluck strings from clicks, or flange; `feedback` sets the ring (negative for a hollow, odd-harmonic tone) and `damp` darkens each repeat.'
+time: 2026-11-28T03:49:10.494574-05:00
