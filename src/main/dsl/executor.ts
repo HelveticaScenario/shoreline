@@ -1038,8 +1038,8 @@ export function executePatchScript(
         ) {
             // The timeout counts wall-clock time, including synchronous host
             // call-outs. When most of the budget went to loading files
-            // (slow/cold disk, big library), say so — the engine keeps
-            // everything already decoded, so a re-run makes progress.
+            // (slow/cold disk, big library), say so — the engine keeps the
+            // audio it has decoded, so a re-run makes progress.
             const seconds = executionTimeoutMs / 1000;
             const totalLoadMs =
                 assetLoadMs +
