@@ -226,8 +226,7 @@ impl LaneState {
 
         // Naive read plus any residual carried from a reset on the previous
         // sample.
-        let mut sample = before + self.blep_carry;
-        self.blep_carry = 0.0;
+        let mut sample = before + std::mem::take(&mut self.blep_carry);
 
         // Advance phase, wrap to [0, 1). rem_euclid in f64.
         let mut next = self.phase + increment;

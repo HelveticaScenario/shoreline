@@ -477,8 +477,7 @@ impl VoiceState {
         if !reset_replaces_edge(read, saw_dt.abs(), self.restarted, reset.is_some()) {
             saw -= poly_blep_saw(read, saw_dt.abs());
         }
-        saw += self.blep_carry;
-        self.blep_carry = 0.0;
+        saw += std::mem::take(&mut self.blep_carry);
         self.restarted = reset.is_some();
 
         // A reset restarts the saw, band-limited with a PolyBLEP at the

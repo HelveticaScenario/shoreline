@@ -8,12 +8,12 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, Landing, Resets, SyncRatios, apply_fm, offset_phase, reset_replaces_edge,
-            restarted_edge, sync_blep, sync_ratio, wrap_offset,
+            FmMode, Landing, PitchIncrements, Resets, SyncRatios, apply_fm, offset_phase,
+            reset_replaces_edge, restarted_edge, sync_blep, sync_ratio, wrap_offset,
         },
         utils::{sanitize, wrap_phase},
     },
-    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
@@ -178,8 +178,7 @@ impl PulseLaneState {
             read_phase - pulse_width + 1.0
         });
 
-        let pending = self.blep_carry;
-        self.blep_carry = 0.0;
+        let pending = std::mem::take(&mut self.blep_carry);
         self.restarted = resetting;
 
         // A reset restarts the cycle, with a PolyBLEP placed at its subsample
@@ -277,18 +276,12 @@ impl PulseOscillator {
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let mut ratios = SyncRatios::new(sync, range.start);
-        // A pitch held for the whole range needs its exponential only once.
-        let mut held_increments = [0.0f32; PORT_MAX_LANES];
-        let held = freq.is_constant() && fm.is_constant();
-        if held {
-            let (freq, fm) = (freq.row(range.start), fm.row(range.start));
-            for ((increment, &pitch), &fm) in held_increments.iter_mut().zip(freq).zip(fm) {
-                *increment = apply_fm(pitch, fm, p.fm_mode) / sample_rate;
-            }
-        }
+        let increments = PitchIncrements::new(freq, fm, range.start, |pitch, fm| {
+            apply_fm(pitch, fm, p.fm_mode) / sample_rate
+        });
         let last = range.end - 1;
         for i in range {
-            let (pitch, fm, offset) = (freq.row(i), fm.row(i), offset.row(i));
+            let offset = offset.row(i);
             let (width, pwm) = (width.row(i), pwm.row(i));
             let restart = restart.as_ref().map(|restart| restart.row(i));
             let ratios = ratios.at(i);
@@ -298,11 +291,7 @@ impl PulseOscillator {
                 .iter_mut()
                 .zip(self.lane_state.iter_mut());
             for (lane, (out, state)) in slots.enumerate() {
-                let increment = if held {
-                    held_increments[lane]
-                } else {
-                    apply_fm(pitch[lane], fm[lane], p.fm_mode) / sample_rate
-                };
+                let increment = increments.at(i, lane);
                 let width = (width[lane] + pwm[lane]).clamp(0.0, 5.0);
                 *out = sanitize(state.step(
                     increment,
