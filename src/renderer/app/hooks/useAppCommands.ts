@@ -11,7 +11,7 @@ import { performanceOutput } from '../../video/PerformanceOutput';
 
 export interface AppCommandHandlers {
     submit: (trigger: QueuedTrigger) => void;
-    stop: () => void;
+    stop: (trigger?: QueuedTrigger) => void;
     newFile: () => void;
     closeActiveBuffer: () => void;
     save: () => void;
@@ -86,8 +86,12 @@ export function useAppCommands(handlers: AppCommandHandlers): void {
             ],
             [
                 'shoreline.stop',
-                () => run('stop'),
-                { category: 'Patch', label: 'Stop', ...patchMenu(3) },
+                () => run('stop', 'NextBar'),
+                {
+                    category: 'Patch',
+                    label: 'Stop (Next Bar)',
+                    ...patchMenu(3),
+                },
             ],
             [
                 'shoreline.cancelQueuedUpdate',

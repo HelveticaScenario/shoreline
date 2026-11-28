@@ -55,7 +55,7 @@ use crate::audio::{
     ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioState, CurrentAudioState,
     DeviceCacheSnapshot, HostDeviceInfo, PatchSubmission, TransportSnapshot,
 };
-use crate::commands::{GraphCommand, QueuedTrigger, TransportMeta};
+use crate::commands::{GraphCommand, QueuedTrigger, StopOutcome, TransportMeta};
 use crate::midi::MidiInputManager;
 use crate::output_choice::OutputChoice;
 use crate::stream_resolve::{
@@ -847,9 +847,20 @@ impl Synthesizer {
         })
     }
 
+    /// Silence the engine: the patch freezes behind a fade.
     #[napi]
     pub fn stop(&mut self) {
         self.state.request_stop();
+    }
+
+    /// The Stop control: the first press halts the transport at `trigger`
+    /// (at once when unset) while the engine plays on; a press while that
+    /// stop waits halts it at once; a press with the transport already halted
+    /// silences the engine.
+    #[napi]
+    pub fn press_stop(&mut self, trigger: Option<QueuedTrigger>) -> StopOutcome {
+        self.state
+            .press_stop(trigger.unwrap_or(QueuedTrigger::Immediate))
     }
 
     /// Discard the queued patch update so the playing patch keeps running. The

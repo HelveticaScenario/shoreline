@@ -95,7 +95,7 @@ impl ModuleStateMetaCache {
 
 use crate::commands::{
     AudioError, COMMAND_QUEUE_CAPACITY, CommandSender, ERROR_QUEUE_CAPACITY,
-    GARBAGE_QUEUE_CAPACITY, GarbageItem, GraphCommand, PatchUpdate, QueuedTrigger,
+    GARBAGE_QUEUE_CAPACITY, GarbageItem, GraphCommand, PatchUpdate, QueuedTrigger, StopOutcome,
     TransferSourceIds, TransportMeta,
 };
 use crate::midi::MidiInputManager;
@@ -1369,6 +1369,12 @@ pub struct AudioState {
     garbage_rx: Mutex<GarbageConsumer>,
     /// Stopped flag - shared with audio thread for quick reads
     stopped: Arc<AtomicBool>,
+    /// The clock is halted. True whenever `stopped` is, and also while the
+    /// engine renders on after a transport-only stop.
+    transport_stopped: Arc<AtomicBool>,
+    /// A transport stop waits for its bar or beat. The audio thread clears it
+    /// once the stop lands, after setting `transport_stopped`.
+    stop_pending: Arc<AtomicBool>,
     /// Scope collection - shared with audio thread for UI reads
     scope_collection: Arc<Mutex<HashMap<ScopeBufferKey, ScopeBuffer>>>,
     /// VU meter collection - shared with audio thread for UI reads. Replaced
@@ -1448,6 +1454,8 @@ impl AudioState {
             error_rx: Mutex::new(error_rx),
             garbage_rx: Mutex::new(garbage_rx),
             stopped: Arc::new(AtomicBool::new(true)),
+            transport_stopped: Arc::new(AtomicBool::new(true)),
+            stop_pending: Arc::new(AtomicBool::new(false)),
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
             recording_feed: Arc::new(Mutex::new(None)),
@@ -1593,12 +1601,35 @@ impl AudioState {
         )
     }
 
-    /// Stop transport. Flips the atomic immediately (stop is synchronous by
-    /// design — no quantize) and notifies the audio thread so it can tear down
-    /// pending_start and propagate to Link.
+    /// Silence the engine: the patch freezes and the output fades out. Flips
+    /// the atomics immediately (stop is synchronous by design — no quantize)
+    /// and notifies the audio thread so it can tear down pending_start and
+    /// propagate to Link.
     pub fn request_stop(&self) {
+        self.transport_stopped.store(true, Ordering::SeqCst);
         self.stopped.store(true, Ordering::SeqCst);
         let _ = self.send_command(GraphCommand::Stop);
+    }
+
+    /// The Stop control: the first press halts the transport at `trigger`
+    /// while the engine plays on, a press while that stop waits halts it at
+    /// once, and a press with the transport already halted silences the
+    /// engine.
+    pub fn press_stop(&self, trigger: QueuedTrigger) -> StopOutcome {
+        if self.transport_stopped.load(Ordering::SeqCst) {
+            self.request_stop();
+            return StopOutcome::Engine;
+        }
+        let was_pending = self.stop_pending.swap(false, Ordering::SeqCst);
+        if was_pending || matches!(trigger, QueuedTrigger::Immediate) {
+            self.transport_stopped.store(true, Ordering::SeqCst);
+            let _ = self.send_command(GraphCommand::StopTransport);
+            StopOutcome::Transport
+        } else {
+            self.stop_pending.store(true, Ordering::SeqCst);
+            let _ = self.send_command(GraphCommand::QueuedStopTransport { trigger });
+            StopOutcome::Queued
+        }
     }
 
     /// Request transport start. Does NOT flip the atomic — the audio thread's
@@ -1612,6 +1643,10 @@ impl AudioState {
 
     pub fn is_stopped(&self) -> bool {
         self.stopped.load(Ordering::SeqCst)
+    }
+
+    pub fn is_transport_stopped(&self) -> bool {
+        self.transport_stopped.load(Ordering::SeqCst)
     }
 
     /// Read the current transport state snapshot (lock-free)
@@ -1647,6 +1682,8 @@ impl AudioState {
     pub fn get_shared_state(&self) -> AudioSharedState {
         AudioSharedState {
             stopped: self.stopped.clone(),
+            transport_stopped: self.transport_stopped.clone(),
+            stop_pending: self.stop_pending.clone(),
             scope_collection: self.scope_collection.clone(),
             vu_collection: self.vu_collection.clone(),
             module_states: self.module_states.clone(),
@@ -2110,11 +2147,18 @@ impl AudioState {
         Ok(sent?)
     }
 
-    pub fn handle_set_patch(&self, submission: PatchSubmission) -> Vec<ApplyPatchError> {
+    pub fn handle_set_patch(&self, mut submission: PatchSubmission) -> Vec<ApplyPatchError> {
         // Validate patch
         let schemas = schema();
         if let Err(errors) = validate_patch(&submission.graph, &schemas) {
             return vec![ApplyPatchError::validation(errors)];
+        }
+
+        // Running a patch keeps the transport playing. Cancelled first, so a
+        // stop that lands meanwhile has set `transport_stopped` and is undone
+        // by the start below.
+        if self.stop_pending.swap(false, Ordering::SeqCst) {
+            let _ = self.send_command(GraphCommand::CancelQueuedStop);
         }
 
         // If stopped, clear audio-thread state and request a start. The audio
@@ -2127,6 +2171,12 @@ impl AudioState {
             });
             self.scope_collection.lock().clear();
             self.vu_collection.lock().clear();
+            self.request_start();
+        } else if self.is_transport_stopped() {
+            // The engine still plays, so the patch swaps in with its state
+            // carried over. A halted clock never reaches a bar or beat, so
+            // the update applies at once and the transport restarts with it.
+            submission.trigger = QueuedTrigger::Immediate;
             self.request_start();
         }
 
@@ -2143,6 +2193,8 @@ impl AudioState {
 /// Shared state that both AudioState (main thread) and AudioProcessor (audio thread) can access
 pub struct AudioSharedState {
     pub stopped: Arc<AtomicBool>,
+    pub transport_stopped: Arc<AtomicBool>,
+    pub stop_pending: Arc<AtomicBool>,
     pub scope_collection: Arc<Mutex<HashMap<ScopeBufferKey, ScopeBuffer>>>,
     pub vu_collection: Arc<Mutex<Vec<VuMeterState>>>,
     /// Live per-module editor state - written by audio thread, read by main thread
@@ -2209,6 +2261,12 @@ struct AudioProcessor {
     garbage_tx: GarbageProducer,
     /// Shared stopped flag
     stopped: Arc<AtomicBool>,
+    /// Shared transport-halted flag; see `AudioState::transport_stopped`.
+    transport_stopped: Arc<AtomicBool>,
+    /// See `AudioState::stop_pending`.
+    stop_pending: Arc<AtomicBool>,
+    /// The trigger a queued transport stop waits for.
+    queued_stop: Option<QueuedTrigger>,
     /// Shared scope collection
     scope_collection: Arc<Mutex<HashMap<ScopeBufferKey, ScopeBuffer>>>,
     /// Scope samples from a block whose `try_lock` lost to the renderer.
@@ -2287,6 +2345,9 @@ impl AudioProcessor {
             error_tx,
             garbage_tx,
             stopped: shared.stopped,
+            transport_stopped: shared.transport_stopped,
+            stop_pending: shared.stop_pending,
+            queued_stop: None,
             scope_collection: shared.scope_collection,
             scope_stash: ScopeStash::default(),
             vu_collection: shared.vu_collection,
@@ -2464,30 +2525,34 @@ impl AudioProcessor {
                         self.try_push_garbage_item(GarbageItem::Module((module_id, new_module)));
                     }
                 }
-                GraphCommand::Start => {
-                    if self.link.is_active() {
-                        // With Link: keep `stopped=true` and arm a pending start.
-                        // The buffer-level phase check releases `stopped` when the
-                        // shared Link timeline reaches a bar boundary.
-                        self.stopped
-                            .store(true, std::sync::atomic::Ordering::SeqCst);
-                        self.link.request_quantized_start();
+                GraphCommand::Start => self.start_transport(),
+                GraphCommand::QueuedStopTransport { trigger } => {
+                    // A press that raced a stop landing on its bar finds no
+                    // bar left to stop at.
+                    if self.transport_stopped.load(Ordering::SeqCst) {
+                        self.stop_pending.store(false, Ordering::SeqCst);
                     } else {
-                        // Free-run: flip immediately and reset the clock.
-                        self.stopped
-                            .store(false, std::sync::atomic::Ordering::SeqCst);
-                        let _ = self
-                            .patch
-                            .dispatch_message(&Message::Clock(ClockMessages::Start));
+                        self.queued_stop = Some(trigger);
+                    }
+                }
+                GraphCommand::CancelQueuedStop => {
+                    // A stop that landed before this command arrived is
+                    // undone; the patch run that sent it expects to play.
+                    if self.queued_stop.take().is_none()
+                        && self.transport_stopped.load(Ordering::SeqCst)
+                        && !self.is_stopped()
+                    {
+                        self.start_transport();
                     }
                 }
                 GraphCommand::Stop => {
-                    // Stop is handled via the stopped flag.
-                    // Also clear any pending start so a later peer-start does not
-                    // resurrect a cancelled patch, and propagate stop to peers.
-                    self.link.clear_pending_start();
-                    self.link.signal_stop();
+                    // The main thread flipped the flags before sending; a Start
+                    // queued ahead of this command may have cleared them since.
+                    self.stopped
+                        .store(true, std::sync::atomic::Ordering::SeqCst);
+                    self.stop_transport();
                 }
+                GraphCommand::StopTransport => self.stop_transport(),
                 GraphCommand::ClearPatch { mut fresh_patch } => {
                     // Discard any pending queued update
                     if let Some((old_update, _)) = self.queued_update.take() {
@@ -2814,6 +2879,60 @@ impl AudioProcessor {
         }
     }
 
+    fn start_transport(&mut self) {
+        self.queued_stop = None;
+        self.stop_pending.store(false, Ordering::SeqCst);
+        if self.link.is_active() {
+            // With Link: hold the transport and arm a pending start. The
+            // buffer-level phase check releases it when the shared Link
+            // timeline reaches a bar boundary. An engine that is stopped stays
+            // silent until then; one that is only transport-stopped plays on
+            // meanwhile.
+            self.transport_stopped.store(true, Ordering::SeqCst);
+            self.link.request_quantized_start();
+        } else {
+            // Free-run: flip immediately and reset the clock.
+            self.transport_stopped.store(false, Ordering::SeqCst);
+            self.stopped.store(false, Ordering::SeqCst);
+            let _ = self
+                .patch
+                .dispatch_message(&Message::Clock(ClockMessages::Start));
+        }
+    }
+
+    fn stop_transport(&mut self) {
+        self.queued_stop = None;
+        // A halted clock never reaches the bar or beat a queued update waits
+        // for, so it applies at once.
+        if let Some((_, trigger)) = self.queued_update.as_mut() {
+            *trigger = QueuedTrigger::Immediate;
+        }
+        self.transport_stopped.store(true, Ordering::SeqCst);
+        self.stop_pending.store(false, Ordering::SeqCst);
+        let _ = self
+            .patch
+            .dispatch_message(&Message::Clock(ClockMessages::Stop));
+        // Clear any pending start so a later peer-start does not resurrect a
+        // cancelled patch, and propagate stop to peers.
+        self.link.clear_pending_start();
+        self.link.signal_stop();
+    }
+
+    /// A queued update or transport stop is waiting for the clock, which then
+    /// advances only inside `scan_transport_events`.
+    fn clock_held(&self) -> bool {
+        self.queued_update.is_some() || self.queued_stop.is_some()
+    }
+
+    /// The Link timeline ROOT_CLOCK follows at `cb_frame`. None while the
+    /// transport is stopped, so the clock holds rather than following peers.
+    fn link_phase_at_frame(&self, cb_frame: usize) -> Option<(f64, f64)> {
+        if self.transport_stopped.load(Ordering::SeqCst) {
+            return None;
+        }
+        self.link.phase_at_frame(cb_frame)
+    }
+
     /// Eager-fill ROOT_CLOCK from per-block slot `from` (inclusive) to `end`
     /// (exclusive). Each slot is synced under this callback's Link host-time
     /// anchor — the cpal-frame index for in-block slot `i` is
@@ -2826,7 +2945,7 @@ impl AudioProcessor {
         };
         for i in from..end {
             let cb_frame = written_at_call + (i - from);
-            if let Some((bar_phase, tempo)) = self.link.phase_at_frame(cb_frame) {
+            if let Some((bar_phase, tempo)) = self.link_phase_at_frame(cb_frame) {
                 root_clock.sync_external_clock(modular_core::types::ExternalClockState {
                     bar_phase,
                     bpm: tempo,
@@ -2836,44 +2955,64 @@ impl AudioProcessor {
         }
     }
 
-    /// Advance ROOT_CLOCK one slot at a time through `[from, end)`, watching
-    /// its `port` trigger output for the first slot that goes `>= 1.0`, and
-    /// stop filling the moment it fires. Runs only while a queued update is
-    /// armed: the swap transfers the clock's state to the new patch, so the
-    /// clock must not run past the swap point — any slot filled beyond the
-    /// trigger would be integrated a second time when the post-swap refill
-    /// re-renders the block tail. The trigger slot itself is necessarily
-    /// processed (detecting the edge computes it) and is recomputed under the
-    /// new patch's params by the refill.
+    /// The first slot in `[from, end)` where the queued update or the
+    /// queued transport stop is due, and which of them are. A quantized event
+    /// waits for ROOT_CLOCK's bar or beat trigger: the clock advances one slot
+    /// at a time and stops filling the moment a trigger fires, since the slot
+    /// is recomputed after the event (under the new patch's params, or held
+    /// by the stopped clock) and anything filled past it would be integrated
+    /// twice. An Immediate update is due at `from` with the clock untouched.
     ///
     /// `written_at_call` anchors Link sync: the cpal-frame index for in-block
     /// slot `i` is `written_at_call + (i - from)`.
     ///
     /// Fallback: when ROOT_CLOCK is absent (e.g. immediately after a clear
-    /// patch leaves only `HiddenAudioIn`), returns `Some(from)` so queued
-    /// patches still apply rather than sticking around forever.
-    fn fill_and_scan_trigger(
+    /// patch leaves only `HiddenAudioIn`), every waiting event is due at
+    /// `from`, so none sticks around forever.
+    fn scan_transport_events(
         &self,
-        port: &str,
         from: usize,
         end: usize,
         written_at_call: usize,
-    ) -> Option<usize> {
+    ) -> Option<TransportEvents> {
         use modular_core::types::ROOT_CLOCK_ID;
+        if matches!(self.queued_update, Some((_, QueuedTrigger::Immediate))) {
+            return Some(TransportEvents {
+                slot: from,
+                update: true,
+                stop: false,
+            });
+        }
+        let update_port = self.queued_update.as_ref().map(|(_, t)| trigger_port(t));
+        let stop_port = self.queued_stop.as_ref().map(trigger_port);
+        if update_port.is_none() && stop_port.is_none() {
+            return None;
+        }
         let Some(root_clock) = self.patch.sampleables.get(&*ROOT_CLOCK_ID) else {
-            return Some(from);
+            return Some(TransportEvents {
+                slot: from,
+                update: update_port.is_some(),
+                stop: stop_port.is_some(),
+            });
         };
         for i in from..end {
             let cb_frame = written_at_call + (i - from);
-            if let Some((bar_phase, tempo)) = self.link.phase_at_frame(cb_frame) {
+            if let Some((bar_phase, tempo)) = self.link_phase_at_frame(cb_frame) {
                 root_clock.sync_external_clock(modular_core::types::ExternalClockState {
                     bar_phase,
                     bpm: tempo,
                 });
             }
             root_clock.ensure_processed_to(i + 1);
-            if root_clock.get_value_at(port, 0, i) >= 1.0 {
-                return Some(i);
+            let fired =
+                |port: Option<&str>| port.is_some_and(|p| root_clock.get_value_at(p, 0, i) >= 1.0);
+            let (update, stop) = (fired(update_port), fired(stop_port));
+            if update || stop {
+                return Some(TransportEvents {
+                    slot: i,
+                    update,
+                    stop,
+                });
             }
         }
         None
@@ -2963,6 +3102,21 @@ impl Drop for EngineLease {
         if let Some(engine) = self.engine.take() {
             *self.slot.lock() = Some(engine);
         }
+    }
+}
+
+/// The queued events due at one slot of the render loop.
+struct TransportEvents {
+    slot: usize,
+    update: bool,
+    stop: bool,
+}
+
+/// The ROOT_CLOCK trigger output a quantized event waits for.
+fn trigger_port(trigger: &QueuedTrigger) -> &'static str {
+    match trigger {
+        QueuedTrigger::NextBeat => "beatTrigger",
+        QueuedTrigger::NextBar | QueuedTrigger::Immediate => "barTrigger",
     }
 }
 
@@ -3064,6 +3218,9 @@ where
                     // shared timeline reaches a bar boundary.
                     if audio_processor.link.check_pending_start_release() {
                         audio_processor
+                            .transport_stopped
+                            .store(false, std::sync::atomic::Ordering::SeqCst);
+                        audio_processor
                             .stopped
                             .store(false, std::sync::atomic::Ordering::SeqCst);
                         let msg = modular_core::types::Message::Clock(ClockMessages::Start);
@@ -3093,10 +3250,10 @@ where
 
                     let mut written: usize = 0;
 
-                    // While a queued update is armed the clock is advanced
-                    // inside the trigger scan instead, one slot at a time, so
-                    // its state never passes the eventual swap point.
-                    if audio_processor.queued_update.is_none() {
+                    // While a queued update or stop is armed the clock is
+                    // advanced inside the trigger scan instead, one slot at a
+                    // time, so its state never passes the event.
+                    if !audio_processor.clock_held() {
                         let eager_end = block_size.min(audio_processor.block_pos + num_frames);
                         audio_processor.eager_fill_clock(
                             audio_processor.block_pos,
@@ -3114,7 +3271,7 @@ where
                                     module.start_block();
                                 }
                                 audio_processor.block_pos = 0;
-                                if audio_processor.queued_update.is_none() {
+                                if !audio_processor.clock_held() {
                                     let eager_end = block_size.min(num_frames - written);
                                     audio_processor.eager_fill_clock(0, eager_end, written);
                                 }
@@ -3123,32 +3280,18 @@ where
                             let scan_end =
                                 block_size.min(audio_processor.block_pos + (num_frames - written));
 
-                            // Resolve trigger sample for queued patch swap. The
-                            // quantized scans fill ROOT_CLOCK as they go and
-                            // stop at the trigger slot; an armed Immediate
-                            // update leaves the clock untouched (the post-swap
-                            // refill fills it under the new patch).
-                            let trigger_sample: Option<usize> =
-                                match audio_processor.queued_update.as_ref().map(|(_, t)| t) {
-                                    Some(QueuedTrigger::Immediate) => {
-                                        Some(audio_processor.block_pos)
-                                    }
-                                    Some(QueuedTrigger::NextBar) => audio_processor
-                                        .fill_and_scan_trigger(
-                                            "barTrigger",
-                                            audio_processor.block_pos,
-                                            scan_end,
-                                            written,
-                                        ),
-                                    Some(QueuedTrigger::NextBeat) => audio_processor
-                                        .fill_and_scan_trigger(
-                                            "beatTrigger",
-                                            audio_processor.block_pos,
-                                            scan_end,
-                                            written,
-                                        ),
-                                    None => None,
-                                };
+                            // Resolve the slot of the next queued patch swap or
+                            // transport stop. The quantized scans fill
+                            // ROOT_CLOCK as they go and stop at the trigger
+                            // slot; an armed Immediate update leaves the clock
+                            // untouched (the post-swap refill fills it under
+                            // the new patch).
+                            let due = audio_processor.scan_transport_events(
+                                audio_processor.block_pos,
+                                scan_end,
+                                written,
+                            );
+                            let trigger_sample = due.as_ref().map(|d| d.slot);
 
                             let end = trigger_sample.map(|n| n.min(scan_end)).unwrap_or(scan_end);
 
@@ -3306,36 +3449,47 @@ where
                                 audio_processor.block_pos = end;
                             }
 
-                            // Apply queued swap if we stopped at the trigger sample.
-                            if trigger_sample == Some(audio_processor.block_pos)
+                            // Apply the queued events due at the trigger sample.
+                            if let Some(due) = due
+                                && due.slot == audio_processor.block_pos
                                 && audio_processor.block_pos < block_size
                             {
-                                let (update, _) = audio_processor.queued_update.take().unwrap();
-                                let applied_id = update.update_id;
-                                let swap_pos = audio_processor.block_pos;
-                                audio_processor.apply_patch_update(update, swap_pos);
-                                // The swap may step the output (a muted patch
-                                // replacing a loud one, a track removed);
-                                // release the step at the emit stage.
-                                final_state_processor.arm_declick();
-                                audio_processor
-                                    .transport_meter
-                                    .write_applied_update_id(applied_id);
-                                // ROOT_CLOCK's transport state carries across the swap via
+                                let event_pos = audio_processor.block_pos;
+                                if due.update {
+                                    let (update, _) = audio_processor.queued_update.take().unwrap();
+                                    let applied_id = update.update_id;
+                                    let swap_pos = audio_processor.block_pos;
+                                    audio_processor.apply_patch_update(update, swap_pos);
+                                    // The swap may step the output (a muted patch
+                                    // replacing a loud one, a track removed);
+                                    // release the step at the emit stage.
+                                    final_state_processor.arm_declick();
+                                    audio_processor
+                                        .transport_meter
+                                        .write_applied_update_id(applied_id);
+                                }
+                                // A stop due with the swap lands in the new patch.
+                                if due.stop {
+                                    audio_processor.stop_transport();
+                                }
+                                // ROOT_CLOCK's transport state carries across a swap via
                                 // `transfer_state_from`. Fill this callback's remaining range
-                                // from `swap_pos` forward under the NEW patch's params. On a
-                                // quantized swap the trigger slot was already computed while
-                                // scanning, so recomputing it here runs the clock one sample
-                                // ahead — a bounded, sub-0.03 ms offset; an Immediate swap's
-                                // clock arrives untouched and fills exactly once.
+                                // from the event forward under the NEW patch's params, or held
+                                // by the stopped clock. On a quantized event the trigger slot
+                                // was already computed while scanning, so recomputing it here
+                                // runs the clock one sample ahead — a bounded, sub-0.03 ms
+                                // offset; an Immediate swap's clock arrives untouched and fills
+                                // exactly once.
                                 if let Some(root_clock) =
                                     audio_processor.patch.sampleables.get(&*ROOT_CLOCK_ID)
                                 {
-                                    root_clock.set_initial_index(swap_pos);
+                                    root_clock.set_initial_index(event_pos);
                                 }
-                                let eager_end = block_size
-                                    .min(audio_processor.block_pos + (num_frames - written));
-                                audio_processor.eager_fill_clock(swap_pos, eager_end, written);
+                                if !audio_processor.clock_held() {
+                                    let eager_end = block_size
+                                        .min(audio_processor.block_pos + (num_frames - written));
+                                    audio_processor.eager_fill_clock(event_pos, eager_end, written);
+                                }
                             }
                         }
                     }
@@ -3344,24 +3498,33 @@ where
                     {
                         let last = audio_processor.block_pos.saturating_sub(1);
                         let has_queued = audio_processor.queued_update.is_some();
+                        let has_queued_stop = audio_processor.queued_stop.is_some();
                         if let Some(clock) = audio_processor.patch.sampleables.get(&*ROOT_CLOCK_ID)
                         {
                             let bars = clock.get_value_at_f64("playhead", 0, last);
                             let bar_phase = bars.fract();
                             let bar_count = bars.floor() as u64;
                             let beat_in_bar = clock.get_value_at("beatInBar", 0, last) as u32;
-                            let is_playing = !audio_processor.is_stopped();
+                            let is_playing = !audio_processor
+                                .transport_stopped
+                                .load(std::sync::atomic::Ordering::SeqCst);
                             audio_processor.transport_meter.write_from_audio(
                                 bar_phase,
                                 bar_count,
                                 beat_in_bar,
                                 is_playing,
                                 has_queued,
+                                has_queued_stop,
                             );
                         } else {
-                            audio_processor
-                                .transport_meter
-                                .write_from_audio(0.0, 0, 0, false, has_queued);
+                            audio_processor.transport_meter.write_from_audio(
+                                0.0,
+                                0,
+                                0,
+                                false,
+                                has_queued,
+                                has_queued_stop,
+                            );
                         }
                     }
 
@@ -3663,6 +3826,8 @@ pub struct TransportMeter {
     is_playing: AtomicBool,
     /// Whether a queued patch update is pending
     has_queued_update: AtomicBool,
+    /// Whether a transport stop waits for its bar or beat
+    has_queued_stop: AtomicBool,
     /// The update_id of the most recently applied patch update
     last_applied_update_id: AtomicU64,
     /// The update_id of the most recently cancelled queued patch update
@@ -3689,6 +3854,7 @@ impl Default for TransportMeter {
             time_sig_denominator: AtomicU64::new(4),
             is_playing: AtomicBool::new(false),
             has_queued_update: AtomicBool::new(false),
+            has_queued_stop: AtomicBool::new(false),
             last_applied_update_id: AtomicU64::new(0),
             last_cancelled_update_id: AtomicU64::new(0),
             link_enabled: AtomicBool::new(false),
@@ -3710,6 +3876,7 @@ impl TransportMeter {
         beat_in_bar: u32,
         is_playing: bool,
         has_queued_update: bool,
+        has_queued_stop: bool,
     ) {
         self.bar_phase_bits
             .store(bar_phase.to_bits(), Ordering::Relaxed);
@@ -3719,6 +3886,8 @@ impl TransportMeter {
         self.is_playing.store(is_playing, Ordering::Relaxed);
         self.has_queued_update
             .store(has_queued_update, Ordering::Relaxed);
+        self.has_queued_stop
+            .store(has_queued_stop, Ordering::Relaxed);
     }
 
     /// Write tempo and time signature. Called when params change (less frequently).
@@ -3804,6 +3973,7 @@ impl TransportMeter {
             time_sig_denominator: self.time_sig_denominator.load(Ordering::Relaxed) as u32,
             is_playing: self.is_playing.load(Ordering::Relaxed),
             has_queued_update: self.has_queued_update.load(Ordering::Relaxed),
+            has_queued_stop: self.has_queued_stop.load(Ordering::Relaxed),
             last_applied_update_id: self.last_applied_update_id.load(Ordering::Relaxed) as f64,
             last_cancelled_update_id: self.last_cancelled_update_id.load(Ordering::Relaxed) as f64,
             link_enabled: self.link_enabled.load(Ordering::Relaxed),
@@ -3833,6 +4003,8 @@ pub struct TransportSnapshot {
     pub is_playing: bool,
     /// Whether a queued patch update is pending
     pub has_queued_update: bool,
+    /// Whether a transport stop waits for its bar or beat
+    pub has_queued_stop: bool,
     /// The update_id of the most recently applied patch update (as f64 for N-API compatibility)
     pub last_applied_update_id: f64,
     /// The update_id of the most recently cancelled queued patch update (as f64
@@ -3892,6 +4064,8 @@ mod tests {
 
         let shared = AudioSharedState {
             stopped: Arc::new(AtomicBool::new(true)),
+            transport_stopped: Arc::new(AtomicBool::new(true)),
+            stop_pending: Arc::new(AtomicBool::new(false)),
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
             module_states: Arc::new(Mutex::new(HashMap::new())),
@@ -4153,6 +4327,8 @@ mod tests {
 
         let shared = AudioSharedState {
             stopped: Arc::new(AtomicBool::new(true)),
+            transport_stopped: Arc::new(AtomicBool::new(true)),
+            stop_pending: Arc::new(AtomicBool::new(false)),
             scope_collection: Arc::new(Mutex::new(HashMap::new())),
             vu_collection: Arc::new(Mutex::new(Vec::new())),
             module_states: Arc::new(Mutex::new(HashMap::new())),
@@ -4671,6 +4847,120 @@ mod tests {
             phase_after > phase_before,
             "transport should keep running (no reset): before={phase_before} after={phase_after}"
         );
+    }
+
+    #[test]
+    fn stop_transport_halts_the_clock_while_the_engine_plays_on() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        let id = insert_running_root_clock(&mut processor);
+        processor.stopped.store(false, Ordering::SeqCst);
+        processor.transport_stopped.store(false, Ordering::SeqCst);
+        advance_clock(&processor, &id, 20_000);
+
+        cmd_producer.push(GraphCommand::StopTransport).unwrap();
+        processor.process_commands();
+
+        assert!(processor.transport_stopped.load(Ordering::SeqCst));
+        assert!(!processor.is_stopped(), "the engine keeps rendering");
+        let held = advance_clock(&processor, &id, 1);
+        assert!(held > 0.1, "the playhead holds where it stopped");
+        assert_eq!(advance_clock(&processor, &id, 20_000), held);
+
+        cmd_producer.push(GraphCommand::Start).unwrap();
+        processor.process_commands();
+
+        assert!(!processor.transport_stopped.load(Ordering::SeqCst));
+        let restarted = advance_clock(&processor, &id, 1);
+        assert!(restarted < 0.001, "Start plays from the top");
+        assert!(advance_clock(&processor, &id, 20_000) > restarted);
+    }
+
+    #[test]
+    fn a_queued_stop_is_due_on_the_next_bar() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        let id = insert_running_root_clock(&mut processor);
+        processor.stopped.store(false, Ordering::SeqCst);
+        processor.transport_stopped.store(false, Ordering::SeqCst);
+        advance_clock(&processor, &id, 1_000);
+
+        cmd_producer
+            .push(GraphCommand::QueuedStopTransport {
+                trigger: QueuedTrigger::NextBar,
+            })
+            .unwrap();
+        processor.process_commands();
+        assert!(processor.clock_held());
+
+        // 120 BPM in 4/4 at 44.1 kHz: a bar is 88 200 samples.
+        let clock = processor.patch.sampleables.get(&id).unwrap();
+        let mut samples: usize = 1_000;
+        let due = loop {
+            clock.start_block();
+            if let Some(due) = processor.scan_transport_events(0, 1, 0) {
+                break due;
+            }
+            samples += 1;
+        };
+        assert!(due.stop && !due.update);
+        assert!(
+            samples.abs_diff(88_200) <= 1,
+            "stop due at sample {samples}"
+        );
+    }
+
+    #[test]
+    fn stopping_the_transport_applies_a_queued_update_at_once() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        cmd_producer
+            .push(GraphCommand::QueuedPatchUpdate {
+                update: Box::default(),
+                trigger: QueuedTrigger::NextBar,
+            })
+            .unwrap();
+        cmd_producer.push(GraphCommand::StopTransport).unwrap();
+        processor.process_commands();
+
+        let due = processor.scan_transport_events(0, 1, 0).unwrap();
+        assert!(due.update && due.slot == 0);
+    }
+
+    #[test]
+    fn running_a_patch_cancels_a_queued_stop() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        cmd_producer
+            .push(GraphCommand::QueuedStopTransport {
+                trigger: QueuedTrigger::NextBar,
+            })
+            .unwrap();
+        cmd_producer.push(GraphCommand::CancelQueuedStop).unwrap();
+        processor.process_commands();
+        assert!(!processor.clock_held());
+    }
+
+    #[test]
+    fn a_queued_stop_on_a_stopped_transport_is_dropped() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        processor.stop_pending.store(true, Ordering::SeqCst);
+        cmd_producer
+            .push(GraphCommand::QueuedStopTransport {
+                trigger: QueuedTrigger::NextBar,
+            })
+            .unwrap();
+        processor.process_commands();
+        assert!(processor.transport_stopped.load(Ordering::SeqCst));
+        assert!(!processor.clock_held());
+        assert!(!processor.stop_pending.load(Ordering::SeqCst));
+    }
+
+    #[test]
+    fn stop_after_a_pending_start_leaves_the_engine_stopped() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        cmd_producer.push(GraphCommand::Start).unwrap();
+        cmd_producer.push(GraphCommand::Stop).unwrap();
+        processor.process_commands();
+
+        assert!(processor.is_stopped());
+        assert!(processor.transport_stopped.load(Ordering::SeqCst));
     }
 
     #[test]
@@ -5669,6 +5959,85 @@ mod tests {
             Arc::new(MidiInputManager::new()),
             1,
         )
+    }
+
+    #[test]
+    fn stop_press_halts_the_transport_then_silences_the_engine() {
+        let (cmd_producer, mut cmd_consumer, _err_producer, err_consumer, _garbage, garbage) =
+            create_audio_channels();
+        let state = AudioState::new_with_channels(
+            cmd_producer,
+            err_consumer,
+            garbage,
+            44_100.0,
+            2,
+            Arc::new(MidiInputManager::new()),
+            1,
+        );
+        state.stopped.store(false, Ordering::SeqCst);
+        state.transport_stopped.store(false, Ordering::SeqCst);
+
+        assert!(matches!(
+            state.press_stop(QueuedTrigger::NextBar),
+            StopOutcome::Queued
+        ));
+        assert!(!state.is_transport_stopped());
+        assert!(matches!(
+            cmd_consumer.pop(),
+            Ok(GraphCommand::QueuedStopTransport {
+                trigger: QueuedTrigger::NextBar
+            })
+        ));
+
+        // A press while the stop waits halts the transport at once.
+        assert!(matches!(
+            state.press_stop(QueuedTrigger::NextBar),
+            StopOutcome::Transport
+        ));
+        assert!(state.is_transport_stopped());
+        assert!(!state.is_stopped());
+        assert!(matches!(
+            cmd_consumer.pop(),
+            Ok(GraphCommand::StopTransport)
+        ));
+
+        assert!(matches!(
+            state.press_stop(QueuedTrigger::NextBar),
+            StopOutcome::Engine
+        ));
+        assert!(state.is_stopped());
+        assert!(matches!(cmd_consumer.pop(), Ok(GraphCommand::Stop)));
+
+        assert!(matches!(
+            state.press_stop(QueuedTrigger::Immediate),
+            StopOutcome::Engine
+        ));
+    }
+
+    #[test]
+    fn an_immediate_stop_press_halts_the_transport_at_once() {
+        let (cmd_producer, mut cmd_consumer, _err_producer, err_consumer, _garbage, garbage) =
+            create_audio_channels();
+        let state = AudioState::new_with_channels(
+            cmd_producer,
+            err_consumer,
+            garbage,
+            44_100.0,
+            2,
+            Arc::new(MidiInputManager::new()),
+            1,
+        );
+        state.stopped.store(false, Ordering::SeqCst);
+        state.transport_stopped.store(false, Ordering::SeqCst);
+
+        assert!(matches!(
+            state.press_stop(QueuedTrigger::Immediate),
+            StopOutcome::Transport
+        ));
+        assert!(matches!(
+            cmd_consumer.pop(),
+            Ok(GraphCommand::StopTransport)
+        ));
     }
 
     #[test]

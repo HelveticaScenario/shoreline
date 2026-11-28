@@ -25,6 +25,17 @@ pub enum QueuedTrigger {
     NextBeat,
 }
 
+/// What a press of the Stop control did.
+#[napi(string_enum)]
+pub enum StopOutcome {
+    /// The clock halts at the next bar or beat; the engine plays on.
+    Queued,
+    /// The clock halted; the engine plays on.
+    Transport,
+    /// The engine fades out to silence.
+    Engine,
+}
+
 /// Transport/meter values extracted from the patch's ROOT_CLOCK, carried to the
 /// audio thread so the meter write and the Link tempo push happen at apply time,
 /// atomically with the module swap. `None` when the patch has no ROOT_CLOCK.
@@ -169,8 +180,19 @@ pub enum GraphCommand {
     /// Transport control: start playback
     Start,
 
-    /// Transport control: stop playback
+    /// Transport control: silence the engine, freezing the patch behind a
+    /// fade.
     Stop,
+
+    /// Transport control: stop the clock while the engine keeps rendering,
+    /// so held sounds and effect tails ring on.
+    StopTransport,
+
+    /// Transport control: `StopTransport` at the clock's next bar or beat.
+    QueuedStopTransport { trigger: QueuedTrigger },
+
+    /// Discard the queued transport stop, so the transport plays on.
+    CancelQueuedStop,
 
     /// Clear the entire patch (used when stopped to reset state). Carries a
     /// fresh main-thread-built patch (hidden audio-in + listeners already

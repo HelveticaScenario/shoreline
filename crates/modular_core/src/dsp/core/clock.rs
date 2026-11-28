@@ -411,14 +411,13 @@ impl Clock {
                 self.park_groove();
             }
             ClockMessages::Stop => {
+                // The playhead holds where it stopped, so whatever it drives
+                // keeps its value while the engine plays on.
                 self.state.running = false;
                 // Ensure triggers are low while stopped.
                 self.outputs.bar_trigger = 0.0;
                 self.outputs.beat_trigger = 0.0;
                 self.outputs.ppq_trigger = 0.0;
-                self.outputs.playhead.set_f64(0, 0.0);
-                self.state.loop_index = 0;
-                self.outputs.beat_in_bar = 0.0;
                 self.park_groove();
             }
         }

@@ -23,6 +23,7 @@ export function TransportDisplay({ onToggleLink }: TransportDisplayProps) {
         bar,
         beatInBar,
         hasQueuedUpdate,
+        hasQueuedStop,
         linkPendingStart,
     } = transport;
 
@@ -149,6 +150,14 @@ export function TransportDisplay({ onToggleLink }: TransportDisplayProps) {
             {hasQueuedUpdate && (
                 <span className="transport-queued" title="Update queued">
                     Q
+                </span>
+            )}
+            {hasQueuedStop && (
+                <span
+                    className="transport-queued"
+                    title="Stopping at the next bar"
+                >
+                    ⏹
                 </span>
             )}
         </div>

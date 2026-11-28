@@ -9,7 +9,7 @@ import type { MixerController } from '../../mixer/MixerController';
 export function useTestApi(app: {
     eqController: EqPanelController;
     mixer: MixerController;
-    isClockRunning: boolean;
+    isEngineRunning: boolean;
     submit: () => void;
     getLastResult: () => unknown;
     openEngineHealth: () => void;
@@ -36,7 +36,7 @@ export function useTestApi(app: {
             getScopeData: () => electronAPI.synthesizer.getScopes(),
             getVuMeterData: () => electronAPI.synthesizer.getVuMeters(),
             getVuOutputs: () => latest().mixer.store.outputs,
-            isClockRunning: () => latest().isClockRunning,
+            isEngineRunning: () => latest().isEngineRunning,
             newUntitledFile: () => executeCommand('shoreline.newFile'),
             openEngineHealth: () => latest().openEngineHealth(),
             openModuleProfile: () => latest().openModuleProfile(),

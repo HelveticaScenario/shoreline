@@ -838,10 +838,14 @@ test.describe('vu meter panel', () => {
             'true',
         );
 
+        // The first Stop waits for the bar, the second halts the transport at
+        // once and the third silences the engine.
+        await window.keyboard.press('Control+.');
+        await window.keyboard.press('Control+.');
         await window.keyboard.press('Control+.');
         await expect
             .poll(() =>
-                window.evaluate(() => window.__TEST_API__!.isClockRunning()),
+                window.evaluate(() => window.__TEST_API__!.isEngineRunning()),
             )
             .toBe(false);
         expect(await barsAreRed(window, 'hot')).toBe(false);

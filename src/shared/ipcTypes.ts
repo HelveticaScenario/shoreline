@@ -544,7 +544,7 @@ export interface IPCHandlers {
 
     [IPC_CHANNELS.SYNTH_GET_MODULE_STATES]: typeof Synthesizer.prototype.getModuleStates;
 
-    [IPC_CHANNELS.SYNTH_STOP]: typeof Synthesizer.prototype.stop;
+    [IPC_CHANNELS.SYNTH_STOP]: typeof Synthesizer.prototype.pressStop;
 
     [IPC_CHANNELS.SYNTH_CANCEL_QUEUED_UPDATE]: typeof Synthesizer.prototype.cancelQueuedUpdate;
 

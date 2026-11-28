@@ -1,0 +1,6 @@
+kind: Breaking
+body: |-
+  Stop stops the transport and lets the sound ring on: sequences release their notes and the clock holds its place, while drones, held notes and effect tails keep playing. The Ctrl+. shortcut and the Stop menu item wait for the next bar, and the transport display shows ⏹ until then; the Stop button, or a second Ctrl+. while waiting, stops at once. Press Stop again with the transport stopped to fade everything out. A `$cycle` with its own `playhead` keeps playing through a transport stop while that playhead keeps moving, and releases its notes if it stops with the clock. Running a patch cancels a stop that is waiting for its bar, and running one while the transport is stopped starts it again at once, even an update queued for the next bar or beat.
+
+  Patches need no change: press Stop twice (Ctrl+. three times) where one press used to silence everything.
+time: 2026-11-27T04:39:11.276584-05:00
