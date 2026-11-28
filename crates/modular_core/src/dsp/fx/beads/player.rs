@@ -1,7 +1,7 @@
 //! Grain scheduler for one voice: starts grains on triggers and steals the
 //! least audible ones when all of its grains are busy.
 
-use super::buffer::{Codec, GrainBuffer};
+use super::buffer::GrainBuffer;
 use super::grain::{Grain, GrainStart, HEAD_CROSSING_SAFETY_ZONE};
 use crate::dsp::utils::rng::LcgRng;
 use crate::dsp::utils::semitones_to_ratio;
@@ -183,7 +183,7 @@ impl GranularPlayer {
     /// Advance every sounding grain by one sample, handing each grain and its
     /// sample to `mix`.
     #[inline]
-    pub fn render<C: Codec>(&mut self, buffer: &GrainBuffer, mut mix: impl FnMut(&Grain, f32)) {
+    pub fn render(&mut self, buffer: &GrainBuffer, mut mix: impl FnMut(&Grain, f32)) {
         // Ascending index order keeps the mix's rounding identical to
         // rendering every grain.
         let mut bits = self.active;
@@ -191,7 +191,7 @@ impl GranularPlayer {
             let i = bits.trailing_zeros() as usize;
             bits &= bits - 1;
             let grain = &mut self.grains[i];
-            if let Some(sample) = grain.next_sample::<C>(buffer) {
+            if let Some(sample) = grain.next_sample(buffer) {
                 mix(grain, sample);
             }
             if grain.done() {

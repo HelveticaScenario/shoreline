@@ -1,8 +1,7 @@
-//! Pieces shared across the Beads modules: the hardware's media settings,
-//! its control-block clock and its limiters.
+//! Pieces shared across the Beads modules: the hardware's media settings
+//! and its control-block clock.
 
 use super::buffer::{Resolution, mulaw_round_trip};
-use super::primitives::Limiter;
 
 /// Control blocks per second; parameters are smoothed and ramped per block.
 const BLOCK_RATE: f32 = 4000.0;
@@ -63,25 +62,6 @@ impl Media {
             Media::VintageDigital => (x * 4096.0) as i32 as f32 / 4096.0,
             Media::DirtyTape => mulaw_round_trip(x),
         }
-    }
-}
-
-/// The hardware's pre-reverb and output limiters, for one signal.
-#[derive(Clone, Copy, Default)]
-pub struct Limiters {
-    pub pre: Limiter,
-    pub output: Limiter,
-}
-
-impl Limiters {
-    pub fn init(&mut self, sample_rate: f32) {
-        self.pre.init(1.0 / (sample_rate * 4.0));
-        self.output.init(1.0 / (sample_rate * 6.0));
-    }
-
-    #[inline]
-    pub fn process_mono(&mut self, x: f32) -> f32 {
-        self.output.process_mono(self.pre.process_mono(x))
     }
 }
 

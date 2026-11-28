@@ -1,7 +1,7 @@
 //! One grain: a read head into the recording buffer with its amplitude
 //! envelope, voice-stealing fade and stereo placement.
 
-use super::buffer::{Codec, GrainBuffer};
+use super::buffer::GrainBuffer;
 use super::primitives::{Frame, smooth_step};
 
 /// Length of the zone near the write head where grains fade out.
@@ -254,7 +254,7 @@ impl Grain {
     /// `None` once it is done. A grain that reaches either end of the buffer
     /// stops.
     #[inline]
-    pub fn next_sample<C: Codec>(&mut self, buffer: &GrainBuffer) -> Option<f32> {
+    pub fn next_sample(&mut self, buffer: &GrainBuffer) -> Option<f32> {
         if self.done() {
             return None;
         }
@@ -285,7 +285,7 @@ impl Grain {
 
         let delay_integral = (self.delay >> FRACTION_BITS) as i32;
         let delay_fractional = (self.delay & (ONE - 1)) as f32 * (1.0 / ONE as f32);
-        let mut sample = buffer.read_hermite::<C>(delay_integral, delay_fractional);
+        let mut sample = buffer.read_hermite(delay_integral, delay_fractional);
         sample *= smooth_step(fade_ramp);
         sample *= self.envelope.render() * self.voice_stealing_envelope.render();
 

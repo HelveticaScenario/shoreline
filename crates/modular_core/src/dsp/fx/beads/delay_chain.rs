@@ -1,9 +1,9 @@
 //! The `$clockedDelay` chain at the hardware rate of the selected quality:
 //! each voice records its input plus feedback, reads it back through the
-//! controller's taps, mixes dry and wet and limits the result.
+//! controller's taps and mixes dry and wet.
 
-use super::buffer::{GrainBuffer, Linear12Codec, Linear16Codec, MuLaw8Codec, Resolution};
-use super::chain::{BlockClock, Limiters, Media, POT_LP};
+use super::buffer::GrainBuffer;
+use super::chain::{BlockClock, Media, POT_LP};
 use super::delay_controller::{DelayController, DelayControls, Grid};
 use super::feedback::FeedbackPath;
 use super::multitap::MultitapDelay;
@@ -60,7 +60,6 @@ pub struct DelayVoice {
     started: bool,
     dry: Ramp,
     wet: Ramp,
-    limiters: Limiters,
     /// Output at the hardware rate, read at the engine rate through the
     /// resampler.
     pub output: MonoHistory,
@@ -99,7 +98,6 @@ impl crate::types::SeedSide for DelayVoice {
             started: _,
             dry: _,
             wet: _,
-            limiters: _,
             output: _,
             decimator: _,
             interpolator: _,
@@ -125,7 +123,6 @@ impl crate::types::SeedSide for DelayVoice {
         self.started = left.started;
         self.dry = left.dry;
         self.wet = left.wet;
-        self.limiters = left.limiters;
         self.output.copy_from(&left.output);
         self.decimator = left.decimator;
         self.interpolator = left.interpolator;
@@ -157,7 +154,6 @@ impl DelayVoice {
             .init(rate, MIN_DELAY / ratio, self.buffer.max_delay() as f32);
         self.history.clear();
         self.output.clear();
-        self.limiters.init(media.sample_rate());
         self.decimator = Decimator2::default();
         self.interpolator = Interpolator2::default();
         self.pair_input = [0.0; 2];
@@ -229,29 +225,17 @@ impl DelayVoice {
             .render(freeze, grid.grooved(self.groove_amount));
         let speed = self.speed.next();
         let bandwidth = self.bandwidth.next();
-        let buffer = &self.buffer;
-        let wet = match buffer.resolution() {
-            Resolution::MuLaw8 => self
-                .multitap
-                .render::<MuLaw8Codec>(buffer, &taps, speed, bandwidth),
-            Resolution::Linear12 => self
-                .multitap
-                .render::<Linear12Codec>(buffer, &taps, speed, bandwidth),
-            Resolution::Linear16 => self
-                .multitap
-                .render::<Linear16Codec>(buffer, &taps, speed, bandwidth),
-        };
+        let wet = self.multitap.render(&self.buffer, &taps, speed, bandwidth);
         self.feedback.feed_back(wet);
         wet
     }
 
-    /// Mix hardware sample `k` of the current pair through the limiters.
+    /// Mix hardware sample `k` of the current pair.
     #[inline]
     fn finish_sample(&mut self, media: Media, k: usize) -> f32 {
         let dry = self.dry.next();
         let wet = self.wet.next();
-        let x = media.colour(self.pair_input[k]) * dry + self.pair_wet[k] * wet;
-        self.limiters.process_mono(x)
+        media.colour(self.pair_input[k]) * dry + self.pair_wet[k] * wet
     }
 }
 

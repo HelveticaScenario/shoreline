@@ -1,11 +1,12 @@
-//! The grain recording buffer: a mono delay line stored at the bit depth of
-//! the selected quality, with Beads' freeze-tail crossfade.
+//! The grain recording buffer: a mono delay line quantized to the bit depth
+//! of the selected quality, with Beads' freeze-tail crossfade. Samples past
+//! full scale keep the quantizer's steps instead of clipping.
 
 use std::sync::Arc;
 
-use super::primitives::{clip16, smooth_step};
+use super::primitives::smooth_step;
 
-/// Storage format of the recording buffer.
+/// Bit depth the recording buffer quantizes to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Resolution {
     /// 8-bit µ-law.
@@ -79,62 +80,41 @@ pub fn linear_to_mulaw(pcm: i32) -> u8 {
     }
 }
 
-/// µ-law round trip on a full-scale sample, as applied to the dry signal in
-/// dirty-tape mode.
+/// Magnitude of the loudest µ-law code.
+const MULAW_TOP: f32 = MULAW_MAGNITUDES[0];
+/// Step between the loudest µ-law codes.
+const MULAW_TOP_STEP: f32 = MULAW_MAGNITUDES[0] - MULAW_MAGNITUDES[1];
+
+/// Level where the hardware's codec saturates at its loudest code.
+const MULAW_SATURATION: f32 = MULAW_TOP + MULAW_TOP_STEP / 2.0;
+
+/// µ-law round trip on a sample. Up to where the hardware's codec saturates
+/// it matches the codec; past that the loudest codes' steps continue.
 #[inline]
 pub fn mulaw_round_trip(x: f32) -> f32 {
-    mulaw_to_linear(linear_to_mulaw(clip16((x * 32768.0) as i32)))
+    if x.abs() < MULAW_SATURATION {
+        mulaw_to_linear(linear_to_mulaw((x * 32768.0) as i32))
+    } else {
+        let steps = ((x.abs() - MULAW_TOP) / MULAW_TOP_STEP).round();
+        (MULAW_TOP + steps * MULAW_TOP_STEP).copysign(x)
+    }
 }
 
-/// A sample in the storage format of `resolution`. µ-law codes are stored
-/// inverted so that silence is stored as 0 in every format, and zeroed
-/// storage needs no clearing.
+/// `x` quantized as `resolution` stores it.
 #[inline]
-fn encode(resolution: Resolution, x: f32) -> i16 {
-    let pcm = clip16((x * 32768.0) as i32);
+fn quantize(resolution: Resolution, x: f32) -> f32 {
     match resolution {
-        Resolution::MuLaw8 => (linear_to_mulaw(pcm) ^ 0xff) as i16,
-        Resolution::Linear12 => (pcm >> 4) as i16,
-        Resolution::Linear16 => pcm as i16,
-    }
-}
-
-/// Decoder for one storage format, so grain reads compile without a
-/// per-sample format branch.
-pub trait Codec {
-    fn decode(v: i16) -> f32;
-}
-
-pub struct MuLaw8Codec;
-pub struct Linear12Codec;
-pub struct Linear16Codec;
-
-impl Codec for MuLaw8Codec {
-    #[inline(always)]
-    fn decode(v: i16) -> f32 {
-        mulaw_to_linear(v as u8 ^ 0xff)
-    }
-}
-
-impl Codec for Linear12Codec {
-    #[inline(always)]
-    fn decode(v: i16) -> f32 {
-        v as f32 * (1.0 / 2048.0)
-    }
-}
-
-impl Codec for Linear16Codec {
-    #[inline(always)]
-    fn decode(v: i16) -> f32 {
-        v as f32 * (1.0 / 32768.0)
+        Resolution::MuLaw8 => mulaw_round_trip(x),
+        Resolution::Linear12 => (((x * 32768.0) as i32) >> 4) as f32 * (1.0 / 2048.0),
+        Resolution::Linear16 => ((x * 32768.0) as i32) as f32 * (1.0 / 32768.0),
     }
 }
 
 /// A buffer's samples: recorded in place, or loaded and shared read-only.
 #[derive(Clone)]
 enum Items {
-    Recorded(Vec<i16>),
-    Loaded(Arc<[i16]>),
+    Recorded(Vec<f32>),
+    Loaded(Arc<[f32]>),
 }
 
 #[derive(Clone)]
@@ -180,7 +160,7 @@ impl GrainBuffer {
     /// come from the system already cleared, so this is cheap even for long
     /// buffers. Main thread only.
     pub fn allocate_frames(&mut self, frames: usize) {
-        self.items = Items::Recorded(vec![0; frames + INTERPOLATION_TAIL]);
+        self.items = Items::Recorded(vec![0.0; frames + INTERPOLATION_TAIL]);
         self.clean = true;
     }
 
@@ -230,7 +210,7 @@ impl GrainBuffer {
 
     /// The stored sample at `i`.
     #[cfg(test)]
-    pub fn raw(&self, i: usize) -> i16 {
+    pub fn raw(&self, i: usize) -> f32 {
         self.items()[i]
     }
 
@@ -252,7 +232,7 @@ impl GrainBuffer {
     }
 
     #[inline(always)]
-    fn items(&self) -> &[i16] {
+    fn items(&self) -> &[f32] {
         match &self.items {
             Items::Recorded(v) => v,
             Items::Loaded(a) => a,
@@ -279,7 +259,7 @@ impl GrainBuffer {
             && !self.clean
         {
             let used = (max_delay + INTERPOLATION_TAIL).min(v.len());
-            v[..used].fill(0);
+            v[..used].fill(0.0);
         }
         // Recording starts as soon as the buffer is reset.
         self.clean = false;
@@ -313,7 +293,7 @@ impl GrainBuffer {
     #[inline]
     fn store(&mut self, i: usize, x: f32) {
         if let Items::Recorded(v) = &mut self.items {
-            v[i] = encode(self.resolution, x);
+            v[i] = quantize(self.resolution, x);
         }
     }
 
@@ -364,16 +344,10 @@ impl GrainBuffer {
         self.frozen = frozen;
     }
 
-    #[inline]
-    pub fn resolution(&self) -> Resolution {
-        self.resolution
-    }
-
     /// 4-point Hermite read `delay_integral + delay_fractional` samples
-    /// behind the write head; `delay_integral` is in `0..max_delay`. `C` must
-    /// match [`Self::resolution`].
+    /// behind the write head; `delay_integral` is in `0..max_delay`.
     #[inline(always)]
-    pub fn read_hermite<C: Codec>(&self, delay_integral: i32, delay_fractional: f32) -> f32 {
+    pub fn read_hermite(&self, delay_integral: i32, delay_fractional: f32) -> f32 {
         let max = self.max_delay;
         let mut i = self.write_ptr + delay_integral + max - 1;
         if i >= max {
@@ -384,10 +358,7 @@ impl GrainBuffer {
         }
         let i = i as usize;
         let s = &self.items()[i..i + 4];
-        let x0 = C::decode(s[0]);
-        let x1 = C::decode(s[1]);
-        let x2 = C::decode(s[2]);
-        let x3 = C::decode(s[3]);
+        let [x0, x1, x2, x3] = [s[0], s[1], s[2], s[3]];
         let c = (x2 - x0) * 0.5;
         let v = x1 - x2;
         let w = c + v;
@@ -395,5 +366,45 @@ impl GrainBuffer {
         let b_neg = w + a;
         let t = delay_fractional;
         (((a * t) - b_neg) * t + c) * t + x1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quantizing_past_full_scale_keeps_the_steps() {
+        for x in [1.7, -3.2, 12.0] {
+            let linear16 = quantize(Resolution::Linear16, x);
+            assert!((linear16 - x).abs() <= 1.0 / 32768.0, "{x} → {linear16}");
+            let linear12 = quantize(Resolution::Linear12, x);
+            assert!((linear12 - x).abs() <= 1.0 / 2048.0, "{x} → {linear12}");
+            let mulaw = quantize(Resolution::MuLaw8, x);
+            assert!((mulaw - x).abs() <= MULAW_TOP_STEP / 2.0, "{x} → {mulaw}");
+            let steps = (mulaw.abs() - MULAW_TOP) / MULAW_TOP_STEP;
+            assert!((steps - steps.round()).abs() < 1e-3, "{x} → {mulaw}");
+        }
+    }
+
+    #[test]
+    fn mulaw_matches_the_codec_until_it_saturates() {
+        for i in -32768..32768 {
+            let x = i as f32 / 32768.0;
+            if x.abs() < MULAW_SATURATION {
+                assert_eq!(mulaw_round_trip(x), mulaw_to_linear(linear_to_mulaw(i)));
+            }
+        }
+    }
+
+    #[test]
+    fn mulaw_steps_rise_one_at_a_time_through_full_scale() {
+        let mut previous = mulaw_round_trip(0.9);
+        for i in 0..20_000 {
+            let y = mulaw_round_trip(0.9 + i as f32 * 1e-5);
+            assert!(y >= previous, "{y} after {previous}");
+            assert!(y - previous <= MULAW_TOP_STEP * 1.001, "{previous} → {y}");
+            previous = y;
+        }
     }
 }

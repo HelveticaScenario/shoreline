@@ -127,7 +127,6 @@ struct GranularOutputs {
         "each lane's grains and dry signal, in stereo",
         type = cv,
         default,
-        range = (-5.0, 5.0),
     )]
     sample: PolyOutput,
 }

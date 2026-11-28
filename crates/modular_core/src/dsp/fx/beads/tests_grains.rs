@@ -108,16 +108,17 @@ fn silence_stays_silent_in_every_quality() {
 
 #[test]
 fn dry_signal_passes_at_hardware_dry_gain() {
-    // Fully dry, the hardware's dry/wet law leaves the input at 0.75×.
+    // Fully dry, the hardware's dry/wet law leaves the input at 0.75×, and a
+    // signal far past full scale passes unlimited.
     let mut p = grains_params(GranularQuality::Digital);
     p.mix = poly_volts(&[0.0]);
     let mut m = make_grains(p, SR);
     for n in 0..4800 {
-        let x = sine(220.0, n, SR, 1.0);
+        let x = sine(220.0, n, SR, 15.0);
         let (l, r) = step(&mut m, x, 0.0, SR);
         if n > 100 {
-            assert!((l - 0.75 * x).abs() < 1e-5, "left {l} vs {x} at {n}");
-            assert!((r - 0.75 * x).abs() < 1e-5, "right {r} vs {x} at {n}");
+            assert!((l - 0.75 * x).abs() < 1e-4, "left {l} vs {x} at {n}");
+            assert!((r - 0.75 * x).abs() < 1e-4, "right {r} vs {x} at {n}");
         }
     }
 }
@@ -301,7 +302,7 @@ fn record(m: &mut Granular) {
 fn recording_level(m: &Granular, voice: usize) -> usize {
     let buffer = &m.lane_state[voice].voice.granular.buffer;
     (0..buffer.max_delay())
-        .filter(|&i| buffer.raw(i as usize) != 0)
+        .filter(|&i| buffer.raw(i as usize) != 0.0)
         .count()
 }
 
@@ -461,37 +462,6 @@ fn a_voice_added_by_a_patch_update_passes_no_dry_signal() {
         for lane in 2..4 {
             let v = new.outputs.sample.get(lane);
             assert!(v.abs() < 1e-4, "sample {n}: {v}");
-        }
-    }
-}
-
-#[test]
-fn no_grain_leaves_above_the_limit_from_the_first() {
-    // Four loud voices of short and long grains, panned hard, from the
-    // module's first grain on. Digital runs at the engine rate, so nothing
-    // after the limiters can overshoot them.
-    for size in [0.0, 2.75] {
-        let (quality, limit) = (GranularQuality::Digital, 5.0001);
-        let mut p = grains_params(quality);
-        p.input = PolySignal::poly(&vec![Signal::Volts(0.0); 4]);
-        p.mix = poly_volts(&[5.0]);
-        p.size = poly_volts(&[size]);
-        p.shape = poly_volts(&[5.0]);
-        p.spread = poly_volts(&[5.0]);
-        let mut m = make_grains(p, SR);
-        for n in 0..96_000 {
-            let x = ((n as f32 * 130.8 / SR).fract() * 2.0 - 1.0) * 5.0;
-            m.params.input = PolySignal::poly(&vec![Signal::Volts(x); 4]);
-            let trig = n >= 48_000 && n % 6000 < 10;
-            m.params.trigger = poly_volts(&[if trig { 5.0 } else { 0.0 }]);
-            m.update(SR);
-            for lane in 0..8 {
-                let y = m.outputs.sample.get(lane);
-                assert!(
-                    y.abs() <= limit,
-                    "{quality:?} size {size}, lane {lane}, sample {n}: {y}"
-                );
-            }
         }
     }
 }

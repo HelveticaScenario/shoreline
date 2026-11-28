@@ -1,5 +1,5 @@
 //! The `$granular` chain at the hardware rate of the selected quality: each
-//! voice's grain engine and dry/wet mix, then limiters on each stereo lane.
+//! voice's grain engine and dry/wet mix on each stereo lane.
 //!
 //! Voices come in pairs, one per side of a stereo lane (`l * 2 + c`), each
 //! recording its own side. The pair's grains start together with one pan, so
@@ -7,7 +7,7 @@
 //! When both sides of every input match, the left voice alone plays the lane,
 //! placed in the centre, and the right voice idles.
 
-use super::chain::{BlockClock, Limiters, Media};
+use super::chain::{BlockClock, Media};
 use super::granular::GrainStartRequest;
 use super::player::{GrainTrigger, bounded_random};
 use super::primitives::Frame;
@@ -26,8 +26,6 @@ const NARROW_BLOCKS: usize = 8;
 #[derive(Default)]
 pub struct GrainsVoice {
     pub voice: Voice,
-    /// The lane's limiters, kept on its left side's voice.
-    limiters: Limiters,
     /// This side of the lane's output at the hardware rate, read at the
     /// engine rate through the resampler.
     pub output: MonoHistory,
@@ -52,7 +50,6 @@ impl GrainsVoice {
     /// Switch to `media`, clearing the voice's recording, grains and output.
     pub fn configure(&mut self, media: Media) {
         self.voice.configure(media);
-        self.limiters.init(media.sample_rate());
         self.output.clear();
         self.pair_output = 0.0;
     }
@@ -235,8 +232,7 @@ impl GrainsChain {
     }
 
     /// Mix hardware sample `k` of the current pair: each side's dry signal and
-    /// both sides' grains, through the lane's limiters, handed to `emit` with
-    /// each side's voice.
+    /// both sides' grains, handed to `emit` with each side's voice.
     fn finish_sample(
         &mut self,
         voices: &mut [GrainsVoice],
@@ -269,8 +265,6 @@ impl GrainsChain {
             let [left, rest @ ..] = lane else {
                 continue;
             };
-            let out = left.limiters.pre.process(out);
-            let out = left.limiters.output.process(out);
             emit(left, out.l);
             if let [right] = rest {
                 emit(right, out.r);

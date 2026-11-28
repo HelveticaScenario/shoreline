@@ -4,7 +4,7 @@
 //! the reverb runs at to the hardware's, so the reverb keeps its timing, and
 //! stretch further with its size.
 
-use super::primitives::{CosineOscillator, Frame, Ramp, clip16};
+use super::primitives::{CosineOscillator, Frame, Ramp};
 
 /// Lengths of ap1–ap4, dap1a, dap1b, del1, dap2a, dap2b, del2, in hardware
 /// samples.
@@ -73,19 +73,9 @@ const DEL2: usize = 9;
 
 const KAP: f32 = 0.625;
 
-#[inline]
-fn compress(x: f32) -> i16 {
-    clip16((x * 32768.0) as i32) as i16
-}
-
-#[inline]
-fn decompress(v: i16) -> f32 {
-    v as f32 / 32768.0
-}
-
 /// Accumulator-style context for one sample of the reverb program.
 struct Context<'a> {
-    buffer: &'a mut [i16],
+    buffer: &'a mut [f32],
     layout: &'a Layout,
     write_ptr: i32,
     accumulator: f32,
@@ -110,7 +100,7 @@ impl Context<'_> {
     #[inline]
     fn write(&mut self, line: usize, offset: i32, scale: f32) {
         let i = self.index(line, offset);
-        self.buffer[i] = compress(self.accumulator);
+        self.buffer[i] = self.accumulator;
         self.accumulator *= scale;
     }
 
@@ -133,8 +123,8 @@ impl Context<'_> {
     fn read_at(&mut self, line: usize, offset: f32, scale: f32) {
         let integral = offset as i32;
         let fractional = offset - integral as f32;
-        let a = decompress(self.buffer[self.index(line, integral)]);
-        let b = decompress(self.buffer[self.index(line, integral + 1)]);
+        let a = self.buffer[self.index(line, integral)];
+        let b = self.buffer[self.index(line, integral + 1)];
         let x = a + (b - a) * fractional;
         self.previous_read = x;
         self.accumulator += x * scale;
@@ -149,7 +139,7 @@ impl Context<'_> {
 
 #[derive(Default)]
 pub struct Reverb {
-    buffer: Box<[i16]>,
+    buffer: Box<[f32]>,
     /// The largest multiple of the hardware lengths the buffer holds.
     max_scale: f32,
     /// The largest size at the running rate.
@@ -192,7 +182,7 @@ impl Reverb {
     /// Allocate a tank for rates up to `max_scale` times the hardware's.
     /// Main thread only.
     pub fn allocate(&mut self, max_scale: f32) {
-        self.buffer = vec![0; buffer_len(max_scale)].into_boxed_slice();
+        self.buffer = vec![0.0; buffer_len(max_scale)].into_boxed_slice();
         self.max_scale = max_scale;
     }
 
@@ -213,7 +203,7 @@ impl Reverb {
     }
 
     pub fn clear(&mut self) {
-        self.buffer.fill(0);
+        self.buffer.fill(0.0);
         self.write_ptr = 0;
     }
 

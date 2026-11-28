@@ -1,4 +1,4 @@
-//! `$reverb`: Beads' reverb and limiters at the engine rate.
+//! `$reverb`: Beads' reverb at the engine rate.
 
 use deserr::Deserr;
 use schemars::JsonSchema;
@@ -6,7 +6,7 @@ use schemars::JsonSchema;
 use crate::poly::{LaneSum, LaneSumExt, PairSignal, PolyOutput};
 
 use super::chain::{BlockClock, POT_LP};
-use super::primitives::{Frame, Limiter};
+use super::primitives::Frame;
 use super::reverb::{Reverb, ReverbSettings};
 use super::{FULL_SCALE_VOLTS, unit};
 use crate::dsp::utils::sanitize;
@@ -18,7 +18,7 @@ const HARDWARE_RATE: f32 = 48000.0;
 /// Delay stretch at `size` 5.
 const MAX_SIZE: f32 = 2.0;
 
-/// Beads' limiters and reverb, with the control-block clock.
+/// Beads' reverb, with the control-block clock.
 #[derive(Default)]
 pub struct OutputStage {
     clock: BlockClock,
@@ -26,8 +26,6 @@ pub struct OutputStage {
     scale: f32,
     reverb: Reverb,
     reverb_settings: ReverbSettings,
-    pre_reverb_limiter: Limiter,
-    output_limiter: Limiter,
 }
 
 impl OutputStage {
@@ -44,8 +42,6 @@ impl OutputStage {
         self.scale = scale;
         self.clock.configure(sample_rate);
         self.reverb.set_sample_rate(sample_rate, scale);
-        self.pre_reverb_limiter.init(1.0 / (sample_rate * 4.0));
-        self.output_limiter.init(1.0 / (sample_rate * 6.0));
     }
 
     /// Wipe the reverb tank, for a fresh module.
@@ -87,11 +83,9 @@ impl OutputStage {
         self.reverb_settings
     }
 
-    /// Run the mixed signal through the rest of the chain.
-    pub fn finish(&mut self, mut out: Frame) -> Frame {
-        out = self.pre_reverb_limiter.process(out);
-        out = self.reverb.process(out, &self.reverb_settings);
-        self.output_limiter.process(out)
+    /// Run the mixed signal through the reverb.
+    pub fn finish(&mut self, out: Frame) -> Frame {
+        self.reverb.process(out, &self.reverb_settings)
     }
 }
 
@@ -137,7 +131,7 @@ struct BeadsReverbParams {
 #[derive(Outputs, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct BeadsReverbOutputs {
-    #[output("output", "the input plus reverb, as one stereo lane", type = cv, default, range = (-5.0, 5.0))]
+    #[output("output", "the input plus reverb, as one stereo lane", type = cv, default)]
     sample: PolyOutput,
 }
 
@@ -401,6 +395,29 @@ pub(super) mod tests {
                 assert!(
                     (l - x).abs() < 1e-5 && (r - x).abs() < 1e-5,
                     "{setting:?} {n}: {x} → {l}, {r}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn loud_signals_scale_the_whole_output_at_every_setting() {
+        // Far past full scale, the dry signal and the tail grow in proportion
+        // to the input.
+        for setting in SETTINGS {
+            let mut quiet = make(setting, 4.0);
+            let mut loud = make(setting, 4.0);
+            for n in 0..30_000 {
+                let x = if n < 4_800 {
+                    (std::f32::consts::TAU * 330.0 * n as f32 / SR).sin() * 5.0
+                } else {
+                    0.0
+                };
+                let (ql, qr) = step(&mut quiet, x);
+                let (ll, lr) = step(&mut loud, x * 4.0);
+                assert!(
+                    (ll - 4.0 * ql).abs() < 1e-3 && (lr - 4.0 * qr).abs() < 1e-3,
+                    "{setting:?} {n}: {ql}, {qr} → {ll}, {lr}"
                 );
             }
         }
