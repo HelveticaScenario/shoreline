@@ -87,12 +87,18 @@ export function useEditorMouseGestures({
             }
             editor.focus();
             // Monaco's own Cmd/Ctrl + click goes to the definition, which
-            // opens the docs of a name they cover; anything else peeks.
-            void hasDefinitionDocs(model, position).then((docs) => {
-                if (!docs) {
+            // opens the docs of a name they cover; anything else peeks. That
+            // go-to has moved the caret by the time the lookup answers, so
+            // the peek is placed back at the clicked name.
+            void hasDefinitionDocs(model, position)
+                .catch(() => false)
+                .then((docs) => {
+                    if (docs || editor.getModel() !== model) {
+                        return;
+                    }
+                    editor.setPosition(position);
                     editor.trigger('api', 'editor.action.peekDefinition', {});
-                }
-            });
+                });
         });
         return () => disposable.dispose();
     }, [editor, dslReady]);

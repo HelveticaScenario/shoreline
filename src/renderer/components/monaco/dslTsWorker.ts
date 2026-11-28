@@ -7,7 +7,6 @@
  * kept apart from the patch buffers (see docsExampleFiles).
  */
 
-import type * as TS from 'typescript';
 import type {
     CodeFixAction,
     CompletionInfo,
@@ -29,6 +28,7 @@ import { initialize } from 'monaco-editor/esm/vs/common/initialize.js';
 import { typescript as ts } from 'monaco-editor/esm/vs/language/typescript/lib/typescriptServices.js';
 import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js';
 import { trackNameError } from '../../../shared/dsl/trackLabels';
+import { declarationNameAt } from './declarationName';
 import { isDocsExample, isVisibleFrom } from './docsExampleFiles';
 import {
     collectSignalSites,
@@ -535,22 +535,8 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         position: number,
     ): Promise<string | null> {
         const program = this.getLanguageService().getProgram();
-        const sourceFile = program?.getSourceFile(fileName);
-        if (!program || !sourceFile) {
-            return null;
-        }
-        const nodeAt = (node: TS.Node): TS.Node | undefined =>
-            node.getStart(sourceFile) <= position && position < node.end
-                ? (ts.forEachChild(node, nodeAt) ?? node)
-                : undefined;
-        const node = nodeAt(sourceFile);
-        const symbol =
-            node && program.getTypeChecker().getSymbolAtLocation(node);
-        return symbol
-            ? program
-                  .getTypeChecker()
-                  .getFullyQualifiedName(symbol)
-                  .replace(/^global\./, '')
+        return program
+            ? declarationNameAt(ts, program, fileName, position)
             : null;
     }
 

@@ -33,6 +33,41 @@ const textOf = (children: React.ReactNode): string =>
         .map((child) => (typeof child === 'string' ? child : ''))
         .join('');
 
+/** Inline code in the guide, in the editor's colours and quote style. */
+const InlineCode: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+    const quote = useQuoteExample();
+    return typeof children === 'string' ? (
+        <ColorizedCode code={quote(children)} inline />
+    ) : (
+        <code>{children}</code>
+    );
+};
+
+/** A block example in the guide; MDX hands it over as `pre > code`. */
+const BlockCode: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
+    const quote = useQuoteExample();
+    const code = React.isValidElement<{ children?: unknown }>(children)
+        ? children.props.children
+        : null;
+    if (typeof code !== 'string') {
+        return <pre>{children}</pre>;
+    }
+    return <CodeExample code={quote(code.replace(/\n$/, ''))} />;
+};
+
+// Module-level, so the page keeps its elements, and the examples their
+// editors, across renders. Headings sit one level down, so the page title is
+// the `h2` the other pages use.
+const COMPONENTS: MDXComponents = {
+    Key,
+    Tip,
+    // Block code renders through `pre`, so `code` here is always inline.
+    code: InlineCode,
+    h2: ({ children }) => <h3 id={sectionId(textOf(children))}>{children}</h3>,
+    pre: BlockCode,
+    table: ({ children }) => <table className="doc-table">{children}</table>,
+};
+
 interface GuideDocsProps {
     chapterId: string;
     onChapterChange: (id: string) => void;
@@ -43,7 +78,6 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
     chapterId,
     onChapterChange,
 }) => {
-    const quote = useQuoteExample();
     const pageRef = useRef<HTMLDivElement>(null);
     const index = Math.max(
         0,
@@ -68,35 +102,6 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
             target.getBoundingClientRect().top -
             page.getBoundingClientRect().top;
         page.scrollTo({ behavior: 'smooth', top: page.scrollTop + offset });
-    };
-
-    // Headings sit one level down, so the page title is the `h2` the other
-    // pages use.
-    const components: MDXComponents = {
-        Key,
-        Tip,
-        h2: ({ children }) => (
-            <h3 id={sectionId(textOf(children))}>{children}</h3>
-        ),
-        table: ({ children }) => (
-            <table className="doc-table">{children}</table>
-        ),
-        // Block code renders through `pre`, so `code` here is always inline.
-        code: ({ children }) =>
-            typeof children === 'string' ? (
-                <ColorizedCode code={quote(children)} inline />
-            ) : (
-                <code>{children}</code>
-            ),
-        pre: ({ children }) => {
-            const code = React.isValidElement<{ children?: unknown }>(children)
-                ? children.props.children
-                : null;
-            if (typeof code !== 'string') {
-                return <pre>{children}</pre>;
-            }
-            return <CodeExample code={quote(code.replace(/\n$/, ''))} />;
-        },
     };
 
     const { Page } = chapter;
@@ -147,7 +152,7 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
                         {chapter.lede ?? chapter.summary}
                     </p>
                 </header>
-                <Page components={components} />
+                <Page components={COMPONENTS} />
                 <footer className="guide-pager">
                     {prev && (
                         <button onClick={() => onChapterChange(prev.id)}>

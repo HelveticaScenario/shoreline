@@ -175,4 +175,32 @@ describe('buildReadOnlyEditorMenuItems', () => {
         expect(roles).toEqual(['copy']);
         expect(items.some((i) => i?.kind === 'submenu')).toBe(true);
     });
+
+    test('enables navigation whatever language the patch editor holds', () => {
+        for (const key of [
+            'editorHasDefinitionProvider',
+            'editorHasReferenceProvider',
+            'editorHasDocumentSymbolProvider',
+        ]) {
+            contextKeys.set(key, false);
+        }
+        const items = buildReadOnlyEditorMenuItems(
+            fakeEditor({
+                'editor.action.goToReferences': null,
+                'editor.action.quickOutline': null,
+                'editor.action.revealDefinition': null,
+            }),
+        );
+        const commands = items.flatMap((i) =>
+            i?.kind === 'command'
+                ? [i]
+                : i?.kind === 'submenu'
+                  ? i.items.filter((s) => s?.kind === 'command')
+                  : [],
+        );
+        expect(commands.length).toBeGreaterThan(3);
+        expect(commands.every((c) => c?.kind === 'command' && c.enabled)).toBe(
+            true,
+        );
+    });
 });

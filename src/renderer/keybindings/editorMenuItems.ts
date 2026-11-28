@@ -130,6 +130,7 @@ type Placed = {
 function actionDescriptor(
     ed: editor.ICodeEditor,
     spec: ActionSpec,
+    providerKeys: (when: string) => boolean = evaluateWhen,
 ): ContextMenuItemDescriptor {
     const action = ed.getAction(spec.id);
     // Resolved editor actions report their own support; registerAction2
@@ -138,7 +139,7 @@ function actionDescriptor(
     const enabled = action
         ? action.isSupported()
         : spec.requires
-          ? evaluateWhen(spec.requires)
+          ? providerKeys(spec.requires)
           : true;
     const accelerator = getCommandAccelerator(spec.id);
     return {
@@ -229,10 +230,13 @@ export function buildEditorMenuItems(
 export function buildReadOnlyEditorMenuItems(
     ed: editor.ICodeEditor,
 ): (ContextMenuItemDescriptor | null)[] {
+    // The provider context keys describe the patch editor's model. An
+    // example's model is always JavaScript, which has every provider.
+    const providerKeys = () => true;
     return [
-        ...NAVIGATION.map((spec) => actionDescriptor(ed, spec)),
+        ...NAVIGATION.map((spec) => actionDescriptor(ed, spec, providerKeys)),
         {
-            items: PEEK.map((spec) => actionDescriptor(ed, spec)),
+            items: PEEK.map((spec) => actionDescriptor(ed, spec, providerKeys)),
             kind: 'submenu',
             label: 'Peek',
         },
