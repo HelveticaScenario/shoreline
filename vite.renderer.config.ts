@@ -2,12 +2,15 @@ import mdx from '@mdx-js/rollup';
 import react from '@vitejs/plugin-react';
 import remarkGfm from 'remark-gfm';
 import { defineConfig } from 'vite';
+import { monacoAliases } from './monacoAliases';
 
 // https://vitejs.dev/config
 export default defineConfig({
     build: {
         sourcemap: true,
     },
+    resolve: { alias: monacoAliases },
+    worker: { format: 'es' },
     plugins: [
         // MDX compiles to JSX first, so plugin-react's transform sees it.
         { enforce: 'pre', ...mdx({ remarkPlugins: [remarkGfm] }) },

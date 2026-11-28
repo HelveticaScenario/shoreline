@@ -79,28 +79,7 @@ class ErrorBoundary extends Component<
 }
 import { ThemeProvider } from './themes/ThemeContext';
 
-// Configure Monaco Editor workers for Vite (replaces MonacoWebpackPlugin)
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
-import tsWorker from './components/monaco/dslTsWorker?worker';
-import jsonWorker from 'monaco-editor/esm/vs/language/json/json.worker?worker';
-import cssWorker from 'monaco-editor/esm/vs/language/css/css.worker?worker';
-
-(self as any).MonacoEnvironment = {
-    getWorker(_: string, label: string) {
-        if (label === 'typescript' || label === 'javascript') {
-            return new tsWorker();
-        }
-        if (label === 'json') {
-            return new jsonWorker();
-        }
-        if (label === 'css' || label === 'scss' || label === 'less') {
-            return new cssWorker();
-        }
-        return new editorWorker();
-    },
-};
-
-import * as monaco from 'monaco-editor';
+import { startMonaco } from './monacoSetup';
 import { installHoverDelegateAnchor } from './components/monaco/hoverDelegateAnchor';
 
 // Suppress Monaco Editor's harmless "Canceled" errors that occur during
@@ -130,7 +109,8 @@ window.addEventListener(
     true,
 );
 
-// Make monaco available globally
+const monaco = await startMonaco();
+// The editor's loader takes the instance it finds here.
 (window as any).monaco = monaco;
 
 // Pin monaco's process-global hover-delegate factory to an immortal anchor
