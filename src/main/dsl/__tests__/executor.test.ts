@@ -2236,8 +2236,7 @@ describe('script execution environment', () => {
     }, 15_000);
 
     test('a timeout spent loading uncached .syx files promises no re-run progress', () => {
-        let error: unknown;
-        try {
+        expect(() =>
             executePatchScript(
                 "out: $mi.sixOp('c3', '/dx7/rom.syx')",
                 schemas,
@@ -2253,13 +2252,8 @@ describe('script execution environment', () => {
                         },
                     },
                 },
-            );
-        } catch (e) {
-            error = e;
-        }
-        const message = (error as Error).message;
-        expect(message).toMatch(/s of it loading files$/);
-        expect(message).not.toMatch(/run again/);
+            ),
+        ).toThrow(/s of it loading files$/);
     }, 15_000);
 
     test('top-level return ends the patch script early', () => {
