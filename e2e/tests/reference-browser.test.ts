@@ -17,12 +17,13 @@ test.describe('reference browser', () => {
             .focus();
         await window.keyboard.press('ArrowRight');
         await window.keyboard.press('ArrowRight');
-        await expect.poll(measure).toBe(before + 32);
+        await expect.poll(measure).toBeGreaterThan(before);
+        const width = await measure();
 
         await window.reload();
         await window.waitForLoadState('domcontentloaded');
 
         await expect(index).toBeVisible({ timeout: 15_000 });
-        await expect.poll(measure).toBe(before + 32);
+        await expect.poll(measure).toBe(width);
     });
 });

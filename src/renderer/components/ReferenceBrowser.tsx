@@ -1,9 +1,15 @@
 import React, { memo, useCallback, useLayoutEffect, useRef } from 'react';
 import { measureElement, useVirtualizer } from '@tanstack/react-virtual';
 import referenceCategories from '@modular/core/referenceCategories.json';
+import {
+    Group,
+    Panel,
+    type PanelImperativeHandle,
+    Separator,
+    usePanelRef,
+} from 'react-resizable-panels';
+import { useStoredPanelSize } from '../hooks/useStoredPanelSize';
 import { ReferenceCard } from './ReferenceCard';
-import { Sash } from './Sash';
-import { useStoredSize } from '../hooks/useStoredSize';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
 import type { ReferenceEntry } from '../../shared/dsl/referenceDocs';
 import { allExamples } from '../../shared/dsl/referenceDocs';
@@ -12,18 +18,11 @@ const CARD_GAP_PX = 15;
 const ESTIMATED_CARD_HEIGHT_PX = 320;
 
 const INDEX_ID = 'docs-reference-index';
-const INDEX_WIDTH_STORAGE_KEY = 'modular_docs_index_width';
+const WIDTH_STORAGE_KEY = 'modular_docs_index_width';
+const INDEX_DEFAULT_WIDTH = 200;
 const INDEX_MIN_WIDTH = 120;
 /** Room kept for the cards when the index grows. */
 const CARDS_MIN_WIDTH = 240;
-
-function indexMaxWidth(): number {
-    const reference = document.getElementById(INDEX_ID)?.parentElement;
-    const width = reference?.getBoundingClientRect().width ?? 0;
-    return Math.max(INDEX_MIN_WIDTH, width - CARDS_MIN_WIDTH);
-}
-
-const clampIndexWidth = (width: number) => Math.max(width, INDEX_MIN_WIDTH);
 
 interface ReferenceBrowserProps {
     /** Already sorted in display order. */
@@ -71,9 +70,11 @@ export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
     onCategoryChange,
     onTypeClick,
 }) => {
-    const [indexWidth, setIndexWidth] = useStoredSize(
-        INDEX_WIDTH_STORAGE_KEY,
-        clampIndexWidth,
+    const indexRef = usePanelRef();
+    const indexWidth = useStoredPanelSize(
+        WIDTH_STORAGE_KEY,
+        INDEX_DEFAULT_WIDTH,
+        indexRef,
     );
 
     const used = new Set(entries.flatMap((e) => e.docs.categories));
@@ -96,7 +97,11 @@ export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
     );
 
     return (
-        <div className="reference-browser">
+        <Group
+            className="reference-browser"
+            orientation="horizontal"
+            onLayoutChanged={indexWidth.onLayoutChanged}
+        >
             <ReferenceIndex
                 noun={noun}
                 entries={filteredEntries}
@@ -105,10 +110,19 @@ export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
                 searchQuery={searchQuery}
                 onSearchQueryChange={onSearchQueryChange}
                 category={category}
-                width={indexWidth}
-                onWidthChange={setIndexWidth}
+                panelRef={indexRef}
+                defaultWidth={indexWidth.defaultSize}
             />
-            <div className="reference-browser-main">
+            <Separator
+                className="app-sash into-previous reference-index-sash"
+                aria-label={`Resize ${noun} index`}
+            />
+            <Panel
+                style={{ overflow: 'hidden' }}
+                id="docs-reference-cards"
+                className="reference-browser-main"
+                minSize={CARDS_MIN_WIDTH}
+            >
                 {categories.length > 0 && (
                     <ReferenceCategories
                         categories={categories}
@@ -125,8 +139,8 @@ export const ReferenceBrowser: React.FC<ReferenceBrowserProps> = ({
                     )}
                     {list}
                 </div>
-            </div>
-        </div>
+            </Panel>
+        </Group>
     );
 };
 
@@ -139,8 +153,8 @@ interface ReferenceIndexProps {
     searchQuery: string;
     onSearchQueryChange: (query: string) => void;
     category: string | null;
-    width: number | null;
-    onWidthChange: (width: number | null) => void;
+    panelRef: React.RefObject<PanelImperativeHandle | null>;
+    defaultWidth: number;
 }
 
 /**
@@ -156,8 +170,8 @@ const ReferenceIndex = memo(function ReferenceIndex({
     searchQuery,
     onSearchQueryChange,
     category,
-    width,
-    onWidthChange,
+    panelRef,
+    defaultWidth,
 }: ReferenceIndexProps) {
     const listRef = useRef<HTMLUListElement>(null);
 
@@ -188,24 +202,15 @@ const ReferenceIndex = memo(function ReferenceIndex({
     }, [topName, entries]);
 
     return (
-        <div
+        <Panel
+            style={{ overflow: 'hidden' }}
             id={INDEX_ID}
             className="reference-index"
-            style={{
-                width: width ?? undefined,
-                maxWidth: `calc(100% - ${CARDS_MIN_WIDTH}px)`,
-            }}
+            panelRef={panelRef}
+            defaultSize={defaultWidth}
+            minSize={INDEX_MIN_WIDTH}
+            groupResizeBehavior="preserve-pixel-size"
         >
-            <Sash
-                panelId={INDEX_ID}
-                axis="x"
-                grow={1}
-                min={INDEX_MIN_WIDTH}
-                max={indexMaxWidth}
-                label={`Resize ${noun} index`}
-                className="reference-index-sash"
-                onSizeChange={onWidthChange}
-            />
             <input
                 type="text"
                 placeholder={`Search ${noun}...`}
@@ -232,7 +237,7 @@ const ReferenceIndex = memo(function ReferenceIndex({
                     </li>
                 ))}
             </ul>
-        </div>
+        </Panel>
     );
 });
 

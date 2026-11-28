@@ -1,10 +1,4 @@
-import {
-    type CSSProperties,
-    useEffect,
-    useEffectEvent,
-    useRef,
-    useState,
-} from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 import { registerCommand, unregisterCommand } from '../keybindings/commands';
 import {
     type DocsTarget,
@@ -16,26 +10,7 @@ import type { AppConfig } from '../../shared/ipcTypes';
 export type BottomTab = 'mixer' | 'docs';
 
 export const BOTTOM_PANEL_MIN_HEIGHT = 84;
-const DEFAULT_HEIGHT = 200;
-/** Room kept for the header, the editor and the bottom bar when the panel grows. */
-const RESERVED_HEIGHT = 240;
-/** How long a height must hold before it is written to the config file. */
-const HEIGHT_WRITE_DELAY_MS = 300;
-
-export function bottomPanelMaxHeight(): number {
-    return Math.max(
-        BOTTOM_PANEL_MIN_HEIGHT,
-        window.innerHeight - RESERVED_HEIGHT,
-    );
-}
-
-/** The panel's sizing. A short window squeezes the panel before the editor. */
-export function bottomPanelStyle(height: number): CSSProperties {
-    return {
-        height,
-        maxHeight: `max(${BOTTOM_PANEL_MIN_HEIGHT}px, calc(100vh - ${RESERVED_HEIGHT}px))`,
-    };
-}
+export const BOTTOM_PANEL_DEFAULT_HEIGHT = 200;
 
 /** Where the docs live and what they were last asked to show. */
 export interface DocsState {
@@ -59,48 +34,6 @@ export interface BottomPanelState {
 }
 
 /**
- * The panel's height while a drag runs, ahead of the config file, and the
- * setter the sash drives. A height is written once it holds still, and a
- * pending write is flushed on unmount. Kept beside the panel so a drag
- * re-renders only the panel.
- */
-export function useDraftHeight(
-    committed: number,
-    commit: (height: number) => void,
-): [number, (height: number | null) => void] {
-    const [draft, setDraft] = useState<number | null>(null);
-    const pending = useRef<{ timer: number; height: number } | null>(null);
-    const commitRef = useRef(commit);
-    useEffect(() => {
-        commitRef.current = commit;
-    }, [commit]);
-
-    const setHeight = (next: number | null) => {
-        const height = next ?? DEFAULT_HEIGHT;
-        setDraft(height);
-        if (pending.current) window.clearTimeout(pending.current.timer);
-        const timer = window.setTimeout(() => {
-            pending.current = null;
-            commitRef.current(height);
-            setDraft(null);
-        }, HEIGHT_WRITE_DELAY_MS);
-        pending.current = { timer, height };
-    };
-
-    useEffect(
-        () => () => {
-            const write = pending.current;
-            if (!write) return;
-            window.clearTimeout(write.timer);
-            commitRef.current(write.height);
-        },
-        [],
-    );
-
-    return [draft ?? committed, setHeight];
-}
-
-/**
  * Which panel shows under the editor and how tall it is, both kept in the
  * config file. Registers the commands that open the mixer and the docs,
  * wherever the docs live.
@@ -116,7 +49,7 @@ export function useBottomPanel(
     const storedTab = config.bottomPanel ?? null;
     const tab =
         docsLocation === 'sidebar' && storedTab === 'docs' ? null : storedTab;
-    const height = config.bottomPanelHeight ?? DEFAULT_HEIGHT;
+    const height = config.bottomPanelHeight ?? BOTTOM_PANEL_DEFAULT_HEIGHT;
     const [docsTarget, setDocsTarget] = useState<DocsTarget | null>(null);
     const [reveals, setReveals] = useState(0);
     // The docs mount afresh in their new place and show a target on mount,

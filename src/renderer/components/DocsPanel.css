@@ -348,38 +348,26 @@
 .docs-panel .reference-index {
     display: flex;
     flex-direction: column;
-    position: relative;
-    flex: 0 0 auto;
-    width: 200px;
-    min-width: 120px;
     gap: var(--sp-1);
     padding: var(--sp-1);
-    border-right: 1px solid var(--border-subtle);
-}
-
-.docs-panel .reference-index-sash {
-    right: -1px;
-}
-
-.docs-panel .reference-index-sash::after {
-    left: auto;
-    right: 0;
 }
 
 /* Narrower than the index's minimum plus the cards' minimum (INDEX_MIN_WIDTH +
    CARDS_MIN_WIDTH in ReferenceBrowser.tsx), the index sits above the cards.
-   `!important` overrides the width the sash stores inline. */
+   `!important` overrides the panel layout's inline flex styles. */
 @container (max-width: 359px) {
     .docs-panel .reference-browser {
-        flex-direction: column;
+        flex-direction: column !important;
     }
 
-    .docs-panel .reference-index {
-        width: auto !important;
-        max-width: none !important;
+    .docs-panel [data-panel]:has(> .reference-index) {
+        flex: 0 1 auto !important;
         max-height: 30%;
-        border-right: none;
         border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .docs-panel [data-panel]:has(> .reference-browser-main) {
+        flex: 1 !important;
     }
 
     .docs-panel .reference-index-sash {
