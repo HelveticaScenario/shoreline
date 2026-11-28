@@ -1,4 +1,4 @@
-use super::lane::{CombLane, Controls, Rates, damping_pole, loop_gain, ring_time};
+use super::lane::{CombLane, Controls, Rates, damping_pole, even_ring_gain, pass_gain, ring_time};
 use crate::types::GlideMark;
 
 const SR: f32 = 48_000.0;
@@ -13,12 +13,21 @@ fn new_lane() -> (CombLane, Rates) {
     (lane, rates)
 }
 
-fn render(controls: Controls, input: impl Fn(usize) -> f32, len: usize) -> Vec<f32> {
+fn render_ring(
+    controls: Controls,
+    even_ring: bool,
+    input: impl Fn(usize) -> f32,
+    len: usize,
+) -> Vec<f32> {
     let (mut lane, rates) = new_lane();
     let marks = [GlideMark::ABSENT; 3];
     (0..len)
-        .map(|n| lane.step(input(n), controls, marks, &rates))
+        .map(|n| lane.step(input(n), controls, marks, even_ring, &rates))
         .collect()
+}
+
+fn render(controls: Controls, input: impl Fn(usize) -> f32, len: usize) -> Vec<f32> {
+    render_ring(controls, false, input, len)
 }
 
 fn impulse(n: usize) -> f32 {
@@ -66,13 +75,20 @@ fn rings_at_its_pitch_with_either_sign_and_any_damping() {
     let hz = 220.0;
     for feedback in [4.5, -4.5] {
         for damp in [0.0, 1.5, 3.0] {
-            let y = render(controls(A3, feedback, damp), impulse, SR as usize);
-            let peak = peak_between(&y, hz * 0.9, hz * 1.1);
-            let cents = 1200.0 * (peak / hz).log2();
-            assert!(
-                cents.abs() < 3.0,
-                "feedback {feedback} damp {damp}: peak {peak} Hz, {cents} cents"
-            );
+            for even_ring in [false, true] {
+                let y = render_ring(
+                    controls(A3, feedback, damp),
+                    even_ring,
+                    impulse,
+                    SR as usize,
+                );
+                let peak = peak_between(&y, hz * 0.9, hz * 1.1);
+                let cents = 1200.0 * (peak / hz).log2();
+                assert!(
+                    cents.abs() < 3.0,
+                    "feedback {feedback} damp {damp} even {even_ring}: peak {peak} Hz, {cents} cents"
+                );
+            }
         }
     }
 }
@@ -111,11 +127,11 @@ fn recovers_from_non_finite_input() {
     let marks = [GlideMark::ABSENT; 3];
     let c = controls(0.0, 5.0, 0.0);
     for x in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
-        assert!(lane.step(x, c, marks, &rates).is_finite());
+        assert!(lane.step(x, c, marks, true, &rates).is_finite());
     }
     let poisoned = controls(f32::NAN, f32::INFINITY, f32::NAN);
     for _ in 0..1000 {
-        assert!(lane.step(1.0, poisoned, marks, &rates).is_finite());
+        assert!(lane.step(1.0, poisoned, marks, true, &rates).is_finite());
     }
 }
 
@@ -142,7 +158,7 @@ fn decay_db_per_second(y: &[f32]) -> f32 {
 fn every_pitch_rings_for_the_same_time() {
     for feedback in [3.0, -3.0] {
         for freq in [-2.0, A3, 2.0] {
-            let y = render(controls(freq, feedback, 0.0), impulse, SR as usize);
+            let y = render_ring(controls(freq, feedback, 0.0), true, impulse, SR as usize);
             let decay = decay_db_per_second(&y);
             let expected = 60.0 / ring_time(feedback);
             assert!(
@@ -154,14 +170,27 @@ fn every_pitch_rings_for_the_same_time() {
 }
 
 #[test]
+fn by_default_low_notes_ring_longer() {
+    let low = render(controls(-2.0, 3.0, 0.0), impulse, SR as usize);
+    let high = render(controls(1.0, 3.0, 0.0), impulse, SR as usize);
+    assert!(decay_db_per_second(&high) > 4.0 * decay_db_per_second(&low));
+}
+
+#[test]
 fn curves_span_their_ranges() {
+    assert_eq!(pass_gain(0.0), 0.0);
+    assert!((pass_gain(5.0) - 0.995).abs() < 1e-3);
+    assert_eq!(pass_gain(-3.0), -pass_gain(3.0));
     assert_eq!(ring_time(0.0), 0.0);
     assert!((ring_time(3.0) - 1.0).abs() < 0.05);
     assert!((ring_time(-5.0) - 20.0).abs() < 1e-3);
-    assert_eq!(loop_gain(0.0, 100.0, SR), 0.0);
-    assert_eq!(loop_gain(-3.0, 100.0, SR), -loop_gain(3.0, 100.0, SR));
-    assert!(loop_gain(5.0, 2.0, SR) < 1.0);
-    assert!(loop_gain(3.0, 50.0, SR) > loop_gain(3.0, 500.0, SR));
+    assert_eq!(even_ring_gain(0.0, 100.0, SR), 0.0);
+    assert_eq!(
+        even_ring_gain(-3.0, 100.0, SR),
+        -even_ring_gain(3.0, 100.0, SR)
+    );
+    assert!(even_ring_gain(5.0, 2.0, SR) < 1.0);
+    assert!(even_ring_gain(3.0, 50.0, SR) > even_ring_gain(3.0, 500.0, SR));
     assert_eq!(damping_pole(0.0, SR), 0.0);
     let mut last = 0.0;
     for d in 1..=5 {
