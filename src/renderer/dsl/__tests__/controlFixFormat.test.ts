@@ -4,8 +4,18 @@ import * as prettier from 'prettier/standalone';
 import * as prettierBabel from 'prettier/plugins/babel';
 import * as prettierEstree from 'prettier/plugins/estree';
 
+import {
+    formatDsl,
+    resolvePrettierOptions,
+} from '../../components/monaco/formattingProvider';
+import { codeStyleFromPrettier } from '../listEdits';
 import { formatControlQuickFix } from '../controlFixFormat';
-import { addFix, apply, fixesAt } from './controlQuickFixHarness';
+import {
+    addFix,
+    apply,
+    fixesAt,
+    sliderBeforeCaret,
+} from './controlQuickFixHarness';
 
 describe('formatControlQuickFix — layout', () => {
     const PRETTIER = {
@@ -144,5 +154,44 @@ describe('formatControlQuickFix — layout', () => {
         const raw = addFix(fixes, 'pwm');
         const fix = await formatControlQuickFix(source, raw, PRETTIER);
         expect(apply(source, fix)).toContain('`a\nb`');
+    });
+
+    describe('backtick quotes', () => {
+        const config = { quotes: 'backtick' as const };
+        const options = resolvePrettierOptions(config);
+
+        async function backtickAdd(text: string, param: string) {
+            const { source, fixes } = fixesAt(
+                text,
+                codeStyleFromPrettier(options),
+            );
+            const fix = await formatControlQuickFix(
+                source,
+                addFix(fixes, param),
+                options,
+            );
+            return { fix, out: apply(source, fix), source };
+        }
+
+        test('the edited statement matches Format Document', async () => {
+            const { out } = await backtickAdd(
+                'const s = $pulse(`a3`, { width: 2,   sync: 4| })',
+                'pwm',
+            );
+            expect(out).toBe(await formatDsl(out, config));
+            expect(out).toContain('pwm: $slider(`pwm`, 0, -5, 5)');
+        });
+
+        test('quoted strings print as template literals around the control', async () => {
+            const { out, fix, source } = await backtickAdd(
+                `const s = $pulse('a3', { width: 2,   sync: 4| })`,
+                'pwm',
+            );
+            expect(out).toBe(await formatDsl(out, config));
+            expect(out).toContain('$pulse(`a3`');
+            expect(sliderBeforeCaret(source, fix)).toBe(
+                '$slider(`pwm`, 0, -5, 5)',
+            );
+        });
     });
 });
