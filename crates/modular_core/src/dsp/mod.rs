@@ -18,7 +18,6 @@ pub mod phase;
 pub mod phase_warp;
 pub mod samplers;
 pub mod seq;
-pub mod shape;
 pub mod utilities;
 pub mod utils;
 
@@ -37,7 +36,6 @@ pub fn get_constructors() -> HashMap<String, SampleableConstructor> {
     midi::install_constructors(&mut map);
     mi::install_constructors(&mut map);
     samplers::install_constructors(&mut map);
-    shape::install_constructors(&mut map);
     map
 }
 
@@ -72,7 +70,6 @@ pub fn get_params_deserializers() -> HashMap<String, ParamsDeserializer> {
     midi::install_params_deserializers(&mut map);
     mi::install_params_deserializers(&mut map);
     samplers::install_params_deserializers(&mut map);
-    shape::install_params_deserializers(&mut map);
     map
 }
 
@@ -91,7 +88,6 @@ pub fn schema() -> Vec<ModuleSchema> {
         midi::schemas(),
         mi::schemas(),
         samplers::schemas(),
-        shape::schemas(),
     ]
     .concat()
 }

@@ -4,6 +4,7 @@ import {
     MenuItem,
     app,
     autoUpdater,
+    clipboard,
     dialog,
     globalShortcut,
     ipcMain,
@@ -103,6 +104,7 @@ import * as os from 'os';
 import { promises as fsPromises } from 'fs';
 import * as path from 'path';
 import { createOpenFileWatcher } from './openFileWatcher';
+import { createSyxVoiceNames } from './syxVoiceNames';
 import { z } from 'zod';
 
 // Enable Node's source-map support so production stack traces (panics, errors)
@@ -1091,6 +1093,18 @@ function inWavWorkspace<T>(load: (path: string) => T): (path: string) => T {
     };
 }
 
+const loadSyx = inWavWorkspace((syxPath) => synth.loadSyx(syxPath));
+
+const syxVoiceNames = createSyxVoiceNames(
+    (workspacePath) =>
+        currentWorkspaceRoot
+            ? path.join(currentWorkspaceRoot, workspacePath)
+            : null,
+    loadSyx,
+);
+
+registerIPCHandler('FS_LIST_SYX_VOICES', (paths) => syxVoiceNames(paths));
+
 registerIPCHandler(
     'DSL_EXECUTE',
     (source, sourceId, trigger): DSLExecuteResult => {
@@ -1116,6 +1130,7 @@ registerIPCHandler(
                     synth.loadMediaAudio(mediaPath),
                 ),
                 loadWav: inWavWorkspace((wavPath) => synth.loadWav(wavPath)),
+                loadSyx,
             });
             patch.moduleIdRemaps = [];
 
@@ -1523,7 +1538,7 @@ registerIPCHandler('SHOW_CONTEXT_MENU', (options: ContextMenuOptions) => {
                                 webContents.send(
                                     IPC_CHANNELS.ON_CONTEXT_MENU_COMMAND,
                                     {
-                                        command: 'editor',
+                                        command: options.target,
                                         commandId: item.commandId,
                                     },
                                 ),
@@ -1568,6 +1583,9 @@ registerIPCHandler('FS_SELECT_WORKSPACE', async () => {
     currentWorkspaceRoot = workspaceRoot;
     console.log('Workspace selected:', workspaceRoot);
     watchWorkspace(workspaceRoot);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.FS_TREE_ON_CHANGE);
+    }
 
     // Save to config (load-merge-save to preserve other settings)
     configStore.update((config) => {
@@ -2032,6 +2050,8 @@ function ensureKeybindingsFile(): string {
     }
     return KEYBINDINGS_FILE;
 }
+
+registerIPCHandler('CLIPBOARD_WRITE_TEXT', (text) => clipboard.writeText(text));
 
 registerIPCHandler('KEYBINDINGS_GET_PATH', () => KEYBINDINGS_FILE);
 registerIPCHandler('KEYBINDINGS_READ_USER', () => loadUserKeybindings());

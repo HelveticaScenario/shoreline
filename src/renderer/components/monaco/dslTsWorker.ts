@@ -2,8 +2,9 @@
  * Monaco's TypeScript worker, extended with the DSL's signal-site collector
  * so output-resolution hints reuse the program the editor already keeps warm,
  * with the extract and inline refactors Monaco's code actions leave out,
- * with a plain diagnostic for `$'…'` in place of the parser's, and with the
- * names track labels bind (see trackLabelBindings).
+ * with a plain diagnostic for `$'…'` in place of the parser's, with the
+ * names track labels bind (see trackLabelBindings), and with docs examples
+ * kept apart from the patch buffers (see docsExampleFiles).
  */
 
 import type {
@@ -27,6 +28,8 @@ import { initialize } from 'monaco-editor/esm/vs/common/initialize.js';
 import { typescript as ts } from 'monaco-editor/esm/vs/language/typescript/lib/typescriptServices.js';
 import { TypeScriptWorker } from 'monaco-editor/esm/vs/language/typescript/tsWorker.js';
 import { trackNameError } from '../../../shared/dsl/trackLabels';
+import { declarationNameAt } from './declarationName';
+import { isDocsExample, isVisibleFrom } from './docsExampleFiles';
 import {
     collectSignalSites,
     type SignalSite,
@@ -87,9 +90,14 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return this.view(fileName)?.text ?? super._getScriptText(fileName);
     }
 
+    // Docs examples show no diagnostics: the tests that run them check them,
+    // and the worker's time goes to the patches.
     override async getSyntacticDiagnostics(
         fileName: string,
     ): Promise<Diagnostic[]> {
+        if (isDocsExample(fileName)) {
+            return [];
+        }
         const sourceFile = this.getLanguageService()
             .getProgram()
             ?.getSourceFile(fileName);
@@ -111,6 +119,9 @@ class DslTypeScriptWorker extends TypeScriptWorker {
     override async getSemanticDiagnostics(
         fileName: string,
     ): Promise<Diagnostic[]> {
+        if (isDocsExample(fileName)) {
+            return [];
+        }
         const program = this.getLanguageService().getProgram();
         const sourceFile = program?.getSourceFile(fileName);
         const diagnostics = await super.getSemanticDiagnostics(fileName);
@@ -157,6 +168,9 @@ class DslTypeScriptWorker extends TypeScriptWorker {
     override async getSuggestionDiagnostics(
         fileName: string,
     ): Promise<Diagnostic[]> {
+        if (isDocsExample(fileName)) {
+            return [];
+        }
         const diagnostics = await super.getSuggestionDiagnostics(fileName);
         const view = this.view(fileName);
         return view ? withinPatch(view, diagnostics) : diagnostics;
@@ -180,11 +194,18 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return view ? mapSpan(view, span) : span;
     }
 
-    /** `entries` with their spans moved onto the patch's own text. */
+    /**
+     * `entries` that a request in `from` may see, with their spans moved onto
+     * the patch's own text.
+     */
     private mapEntries<T extends { fileName: string; textSpan: TextSpan }>(
+        from: string,
         entries: readonly T[] | undefined,
     ): T[] | undefined {
         return entries?.flatMap((entry) => {
+            if (!isVisibleFrom(from, entry.fileName)) {
+                return [];
+            }
             const textSpan = this.patchSpan(entry.fileName, entry.textSpan);
             if (!textSpan) {
                 return [];
@@ -226,6 +247,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         position: number,
     ): Promise<readonly DefinitionInfo[] | undefined> {
         return this.mapEntries(
+            fileName,
             await super.getDefinitionAtPosition(
                 fileName,
                 this.at(fileName, position),
@@ -238,6 +260,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         position: number,
     ): Promise<ReferenceEntry[] | undefined> {
         const references = this.mapEntries(
+            fileName,
             await super.getReferencesAtPosition(
                 fileName,
                 this.at(fileName, position),
@@ -265,6 +288,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         providePrefixAndSuffixTextForRename: boolean,
     ): Promise<readonly RenameLocation[] | undefined> {
         const locations = this.mapEntries(
+            fileName,
             await super.findRenameLocations(
                 fileName,
                 this.renameAt(fileName, position),
@@ -317,19 +341,24 @@ class DslTypeScriptWorker extends TypeScriptWorker {
             this.at(fileName, position),
             filesToSearch,
         );
-        return highlights?.map((h) => ({
-            ...h,
-            highlightSpans: this.withGroupSuffixes(
-                fileName,
-                h.highlightSpans.flatMap((span) => {
-                    const textSpan = this.patchSpan(h.fileName, span.textSpan);
-                    return textSpan
-                        ? [{ ...span, contextSpan: undefined, textSpan }]
-                        : [];
-                }),
-                () => h.fileName,
-            ),
-        }));
+        return highlights
+            ?.filter((h) => isVisibleFrom(fileName, h.fileName))
+            .map((h) => ({
+                ...h,
+                highlightSpans: this.withGroupSuffixes(
+                    fileName,
+                    h.highlightSpans.flatMap((span) => {
+                        const textSpan = this.patchSpan(
+                            h.fileName,
+                            span.textSpan,
+                        );
+                        return textSpan
+                            ? [{ ...span, contextSpan: undefined, textSpan }]
+                            : [];
+                    }),
+                    () => h.fileName,
+                ),
+            }));
     }
 
     override async getQuickInfoAtPosition(
@@ -497,6 +526,17 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return view ? sites.filter((site) => site.start < view.length) : sites;
     }
 
+    /** `declarationNameAt` over the current program, or null before one exists. */
+    async getDeclarationName(
+        fileName: string,
+        position: number,
+    ): Promise<string | null> {
+        const program = this.getLanguageService().getProgram();
+        return program
+            ? declarationNameAt(ts, program, fileName, position)
+            : null;
+    }
+
     async getLocalRefactors(
         fileName: string,
         start: number,
@@ -570,6 +610,7 @@ export type DslTypeScriptWorkerApi = Pick<
     | 'getLocalRefactors'
     | 'getLocalRefactorEdits'
     | 'getTrackRenameError'
+    | 'getDeclarationName'
 >;
 
 self.onmessage = () => {

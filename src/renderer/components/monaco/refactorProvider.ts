@@ -7,7 +7,7 @@ import type { editor, languages } from 'monaco-editor';
 
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import type { ResolvedPrettierOptions } from './formattingProvider';
-import type { DslTypeScriptWorkerApi } from './dslTsWorker';
+import { dslWorker } from './dslWorker';
 import { LOCAL_REFACTOR_KINDS } from './localRefactors';
 import type { LocalRefactor } from './localRefactors';
 import { isPatchPath } from '../../../shared/patchFiles';
@@ -32,12 +32,8 @@ export function registerRefactorProvider(
     monaco: Monaco,
     getFormatOptions: () => ResolvedPrettierOptions,
 ): { dispose: () => void } {
-    const workerFor = async (model: editor.ITextModel) => {
-        const getWorker = await monaco.typescript.getJavaScriptWorker();
-        return (await getWorker(
-            model.uri,
-        )) as unknown as DslTypeScriptWorkerApi;
-    };
+    const workerFor = (model: editor.ITextModel) =>
+        dslWorker(monaco, model.uri);
 
     // Runs after Monaco applies the edit: start renaming the new name.
     const commandDisposable = monaco.editor.registerCommand(

@@ -1,0 +1,3 @@
+kind: Fixed
+body: '`$mi.sixOp` no longer clicks at note-ons: fast attacks ramp in over half a millisecond as on Plaits, and a new note never restarts a voice that is still sounding, which clicked on voices whose oscillators restart at every note (DX7 key sync, as in `cs-80.syx`).'
+time: 2026-11-26T23:36:09.742327-05:00

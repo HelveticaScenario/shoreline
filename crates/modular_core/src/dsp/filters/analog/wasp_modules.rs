@@ -13,70 +13,43 @@ macro_rules! wasp_filter {
         name = $name:literal,
         ident = $ident:ident,
         response = $response:ident,
-        freq = cutoff,
-        $($rest:tt)+
-    ) => {
-        wasp_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $ident,
-            response = $response,
-            freq = cutoff: "cutoff frequency; tops out just under half the sample rate",
-            $($rest)+
-        }
-    };
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $ident:ident,
-        response = $response:ident,
-        freq = center,
-        $($rest:tt)+
-    ) => {
-        wasp_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $ident,
-            response = $response,
-            freq = center: "centre frequency; tops out just under half the sample rate",
-            $($rest)+
-        }
-    };
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $ident:ident,
-        response = $response:ident,
-        freq = $freq:ident: $freq_doc:literal,
-        resonance = peak,
-        $($rest:tt)+
-    ) => {
-        wasp_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $ident,
-            response = $response,
-            freq = $freq: $freq_doc,
-            resonance = "resonant peak at the cutoff, most of it past 4 and less of it at high cutoffs; whistles at 5 without self-oscillating",
-            $($rest)+
-        }
-    };
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $ident:ident,
-        response = $response:ident,
-        freq = $freq:ident: $freq_doc:literal,
-        resonance = $resonance_doc:literal,
+        freq = $freq:ident,
+        resonance = $resonance:tt,
         output = $output_doc:literal $(,)?
     ) => {
+        wasp_filter! {
+            @freq $freq $resonance $output_doc [
+                docs = $docs,
+                name = $name,
+                ident = $ident,
+                kernel = Wasp,
+                response = WaspResponse::$response,
+            ]
+        }
+    };
+    (@freq cutoff $($rest:tt)*) => {
+        wasp_filter! {
+            @resonance cutoff "cutoff frequency; tops out just under half the sample rate" $($rest)*
+        }
+    };
+    (@freq center $($rest:tt)*) => {
+        wasp_filter! {
+            @resonance center "centre frequency; tops out just under half the sample rate" $($rest)*
+        }
+    };
+    (@resonance $freq:ident $freq_doc:literal peak $($rest:tt)*) => {
+        wasp_filter! {
+            @resonance $freq $freq_doc
+            "resonant peak at the cutoff, most of it past 4 and less of it at high cutoffs; whistles at 5 without self-oscillating"
+            $($rest)*
+        }
+    };
+    (
+        @resonance $freq:ident $freq_doc:literal $resonance_doc:literal $output_doc:literal
+        [$($head:tt)*]
+    ) => {
         analog_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $ident,
-            kernel = Wasp,
-            response = WaspResponse::$response,
-            drive = [],
+            $($head)*
             freq = $freq,
             freq_doc = $freq_doc,
             resonance_doc = $resonance_doc,
@@ -252,8 +225,7 @@ const APF_WASP_DOCS: ModuleDocs = ModuleDocs {
             title: "Phaser",
             code: r#"
                 chord: $saw('c3:M9')
-                  .apfWasp($sine('0.3hz').range('c4', 'c7'), 2)
-                  .wet(2.5)
+                  .apfWasp($sine('0.3hz').range('c4', 'c7'), 2).wet(2.5)
                   .gain(4.5)
             "#,
         },
@@ -261,8 +233,7 @@ const APF_WASP_DOCS: ModuleDocs = ModuleDocs {
             title: "Sharper sweep",
             code: r#"
                 lead: $pulse('c3')
-                  .apfWasp($sine('0.2hz').range('c5', 'c7'), 4)
-                  .wet(2.5)
+                  .apfWasp($sine('0.2hz').range('c5', 'c7'), 4).wet(2.5)
             "#,
         },
     ],

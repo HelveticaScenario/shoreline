@@ -83,6 +83,11 @@ export declare class Synthesizer {
    * parameter uses to refer to the decoded audio.
    */
   loadMediaAudio(path: string): WavLoadInfo | null
+  /**
+   * The DX7 voices of a `.syx` file, in file order. `path` is a workspace
+   * (`/...`) or bundled (`builtin/...`) path.
+   */
+  loadSyx(path: string): Array<SyxVoiceInfo>
   /** Set the workspace root directory for WAV file loading. */
   setWavWorkspace(workspacePath: string): void
   /**
@@ -434,6 +439,12 @@ export interface ModuleProfileSample {
  */
 export declare function noteVoltages(literal: string): Array<number>
 
+/**
+ * The DX7 voices in the bytes of a `.syx` file, in file order.
+ * This is a pure function: no audio hardware or Synthesizer instance needed.
+ */
+export declare function parseSyx(bytes: Buffer): Array<SyxVoiceInfo>
+
 /** Result of a patch update, including any validation errors and the assigned update ID. */
 export interface PatchUpdateResult {
   errors: Array<ApplyPatchError>
@@ -473,6 +484,12 @@ export interface StreamsChange {
   engineReset: boolean
   /** The file of a recording that ended with the old engine. */
   recordingPath?: string
+}
+
+/** One voice of a `.syx` file: its name, and its 128 packed bytes as hex. */
+export interface SyxVoiceInfo {
+  name: string
+  data: string
 }
 
 export interface TransportSnapshot {

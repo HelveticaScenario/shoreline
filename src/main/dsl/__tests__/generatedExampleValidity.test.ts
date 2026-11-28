@@ -8,6 +8,7 @@
  *      DSL builds, in `dslModules`.
  *   2. `@example` JSDoc tags hand-written in `typescriptLibGen.ts`.
  *   3. ```js fenced blocks in hand-written JSDoc there.
+ *   4. ```js fenced blocks in the Docs panel's guide.
  *
  * Each one must run through `executePatchScript` without error and produce a
  * graph that passes the engine's own `validatePatchGraph`. A failure here
@@ -16,7 +17,9 @@
  */
 
 import { describe, expect, test } from 'vitest';
-import { validatePatchGraph } from '@modular/core';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseSyx, validatePatchGraph } from '@modular/core';
 import schemas from '@modular/core/schemas.json';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
 import { dslModules } from '../../../shared/dsl/dslModuleDocs';
@@ -25,6 +28,7 @@ import {
     allExamples,
     type DocContent,
 } from '../../../shared/dsl/referenceDocs';
+import { GUIDE_SOURCES } from '../../../renderer/docs/guide/guideSources';
 import { buildLibSource } from '../typescriptLibGen';
 import { type DSLExecutionOptions, executePatchScript } from '../executor';
 
@@ -32,7 +36,7 @@ import { type DSLExecutionOptions, executePatchScript } from '../executor';
 //
 // A stub WAV loader so examples that play samples can build a graph without
 // real audio files on disk. Every path loads as the same two-second stereo
-// file.
+// file. DX7 voices load from the bundled files.
 
 const stubLoadWav: NonNullable<DSLExecutionOptions['loadWav']> = (path) => ({
     channels: 2,
@@ -50,7 +54,12 @@ const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
     path,
 ) => ({ ...stubLoadWav(`media:${path}`), bitDepth: 32 });
 
+/** Reads the bundled `.syx` files, which is all examples play. */
+const loadBuiltinSyx: NonNullable<DSLExecutionOptions['loadSyx']> = (path) =>
+    parseSyx(readFileSync(join(__dirname, '../../../../assets', path)));
+
 const EXECUTION_OPTIONS: DSLExecutionOptions = {
+    loadSyx: loadBuiltinSyx,
     loadMediaAudio: stubLoadMediaAudio,
     sampleRate: 48_000,
     workspaceRoot: '/workspace',
@@ -61,8 +70,9 @@ const EXECUTION_OPTIONS: DSLExecutionOptions = {
 
 interface DocExample {
     /** Where the example came from: a module's or global's docs, an
-     *  `@example` tag, or a ```js fence in hand-written JSDoc. */
-    kind: 'module' | 'global' | 'tag' | 'fence';
+     *  `@example` tag, a ```js fence in hand-written JSDoc, or the
+     *  guide. */
+    kind: 'module' | 'global' | 'tag' | 'fence' | 'guide';
     /** Ordinal within the generated source, for stable test labels. */
     ordinal: number;
     /** The example source code. */
@@ -183,6 +193,14 @@ const fromDocs = [
     ...dslModules(schemas)
         .map(functionToReferenceEntry)
         .flatMap((m) => structuredExamples('module', m.name, m.docs)),
+    ...Object.entries(GUIDE_SOURCES).flatMap(([file, source]) =>
+        [...source.matchAll(FENCE_RE)].map((fence, ordinal) => ({
+            code: fence[1].replace(/\s+$/, ''),
+            kind: 'guide' as const,
+            label: `${file}: ${makeLabel(fence[1])}`,
+            ordinal,
+        })),
+    ),
 ];
 const docsCode = new Set(fromDocs.map((e) => e.code));
 // The generated JSDoc repeats each entry's first example; count it once.

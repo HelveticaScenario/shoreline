@@ -127,7 +127,7 @@ describe('chain modules', () => {
             unknown
         >;
         expect(sig.notAModule).toBeUndefined();
-        const namespace = sig.unstable as Record<PropertyKey, unknown>;
+        const namespace = sig.mi as Record<PropertyKey, unknown>;
         expect(namespace.notAModule).toBeUndefined();
         expect(namespace[Symbol.iterator]).toBeUndefined();
         // `then` undefined keeps the namespace from being mistaken for a thenable.
@@ -136,11 +136,11 @@ describe('chain modules', () => {
 
     test('empty collection yields an empty Collection without throwing', () => {
         const empty = new Collection() as unknown as Chained & {
-            unstable: { shape: Chained };
+            mi: Chained;
         };
         for (const result of [
             empty.lpf('100hz'),
-            empty.unstable.shape.fold('dual', 2),
+            empty.mi.chorus(),
             (empty.lpf('100hz') as Collection).wet(2),
         ]) {
             expect(result).toBeInstanceOf(Collection);
@@ -415,40 +415,23 @@ describe('$delay as a chain method', () => {
     });
 });
 
-// ─── nested `.unstable.shape.*` chain ──────────────────────────────────────
+// ─── namespaced `.mi.*` chain ────────────────────────────────────────────────
 
 describe('namespaced chain modules', () => {
-    test('.unstable.shape.<leaf> equals the bare $unstable.shape factory', () => {
-        const viaChain = execPatch(
-            "out: $sine(0).unstable.shape.fold('dual', 2)",
-        );
+    test('.mi.<leaf> equals the bare $mi factory', () => {
+        const viaChain = execPatch('out: $sine(0).mi.chorus({ amount: 2 })');
         const viaFactory = execPatch(
-            "out: $unstable.shape.fold($sine(0), 'dual', 2)",
+            'out: $mi.chorus($sine(0), { amount: 2 })',
         );
         expect(normalize(viaChain)).toEqual(normalize(viaFactory));
-        expect(moduleTypes(viaChain)).toContain('$unstable.shape.fold');
+        expect(moduleTypes(viaChain)).toContain('$mi.chorus');
     });
 
-    test('leaf collisions are namespaced: $unstable.shape.fold coexists with $fold', () => {
-        // `.unstable.shape.fold` resolves to the waveshaper…
-        expect(
-            moduleTypes(
-                execPatch("out: $sine(0).unstable.shape.fold('dual', 2)"),
-            ),
-        ).toContain('$unstable.shape.fold');
-        // …while the flat `.fold` still resolves to the fx wavefolder.
-        expect(moduleTypes(execPatch('out: $sine(0).fold(2)'))).toContain(
-            '$fold',
-        );
-    });
-
-    test('.unstable.shape.<leaf>(...).wet crossfades dry against the shaped wet', () => {
+    test('.mi.<leaf>(...).wet crossfades dry against the wet', () => {
         const types = moduleTypes(
-            execPatch(
-                "out: $sine(0).unstable.shape.saturate('hard', 3).wet(2.5)",
-            ),
+            execPatch('out: $sine(0).mi.chorus({ amount: 2 }).wet(2.5)'),
         );
-        expect(types).toContain('$unstable.shape.saturate');
+        expect(types).toContain('$mi.chorus');
         expect(types).toContain('$crossfade');
     });
 });

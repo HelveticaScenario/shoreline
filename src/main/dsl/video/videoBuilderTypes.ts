@@ -9,7 +9,9 @@ import {
     BaseCollection,
     type Collection,
     type CollectionWithRange,
+    type ModuleOutput,
 } from '../GraphBuilder';
+import type { Channels } from '../../../shared/dsl/channels';
 import { VideoOutput } from './VideoOutput';
 
 /** An audio signal a video input reads: its lanes, which the engine sums to one. */
@@ -35,6 +37,13 @@ export interface VideoGraphHost {
      * module, which sums its lanes to one.
      */
     publishTap(signal: AudioSignal, slot: number): void;
+    /**
+     * One side of each lane of `signal`, as `$left` or `$right` reads it: a
+     * mono lane gives itself on both sides.
+     */
+    side(signal: AudioSignal, side: 'left' | 'right'): Collection;
+    /** Whether `lane` is mono or stereo, as far as the DSL can tell. */
+    channelsOf(lane: ModuleOutput): Channels;
     /**
      * A `$signal` module with id `id` carrying 0..1, which the renderer
      * overwrites with a region average of a video signal.
