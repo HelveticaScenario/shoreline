@@ -146,3 +146,41 @@ describe('formatControlQuickFix — layout', () => {
         expect(apply(source, fix)).toContain('`a\nb`');
     });
 });
+
+describe('formatControlQuickFix — .wet', () => {
+    const SOURCE = `$pulse('a3', { width: 2| }).lpf('800hz').delay('1/8', { feedback: 3 }).wet(2).plate().wet(1).track()`;
+
+    async function formatted(wetOnSameLine: boolean) {
+        const { source, fixes } = fixesAt(SOURCE);
+        const fix = await formatControlQuickFix(source, addFix(fixes, 'pwm'), {
+            printWidth: 60,
+            semi: false,
+            singleQuote: true,
+            tabWidth: 2,
+            trailingComma: 'all',
+            wetOnSameLine,
+        });
+        return apply(source, fix);
+    }
+
+    test('keeps .wet on the line of the effect it mixes', async () => {
+        expect(await formatted(true)).toBe(
+            [
+                `$pulse('a3', {`,
+                `  width: 2,`,
+                `  pwm: $slider('pwm', 0, -5, 5),`,
+                `})`,
+                `  .lpf('800hz')`,
+                `  .delay('1/8', { feedback: 3 }).wet(2)`,
+                `  .plate().wet(1)`,
+                `  .track()`,
+            ].join('\n'),
+        );
+    });
+
+    test('wetOnSameLine: false puts .wet on its own line', async () => {
+        expect(await formatted(false)).toContain(
+            `  .delay('1/8', { feedback: 3 })\n  .wet(2)\n  .plate()\n  .wet(1)\n`,
+        );
+    });
+});

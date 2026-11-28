@@ -207,7 +207,7 @@ export const configSchema = {
                 wetOnSameLine: {
                     default: true,
                     description:
-                        'Keep each .wet(...) on the line of the effect it mixes',
+                        'Keep .wet() on the line of the effect it mixes',
                     type: 'boolean',
                 },
             },

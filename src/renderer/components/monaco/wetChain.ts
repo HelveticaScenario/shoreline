@@ -6,11 +6,11 @@
  *       .lpf('800hz').wet(2)
  *       .plate().wet(1)
  *
- * The `wetOnSameLine` option turns it off. It wraps the estree printer: the `wet` property prints under a label, and
- * the head of each chain drops the line break Prettier puts before it. A
- * call that ends in a line comment or a blank line keeps its `.wet` on the
- * next line. It matches Prettier's printed docs by shape, which
- * `wetChain.test.ts` checks across Prettier upgrades.
+ * The `wetOnSameLine` option turns it off. It wraps the estree printer: the
+ * `wet` property prints under a label, and the head of each chain drops the
+ * line break Prettier puts before it. A call that ends in a line comment or a
+ * blank line keeps its `.wet` on the next line. It matches Prettier's printed
+ * docs by shape, which `wetChain.test.ts` checks across Prettier upgrades.
  */
 import type { AstPath, Doc, Plugin, Printer } from 'prettier';
 import { builders } from 'prettier/doc';
@@ -223,8 +223,7 @@ export const wetChainPlugin: Plugin = {
         wetOnSameLine: {
             category: 'JavaScript',
             default: true,
-            description:
-                'Keep each .wet(...) on the line of the call it mixes against.',
+            description: 'Keep .wet() on the line of the effect it mixes',
             type: 'boolean',
         },
     },
