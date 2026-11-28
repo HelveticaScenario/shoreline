@@ -57,6 +57,9 @@ export function useFileActions({
             'Failed to rename file',
         );
 
+    const move = (fromPath: string, toPath: string) =>
+        guarded(() => files.moveEntry(fromPath, toPath), 'Failed to move file');
+
     /** Open the keybindings file as a buffer; saving it reloads the keymap. */
     const openKeybindings = () =>
         guarded(
@@ -130,6 +133,7 @@ export function useFileActions({
 
     return {
         commitRename,
+        move,
         open,
         openKeybindings,
         remove,

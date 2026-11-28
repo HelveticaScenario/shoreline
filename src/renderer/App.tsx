@@ -352,6 +352,7 @@ function App() {
                             onRenameCommit={fileActions.commitRename}
                             onRenameCancel={() => files.setRenamingPath(null)}
                             onKeepBuffer={files.keepBuffer}
+                            onMoveEntry={fileActions.move}
                         />
                     }
                     performContent={<PerformancePanel />}

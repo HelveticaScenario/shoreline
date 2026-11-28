@@ -26,6 +26,19 @@ import type { FileTreeEntry } from '../../../shared/ipcTypes';
 const WORKSPACE = '/workspace';
 
 const FILE_TREE: FileTreeEntry[] = [
+    {
+        children: [
+            {
+                fileType: 'wav',
+                name: 'kick.wav',
+                path: 'samples/kick.wav',
+                type: 'file',
+            },
+        ],
+        name: 'samples',
+        path: 'samples',
+        type: 'directory',
+    },
     { fileType: 'patch', name: 'song.mjs', path: 'song.mjs', type: 'file' },
 ];
 
@@ -49,6 +62,7 @@ function renderExplorer(props: {
                 onCloseBuffer: () => {},
                 onCreateFile: () => {},
                 onKeepBuffer: () => {},
+                onMoveEntry: () => {},
                 onOpenFile: () => {},
                 onRefreshTree: () => {},
                 onRenameCancel: () => {},
@@ -62,15 +76,34 @@ function renderExplorer(props: {
     });
 }
 
+// jsdom lays nothing out, so the virtualized tree gets a fixed size to render
+// its rows into.
 beforeEach(() => {
     (
         globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     window.localStorage.clear();
+    vi.stubGlobal(
+        'ResizeObserver',
+        class {
+            observe() {}
+            disconnect() {}
+        },
+    );
+    for (const [prop, value] of [
+        ['offsetWidth', 20],
+        ['offsetHeight', 20],
+        ['clientWidth', 200],
+        ['clientHeight', 400],
+    ] as const) {
+        vi.spyOn(HTMLElement.prototype, prop, 'get').mockReturnValue(value);
+    }
 });
 
 afterEach(() => {
     act(() => root?.unmount());
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     root = null;
     container?.remove();
     container = null;
@@ -113,5 +146,38 @@ describe('workspace-tree rename', () => {
             `${WORKSPACE}/song.mjs`,
             'renamed.mjs',
         );
+    });
+});
+
+describe('workspace-tree folders', () => {
+    const names = () =>
+        [...container!.querySelectorAll('.tree-name')].map(
+            (el) => el.textContent,
+        );
+    const folderRow = () =>
+        container!
+            .querySelector('.tree-folder')!
+            .closest<HTMLElement>('[role="treeitem"]')!;
+
+    test('clicking a folder shows its files and remembers it expanded', () => {
+        renderExplorer({ renamingPath: null });
+        expect(names()).toEqual(['samples', 'song.mjs']);
+
+        act(() => folderRow().click());
+        expect(names()).toEqual(['samples', 'kick.wav', 'song.mjs']);
+        expect(
+            JSON.parse(
+                window.localStorage.getItem('modular_expanded_folders')!,
+            ),
+        ).toEqual(['samples']);
+    });
+
+    test('a folder expanded at the last launch opens expanded', () => {
+        window.localStorage.setItem(
+            'modular_expanded_folders',
+            JSON.stringify(['samples']),
+        );
+        renderExplorer({ renamingPath: null });
+        expect(names()).toEqual(['samples', 'kick.wav', 'song.mjs']);
     });
 });

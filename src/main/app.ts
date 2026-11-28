@@ -1828,7 +1828,12 @@ registerIPCHandler('FS_MOVE_FILE', (sourcePath, destPath) => {
     }
 
     try {
-        // Ensure target directory exists
+        if (fs.existsSync(destAbsolutePath)) {
+            return {
+                error: 'A file with that name already exists.',
+                success: false,
+            };
+        }
         const dir = path.dirname(destAbsolutePath);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
