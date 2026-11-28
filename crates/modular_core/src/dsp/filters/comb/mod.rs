@@ -92,9 +92,8 @@ const COMB_DOCS: ModuleDocs = ModuleDocs {
         DocExample {
             title: "Slow flanger",
             code: r#"
-                bass: $saw('c2')
-                  .comb($sine('0.1hz').range(-1, 2), { feedback: 3 })
-                  .wet(2.5)
+                const sweep = $sine('0.1hz').range(-1, 2)
+                bass: $saw('c2').comb(sweep, { feedback: 3 }).wet(2.5)
             "#,
         },
     ],

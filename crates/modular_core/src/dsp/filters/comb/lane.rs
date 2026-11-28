@@ -18,9 +18,8 @@ const MIN_DELAY: f32 = 2.0;
 /// / 5)`, so the loop gain is 0.995 at ±5, a ring of seconds at bass pitches.
 const FEEDBACK_DECADES: f32 = 2.3;
 
-/// Seconds the teeth take to fade by 60 dB at `feedback` ±5 when every pitch
-/// rings for the same time: long enough
-/// to sound endless.
+/// Seconds the teeth take to fade by 60 dB at `feedback` ±5 when every
+/// pitch rings for the same time: long enough to sound endless.
 const LONGEST_RING: f32 = 20.0;
 
 /// Growth of the ring time per unit of `feedback`: about 40 ms at 1, 1 s at
@@ -46,16 +45,17 @@ pub(super) fn pass_gain(feedback: f32) -> f32 {
 }
 
 /// Seconds the teeth take to fade by 60 dB at `feedback` when every pitch
-/// rings for the same time: 0 at 0, rising
-/// exponentially to `LONGEST_RING` at ±5.
+/// rings for the same time: 0 at 0, rising exponentially to `LONGEST_RING`
+/// at ±5.
 pub(super) fn ring_time(feedback: f32) -> f32 {
     let amount = feedback.abs().min(5.0);
     LONGEST_RING * (RING_GROWTH.powf(amount) - 1.0) / (RING_GROWTH.powf(5.0) - 1.0)
 }
 
 /// Gain per pass around a loop `loop_samples` long that fades by 60 dB in
-/// `feedback`'s ring time, signed like `feedback`. Shorter loops pass more often, so
-/// they lose less on each pass and every pitch rings for the same time.
+/// `feedback`'s ring time, signed like `feedback`. Shorter loops pass more
+/// often, so they lose less on each pass and every pitch rings for the same
+/// time.
 pub(super) fn even_ring_gain(feedback: f32, loop_samples: f32, sample_rate: f32) -> f32 {
     let ring = ring_time(feedback);
     if ring == 0.0 {
@@ -193,7 +193,7 @@ impl CombLane {
         }
         let sr = rates.sample_rate;
         let pole = damping_pole(damp, sr);
-        let hz = C4_HZ_F32 * freq.max(MIN_FREQ_VOCT).exp2();
+        let hz = (C4_HZ_F32 * freq.max(MIN_FREQ_VOCT).exp2()).min(0.5 * sr);
         let (delay, loop_samples) = tuned_delay(hz, feedback < 0.0, pole, sr, rates.max_delay);
         let gain = if even_ring {
             even_ring_gain(feedback, loop_samples, sr)

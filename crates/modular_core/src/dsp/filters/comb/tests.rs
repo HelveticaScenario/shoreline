@@ -1,4 +1,5 @@
 use super::lane::{CombLane, Controls, Rates, damping_pole, even_ring_gain, pass_gain, ring_time};
+use crate::dsp::utils::C4_HZ_F32;
 use crate::types::GlideMark;
 
 const SR: f32 = 48_000.0;
@@ -94,6 +95,21 @@ fn rings_at_its_pitch_with_either_sign_and_any_damping() {
 }
 
 #[test]
+fn rings_in_tune_at_the_bottom_of_its_range() {
+    // C1 ≈ 32.7 Hz, near the longest delay the line holds.
+    let hz = C4_HZ_F32 / 8.0;
+    for feedback in [4.5, -4.5] {
+        let y = render(controls(-3.0, feedback, 1.0), impulse, 2 * SR as usize);
+        let peak = peak_between(&y, hz * 0.95, hz * 1.05);
+        let cents = 1200.0 * (peak / hz).log2();
+        assert!(
+            cents.abs() < 6.0,
+            "feedback {feedback}: peak {peak} Hz, {cents} cents"
+        );
+    }
+}
+
+#[test]
 fn negative_feedback_keeps_odd_harmonics() {
     let hz = 220.0;
     let y = render(controls(A3, -4.5, 0.0), impulse, SR as usize);
@@ -137,7 +153,7 @@ fn recovers_from_non_finite_input() {
 
 #[test]
 fn shortest_and_longest_delays_stay_in_the_line() {
-    for freq in [-20.0, -3.71, 8.0, 20.0] {
+    for freq in [-20.0, -3.71, 8.0, 20.0, 200.0, 1e3, f32::MAX] {
         for feedback in [4.0, -4.0] {
             let y = render(controls(freq, feedback, 5.0), impulse, 20_000);
             assert!(y.iter().all(|v| v.is_finite()), "freq {freq}");
