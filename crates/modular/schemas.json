@@ -10776,11 +10776,9 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
         "mono": false,
         "precision": "f32",
-        "bounds": "fixed"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -11151,11 +11149,9 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
         "mono": false,
         "precision": "f32",
-        "bounds": "fixed"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -11574,11 +11570,9 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
         "mono": false,
         "precision": "f32",
-        "bounds": "fixed"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -11835,11 +11829,9 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
         "mono": false,
         "precision": "f32",
-        "bounds": "fixed"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],
@@ -12200,11 +12192,9 @@
         "outputType": "cv",
         "polyphonic": true,
         "default": true,
-        "minValue": -5.0,
-        "maxValue": 5.0,
         "mono": false,
         "precision": "f32",
-        "bounds": "fixed"
+        "bounds": "unbounded"
       }
     ],
     "bufferOutputs": [],

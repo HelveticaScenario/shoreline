@@ -85,13 +85,15 @@ const MULAW_TOP: f32 = MULAW_MAGNITUDES[0];
 /// Step between the loudest µ-law codes.
 const MULAW_TOP_STEP: f32 = MULAW_MAGNITUDES[0] - MULAW_MAGNITUDES[1];
 
-/// µ-law round trip on a sample. Within full scale it matches the hardware's
-/// codec; past it the loudest codes' steps continue.
+/// Level where the hardware's codec saturates at its loudest code.
+const MULAW_SATURATION: f32 = MULAW_TOP + MULAW_TOP_STEP / 2.0;
+
+/// µ-law round trip on a sample. Up to where the hardware's codec saturates
+/// it matches the codec; past that the loudest codes' steps continue.
 #[inline]
 pub fn mulaw_round_trip(x: f32) -> f32 {
-    let pcm = (x * 32768.0) as i32;
-    if (-32768..32768).contains(&pcm) {
-        mulaw_to_linear(linear_to_mulaw(pcm))
+    if x.abs() < MULAW_SATURATION {
+        mulaw_to_linear(linear_to_mulaw((x * 32768.0) as i32))
     } else {
         let steps = ((x.abs() - MULAW_TOP) / MULAW_TOP_STEP).round();
         (MULAW_TOP + steps * MULAW_TOP_STEP).copysign(x)
@@ -386,10 +388,23 @@ mod tests {
     }
 
     #[test]
-    fn mulaw_within_full_scale_matches_the_codec() {
+    fn mulaw_matches_the_codec_until_it_saturates() {
         for i in -32768..32768 {
             let x = i as f32 / 32768.0;
-            assert_eq!(mulaw_round_trip(x), mulaw_to_linear(linear_to_mulaw(i)));
+            if x.abs() < MULAW_SATURATION {
+                assert_eq!(mulaw_round_trip(x), mulaw_to_linear(linear_to_mulaw(i)));
+            }
+        }
+    }
+
+    #[test]
+    fn mulaw_steps_rise_one_at_a_time_through_full_scale() {
+        let mut previous = mulaw_round_trip(0.9);
+        for i in 0..20_000 {
+            let y = mulaw_round_trip(0.9 + i as f32 * 1e-5);
+            assert!(y >= previous, "{y} after {previous}");
+            assert!(y - previous <= MULAW_TOP_STEP * 1.001, "{previous} → {y}");
+            previous = y;
         }
     }
 }

@@ -10,7 +10,7 @@ pub struct FeedbackPath {
     feedback: Ramp,
     previous: f32,
     dc_blocker: Svf,
-    /// Holds the fed-back signal within full scale.
+    /// Holds the recording within full scale while feedback pushes it past.
     limiter: Limiter,
     /// Low-pass coefficient on the feedback signal.
     lp_coefficient: f32,
@@ -39,24 +39,28 @@ impl FeedbackPath {
         self.feedback.start(feedback, block_size);
     }
 
-    /// The sample to record for `input`, mixed with the fed-back signal. Only
-    /// the fed-back signal is limited and soft-clipped, so the input records
-    /// at any level. Below full scale this matches the hardware, which drives
-    /// the input into the soft clipper with the feedback: the input's gain
-    /// rises with `feedback` by the clipper's pre-gain.
+    /// The sample to record for `input`, mixed with the fed-back signal.
+    /// Within full scale this is the hardware's path: the limiter holds the
+    /// sum within full scale, and at 12-bit and µ-law the soft clipper
+    /// saturates it as `feedback` rises. The input's excess past full scale
+    /// bypasses both, so it records at any level.
     #[inline]
     pub fn record(&mut self, input: f32) -> f32 {
         let feedback = self.feedback.next();
+        let within = input.clamp(-1.0, 1.0);
+        let excess = input - within;
         let k = self.soft_limit_gain;
+        let mut s = within;
         if k != 0.0 {
-            let fed = self
-                .limiter
-                .process_mono(self.previous * feedback * (self.max_gain / k));
-            input * (1.0 + (k - 1.0) * feedback) + soft_clip(fed * k) * feedback
+            s += self.previous * feedback * (self.max_gain / k);
         } else {
-            let fed = self.previous * feedback * feedback * self.max_gain;
-            input + self.limiter.process_mono(fed)
+            s += self.previous * feedback * feedback * self.max_gain;
         }
+        s = self.limiter.process_mono(s);
+        if k != 0.0 {
+            s = within + (soft_clip(s * k) - within) * feedback;
+        }
+        s + excess
     }
 
     /// Filter the played signal into the next sample's feedback.
@@ -64,5 +68,57 @@ impl FeedbackPath {
     pub fn feed_back(&mut self, played: f32) {
         let (_, hp) = self.dc_blocker.process(played);
         self.previous += self.lp_coefficient * (hp - self.previous);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The hardware's recording path, which also limits the input.
+    fn hardware(path: &mut FeedbackPath, input: f32) -> f32 {
+        let feedback = path.feedback.next();
+        let k = path.soft_limit_gain;
+        let mut s = input;
+        if k != 0.0 {
+            s += path.previous * feedback * (path.max_gain / k);
+        } else {
+            s += path.previous * feedback * feedback * path.max_gain;
+        }
+        s = path.limiter.process_mono(s);
+        if k != 0.0 {
+            s = input + (soft_clip(s * k) - input) * feedback;
+        }
+        s
+    }
+
+    fn paths() -> impl Iterator<Item = FeedbackPath> {
+        [
+            Resolution::MuLaw8,
+            Resolution::Linear12,
+            Resolution::Linear16,
+        ]
+        .into_iter()
+        .map(|resolution| {
+            let mut path = FeedbackPath::default();
+            path.reset(48000.0, resolution, 3.0);
+            path.start_block(0.8, 12);
+            path
+        })
+    }
+
+    #[test]
+    fn within_full_scale_records_as_the_hardware() {
+        // A loud input fed back hard, so the limiter and soft clipper work.
+        for mut path in paths() {
+            let mut reference = path;
+            for n in 0..4800 {
+                let x = (n as f32 * 0.05).sin() * 0.95;
+                let ours = path.record(x);
+                assert_eq!(ours, hardware(&mut reference, x), "sample {n}");
+                path.feed_back(ours);
+                reference.feed_back(ours);
+            }
+        }
     }
 }

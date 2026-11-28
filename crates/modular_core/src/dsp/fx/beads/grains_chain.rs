@@ -232,8 +232,7 @@ impl GrainsChain {
     }
 
     /// Mix hardware sample `k` of the current pair: each side's dry signal and
-    /// both sides' grains, handed to `emit` with
-    /// each side's voice.
+    /// both sides' grains, handed to `emit` with each side's voice.
     fn finish_sample(
         &mut self,
         voices: &mut [GrainsVoice],
