@@ -24,6 +24,7 @@ use crate::{
 
 use crate::module_docs::{DocExample, DocSection, DocTable, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
+use crate::types::ClockMessages;
 
 use super::glide::{GlideRamp, GlideTracker, GlideVoice, Playhead};
 use super::groove::{GrooveHold, before_first_step, fill_groove_inputs};
@@ -169,6 +170,12 @@ pub struct SeqParams {
     #[deserr(skip)]
     #[schemars(skip)]
     pub pattern_source: String,
+    /// Played by the global clock rather than a `playhead` of its own, so the
+    /// transport's Stop releases its notes.
+    #[serde(skip)]
+    #[deserr(skip)]
+    #[schemars(skip)]
+    follows_transport: bool,
 }
 
 /// Struct-level `deserr` validate hook. Runs after every field (and its
@@ -206,6 +213,8 @@ fn seq_bake_ribbon(
             "ribbon offset must be {MAX_RIBBON_OFFSET} cycles or fewer"
         ));
     }
+    // Default connections fill `playhead` only later, at connect.
+    params.follows_transport = params.playhead.is_none();
     fill_groove_inputs(&params.playhead, &mut params.groove, &mut params.velocity);
     params.pattern.bake(offset, length);
     Ok(params)
@@ -638,6 +647,9 @@ struct SeqState {
     assign: Box<AssignScratch>,
     /// Glide windows the playhead is inside that no voice has claimed yet.
     glides: GlideTracker,
+    /// The transport is stopped: every voice is released and no note starts
+    /// until it starts again.
+    halted: bool,
 }
 
 impl Default for SeqState {
@@ -651,6 +663,7 @@ impl Default for SeqState {
             events_to_process: ArrayVec::new(),
             assign: Box::new(AssignScratch::default()),
             glides: GlideTracker::default(),
+            halted: false,
         }
     }
 }
@@ -685,7 +698,42 @@ impl Seq {
             .any(|h| cached.same_window(h) && h.value.same_pitch(&cached.value))
     }
 
+    fn on_clock_message(&mut self, m: &ClockMessages) -> napi::Result<()> {
+        if !self.params.follows_transport {
+            return Ok(());
+        }
+        match m {
+            ClockMessages::Stop => {
+                self.state.halted = true;
+                for lane in self.lane_state.iter_mut() {
+                    if let Some(ramp) = lane.glide.take() {
+                        lane.glide_hold = Some(ramp.value_at(self.state.prev_raw));
+                    }
+                    lane.voice.active = false;
+                    lane.voice.cached_hap = None;
+                    lane.voice
+                        .gate
+                        .set_state(TempGateState::Low, TempGateState::Low, 0);
+                    lane.voice
+                        .trigger
+                        .set_state(TempGateState::Low, TempGateState::Low, 0);
+                }
+            }
+            ClockMessages::Start => {
+                // The clock restarts from the top: play its first notes as a
+                // fresh `$cycle` would.
+                self.state.halted = false;
+                self.state.started = false;
+            }
+        }
+        Ok(())
+    }
+
     fn update(&mut self, sample_rate: f32) {
+        if self.state.halted {
+            self.write_voice_outputs(self.state.prev_raw);
+            return;
+        }
         // `raw` is the monotonic clock playhead (cycles, fractional). The
         // ribbon folds it into the baked window with a continuous-time modulo,
         // so a fractional `offset`/`length` defines a loop window whose seam
@@ -1297,7 +1345,9 @@ impl crate::types::PatchUpdateHandler for Seq {
     }
 }
 
-message_handlers!(impl Seq {});
+message_handlers!(impl Seq {
+    Clock(m) => Seq::on_clock_message,
+});
 
 #[cfg(test)]
 mod tests {
@@ -1312,6 +1362,7 @@ mod tests {
             lanes: None,
             ribbon,
             pattern_source: String::new(),
+            follows_transport: true,
         }
     }
 

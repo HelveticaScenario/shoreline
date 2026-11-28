@@ -7,7 +7,15 @@ export declare class Synthesizer {
    * falls back to OS-preferred host and default devices.
    */
   constructor(config?: AudioConfigOptions | undefined | null)
+  /** Silence the engine: the patch freezes behind a fade. */
   stop(): void
+  /**
+   * The Stop control: the first press halts the transport at `trigger`
+   * (at once when unset) while the engine plays on; a press while that
+   * stop waits halts it at once; a press with the transport already halted
+   * silences the engine.
+   */
+  pressStop(trigger?: QueuedTrigger | undefined | null): StopOutcome
   /**
    * Discard the queued patch update so the playing patch keeps running. The
    * outcome surfaces in the transport snapshot: `last_cancelled_update_id`
@@ -451,6 +459,14 @@ export interface RecordingResult {
   droppedSamples: number
 }
 
+/** What a press of the Stop control did. */
+export type StopOutcome = /** The clock halts at the next bar or beat; the engine plays on. */
+'Queued'|
+/** The clock halted; the engine plays on. */
+'Transport'|
+/** The engine fades out to silence. */
+'Engine';
+
 /** What replacing the streams did to the engine. */
 export interface StreamsChange {
   /** A fresh engine, stopped and empty, replaced the one holding the patch. */
@@ -476,6 +492,8 @@ export interface TransportSnapshot {
   isPlaying: boolean
   /** Whether a queued patch update is pending */
   hasQueuedUpdate: boolean
+  /** Whether a transport stop waits for its bar or beat */
+  hasQueuedStop: boolean
   /** The update_id of the most recently applied patch update (as f64 for N-API compatibility) */
   lastAppliedUpdateId: number
   /**

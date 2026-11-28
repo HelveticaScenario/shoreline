@@ -58,7 +58,7 @@ export function usePatchRunner({
     mixer: MixerController;
     errors: PatchErrors;
 }) {
-    const [isClockRunning, setIsClockRunning] = useState(true);
+    const [isEngineRunning, setIsEngineRunning] = useState(true);
     const [running, setRunning] = useState(NOT_RUNNING);
     const [patchUi, setPatchUi] = useState(NO_PATCH_UI);
     /** The UI on screen, whose editor decorations are released when the
@@ -124,7 +124,7 @@ export function usePatchRunner({
         // buffer; the patch that plays is the one that update would replace.
         const previousRunning =
             pendingRef.current?.previousRunning ?? runningRef.current;
-        setIsClockRunning(true);
+        setIsEngineRunning(true);
         setRunning({ bufferId: activeBufferId, sourceId });
         errors.clear();
 
@@ -185,11 +185,21 @@ export function usePatchRunner({
         }
     };
 
-    const stop = async () => {
-        await electronAPI.synthesizer.stop();
-        setIsClockRunning(false);
+    /** Show the engine as silent, with no patch running. */
+    const markStopped = () => {
+        setIsEngineRunning(false);
         setRunning(NOT_RUNNING);
         setPatchUi((prev) => ({ ...prev, sourceId: null }));
+    };
+
+    /** Press Stop: the first press halts the transport at `trigger` and the
+     *  patch plays on, a press while that stop waits halts it at once, and a
+     *  press with the transport halted fades the engine out. */
+    const stop = async (trigger?: QueuedTrigger) => {
+        const outcome = await electronAPI.synthesizer.stop(trigger);
+        if (outcome === 'Engine') {
+            markStopped();
+        }
     };
 
     /** Show `value` on the running slider of module `moduleId`. */
@@ -211,7 +221,8 @@ export function usePatchRunner({
 
     return {
         getLastResult: () => lastResultRef.current,
-        isClockRunning,
+        isEngineRunning,
+        markStopped,
         patchUi,
         runningBufferId: running.bufferId,
         setButtonValue,

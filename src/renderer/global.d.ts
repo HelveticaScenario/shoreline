@@ -23,7 +23,7 @@ interface TestAPI {
         visible: boolean;
     }[];
     getAudioHealth: () => Promise<any>;
-    isClockRunning: () => boolean;
+    isEngineRunning: () => boolean;
     newUntitledFile: () => void;
     openEngineHealth: () => void;
     openModuleProfile: () => void;

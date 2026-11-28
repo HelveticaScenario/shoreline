@@ -45,7 +45,7 @@ test.describe('patch editing', () => {
 
         // Audio should still be running
         const running = await window.evaluate(() => {
-            return window.__TEST_API__!.isClockRunning();
+            return window.__TEST_API__!.isEngineRunning();
         });
         expect(running).toBe(true);
     });
@@ -67,7 +67,7 @@ test.describe('patch editing', () => {
 
         // Verify audio is running
         let running = await window.evaluate(() =>
-            window.__TEST_API__!.isClockRunning(),
+            window.__TEST_API__!.isEngineRunning(),
         );
         expect(running).toBe(true);
 
@@ -76,12 +76,14 @@ test.describe('patch editing', () => {
         await window.waitForTimeout(1000);
 
         running = await window.evaluate(() =>
-            window.__TEST_API__!.isClockRunning(),
+            window.__TEST_API__!.isEngineRunning(),
         );
         expect(running).toBe(true);
     });
 
-    test('stop button stops audio', async ({ window }) => {
+    test('stop halts the transport, then silences the engine', async ({
+        window,
+    }) => {
         await window.waitForTimeout(3000);
 
         const hasTestAPI = await window.evaluate(() => !!window.__TEST_API__);
@@ -96,17 +98,15 @@ test.describe('patch editing', () => {
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(2000);
 
-        // Click Stop button
         const stopBtn = window.locator('button:has-text("Stop")');
-        await stopBtn.click();
-        await window.waitForTimeout(1000);
+        const engineRunning = () =>
+            window.evaluate(() => window.__TEST_API__!.isEngineRunning());
 
-        // Clock should stop
-        const running = await window.evaluate(() => {
-            return window.__TEST_API__!.isClockRunning();
-        });
-        // After stop, isClockRunning may be false
-        // (depends on implementation — stop might just mute, not stop the clock)
-        expect(typeof running).toBe('boolean');
+        await stopBtn.click();
+        await window.waitForTimeout(500);
+        expect(await engineRunning()).toBe(true);
+
+        await stopBtn.click();
+        await expect.poll(engineRunning).toBe(false);
     });
 });

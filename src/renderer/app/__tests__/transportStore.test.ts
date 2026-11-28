@@ -26,6 +26,7 @@ function makeSnapshot(
         timeSigDenominator: 4,
         isPlaying: false,
         hasQueuedUpdate: false,
+        hasQueuedStop: false,
         lastAppliedUpdateId: 0,
         lastCancelledUpdateId: 0,
         linkEnabled: false,

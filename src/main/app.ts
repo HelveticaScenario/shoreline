@@ -1297,9 +1297,12 @@ registerIPCHandler('SYNTH_SET_MODULE_PROFILING_SAMPLE_RATE', (rate: number) => {
     synth.setModuleProfilingSampleRate(rate);
 });
 
-registerIPCHandler('SYNTH_STOP', () => {
-    synth.stop();
-    appliedPatch.clear();
+registerIPCHandler('SYNTH_STOP', (trigger) => {
+    const outcome = synth.pressStop(trigger);
+    if (outcome === 'Engine') {
+        appliedPatch.clear();
+    }
+    return outcome;
 });
 
 registerIPCHandler('SYNTH_CANCEL_QUEUED_UPDATE', () => {
@@ -2535,7 +2538,7 @@ const createMenu = (): void => {
                             )?.webContents.send(MENU_CHANNELS.STOP);
                         }
                     },
-                    label: 'Stop Sound',
+                    label: 'Stop (Next Bar)',
                 },
                 {
                     ...menuShortcut('shoreline.cancelQueuedUpdate', 'Ctrl+\\'),

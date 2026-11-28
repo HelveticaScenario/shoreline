@@ -278,8 +278,7 @@ export interface FileChange {
 }
 
 export type FSWriteResult =
-    | FSOperationResult
-    | { success: false; conflict: true };
+    FSOperationResult | { success: false; conflict: true };
 
 export interface WorkspaceFolder {
     path: string;
@@ -328,8 +327,7 @@ export interface EditorContextMenuOptions {
 }
 
 export type ContextMenuOptions =
-    | FileContextMenuOptions
-    | EditorContextMenuOptions;
+    FileContextMenuOptions | EditorContextMenuOptions;
 
 export type ContextMenuCommand = 'save' | 'rename' | 'delete' | 'editor';
 
@@ -538,7 +536,7 @@ export interface IPCHandlers {
 
     [IPC_CHANNELS.SYNTH_GET_MODULE_STATES]: typeof Synthesizer.prototype.getModuleStates;
 
-    [IPC_CHANNELS.SYNTH_STOP]: typeof Synthesizer.prototype.stop;
+    [IPC_CHANNELS.SYNTH_STOP]: typeof Synthesizer.prototype.pressStop;
 
     [IPC_CHANNELS.SYNTH_CANCEL_QUEUED_UPDATE]: typeof Synthesizer.prototype.cancelQueuedUpdate;
 

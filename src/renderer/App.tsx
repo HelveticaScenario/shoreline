@@ -142,7 +142,7 @@ function App() {
         getCode,
         mixer,
     });
-    const { isClockRunning, patchUi } = patch;
+    const { isEngineRunning, patchUi } = patch;
     const recording = useRecording();
 
     const controls = useControlViews(activeSourceId, patchCode, patchUi);
@@ -172,11 +172,11 @@ function App() {
         eqController.setCodeStyle(codeStyle);
     }, [eqController, codeStyle]);
     useEffect(() => {
-        if (!isClockRunning) {
+        if (!isEngineRunning) {
             eqController.onStopped();
             mixer.meters.silence();
         }
-    }, [eqController, mixer, isClockRunning]);
+    }, [eqController, mixer, isEngineRunning]);
     useEffect(() => () => eqController.dispose(), [eqController]);
 
     const jumpToTrack = useMixerJump({
@@ -195,7 +195,7 @@ function App() {
             patch.settleQueuedUpdate(transport);
         },
         pollMeters: isMixerVisible,
-        running: isClockRunning,
+        running: isEngineRunning,
     });
 
     // An output device change that stopped playback leaves the editor in
@@ -203,7 +203,7 @@ function App() {
     const onDeviceNotice = useEffectEvent(
         (notice: { stopped: boolean; recordingStopped: boolean }) => {
             if (notice.stopped) {
-                void patch.stop();
+                patch.markStopped();
             }
             if (notice.recordingStopped) {
                 recording.markStopped();
@@ -228,7 +228,7 @@ function App() {
         openWorkspace: () => void fileActions.switchWorkspace(),
         save: () => void fileActions.save(),
         showCommandPalette: () => setIsPaletteOpen(true),
-        stop: () => void patch.stop(),
+        stop: (trigger) => void patch.stop(trigger),
         submit: (trigger) => void patch.submit(trigger),
         toggleRecording: recording.toggle,
     });
@@ -237,7 +237,7 @@ function App() {
     useTestApi({
         eqController,
         getLastResult: patch.getLastResult,
-        isClockRunning,
+        isEngineRunning,
         mixer,
         openEngineHealth: () => setIsEngineHealthOpen(true),
         openModuleProfile: () => setIsModuleProfileOpen(true),
@@ -254,9 +254,9 @@ function App() {
             <header className="app-header">
                 <TransportDisplay onToggleLink={toggleLink} />
                 <AudioControls
-                    isRunning={isClockRunning}
+                    isRunning={isEngineRunning}
                     isRecording={recording.isRecording}
-                    onStop={patch.stop}
+                    onStop={() => void patch.stop()}
                     onStartRecording={recording.start}
                     onStopRecording={recording.stop}
                     onUpdatePatch={() => patch.submit()}
@@ -277,7 +277,7 @@ function App() {
                 onClose={() => setIsModuleProfileOpen(false)}
             />
             <AudioPanicDialog />
-            <AudioDeviceBanner playing={isClockRunning} />
+            <AudioDeviceBanner playing={isEngineRunning} />
             <CommandPalette
                 open={isPaletteOpen}
                 onOpenChange={setIsPaletteOpen}

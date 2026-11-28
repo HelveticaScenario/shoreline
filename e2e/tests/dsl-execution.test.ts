@@ -47,7 +47,7 @@ test.describe('DSL execution', () => {
 
         // Check that clock is running (audio is active)
         const running = await window.evaluate(() => {
-            return window.__TEST_API__!.isClockRunning();
+            return window.__TEST_API__!.isEngineRunning();
         });
         expect(running).toBe(true);
     });
