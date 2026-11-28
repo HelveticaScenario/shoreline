@@ -7,10 +7,13 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_blep, sync_ratio},
+        oscillators::{
+            FmMode, Landing, PitchIncrements, Resets, SyncRatios, apply_fm, offset_phase,
+            reset_replaces_edge, restarted_edge, sync_blep, sync_ratio, wrap_offset,
+        },
         utils::{sanitize, wrap_phase},
     },
-    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
@@ -150,27 +153,18 @@ impl PulseLaneState {
         );
         self.phase = wrap_phase(self.phase + phase_increment);
 
-        // Phase offset shifts the read position without altering the
-        // accumulator, so it never drifts.
-        let read_offset = offset.rem_euclid(1.0);
-        let read_phase = (self.phase + read_offset).rem_euclid(1.0);
+        let read_offset = wrap_offset(offset);
+        let read_phase = offset_phase(self.phase, read_offset);
 
         let naive_pulse = |p: f32| if p < pulse_width { 1.0 } else { -1.0 };
 
         // Naive pulse plus PolyBLEP at its own rising (phase 0) and falling
         // (phase = width) edges. A reset lands in the upcoming interval, so
-        // these operate on the real, pre-reset phase. A reset band-limits the
-        // jump it makes, which replaces an edge ahead on the sample it lands
-        // and an edge just behind on the sample after it.
+        // these operate on the real, pre-reset phase.
         let abs_phase_inc = phase_increment.abs();
         let (restarted, resetting) = (self.restarted, reset.is_some());
         let edge = |phase: f32| {
-            let replaced = if phase < abs_phase_inc {
-                restarted
-            } else {
-                resetting
-            };
-            if replaced {
+            if reset_replaces_edge(phase, abs_phase_inc, restarted, resetting) {
                 0.0
             } else {
                 poly_blep_pulse(phase, abs_phase_inc)
@@ -184,8 +178,7 @@ impl PulseLaneState {
             read_phase - pulse_width + 1.0
         });
 
-        let pending = self.blep_carry;
-        self.blep_carry = 0.0;
+        let pending = std::mem::take(&mut self.blep_carry);
         self.restarted = resetting;
 
         // A reset restarts the cycle, with a PolyBLEP placed at its subsample
@@ -212,9 +205,7 @@ impl PulseLaneState {
                 } else {
                     ((edge - read_offset).rem_euclid(1.0), rise)
                 };
-                let at = frac + ahead / abs_phase_inc;
-                if ahead > 0.0 && at < 1.0 {
-                    let (n, carry) = sync_blep(jump, at);
+                if let Some((n, carry)) = restarted_edge(ahead, jump, frac, abs_phase_inc) {
                     now += n;
                     self.blep_carry += carry;
                 }
@@ -285,18 +276,12 @@ impl PulseOscillator {
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let mut ratios = SyncRatios::new(sync, range.start);
-        // A pitch held for the whole range needs its exponential only once.
-        let mut held_increments = [0.0f32; PORT_MAX_LANES];
-        let held = freq.is_constant() && fm.is_constant();
-        if held {
-            let (freq, fm) = (freq.row(range.start), fm.row(range.start));
-            for ((increment, &pitch), &fm) in held_increments.iter_mut().zip(freq).zip(fm) {
-                *increment = apply_fm(pitch, fm, p.fm_mode) / sample_rate;
-            }
-        }
+        let increments = PitchIncrements::new(freq, fm, range.start, |pitch, fm| {
+            apply_fm(pitch, fm, p.fm_mode) / sample_rate
+        });
         let last = range.end - 1;
         for i in range {
-            let (pitch, fm, offset) = (freq.row(i), fm.row(i), offset.row(i));
+            let offset = offset.row(i);
             let (width, pwm) = (width.row(i), pwm.row(i));
             let restart = restart.as_ref().map(|restart| restart.row(i));
             let ratios = ratios.at(i);
@@ -306,11 +291,7 @@ impl PulseOscillator {
                 .iter_mut()
                 .zip(self.lane_state.iter_mut());
             for (lane, (out, state)) in slots.enumerate() {
-                let increment = if held {
-                    held_increments[lane]
-                } else {
-                    apply_fm(pitch[lane], fm[lane], p.fm_mode) / sample_rate
-                };
+                let increment = increments.at(i, lane);
                 let width = (width[lane] + pwm[lane]).clamp(0.0, 5.0);
                 *out = sanitize(state.step(
                     increment,

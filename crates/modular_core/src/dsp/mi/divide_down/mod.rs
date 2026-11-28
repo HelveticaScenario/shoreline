@@ -6,7 +6,10 @@ use schemars::JsonSchema;
 use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
-    dsp::oscillators::{FmMode, apply_fm},
+    dsp::{
+        mi::core::phase_offset::PhaseOffset,
+        oscillators::{FmMode, apply_fm},
+    },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
 };
@@ -48,6 +51,14 @@ struct DivideDownParams {
     )]
     #[deserr(default)]
     registration: Option<PolySignal>,
+    #[input(
+        "shifts the whole waveform in time, in cycles of the note (two, four or eight at the very highest pitches); wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
     #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the saws backward",
         type = audio,
@@ -91,6 +102,14 @@ const DIVIDE_DOWN_DOCS: ModuleDocs = ModuleDocs {
                 chord: $mi.divideDown(notes, { registration: 1 })
             "#,
         },
+        DocExample {
+            title: "Unison strings",
+            code: r#"
+                strings: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.divideDown(freq, { registration: 1.5, phaseOffset }),
+                )
+            "#,
+        },
     ],
 };
 
@@ -127,11 +146,11 @@ impl DivideDownState {
 struct Voice {
     voice: DivideDownVoice,
     registration: SwapGlide,
-    /// The last finite registration, which a NaN or infinite knob holds.
+    offset: PhaseOffset,
+    /// The last finite registration, which a NaN or infinite one holds.
     held: f32,
     /// The registration smoothed as Plaits smooths it.
     smoothed: f32,
-    started: bool,
     /// The partial amplitudes of the smoothed registration.
     amplitudes: [f32; 7],
     /// The smoothed registration `amplitudes` were computed for, as bits.
@@ -143,13 +162,19 @@ impl Default for Voice {
         Self {
             voice: DivideDownVoice::default(),
             registration: SwapGlide::default(),
+            offset: PhaseOffset::default(),
             held: DivideDownParams::REGISTRATION_DEFAULT,
             smoothed: 0.0,
-            started: false,
             amplitudes: [0.0; 7],
             amplitudes_key: None,
         }
     }
+}
+
+#[derive(Clone, Copy)]
+struct Knobs {
+    registration: (f32, GlideMark),
+    offset: (f32, GlideMark),
 }
 
 fn knob(volts: f32) -> f32 {
@@ -159,15 +184,20 @@ fn knob(volts: f32) -> f32 {
 impl Voice {
     /// One sample at `f0` cycles per sample, before the output gain.
     #[inline(always)]
-    fn step(&mut self, f0: f32, registration: (f32, GlideMark), state: &DivideDownState) -> f32 {
-        let value = self
-            .registration
-            .follow(registration.0, registration.1, state.sample_rate);
-        if value.is_finite() {
-            self.held = value;
+    fn step(&mut self, f0: f32, knobs: Knobs, state: &DivideDownState) -> f32 {
+        let registration = self.registration.follow(
+            knobs.registration.0,
+            knobs.registration.1,
+            state.sample_rate,
+        );
+        if registration.is_finite() {
+            self.held = registration;
         }
         let target = knob(self.held);
-        if self.started {
+        let offset = self.offset.update(knobs.offset, state.sample_rate);
+        // A fresh voice starts at its phase offset and its target registration;
+        // one carried across a patch update keeps running from where it is.
+        if !self.offset.seed() {
             self.smoothed += state.smoothing * (target - self.smoothed);
             // Settled: lands on the target rather than creeping toward it
             // through denormals.
@@ -176,7 +206,7 @@ impl Voice {
             }
         } else {
             self.smoothed = target;
-            self.started = true;
+            self.voice.seed(offset);
         }
 
         let key = self.smoothed.to_bits();
@@ -186,7 +216,7 @@ impl Voice {
         }
         let gain = fade(f0, state.to_48k);
         self.voice
-            .step(f0, state.to_48k, &self.amplitudes, key, gain)
+            .step(f0, state.to_48k, &self.amplitudes, key, gain, offset)
     }
 }
 
@@ -204,12 +234,19 @@ impl DivideDown {
                 p.fm.value_or(lane, DivideDownParams::FM_DEFAULT),
                 p.fm_mode,
             ) * self.state.inv_sample_rate;
-            let registration = (
-                p.registration
-                    .value_or(lane, DivideDownParams::REGISTRATION_DEFAULT),
-                p.registration.glide_mark(lane),
-            );
-            let out = voice.step(f0, registration, &self.state);
+            let knobs = Knobs {
+                registration: (
+                    p.registration
+                        .value_or(lane, DivideDownParams::REGISTRATION_DEFAULT),
+                    p.registration.glide_mark(lane),
+                ),
+                offset: (
+                    p.phase_offset
+                        .value_or(lane, DivideDownParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
+                ),
+            };
+            let out = voice.step(f0, knobs, &self.state);
             self.outputs.sample.set(lane, OUTPUT_GAIN * out);
         }
     }

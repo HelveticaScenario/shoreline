@@ -8,6 +8,8 @@ use crate::{
         mi::core::{
             blend::Blend,
             downsampler::{Downsampler, OVERSAMPLING},
+            phase::wrap,
+            phase_offset::{Follower, PhaseOffset, Travel},
             ratio::{ratio_multiplier, ratio_semitones},
             sine::{phase_increment, sine_pm},
         },
@@ -52,6 +54,14 @@ struct TwoOpParams {
     )]
     #[deserr(default)]
     feedback: Option<PolySignal>,
+    #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
     #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs both operators backward",
         type = audio,
@@ -116,6 +126,14 @@ const TWO_OP_DOCS: ModuleDocs = ModuleDocs {
                 bass: op._subOctave
             "#,
         },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.twoOp(freq, { ratio: 3, index: 2, phaseOffset }),
+                )
+            "#,
+        },
     ],
 };
 
@@ -132,7 +150,7 @@ struct TwoOpState {
     sample_rate: f32,
     inv_sample_rate: f32,
     /// Highest modulator frequency, in cycles per substep: Plaits' 0.5 at
-    /// 48 kHz, held in Hz.
+    /// 48 kHz, held in Hz. It also limits how fast a phase offset travels.
     max_modulator: f32,
     /// The one-pole that smooths the output for feedback, per substep.
     feedback_smoothing: f32,
@@ -158,6 +176,8 @@ struct Controls {
     modulator: f32,
     amount: f32,
     feedback: f32,
+    /// The phase offset, in `[0, 1)`.
+    offset: f32,
 }
 
 #[derive(Clone, Copy, SeedSide)]
@@ -183,10 +203,15 @@ struct Voice {
     last_pitch: f32,
     last_semitones: f32,
     hf_taming: f32,
-    /// The last finite `index` and `feedback`, which a NaN or infinite knob
+    phase_offset: PhaseOffset,
+    /// The last finite `index` and `feedback`, which a NaN or infinite value
     /// holds.
     held_index: f32,
     held_feedback: f32,
+    /// The carrier's travel toward the phase offset, and the modulator in
+    /// time with it.
+    travel: Travel,
+    modulator_travel: Follower,
 }
 
 impl Default for Voice {
@@ -210,6 +235,9 @@ impl Default for Voice {
             hf_taming: 1.0,
             held_index: TwoOpParams::INDEX_DEFAULT,
             held_feedback: TwoOpParams::FEEDBACK_DEFAULT,
+            phase_offset: PhaseOffset::default(),
+            travel: Travel::default(),
+            modulator_travel: Follower::default(),
         }
     }
 }
@@ -219,6 +247,13 @@ struct Knobs {
     ratio: (f32, GlideMark),
     index: (f32, GlideMark),
     feedback: (f32, GlideMark),
+    offset: (f32, GlideMark),
+}
+
+/// A phase in cycles as a 32-bit phase.
+#[inline(always)]
+fn fixed_phase(cycles: f32) -> u32 {
+    phase_increment(wrap(cycles))
 }
 
 impl Voice {
@@ -264,13 +299,36 @@ impl Voice {
             modulator: (carrier * self.multiplier).clamp(-state.max_modulator, state.max_modulator),
             amount: 2.0 * timbre * timbre * self.hf_taming,
             feedback: (self.held_feedback * 0.2).clamp(-1.0, 1.0),
+            offset: self.phase_offset.update(knobs.offset, sample_rate),
         }
     }
 
+    /// Starts fresh phases at the phase offset, the modulator at its ratio
+    /// times it and the sub-octave at half, with the fed-back sample where
+    /// those phases put the carrier.
+    fn seed(&mut self, c: &Controls) {
+        self.carrier_phase = fixed_phase(c.offset);
+        self.sub_phase = self.carrier_phase >> 1;
+        self.modulator_phase = fixed_phase(c.offset * self.multiplier);
+        self.travel.seed(c.offset);
+        self.modulator_travel.seed();
+        let modulator = sine_pm(self.modulator_phase, 0.0);
+        self.previous_sample = sine_pm(self.carrier_phase, c.amount * modulator);
+    }
+
     /// One output sample of the carrier and the sub-octave, before the
-    /// output gain.
+    /// output gain. The carrier travels to its phase offset by the shortest
+    /// way, the sub-octave half as far and the modulator `multiplier` times as
+    /// far, each as extra frequency within the modulator's limit, so no phase
+    /// jumps as the offset moves. A voice whose offset moves without crossing
+    /// the wrap, at a held ratio, plays as one seeded there does; each crossing
+    /// turns the sub-octave half a cycle and the modulator by the ratio's
+    /// fraction of one.
     #[inline(always)]
     fn step(&mut self, c: Controls, state: &TwoOpState) -> (f32, f32) {
+        if self.phase_offset.seed() {
+            self.seed(&c);
+        }
         let phase_feedback = if c.feedback < 0.0 {
             0.5 * c.feedback * c.feedback
         } else {
@@ -283,12 +341,22 @@ impl Voice {
         };
         let carrier_increment = phase_increment(c.carrier);
         let sub_increment = ((carrier_increment as i32) >> 1) as u32;
+        let max = state.max_modulator;
         for j in 0..OVERSAMPLING {
-            self.modulator_phase = self.modulator_phase.wrapping_add(phase_increment(
-                c.modulator * (1.0 + self.previous_sample * phase_feedback),
-            ));
-            self.carrier_phase = self.carrier_phase.wrapping_add(carrier_increment);
-            self.sub_phase = self.sub_phase.wrapping_add(sub_increment);
+            let modulator_frequency = c.modulator * (1.0 + self.previous_sample * phase_feedback);
+            let shift = self.travel.step(c.offset, OVERSAMPLING - j, c.carrier, max);
+            let modulator_shift =
+                self.modulator_travel
+                    .step(shift, self.multiplier, modulator_frequency, max);
+            self.modulator_phase = self.modulator_phase.wrapping_add(
+                phase_increment(modulator_frequency).wrapping_add(phase_increment(modulator_shift)),
+            );
+            self.carrier_phase = self
+                .carrier_phase
+                .wrapping_add(carrier_increment.wrapping_add(phase_increment(shift)));
+            self.sub_phase = self
+                .sub_phase
+                .wrapping_add(sub_increment.wrapping_add(phase_increment(0.5 * shift)));
             let modulator = sine_pm(self.modulator_phase, modulator_fb * self.previous_sample);
             let carrier = sine_pm(self.carrier_phase, c.amount * modulator);
             let sub = sine_pm(self.sub_phase, c.amount * carrier * 0.25);
@@ -326,6 +394,11 @@ impl TwoOp {
                 feedback: (
                     p.feedback.value_or(lane, TwoOpParams::FEEDBACK_DEFAULT),
                     p.feedback.glide_mark(lane),
+                ),
+                offset: (
+                    p.phase_offset
+                        .value_or(lane, TwoOpParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);

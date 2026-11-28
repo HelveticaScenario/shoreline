@@ -3,12 +3,14 @@
 //! the sample rate, emitting the phasor offset by the triangle. Extended to
 //! run backward: the master wraps below 0, the slave crosses its peak and 0
 //! going down, and a backward sync restarts the slave where a forward cycle
-//! ends.
+//! ends. A phase offset moves the whole oscillator through time: the master
+//! and slave travel it as extra frequency, so every edge stays band-limited.
 
 use crate::dsp::mi::core::{
     control::Ramp,
     dsp::constrain,
-    phase::{fraction, wrap_below},
+    phase::{fraction, wrap, wrap_below},
+    phase_offset::{Follower, Travel},
     polyblep::{
         edge_time, next_blep_sample, next_integrated_blep_sample, this_blep_sample,
         this_integrated_blep_sample,
@@ -30,6 +32,10 @@ pub struct PdOscillator {
     previous_pw: f32,
     /// Whether the slave is past its peak.
     high: bool,
+    /// The master's travel toward the phase offset.
+    offset: Travel,
+    /// The slave, in time with the master's travel.
+    slave: Follower,
     /// Plaits' `ParameterInterpolator`s across the two substeps.
     master_frequency: Ramp,
     slave_frequency: Ramp,
@@ -50,11 +56,24 @@ impl Default for PdOscillator {
             next_sample: 0.0,
             previous_pw: 0.5,
             high: false,
+            offset: Travel::default(),
+            slave: Follower::default(),
             master_frequency: ramp(0.0),
             slave_frequency: ramp(0.01),
             pw: ramp(0.5),
             phase_modulation: ramp(0.0),
         }
+    }
+}
+
+/// `pw` kept far enough from the edges for a slave running at `slave`.
+#[inline(always)]
+fn width(slave: f32, pw: f32) -> f32 {
+    let speed = slave.abs();
+    if speed >= 0.25 {
+        0.5
+    } else {
+        constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
     }
 }
 
@@ -71,10 +90,45 @@ fn triangle(phase: f32, pw: f32, slope_up: f32, slope_down: f32) -> f32 {
 }
 
 impl PdOscillator {
+    /// Starts a fresh oscillator `offset` cycles into its waveform, with the
+    /// slave where it would be had it started with the master at `ratio` times
+    /// its frequency. Free running at a non-integer ratio, an offset a whole
+    /// cycle further on starts the slave elsewhere.
+    ///
+    ///
+    /// Away from offset 0 the shape starts at the first sample's `pw` and
+    /// `amount`, so the voice starts on its waveform rather than gliding into
+    /// it from the undistorted phasor.
+    pub fn seed(&mut self, offset: f32, ratio: f32, slave: f32, pw: f32, amount: f32, max: f32) {
+        if offset != 0.0 {
+            let pw = width(slave.clamp(-max, max), pw);
+            self.pw.set(pw, None);
+            self.phase_modulation.set(amount, None);
+            self.previous_pw = pw;
+        }
+        let pw = self.previous_pw;
+        self.master_phase = wrap(offset);
+        self.offset.seed(offset);
+        self.slave.seed();
+        self.slave_phase = wrap(offset * ratio);
+        self.high = self.slave_phase >= pw;
+        self.next_sample = triangle(self.slave_phase, pw, 1.0 / pw, 1.0 / (1.0 - pw));
+    }
+
     /// The two substeps of one output sample: the phasor offset by
     /// `amount` × the triangle. Frequencies are in cycles per substep (finite,
-    /// negative runs backward) and are held to ±`max`.
+    /// negative runs backward) and are held to ±`max`. The master travels to
+    /// the phase `offset` (in `[0, 1)`) by the shortest way, as fast as the
+    /// frequency limit allows, and the slave travels `ratio` times as far, so
+    /// an offset moving at a steady speed plays as the frequency raised by it,
+    /// across the wrap too. A voice that has travelled `d` cycles plays as one
+    /// seeded `d` cycles further on; synced, the master's next wrap restarts
+    /// the slave, so from then on it plays as one seeded at `offset`.
     #[inline(always)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "one call site, per-sample controls"
+    )]
     pub fn render(
         &mut self,
         sync: bool,
@@ -82,16 +136,13 @@ impl PdOscillator {
         slave: f32,
         pw: f32,
         amount: f32,
+        offset: f32,
+        ratio: f32,
         max: f32,
     ) -> [f32; OVERSAMPLING] {
         let master = master.clamp(-max, max);
         let slave = slave.clamp(-max, max);
-        let speed = slave.abs();
-        let pw = if speed >= 0.25 {
-            0.5
-        } else {
-            constrain(pw, speed * 2.0, 1.0 - 2.0 * speed)
-        };
+        let pw = width(slave, pw);
         let length = Some(OVERSAMPLING as f32);
         self.master_frequency.set(master, length);
         self.slave_frequency.set(slave, length);
@@ -100,11 +151,16 @@ impl PdOscillator {
 
         let mut next_sample = self.next_sample;
         let mut out = [0.0; OVERSAMPLING];
-        for out in &mut out {
+        for (substep, out) in out.iter_mut().enumerate() {
             let mut this_sample = next_sample;
             next_sample = 0.0;
             let master_frequency = self.master_frequency.next_value();
             let slave_frequency = self.slave_frequency.next_value();
+            let left = OVERSAMPLING - substep;
+            let shift = self.offset.step(offset, left, master_frequency, max);
+            let master_frequency = master_frequency + shift;
+            let slave_frequency =
+                slave_frequency + self.slave.step(shift, ratio, slave_frequency, max);
             let pw = self.pw.next_value();
             let slope_up = 1.0 / pw;
             let slope_down = 1.0 / (1.0 - pw);

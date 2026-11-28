@@ -1,0 +1,3 @@
+kind: New
+body: 'New `phaseOffset` on `$mi.phaseDistortion`, `$mi.zOsc`, `$mi.twoOp`, `$mi.formant`, `$mi.waveshaper`, `$mi.divideDown`, `$mi.waveTerrain` and `$mi.additive` starts the oscillator part way through its cycle, so a `$super` stack of any of them holds a steady level instead of swelling as the copies drift: `$super(''a2'', (freq, { phaseOffset }) => $mi.twoOp(freq, { phaseOffset }))`.'
+time: 2026-11-26T04:17:47.446699-05:00

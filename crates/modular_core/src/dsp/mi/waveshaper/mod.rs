@@ -10,6 +10,7 @@ use crate::{
             interpolate::hermite,
             oscillator::SlopeOscillator,
             phase::{limit_frequency, max_frequency},
+            phase_offset::PhaseOffset,
             sine::sine,
             tables::{
                 LUT_FOLD, LUT_FOLD_2, LUT_WS_BUMP, LUT_WS_DOUBLE_BUMP, LUT_WS_INVERSE_SIN,
@@ -67,6 +68,14 @@ struct WaveshaperParams {
     )]
     #[deserr(default)]
     asymmetry: Option<PolySignal>,
+    #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
     #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waves backward",
         type = audio,
@@ -131,6 +140,14 @@ const WAVESHAPER_DOCS: ModuleDocs = ModuleDocs {
                 bass: shaper._overtones
             "#,
         },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.waveshaper(freq, { fold: 3, phaseOffset }),
+                )
+            "#,
+        },
     ],
 };
 
@@ -172,6 +189,9 @@ struct Controls {
     shape: f32,
     wavefolder_gain: f32,
     overtone_gain: f32,
+    /// Phase offset in `[0, 1)`.
+    offset: f32,
+    max_frequency: f32,
 }
 
 #[derive(Clone, Copy, SeedSide)]
@@ -182,6 +202,7 @@ struct Voice {
     shape: SwapGlide,
     fold: SwapGlide,
     asymmetry: SwapGlide,
+    offset: PhaseOffset,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: [f32; 3],
 }
@@ -195,6 +216,7 @@ impl Default for Voice {
             shape: SwapGlide::default(),
             fold: SwapGlide::default(),
             asymmetry: SwapGlide::default(),
+            offset: PhaseOffset::default(),
             held: [
                 WaveshaperParams::SHAPE_DEFAULT,
                 WaveshaperParams::FOLD_DEFAULT,
@@ -209,6 +231,7 @@ struct Knobs {
     shape: (f32, GlideMark),
     fold: (f32, GlideMark),
     asymmetry: (f32, GlideMark),
+    offset: (f32, GlideMark),
 }
 
 /// Plaits' `Tame`: how much of a control survives at pitch `f0` (cycles per
@@ -262,6 +285,8 @@ impl Voice {
             shape: (0.5 + (harmonics - 0.5) * shape_attenuation) * 3.9999,
             wavefolder_gain: 0.03 + 0.46 * timbre * wavefolder_attenuation,
             overtone_gain: overtone * (2.0 - overtone),
+            offset: self.offset.update(knobs.offset, sample_rate),
+            max_frequency: state.max_frequency,
         }
     }
 
@@ -269,8 +294,12 @@ impl Voice {
     /// gains.
     #[inline(always)]
     fn step(&mut self, c: Controls) -> (f32, f32) {
-        let slope = self.slope.step(c.f0, c.pw);
-        let triangle = self.triangle.step(c.f0, 0.5);
+        if self.offset.seed() {
+            self.slope.seed(c.offset, c.f0, c.pw);
+            self.triangle.seed(c.offset, c.f0, 0.5);
+        }
+        let slope = self.slope.step(c.f0, c.pw, c.offset, c.max_frequency);
+        let triangle = self.triangle.step(c.f0, 0.5, c.offset, c.max_frequency);
 
         let shape_integral = c.shape as i32;
         let shape_fractional = c.shape - shape_integral as f32;
@@ -323,6 +352,11 @@ impl Waveshaper {
                     p.asymmetry
                         .value_or(lane, WaveshaperParams::ASYMMETRY_DEFAULT),
                     p.asymmetry.glide_mark(lane),
+                ),
+                offset: (
+                    p.phase_offset
+                        .value_or(lane, WaveshaperParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
                 ),
             };
             let controls = voice.control(f0, knobs, &self.state);

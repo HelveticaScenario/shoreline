@@ -1,9 +1,11 @@
 //! `plaits::StringSynthOscillator`: four BLEP saws an octave apart, divided
 //! down from one phase, as a string synth's divide-down organ derives its
-//! footages.
+//! footages. A phase offset moves the shared phase through time as extra
+//! frequency, so every saw shifts with it and every edge stays band-limited.
 
 use crate::dsp::mi::core::{
     phase::limit_frequency,
+    phase_offset::Travel,
     polyblep::{edge_time, next_blep_sample, this_blep_sample},
 };
 
@@ -67,6 +69,10 @@ fn shift_down(frequency: f32, speed: f32) -> Option<(f32, usize)> {
     }
     (shift < 8).then_some((frequency, shift))
 }
+
+/// The fastest the phase runs, in segments per sample, while it travels to an
+/// offset: the most `shift_down` leaves it.
+const MAX_SEGMENTS: f32 = 0.5;
 
 /// The phase runs across eight segments; each saw resets at the segments its
 /// period ends on.
@@ -166,15 +172,29 @@ pub struct DivideDownVoice {
     oscillator: DivideDownOscillator,
     /// The saw levels the oscillator last drew with.
     gains: [f32; 4],
+    /// The phase's travel toward the offset, in cycles of the eight-segment
+    /// phase.
+    offset: Travel,
     /// The registration key, octave shift and gain `gains` were computed
     /// for, as bits; `None` before the first sample.
     gains_key: Option<(u32, usize, u32)>,
 }
 
 impl DivideDownVoice {
+    /// Starts a fresh voice `offset` (in `[0, 1)`) of a cycle into its
+    /// eight-segment phase, every saw where it would be had they started
+    /// together.
+    pub fn seed(&mut self, offset: f32) {
+        self.oscillator.phase = offset * 8.0;
+        self.oscillator.segment = self.oscillator.phase as i32;
+        self.offset.seed(offset);
+    }
+
     /// One sample at `f0` cycles per sample (at the rate whose ratio to
     /// 48 kHz is `to_48k`) with `registration`, which `registration_key`
-    /// identifies, at `gain`.
+    /// identifies, at `gain`. The phase travels to `offset` (in `[0, 1)`, in
+    /// cycles of the eight-segment phase), so a voice that moves to an offset
+    /// plays as one seeded there does.
     #[inline(always)]
     pub fn step(
         &mut self,
@@ -183,6 +203,7 @@ impl DivideDownVoice {
         registration: &[f32; 7],
         registration_key: u32,
         gain: f32,
+        offset: f32,
     ) -> f32 {
         let f0 = limit_frequency(f0, 0.5);
         let Some((frequency, shift)) = shift_down(f0 * 8.0, speed(f0, to_48k) * 8.0) else {
@@ -200,6 +221,10 @@ impl DivideDownVoice {
             self.gains = gains;
             self.gains_key = Some(key);
         }
+        let shift = self
+            .offset
+            .step(offset, 1, frequency * 0.125, MAX_SEGMENTS * 0.125);
+        let frequency = frequency + shift * 8.0;
         self.oscillator.step(frequency, self.gains)
     }
 }

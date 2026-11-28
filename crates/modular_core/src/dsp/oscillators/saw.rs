@@ -7,10 +7,16 @@ use crate::module_docs::{DocExample, ModuleDocs};
 use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
-        oscillators::{FmMode, Landing, Resets, SyncRatios, apply_fm, sync_ratio},
-        utils::{sanitize, wrap_phase_f64},
+        oscillators::{
+            FmMode, Landing, PitchIncrements, Resets, SyncRatios, apply_fm, offset_phase_f64,
+            sync_ratio, wrap_offset,
+        },
+        utils::{
+            sanitize, wrap_phase_f64,
+            zero_cross_mute::{Crossing, ZeroCrossMute},
+        },
     },
-    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
@@ -87,14 +93,7 @@ struct LaneState {
     /// `transfer_state_from` arrives with this already set, so it keeps its
     /// phase for continuity instead of re-seeding.
     seeded: bool,
-    /// Whether the zero-cross mute has released. Stays false while a freshly
-    /// started voice is held silent, then latches true at the first output
-    /// zero crossing. Carried-over (already-sounding) voices arrive with this
-    /// true, so they keep playing without re-muting.
-    gate_open: bool,
-    /// Previous (un-muted) output sample, used to detect the zero crossing that
-    /// releases the mute.
-    prev_out: f32,
+    mute: ZeroCrossMute,
     resets: Resets,
 }
 
@@ -151,9 +150,7 @@ impl LaneState {
         // 0 = saw (peak at 1.0), 2.5 = triangle (peak at 0.5), 5 = ramp (peak at 0.0)
         let s = (1.0 - shape * 0.2).clamp(0.001, 0.999) as f64;
 
-        // Phase offset shifts the read position without altering the
-        // accumulator, so it never drifts.
-        let read_offset = offset.rem_euclid(1.0) as f64;
+        let read_offset = wrap_offset(offset) as f64;
 
         // Seed a fresh voice so its read position starts just before the
         // gentle zero crossing, then the mute below holds silence until it
@@ -172,13 +169,15 @@ impl LaneState {
             self.phase = (zero_cross - 2.0 * read_offset).rem_euclid(1.0);
             self.resets.seed(self.phase as f32);
             self.seeded = true;
-            // Arm the zero-cross mute. With no offset the read starts on the
-            // crossing, so prev_out is 0 and the mute releases on the first
-            // sample; an offset starts it earlier, holding silence until the
-            // output reaches the crossing.
-            self.gate_open = !wait_for_zero_cross;
+            // Arm the zero-cross mute from the wave at the read's start. With
+            // no offset the read starts on the crossing, so the mute releases
+            // on the first sample; an offset starts it earlier, holding
+            // silence until the output reaches the crossing.
             let read_start = (zero_cross - read_offset).rem_euclid(1.0);
-            self.prev_out = naive_triangle(read_start, s) as f32 * 5.0;
+            self.mute.start(
+                wait_for_zero_cross,
+                Some(naive_triangle(read_start, s) as f32 * 5.0),
+            );
         }
 
         let (synced, reset) = self.resets.step(
@@ -195,7 +194,7 @@ impl LaneState {
         };
 
         // DPW: compute integral at current phase BEFORE advancing
-        let read_old = (self.phase + read_offset).rem_euclid(1.0);
+        let read_old = offset_phase_f64(self.phase, read_offset);
         let integral_old = triangle_integral(read_old, s);
 
         // A reset lands `frac` into this interval: the wave runs the old
@@ -213,7 +212,7 @@ impl LaneState {
                 None
             }
         };
-        let read_phase = (self.phase + read_offset).rem_euclid(1.0);
+        let read_phase = offset_phase_f64(self.phase, read_offset);
 
         let body = if phase_increment.abs() > 1.0e-7 {
             // The DPW slope is computed in f64: integral_new and
@@ -242,21 +241,12 @@ impl LaneState {
         // crossing that matches the seed's longer segment counts: rising
         // (negative→positive) for saw-side shapes, falling for ramp-side.
         // Releasing on the gentle slope means the first audible sample is ~0.
-        let crossed = if s >= 0.5 {
-            self.prev_out <= 0.0 && out >= 0.0
+        let crossing = if s >= 0.5 {
+            Crossing::Rising
         } else {
-            self.prev_out >= 0.0 && out <= 0.0
+            Crossing::Falling
         };
-        let sample = if self.gate_open {
-            out
-        } else if crossed {
-            self.gate_open = true;
-            out
-        } else {
-            0.0
-        };
-        self.prev_out = out;
-        sample
+        self.mute.pass(out, crossing)
     }
 }
 
@@ -323,18 +313,12 @@ impl SawOscillator {
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let mut ratios = SyncRatios::new(sync, range.start);
-        // A pitch held for the whole range needs its exponential only once.
-        let mut held_increments = [0.0f64; PORT_MAX_LANES];
-        let held = freq.is_constant() && fm.is_constant();
-        if held {
-            let (freq, fm) = (freq.row(range.start), fm.row(range.start));
-            for ((increment, &pitch), &fm) in held_increments.iter_mut().zip(freq).zip(fm) {
-                *increment = phase_increment(pitch, fm, p.fm_mode, sample_rate);
-            }
-        }
+        let increments = PitchIncrements::new(freq, fm, range.start, |pitch, fm| {
+            phase_increment(pitch, fm, p.fm_mode, sample_rate)
+        });
         let last = range.end - 1;
         for i in range {
-            let (pitch, fm, shape, offset) = (freq.row(i), fm.row(i), shape.row(i), offset.row(i));
+            let (shape, offset) = (shape.row(i), offset.row(i));
             let restart = restart.as_ref().map(|restart| restart.row(i));
             let ratios = ratios.at(i);
             let slots = outputs
@@ -343,11 +327,7 @@ impl SawOscillator {
                 .iter_mut()
                 .zip(self.lane_state.iter_mut());
             for (lane, (out, state)) in slots.enumerate() {
-                let increment = if held {
-                    held_increments[lane]
-                } else {
-                    phase_increment(pitch[lane], fm[lane], p.fm_mode, sample_rate)
-                };
+                let increment = increments.at(i, lane);
                 *out = sanitize(state.step(
                     increment,
                     shape[lane].clamp(0.0, 5.0),

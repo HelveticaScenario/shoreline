@@ -221,6 +221,43 @@ impl<'a> SyncRatios<'a> {
     }
 }
 
+/// Each lane's phase increment through a block, from `freq` and `fm` through
+/// `increment`, whose exponential runs once per lane when both hold still.
+pub struct PitchIncrements<'a, T, F> {
+    freq: BlockInput<'a>,
+    fm: BlockInput<'a>,
+    held: Option<[T; PORT_MAX_LANES]>,
+    increment: F,
+}
+
+impl<'a, T: Copy + Default, F: Fn(f32, f32) -> T> PitchIncrements<'a, T, F> {
+    pub fn new(freq: BlockInput<'a>, fm: BlockInput<'a>, start: usize, increment: F) -> Self {
+        let held = (freq.is_constant() && fm.is_constant()).then(|| {
+            let mut held = [T::default(); PORT_MAX_LANES];
+            let (pitch, fm) = (freq.row(start), fm.row(start));
+            for ((held, &pitch), &fm) in held.iter_mut().zip(pitch).zip(fm) {
+                *held = increment(pitch, fm);
+            }
+            held
+        });
+        Self {
+            freq,
+            fm,
+            held,
+            increment,
+        }
+    }
+
+    /// Slot `i`'s increment in `lane`.
+    #[inline(always)]
+    pub fn at(&self, i: usize, lane: usize) -> T {
+        match &self.held {
+            Some(held) => held[lane],
+            None => (self.increment)(self.freq.row(i)[lane], self.fm.row(i)[lane]),
+        }
+    }
+}
+
 /// One lane's `restart` edge detector and `sync` source: a cycle at the
 /// note's pitch that restarts the oscillator each time it completes, while
 /// the oscillator runs `sync_ratio` times faster.
@@ -268,6 +305,45 @@ impl Resets {
         };
         (increment, Reset::first(restarted, wrapped))
     }
+}
+
+/// The PolyBLEP for an edge of a cycle restarted `frac` into a step, `ahead`
+/// of the cycle's start for a wave running `speed` cycles a sample, when the
+/// wave reaches it before the next sample, which leaves it to the carry.
+/// Returns `(this_sample, next_sample)` like [`sync_blep`].
+#[inline(always)]
+pub fn restarted_edge(ahead: f32, jump: f32, frac: f32, speed: f32) -> Option<(f32, f32)> {
+    let at = frac + ahead / speed;
+    (ahead > 0.0 && at < 1.0).then(|| sync_blep(jump, at))
+}
+
+/// Whether a reset's band-limiting replaces a wave's own edge correction at
+/// `phase`, for a wave running `speed` cycles a sample: a reset replaces an
+/// edge just behind on the sample after it (`restarted`, a reset on the last
+/// sample) and an edge ahead on the sample it lands in (`resetting`).
+#[inline(always)]
+pub fn reset_replaces_edge(phase: f32, speed: f32, restarted: bool, resetting: bool) -> bool {
+    if phase < speed { restarted } else { resetting }
+}
+
+/// A `phaseOffset` wrapped into the cycle.
+#[inline(always)]
+pub fn wrap_offset(offset: f32) -> f32 {
+    offset.rem_euclid(1.0)
+}
+
+/// Where a wave shifted `offset` cycles reads its cycle while its accumulator
+/// stands at `phase`. The offset moves the read, never the accumulator, so it
+/// never drifts.
+#[inline(always)]
+pub fn offset_phase(phase: f32, offset: f32) -> f32 {
+    (phase + offset).rem_euclid(1.0)
+}
+
+/// [`offset_phase`] for an f64 accumulator.
+#[inline(always)]
+pub fn offset_phase_f64(phase: f64, offset: f64) -> f64 {
+    (phase + offset).rem_euclid(1.0)
 }
 
 /// Two-point PolyBLAMP correction for a reset's change of slope:

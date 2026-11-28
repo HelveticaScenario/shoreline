@@ -10,8 +10,8 @@ use crate::{
     dsp::{
         core::pan::pan_pair,
         oscillators::{
-            FmMode, Landing, Reset, RestartEdge, SyncRatios, apply_fm, sync_blep, sync_ratio,
-            synced_increment,
+            FmMode, Landing, Reset, RestartEdge, SyncRatios, apply_fm, reset_replaces_edge,
+            restarted_edge, sync_blep, sync_ratio, synced_increment,
         },
         utils::{
             fade::{DEFAULT_FADE_IN_SECS, FadeIn},
@@ -21,6 +21,7 @@ use crate::{
                 SlotOrder, centred_position, detune_octaves, spread_position, unison_gain,
             },
             wrap_phase,
+            zero_cross_mute::{Crossing, ZeroCrossMute},
         },
     },
     poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
@@ -169,13 +170,7 @@ struct VoiceState {
     /// residual band-limits the next sample, so the saw's own wrap
     /// correction must not fire there as well.
     restarted: bool,
-    /// Whether this voice's zero-cross mute has released. Stays false while the
-    /// voice is held silent after a fresh start, then latches true at the first
-    /// output zero crossing. Carried-over voices arrive with this true.
-    gate_open: bool,
-    /// Previous (un-muted) saw value, used to detect the releasing zero
-    /// crossing.
-    prev_out: f32,
+    mute: ZeroCrossMute,
 }
 
 /// Module-level state for the Supersaw module.
@@ -254,19 +249,17 @@ impl Supersaw {
         // state below.
         let voices = self.params.unison.clamp(1, PORT_MAX_LANES);
         self.lane_state = vec![VoiceState::default(); voices * PORT_MAX_LANES].into_boxed_slice();
-        // Arm each fresh voice's zero-cross mute. prev_out is the naive saw
-        // at the voice's starting phase so the mute holds until the output
-        // genuinely crosses zero (it would release immediately if left at 0).
-        // For carried-over voices these values are overwritten by
-        // `transfer_state_from`, keeping an already-sounding voice un-muted.
-        // The sync source starts read at the same offset as the saw, so its
-        // first sample sees no glide.
-        let gate_open = !self.params.wait_for_zero_cross;
+        // Arm each fresh voice's zero-cross mute from the naive saw at the
+        // voice's starting phase, so the mute holds until the output genuinely
+        // crosses zero. For carried-over voices `transfer_state_from`
+        // overwrites these, keeping an already-sounding voice un-muted. The
+        // sync source starts read at the same offset as the saw, so its first
+        // sample sees no glide.
+        let wait = self.params.wait_for_zero_cross;
         for (voice, row) in self.lane_state.chunks_mut(PORT_MAX_LANES).enumerate() {
             let offset = voice_phase(voice, voices);
             for cell in row {
-                cell.gate_open = gate_open;
-                cell.prev_out = 2.0 * offset - 1.0;
+                cell.mute.start(wait, Some(2.0 * offset - 1.0));
                 cell.sync_offset = offset;
             }
         }
@@ -479,20 +472,12 @@ impl VoiceState {
         // Naive saw + its own PolyBLEP wrap correction, then any residual
         // carried from a reset on the previous sample. The reset (below)
         // lands in the upcoming interval, so this operates on the real,
-        // pre-reset phase. A reset band-limits the jump it makes, which
-        // replaces the wrap ahead on the sample it lands and the wrap just
-        // behind on the sample after it.
+        // pre-reset phase.
         let mut saw = 2.0 * read - 1.0;
-        let replaced = if read < saw_dt.abs() {
-            self.restarted
-        } else {
-            reset.is_some()
-        };
-        if !replaced {
+        if !reset_replaces_edge(read, saw_dt.abs(), self.restarted, reset.is_some()) {
             saw -= poly_blep_saw(read, saw_dt.abs());
         }
-        saw += self.blep_carry;
-        self.blep_carry = 0.0;
+        saw += std::mem::take(&mut self.blep_carry);
         self.restarted = reset.is_some();
 
         // A reset restarts the saw, band-limited with a PolyBLEP at the
@@ -506,41 +491,38 @@ impl VoiceState {
             // The saw as it reaches the reset; one that would wrap first
             // counts as reaching the end of its ramp.
             let before = 2.0 * (read + frac * saw_dt).clamp(0.0, 1.0) - 1.0;
-            let after = match reset {
+            let (after, edge) = match reset {
                 Reset::Sync(_) => {
                     phase = wrap_phase(-offset - frac * saw_dt);
-                    if saw_dt < 0.0 { 1.0 } else { -1.0 }
+                    (if saw_dt < 0.0 { 1.0 } else { -1.0 }, None)
                 }
                 Reset::Restart(_) => {
-                    phase = wrap_phase(-frac * saw_dt);
-                    self.sync_phase = wrap_phase(-frac * dt);
+                    phase = reset.phase(saw_dt);
+                    self.sync_phase = reset.phase(dt);
                     self.sync_offset = offset;
                     let start = wrap_phase(offset);
-                    if saw_dt < 0.0 && start == 0.0 {
+                    let after = if saw_dt < 0.0 && start == 0.0 {
                         1.0
                     } else {
                         2.0 * start - 1.0
-                    }
+                    };
+                    // A restarted saw that starts just short of its wrap
+                    // crosses it before the next sample, which leaves it to
+                    // the carry.
+                    let (ahead, jump) = if saw_dt < 0.0 {
+                        (start, 2.0)
+                    } else {
+                        ((1.0 - start).rem_euclid(1.0), -2.0)
+                    };
+                    (after, restarted_edge(ahead, jump, frac, saw_dt.abs()))
                 }
             };
             let (now, carry) = sync_blep(after - before, frac);
             saw += now;
             self.blep_carry = carry;
-            // A restarted saw that starts just short of its wrap crosses it
-            // before the next sample, which leaves it to the carry.
-            if let Reset::Restart(_) = reset {
-                let start = wrap_phase(offset);
-                let (ahead, jump) = if saw_dt < 0.0 {
-                    (start, 2.0)
-                } else {
-                    ((1.0 - start).rem_euclid(1.0), -2.0)
-                };
-                let at = frac + ahead / saw_dt.abs();
-                if ahead > 0.0 && at < 1.0 {
-                    let (now, carry) = sync_blep(jump, at);
-                    saw += now;
-                    self.blep_carry += carry;
-                }
+            if let Some((now, carry)) = edge {
+                saw += now;
+                self.blep_carry += carry;
             }
         }
 
@@ -556,16 +538,7 @@ impl VoiceState {
         // so only the rising (negative→positive) crossing on the ramp
         // counts. Releasing on the ramp means the first contributed
         // sample is ~0.
-        let contribution = if self.gate_open {
-            saw
-        } else if self.prev_out <= 0.0 && saw >= 0.0 {
-            self.gate_open = true;
-            saw
-        } else {
-            0.0
-        };
-        self.prev_out = saw;
-        contribution
+        self.mute.pass(saw, Crossing::Rising)
     }
 
     /// Advance the sync source by `dt`, read `offset` ahead; when it
@@ -964,8 +937,7 @@ mod tests {
             ..params(mono(0.0), 1, 0.0)
         });
         s.lane_state[0].phase = 0.25;
-        s.lane_state[0].prev_out = -0.5;
-        s.lane_state[0].gate_open = false;
+        s.lane_state[0].mute = ZeroCrossMute::Waiting(Some(-0.5));
 
         let out: Vec<f32> = (0..200)
             .map(|_| {
@@ -1052,7 +1024,6 @@ mod tests {
         // share its band-limiting, and neither overshoots.
         let mut cell = VoiceState {
             phase: 0.3,
-            gate_open: true,
             ..Default::default()
         };
         let first = cell.step(0.01, 0.995, Some(5.0), None);

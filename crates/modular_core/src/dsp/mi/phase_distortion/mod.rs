@@ -9,11 +9,15 @@ use crate::{
     dsp::{
         mi::core::{
             phase::{limit_frequency, max_frequency},
+            phase_offset::PhaseOffset,
             ratio::{ratio_multiplier, ratio_semitones},
             sine::sine,
         },
         oscillators::{FmMode, apply_fm},
-        utils::changed,
+        utils::{
+            changed,
+            zero_cross_mute::{Crossing, ZeroCrossMute},
+        },
     },
     poly::{PolyOutput, PolySignal, PolySignalExt},
     types::{GlideMark, SwapGlide},
@@ -62,6 +66,14 @@ struct PhaseDistortionParams {
     #[deserr(default = crate::dsp::utils::default_true())]
     sync: bool,
     #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
+    #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
         type = audio,
     )]
@@ -106,6 +118,14 @@ const PHASE_DISTORTION_DOCS: ModuleDocs = ModuleDocs {
             title: "Free-running growl",
             code: "bass: $mi.phaseDistortion('a1', { ratio: 3.2, sync: false })",
         },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.phaseDistortion(freq, { amount: 3, phaseOffset }),
+                )
+            "#,
+        },
     ],
 };
 
@@ -146,42 +166,10 @@ struct Controls {
     modulator: f32,
     pw: f32,
     amount: f32,
-}
-
-/// A voice's start mute. A voice carried over by a patch update keeps its
-/// gate, so only a voice that has never rendered waits.
-#[derive(Clone, Copy, Default)]
-enum Gate {
-    #[default]
-    Fresh,
-    /// Muted until the output's sign differs from this, or it reaches 0.
-    Waiting(f32),
-    Open,
-}
-
-impl Gate {
-    #[inline(always)]
-    fn pass(&mut self, out: f32, wait_for_zero_cross: bool) -> f32 {
-        match *self {
-            Gate::Open => out,
-            Gate::Fresh if !wait_for_zero_cross => {
-                *self = Gate::Open;
-                out
-            }
-            Gate::Waiting(last) if (out > 0.0) != (last > 0.0) => {
-                *self = Gate::Open;
-                out
-            }
-            _ if out == 0.0 => {
-                *self = Gate::Open;
-                out
-            }
-            _ => {
-                *self = Gate::Waiting(out);
-                0.0
-            }
-        }
-    }
+    /// Phase offset in `[0, 1)`, and the modulator's frequency over the
+    /// carrier's.
+    offset: f32,
+    ratio: f32,
 }
 
 #[derive(Clone, Copy, SeedSide)]
@@ -190,12 +178,13 @@ struct Voice {
     ratio: SwapGlide,
     amount: SwapGlide,
     asymmetry: SwapGlide,
+    offset: PhaseOffset,
     /// The last finite knobs, which a NaN or infinite knob holds.
     held: [f32; 3],
     /// Modulator multiplier for the cached ratio knob; `NaN` = never computed.
     last_ratio: f32,
     multiplier: f32,
-    gate: Gate,
+    mute: ZeroCrossMute,
 }
 
 impl Default for Voice {
@@ -205,6 +194,7 @@ impl Default for Voice {
             ratio: SwapGlide::default(),
             amount: SwapGlide::default(),
             asymmetry: SwapGlide::default(),
+            offset: PhaseOffset::default(),
             held: [
                 PhaseDistortionParams::RATIO_DEFAULT,
                 PhaseDistortionParams::AMOUNT_DEFAULT,
@@ -212,7 +202,7 @@ impl Default for Voice {
             ],
             last_ratio: f32::NAN,
             multiplier: 1.0,
-            gate: Gate::Fresh,
+            mute: ZeroCrossMute::default(),
         }
     }
 }
@@ -222,6 +212,7 @@ struct Knobs {
     ratio: (f32, GlideMark),
     amount: (f32, GlideMark),
     asymmetry: (f32, GlideMark),
+    offset: (f32, GlideMark),
 }
 
 #[inline(always)]
@@ -260,18 +251,32 @@ impl Voice {
             modulator,
             pw: 0.5 + morph * 0.49,
             amount: 8.0 * timbre * timbre * (1.0 - modulator.abs() * state.to_48k * 3.8),
+            offset: self.offset.update(knobs.offset, sample_rate),
+            ratio: self.multiplier,
         }
     }
 
     /// One output sample, before the output gain.
     #[inline(always)]
     fn step(&mut self, c: Controls, sync: bool, state: &PhaseDistortionState) -> f32 {
+        if self.offset.seed() {
+            self.oscillator.seed(
+                c.offset,
+                c.ratio,
+                c.modulator,
+                c.pw,
+                c.amount,
+                state.max_frequency,
+            );
+        }
         let phases = self.oscillator.render(
             sync,
             c.carrier,
             c.modulator,
             c.pw,
             c.amount,
+            c.offset,
+            c.ratio,
             state.max_frequency,
         );
         let mut out = 0.0;
@@ -311,10 +316,16 @@ impl PhaseDistortion {
                         .value_or(lane, PhaseDistortionParams::ASYMMETRY_DEFAULT),
                     p.asymmetry.glide_mark(lane),
                 ),
+                offset: (
+                    p.phase_offset
+                        .value_or(lane, PhaseDistortionParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
+                ),
             };
             let controls = voice.control(f0, knobs, &self.state);
             let out = voice.step(controls, p.sync, &self.state);
-            let out = voice.gate.pass(out, p.wait_for_zero_cross);
+            voice.mute.start(p.wait_for_zero_cross, None);
+            let out = voice.mute.pass(out, Crossing::Either);
             self.outputs.sample.set(lane, OUTPUT_GAIN * out);
         }
     }

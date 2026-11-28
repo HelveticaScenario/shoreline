@@ -12,6 +12,7 @@ use crate::{
         mi::core::{
             filter::{OnePole, tan_dirty},
             phase::{limit_frequency, max_frequency},
+            phase_offset::{PhaseOffset, Travel},
         },
         oscillators::{FmMode, apply_fm},
         utils::changed,
@@ -57,6 +58,14 @@ struct ZOscParams {
     #[deserr(default)]
     mode: Option<PolySignal>,
     #[input(
+        "shifts the whole waveform in time, in cycles; wraps around",
+        type = control,
+        default = 0.0,
+        range = (0.0, 1.0),
+    )]
+    #[deserr(default)]
+    phase_offset: Option<PolySignal>,
+    #[input(
         "frequency modulation: each volt adds the base frequency again (lin, throughZero) or an octave (exp); through-zero runs the waveform backward",
         type = audio,
     )]
@@ -83,13 +92,23 @@ const Z_OSC_DOCS: ModuleDocs = ModuleDocs {
                   filter whose resonance tracks the pitch, with no filter at all.",
     categories: &[ReferenceCategory::Oscillator],
     sections: &[],
-    examples: &[DocExample {
-        title: "Resonant sweep",
-        code: r#"
-            const sweep = $sine('0.2hz').range(1, 4)
-            bass: $mi.zOsc('c2', { cutoff: sweep, mode: 1 })
-        "#,
-    }],
+    examples: &[
+        DocExample {
+            title: "Resonant sweep",
+            code: r#"
+                const sweep = $sine('0.2hz').range(1, 4)
+                bass: $mi.zOsc('c2', { cutoff: sweep, mode: 1 })
+            "#,
+        },
+        DocExample {
+            title: "Unison lead",
+            code: r#"
+                lead: $super('a2', (freq, { phaseOffset }) =>
+                  $mi.zOsc(freq, { cutoff: 3, mode: 1, phaseOffset }),
+                )
+            "#,
+        },
+    ],
 };
 
 #[module(name = "$mi.zOsc", docs = Z_OSC_DOCS, args(freq), has_init, block)]
@@ -126,13 +145,18 @@ struct Voice {
     cutoff: SwapGlide,
     shape: SwapGlide,
     mode: SwapGlide,
+    offset: PhaseOffset,
+    /// The phase offset in `[0, 1)` the last `control` read, and the carrier's
+    /// travel toward it.
+    phase_offset: f32,
+    travel: Travel,
     /// Formant-to-pitch ratio for the cached `cutoff`; `NaN` = never computed.
     last_cutoff: f32,
     multiplier: f32,
     /// Pitch the DC blocker is tuned to; `NaN` = never tuned.
     last_f0: f32,
     /// The raw pitch and knobs of the last `control`; `NaN` = never set.
-    last_inputs: [f32; 4],
+    last_inputs: [f32; 5],
 }
 
 impl Default for Voice {
@@ -144,10 +168,13 @@ impl Default for Voice {
             cutoff: SwapGlide::default(),
             shape: SwapGlide::default(),
             mode: SwapGlide::default(),
+            offset: PhaseOffset::default(),
+            phase_offset: ZOscParams::PHASE_OFFSET_DEFAULT,
+            travel: Travel::default(),
             last_cutoff: f32::NAN,
             multiplier: 0.0,
             last_f0: f32::NAN,
-            last_inputs: [f32::NAN; 4],
+            last_inputs: [f32::NAN; 5],
         }
     }
 }
@@ -157,6 +184,7 @@ struct Knobs {
     cutoff: (f32, GlideMark),
     shape: (f32, GlideMark),
     mode: (f32, GlideMark),
+    offset: (f32, GlideMark),
 }
 
 impl Voice {
@@ -165,12 +193,19 @@ impl Voice {
     #[inline(always)]
     fn control(&mut self, f0: f32, knobs: Knobs, length: f32, sample_rate: f32, state: &ZOscState) {
         // Unchanged inputs on settled ramps would leave every control as it is.
-        let inputs = [f0, knobs.cutoff.0, knobs.shape.0, knobs.mode.0];
+        let inputs = [
+            f0,
+            knobs.cutoff.0,
+            knobs.shape.0,
+            knobs.mode.0,
+            knobs.offset.0,
+        ];
         if inputs == self.last_inputs
             && self.osc.settled()
             && !self.cutoff.will_glide(knobs.cutoff.1)
             && !self.shape.will_glide(knobs.shape.1)
             && !self.mode.will_glide(knobs.mode.1)
+            && !self.offset.will_glide(knobs.offset.1)
         {
             return;
         }
@@ -183,6 +218,7 @@ impl Voice {
             .follow(knobs.cutoff.0, knobs.cutoff.1, sample_rate);
         let shape = self.shape.follow(knobs.shape.0, knobs.shape.1, sample_rate);
         let mode = self.mode.follow(knobs.mode.0, knobs.mode.1, sample_rate);
+        self.phase_offset = self.offset.update(knobs.offset, sample_rate);
         // A NaN or infinite cutoff holds the multiplier where it is.
         if changed(cutoff, self.last_cutoff) && cutoff.is_finite() {
             self.multiplier = (8.0 * (cutoff * 0.2).clamp(0.0, 1.0)).exp2();
@@ -201,9 +237,22 @@ impl Voice {
         }
     }
 
+    /// The carrier travels to the phase offset as extra frequency, so a voice
+    /// that moves to an offset plays as one seeded there does.
     #[inline(always)]
     fn step(&mut self, f0: f32, state: &ZOscState) -> f32 {
         let f0 = limit_frequency(f0, state.max_carrier);
+        if self.offset.seed() {
+            // An unshifted voice starts as Plaits' does, on a silent sample.
+            if self.phase_offset != 0.0 {
+                self.osc.seed(self.phase_offset, f0);
+            }
+            self.travel.seed(self.phase_offset);
+        }
+        let f0 = f0
+            + self
+                .travel
+                .step(self.phase_offset, 1, f0, state.max_carrier);
         OUTPUT_GAIN * self.dc_blocker.high_pass(self.osc.step(f0))
     }
 }
@@ -235,6 +284,11 @@ impl ZOsc {
                     p.mode.value_or(lane, ZOscParams::MODE_DEFAULT),
                     p.mode.glide_mark(lane),
                 ),
+                offset: (
+                    p.phase_offset
+                        .value_or(lane, ZOscParams::PHASE_OFFSET_DEFAULT),
+                    p.phase_offset.glide_mark(lane),
+                ),
             };
             voice.control(f0, knobs, 1.0, sample_rate, &self.state);
             self.outputs.sample.set(lane, voice.step(f0, &self.state));
@@ -257,6 +311,7 @@ impl ZOsc {
                 p.cutoff.glide_mark(lane),
                 p.shape.glide_mark(lane),
                 p.mode.glide_mark(lane),
+                p.phase_offset.glide_mark(lane),
             );
             for i in range.clone() {
                 let f0 = apply_fm(inputs.freq.row(i)[lane], inputs.fm.row(i)[lane], p.fm_mode)
@@ -265,6 +320,7 @@ impl ZOsc {
                     cutoff: (inputs.cutoff.row(i)[lane], marks.0),
                     shape: (inputs.shape.row(i)[lane], marks.1),
                     mode: (inputs.mode.row(i)[lane], marks.2),
+                    offset: (inputs.phase_offset.row(i)[lane], marks.3),
                 };
                 voice.control(f0, knobs, 1.0, sample_rate, state);
                 outputs.sample.slot_mut(i)[lane] = voice.step(f0, state);

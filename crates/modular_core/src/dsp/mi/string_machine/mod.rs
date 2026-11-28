@@ -268,7 +268,8 @@ impl Lane {
         for (note, voice) in self.voices.iter_mut().enumerate() {
             let note_f0 = f0 * self.bank.ratio(note);
             let gain = 0.25 * fade(note_f0, state.to_48k);
-            sides[note & 1] += voice.step(note_f0, state.to_48k, &self.registration, key, gain);
+            sides[note & 1] +=
+                voice.step(note_f0, state.to_48k, &self.registration, key, gain, 0.0);
         }
 
         let timbre = knob(tone);

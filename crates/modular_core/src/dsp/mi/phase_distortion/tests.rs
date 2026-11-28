@@ -8,10 +8,15 @@ fn mark() -> GlideMark {
 }
 
 fn knobs(ratio: f32, amount: f32, asymmetry: f32) -> Knobs {
+    offset_knobs(ratio, amount, asymmetry, 0.0)
+}
+
+fn offset_knobs(ratio: f32, amount: f32, asymmetry: f32, offset: f32) -> Knobs {
     Knobs {
         ratio: (ratio, mark()),
         amount: (amount, mark()),
         asymmetry: (asymmetry, mark()),
+        offset: (offset, mark()),
     }
 }
 
@@ -149,7 +154,14 @@ fn stays_finite() {
                     _ => (n as f32 * 0.003).sin() * 0.02,
                 };
                 let knob = (n % 11) as f32 * 0.5;
-                let out = render(&mut voice, f0, knobs(knob, 5.0 - knob, knob), sync, &state);
+                let offset = match n % 13 {
+                    0 if n % 600 == 0 => f32::NAN,
+                    1 if n % 600 == 1 => f32::NEG_INFINITY,
+                    5 => -7.25,
+                    _ => (n as f32 * 0.007).sin() * 3.0,
+                };
+                let k = offset_knobs(knob, 5.0 - knob, knob, offset);
+                let out = render(&mut voice, f0, k, sync, &state);
                 assert!(out.is_finite(), "{sample_rate} Hz, sync {sync}, sample {n}");
             }
         }
@@ -223,6 +235,157 @@ fn backward_departs_only_by_the_substep_lag() {
     );
 }
 
+/// A phase offset plays the same waveform shifted in time, synced or free
+/// running: at a 100-sample period, a quarter-cycle offset leads by 25 samples.
+#[test]
+fn phase_offset_shifts_the_waveform_in_time() {
+    let state = PhaseDistortionState::new(48000.0);
+    for sync in [true, false] {
+        for (ratio, amount, asymmetry) in [(2.5, 3.0, 0.0), (3.2, 4.0, 3.0), (0.7, 2.0, 5.0)] {
+            let tone = |offset: f32| {
+                let mut voice = Voice::default();
+                (0..4000)
+                    .map(|_| {
+                        let k = offset_knobs(ratio, amount, asymmetry, offset);
+                        render(&mut voice, 0.01, k, sync, &state)
+                    })
+                    .collect::<Vec<f32>>()
+            };
+            let ahead = tone(0.25);
+            let plain = tone(0.0);
+            let (error, at) = max_error(&ahead[1000..3000], &plain[1025..3025]);
+            assert!(
+                error < 1e-3,
+                "sync {sync}, ratio {ratio}: error {error} at {at}"
+            );
+        }
+    }
+}
+
+/// An offset that moves, or jumps, without crossing the wrap ends where a
+/// voice started at it plays, within the rounding its phases gather on the
+/// way.
+#[test]
+fn moving_phase_offset_lands_on_the_held_one() {
+    let state = PhaseDistortionState::new(48000.0);
+    for sync in [true, false] {
+        let mut held = Voice::default();
+        let mut glided = Voice::default();
+        let mut jumped = Voice::default();
+        for n in 0..6000 {
+            let glide = (n as f32 / 2000.0).min(1.0) * 0.4;
+            let jump = if n < 100 { 0.7 } else { 0.4 };
+            let a = render(
+                &mut held,
+                0.01,
+                offset_knobs(3.2, 3.0, 2.0, 0.4),
+                sync,
+                &state,
+            );
+            let b = render(
+                &mut glided,
+                0.01,
+                offset_knobs(3.2, 3.0, 2.0, glide),
+                sync,
+                &state,
+            );
+            let c = render(
+                &mut jumped,
+                0.01,
+                offset_knobs(3.2, 3.0, 2.0, jump),
+                sync,
+                &state,
+            );
+            if n >= 3000 {
+                assert!(
+                    (a - b).abs() < 1e-2,
+                    "sync {sync}, glided, sample {n}: {a} vs {b}"
+                );
+                assert!(
+                    (a - c).abs() < 1e-2,
+                    "sync {sync}, jumped, sample {n}: {a} vs {c}"
+                );
+            }
+        }
+    }
+}
+
+/// A NaN or infinite phase offset holds the oscillator where it is.
+#[test]
+fn non_finite_phase_offset_holds() {
+    let state = PhaseDistortionState::new(48000.0);
+    let mut held = Voice::default();
+    let mut glitched = Voice::default();
+    for n in 0..200 {
+        let v = match n {
+            100 => f32::NAN,
+            101 => f32::INFINITY,
+            _ => 0.3,
+        };
+        let a = render(
+            &mut held,
+            0.01,
+            offset_knobs(1.0, 3.0, 1.0, 0.3),
+            true,
+            &state,
+        );
+        let b = render(
+            &mut glitched,
+            0.01,
+            offset_knobs(1.0, 3.0, 1.0, v),
+            true,
+            &state,
+        );
+        assert!((a - b).abs() < 1e-6, "sample {n}: {a} vs {b}");
+    }
+}
+
+/// An offset moving at a steady speed plays as the frequency raised by that
+/// speed, so modulating it across the wrap at a non-integer ratio moves the
+/// slave as smoothly as the master, synced or free running.
+#[test]
+fn phase_offset_crossing_the_wrap_moves_smoothly() {
+    let max = PhaseDistortionState::new(48000.0).max_frequency;
+    let (master, ratio, speed) = (0.005, 3.2, 1e-4);
+    for sync in [true, false] {
+        let mut glided = PdOscillator::default();
+        let mut sped = PdOscillator::default();
+        glided.seed(0.9, ratio, master * ratio, 0.6, 2.5, max);
+        sped.seed(0.9, ratio, master * ratio, 0.6, 2.5, max);
+        let mut offset = 0.9f32;
+        for n in 0..4000 {
+            let moving = (500..2500).contains(&n);
+            if moving {
+                offset += speed;
+            }
+            let raise = if moving { speed / 2.0 } else { 0.0 };
+            let a = glided.render(
+                sync,
+                master,
+                master * ratio,
+                0.6,
+                2.5,
+                offset.fract(),
+                ratio,
+                max,
+            );
+            let b = sped.render(
+                sync,
+                master + raise,
+                (master + raise) * ratio,
+                0.6,
+                2.5,
+                0.9,
+                ratio,
+                max,
+            );
+            for (a, b) in a.into_iter().zip(b) {
+                assert!((a - b).abs() < 1e-3, "sync {sync}, sample {n}: {a} vs {b}");
+            }
+        }
+    }
+}
+
 fn module(wait_for_zero_cross: bool) -> PhaseDistortion {
     let params = PhaseDistortionParams {
         freq: PolySignal::mono(Signal::Volts(-1.0)),
@@ -231,6 +394,7 @@ fn module(wait_for_zero_cross: bool) -> PhaseDistortion {
         asymmetry: None,
         sync: true,
         fm: None,
+        phase_offset: None,
         fm_mode: FmMode::default(),
         wait_for_zero_cross,
     };
@@ -279,6 +443,54 @@ fn fresh_voice_waits_for_a_zero_crossing() {
     assert!(muted[..release].iter().all(|&v| v == 0.0));
     for (n, (m, o)) in muted.iter().zip(&open).enumerate().skip(release) {
         assert_eq!(m.to_bits(), o.to_bits(), "sample {n}");
+    }
+}
+
+/// A fresh voice started part way through its cycle still waits for its
+/// output to change sign, then plays exactly the unmuted render.
+#[test]
+fn offset_voice_waits_for_a_zero_crossing() {
+    let with_offset = |wait| {
+        let mut m = module(wait);
+        m.params.phase_offset = Some(PolySignal::mono(Signal::Volts(0.3)));
+        run(&mut m, 2000)
+    };
+    let open = with_offset(false);
+    let muted = with_offset(true);
+    assert_ne!(
+        open[..50],
+        run(&mut module(false), 50)[..],
+        "the offset moves the start"
+    );
+    let release = open
+        .windows(2)
+        .position(|w| (w[0] > 0.0) != (w[1] > 0.0) || w[1] == 0.0)
+        .expect("the wave crosses zero")
+        + 1;
+    assert!(muted[..release].iter().all(|&v| v == 0.0));
+    for (n, (m, o)) in muted.iter().zip(&open).enumerate().skip(release) {
+        assert_eq!(m.to_bits(), o.to_bits(), "sample {n}");
+    }
+}
+
+/// A voice started at any offset starts on its waveform, so the mute opens
+/// with a step no larger than the wave's own steps.
+#[test]
+fn offset_voice_opens_without_a_jump() {
+    for n in 1..20 {
+        let mut m = module(true);
+        m.params.phase_offset = Some(PolySignal::mono(Signal::Volts(n as f32 * 0.05)));
+        let out = run(&mut m, 2000);
+        let largest = out[1000..]
+            .windows(2)
+            .map(|w| (w[1] - w[0]).abs())
+            .fold(0.0, f32::max);
+        let opening = out.iter().find(|&&v| v != 0.0).expect("the voice opens");
+        assert!(
+            opening.abs() <= largest,
+            "offset {}: opened on {opening}, steps reach {largest}",
+            n as f32 * 0.05
+        );
     }
 }
 
