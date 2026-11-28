@@ -1120,6 +1120,7 @@ registerIPCHandler(
                 video,
                 videoPreviews,
                 outputResolutions,
+                moduleChannels,
             } = executePatchScript(source, schemas, {
                 inputChannels: synth.inputChannels(),
                 mediaExists: (relative) =>
@@ -1190,6 +1191,7 @@ registerIPCHandler(
                 eqPanels,
                 errors: [],
                 interpolationResolutions: interpolationResolutionsRecord,
+                moduleChannels,
                 moduleIdRemap,
                 outputResolutions,
                 sliders,

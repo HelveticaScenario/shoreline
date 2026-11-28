@@ -39,3 +39,16 @@ export function collectionChannels(lanes: Iterable<Channels>): Channels {
     }
     return channels ?? 'mono';
 }
+
+/**
+ * The channels of a module a patch built while it ran. `line`/`column` are
+ * the call site as V8 reports it, as in `OutputResolutionRecord`, and
+ * `module` the module's name; a call that runs more than once records each
+ * module it builds.
+ */
+export interface ModuleChannelsRecord {
+    line: number;
+    column: number;
+    module: string;
+    channels: Channels;
+}

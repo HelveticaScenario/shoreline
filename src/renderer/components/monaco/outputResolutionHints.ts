@@ -5,7 +5,9 @@
  *
  * All show as the code is typed. An output the type checker cannot name (an
  * untyped helper parameter, say) comes from the runtime's last run, while the
- * value's text is unchanged.
+ * value's text is unchanged. So does whether a file a module plays is mono,
+ * while the call's text is unchanged: a fold through mono files alone is no
+ * fold.
  */
 
 import type {
@@ -15,6 +17,7 @@ import type {
     Position,
     Range,
 } from 'monaco-editor';
+import type { ModuleChannelsRecord } from '../../../shared/dsl/channels';
 import type { OutputResolutionRecord } from '../../../shared/dsl/outputResolutionRule';
 import {
     siteOfRecord,
@@ -24,6 +27,7 @@ import {
 import electronAPI from '../../electronAPI';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import { dslWorker } from './dslWorker';
+import { callKey, foldsGiven, monoFileCalls } from './monoFileCalls';
 
 /** A site the runtime resolved, its value tracked through edits by a decoration. */
 interface RuntimeFill {
@@ -35,6 +39,14 @@ interface RuntimeFill {
     insertable: boolean;
 }
 
+/** A file call every run of which built a mono module, tracked through edits by a decoration. */
+interface MonoCall {
+    decorationId: string;
+    /** The call's text and module when the buffer ran. */
+    text: string;
+    module: string;
+}
+
 /** The provider's state, set once it is registered. */
 let active: {
     monaco: Monaco;
@@ -44,6 +56,7 @@ let active: {
 } | null = null;
 
 const runtimeFills = new WeakMap<editor.ITextModel, RuntimeFill[]>();
+const monoCalls = new WeakMap<editor.ITextModel, MonoCall[]>();
 
 async function signalSites(model: editor.ITextModel): Promise<SignalSite[]> {
     const { monaco, tables } = active!;
@@ -51,9 +64,12 @@ async function signalSites(model: editor.ITextModel): Promise<SignalSite[]> {
     return worker.getSignalSites(model.uri.toString(), await tables);
 }
 
-function rangeOf(model: editor.ITextModel, site: SignalSite): Range {
-    const start = model.getPositionAt(site.start);
-    const end = model.getPositionAt(site.end);
+function offsetRange(
+    model: editor.ITextModel,
+    span: { start: number; end: number },
+): Range {
+    const start = model.getPositionAt(span.start);
+    const end = model.getPositionAt(span.end);
     return new active!.monaco.Range(
         start.lineNumber,
         start.column,
@@ -64,13 +80,15 @@ function rangeOf(model: editor.ITextModel, site: SignalSite): Range {
 
 /**
  * Attach the resolutions a run of `source` recorded to the sites the type
- * checker left unresolved. Nothing changes when `model` no longer reads as
- * `source`: a record is only as good as the text it was made from.
+ * checker left unresolved, and note the file calls it found mono. Nothing
+ * changes when `model` no longer reads as `source`: a record is only as good
+ * as the text it was made from.
  */
 export async function applyRuntimeResolutions(
     model: editor.ITextModel,
     source: string,
     records: readonly OutputResolutionRecord[],
+    moduleChannels: readonly ModuleChannelsRecord[],
 ): Promise<void> {
     if (!active || model.getValue() !== source) {
         return;
@@ -90,7 +108,7 @@ export async function applyRuntimeResolutions(
             insertable: site.insertable,
             outputs: [],
             slot: site.slot,
-            text: model.getValueInRange(rangeOf(model, site)),
+            text: model.getValueInRange(offsetRange(model, site)),
         };
         if (!fill.outputs.includes(record.output)) {
             fill.outputs.push(record.output);
@@ -109,7 +127,7 @@ export async function applyRuntimeResolutions(
                     active!.monaco.editor.TrackedRangeStickiness
                         .NeverGrowsWhenTypingAtEdges,
             },
-            range: rangeOf(model, site),
+            range: offsetRange(model, site),
         })),
     );
     runtimeFills.set(
@@ -117,6 +135,27 @@ export async function applyRuntimeResolutions(
         [...fills.values()].map((fill, i) => ({
             ...fill,
             decorationId: ids[i],
+        })),
+    );
+
+    const mono = monoFileCalls(sites, moduleChannels);
+    const monoIds = model.deltaDecorations(
+        (monoCalls.get(model) ?? []).map((call) => call.decorationId),
+        mono.map((call) => ({
+            options: {
+                stickiness:
+                    active!.monaco.editor.TrackedRangeStickiness
+                        .NeverGrowsWhenTypingAtEdges,
+            },
+            range: offsetRange(model, call),
+        })),
+    );
+    monoCalls.set(
+        model,
+        mono.map((call, i) => ({
+            decorationId: monoIds[i],
+            module: call.module,
+            text: model.getValueInRange(offsetRange(model, call)),
         })),
     );
     active.refresh();
@@ -159,18 +198,33 @@ export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
             if (token.isCancellationRequested || model.isDisposed()) {
                 return { dispose: () => {}, hints: [] };
             }
+            // A mono call stands only while it reads as it did when run.
+            const mono = new Set<string>();
+            for (const call of monoCalls.get(model) ?? []) {
+                const tracked = model.getDecorationRange(call.decorationId);
+                if (tracked && model.getValueInRange(tracked) === call.text) {
+                    mono.add(
+                        callKey(
+                            model.getOffsetAt(tracked.getStartPosition()),
+                            model.getOffsetAt(tracked.getEndPosition()),
+                            call.module,
+                        ),
+                    );
+                }
+            }
             const hints: languages.InlayHint[] = [];
             const unresolved = new Map<number, SignalSite>();
             for (const site of sites) {
+                const fold = foldsGiven(site, mono);
                 if (site.output === null) {
                     unresolved.set(site.end, site);
-                } else {
+                } else if (site.output !== undefined || fold) {
                     hints.push(
                         hint(
                             model.getPositionAt(site.end),
                             site.output === undefined ? [] : [site.output],
                             site.insertable,
-                            site.fold,
+                            fold,
                         ),
                     );
                 }
@@ -187,13 +241,18 @@ export function registerOutputResolutionHints(monaco: Monaco): IDisposable {
                 if (site?.slot === fill.slot) {
                     unresolved.delete(site.end);
                     hints.push(
-                        hint(end, fill.outputs, fill.insertable, site.fold),
+                        hint(
+                            end,
+                            fill.outputs,
+                            fill.insertable,
+                            foldsGiven(site, mono),
+                        ),
                     );
                 }
             }
             // An unfilled root that folds still folds.
             for (const site of unresolved.values()) {
-                if (site.fold) {
+                if (foldsGiven(site, mono)) {
                     hints.push(
                         hint(model.getPositionAt(site.end), [], false, true),
                     );

@@ -47,6 +47,7 @@ import { GATE_HIGH_VOLTAGE } from '../../shared/dsl/buttonTypes';
 import { createControls } from './controls';
 import { VIDEO_CV_RANGE } from '../../shared/dsl/controlRanges';
 import { assertControlsPlaced } from './controlPlacement';
+import type { ModuleChannelsRecord } from '../../shared/dsl/channels';
 import type { OutputResolutionRecord } from '../../shared/dsl/outputResolutionRule';
 import { $, $arrange } from './miniNotation';
 import { DELAY_SITE, SUPER_SITE } from './signalSiteTables';
@@ -102,6 +103,8 @@ export interface DSLExecutionResult {
     videoPreviews: VideoPreviewSite[];
     /** Every contextual output choice made while the script ran */
     outputResolutions: OutputResolutionRecord[];
+    /** The channels of every module the script built from a file */
+    moduleChannels: ModuleChannelsRecord[];
 }
 
 /** What the engine reports about a decoded WAV or media audio track. */
@@ -1075,6 +1078,7 @@ export function executePatchScript(
             callSiteSpans,
             eqPanels: resultBuilder.getEqPanels(),
             interpolationResolutions,
+            moduleChannels: resultBuilder.moduleChannelRecords,
             outputResolutions: resultBuilder.outputResolver.records,
             patch,
             sliders: controls.sliders,

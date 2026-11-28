@@ -99,10 +99,34 @@ export interface SignalSite {
      */
     fold: boolean;
     /**
+     * When the value folds because files may be stereo, the module calls
+     * playing them: the value is mono when a run finds every one of them mono.
+     */
+    foldCalls?: FileCall[];
+    /**
      * Whether writing `._<name>` or `.mono()` straight after the value
      * applies to it: true of a name, a member or a call, not an array.
      */
     insertable: boolean;
+}
+
+/**
+ * A module call whose channels depend on a file it plays. `line`/`column`
+ * match `ModuleChannelsRecord`; `start`/`end` are the call's document offsets.
+ */
+export interface FileCall {
+    line: number;
+    column: number;
+    module: string;
+    start: number;
+    end: number;
+}
+
+/** The document column of a runtime record's call site. */
+export function recordColumn(record: { line: number; column: number }): number {
+    return record.line === 1
+        ? record.column - FIRST_LINE_COLUMN_OFFSET
+        : record.column;
 }
 
 /**
@@ -113,10 +137,7 @@ export function siteOfRecord(
     sites: readonly SignalSite[],
     record: Pick<OutputResolutionRecord, 'line' | 'column' | 'slot'>,
 ): SignalSite | undefined {
-    const column =
-        record.line === 1
-            ? record.column - FIRST_LINE_COLUMN_OFFSET
-            : record.column;
+    const column = recordColumn(record);
     const atCall = sites.filter(
         (s) => s.line === record.line && s.column === column,
     );
@@ -131,6 +152,12 @@ export function siteOfRecord(
         }
     }
     return undefined;
+}
+
+/** A module call the channel analysis reads, and the module's name. */
+interface FileCallNode {
+    module: string;
+    node: TS.CallExpression;
 }
 
 /** The options of a stereo track that fold: its pan and spread go to `$pan`'s. */
@@ -231,12 +258,14 @@ export function collectSignalSites(
         output: Resolved,
         insertable: boolean,
         fold: boolean,
+        foldCalls?: FileCall[],
     ): void => {
         if (output !== undefined || fold) {
             sites.push({
                 ...call,
                 end: value.getEnd(),
                 fold,
+                ...(foldCalls && { foldCalls }),
                 insertable,
                 ...(output !== undefined && { output }),
                 slot,
@@ -312,6 +341,7 @@ export function collectSignalSites(
             return;
         }
         const type = checker.getTypeAtLocation(value);
+        const channels = folding ? channelsOf(value) : 'mono';
         emit(
             call,
             slot,
@@ -320,7 +350,8 @@ export function collectSignalSites(
             takesMember(expression) &&
                 !checker.isArrayType(type) &&
                 !checker.isTupleType(type),
-            folding && channelsOf(value) !== 'mono',
+            channels !== 'mono',
+            channels === 'unknown' ? monoIfFilesAre(value) : undefined,
         );
     };
 
@@ -413,21 +444,24 @@ export function collectSignalSites(
      */
     const chainCall = (
         callee: TS.PropertyAccessExpression,
-    ): { receiver: TS.Expression; module: ModuleSiteInfo } | undefined => {
+    ):
+        | { receiver: TS.Expression; module: ModuleSiteInfo; name: string }
+        | undefined => {
         const names: string[] = [];
         let found:
-            | { receiver: TS.Expression; module: ModuleSiteInfo }
+            | { receiver: TS.Expression; module: ModuleSiteInfo; name: string }
             | undefined;
         let node: TS.Expression = callee;
         while (ts.isPropertyAccessExpression(node)) {
             names.unshift(node.name.text);
             node = node.expression;
-            const module = own(tables.modules, `$${names.join('.')}`);
+            const name = `$${names.join('.')}`;
+            const module = own(tables.modules, name);
             if (
                 module?.chainable &&
                 receivesSignals(checker.getTypeAtLocation(node))
             ) {
-                found = { module, receiver: node };
+                found = { module, name, receiver: node };
             }
         }
         return found;
@@ -493,8 +527,82 @@ export function collectSignalSites(
     /** Each expression's channels once told, as a `const` is read many times. */
     const told = new Map<TS.Node, Channels>();
 
+    /**
+     * While set, a call whose file decides its channels reads as mono and
+     * joins this set, so a value's channels are told as they would be were
+     * every file it plays mono.
+     */
+    let filesAssumedMono: Set<FileCall> | undefined;
+
+    /** Each expression's channels and file calls when files read as mono. */
+    const toldFilesMono = new Map<
+        TS.Node,
+        { channels: Channels; calls: FileCall[] }
+    >();
+
+    /** One `FileCall` per call node, so a set holds each once. */
+    const fileCalls = new Map<TS.Node, FileCall>();
+
+    /**
+     * The channels of the file `call` plays: unknown, or mono while files are
+     * assumed mono.
+     */
+    const fileChannels = (call: FileCallNode): Channels => {
+        if (!filesAssumedMono) {
+            return 'unknown';
+        }
+        let fileCall = fileCalls.get(call.node);
+        if (!fileCall) {
+            const { expression } = call.node;
+            fileCall = {
+                ...position(
+                    ts.isPropertyAccessExpression(expression)
+                        ? expression.name
+                        : expression,
+                ),
+                end: call.node.getEnd(),
+                module: call.module,
+                start: call.node.getStart(sourceFile),
+            };
+            fileCalls.set(call.node, fileCall);
+        }
+        filesAssumedMono.add(fileCall);
+        return 'mono';
+    };
+
+    /** The file calls `value` folds through, when it is mono if they all are. */
+    const monoIfFilesAre = (value: TS.Expression): FileCall[] | undefined => {
+        filesAssumedMono = new Set();
+        try {
+            const channels = channelsOf(value);
+            return channels === 'mono' && filesAssumedMono.size > 0
+                ? [...filesAssumedMono]
+                : undefined;
+        } finally {
+            filesAssumedMono = undefined;
+        }
+    };
+
     /** What `expression` carries, mono, stereo or unknown, told without running it. */
     const channelsOf = (expression: TS.Expression): Channels => {
+        if (filesAssumedMono) {
+            let entry = toldFilesMono.get(expression);
+            if (!entry) {
+                const outer = filesAssumedMono;
+                filesAssumedMono = new Set();
+                try {
+                    const channels = tellChannels(expression);
+                    entry = { calls: [...filesAssumedMono], channels };
+                } finally {
+                    filesAssumedMono = outer;
+                }
+                toldFilesMono.set(expression, entry);
+            }
+            for (const call of entry.calls) {
+                filesAssumedMono.add(call);
+            }
+            return entry.channels;
+        }
         let channels = told.get(expression);
         if (channels === undefined) {
             channels = tellChannels(expression);
@@ -702,9 +810,13 @@ export function collectSignalSites(
             : taken;
     };
 
-    /** The channels of a module given its arguments, `first` being the positional they start at. */
+    /**
+     * The channels of a module given its arguments, `first` being the
+     * positional they start at; `call` is the call that builds it.
+     */
     const moduleChannels = (
         info: ModuleSiteInfo,
+        call: FileCallNode,
         args: readonly TS.Expression[],
         first: number,
         receiver?: TS.Expression,
@@ -714,7 +826,7 @@ export function collectSignalSites(
         }
         // A file decides, which only a run can tell.
         if (info.stereo === 'derived') {
-            return 'unknown';
+            return fileChannels(call);
         }
         const inputs: Channels[] = receiver ? [channelsOf(receiver)] : [];
         args.forEach((arg, i) => {
@@ -744,7 +856,12 @@ export function collectSignalSites(
         const name = dottedName(callee);
         const module = name ? own(tables.modules, name) : undefined;
         if (module) {
-            return moduleChannels(module, node.arguments, 0);
+            return moduleChannels(
+                module,
+                { module: name!, node },
+                node.arguments,
+                0,
+            );
         }
         // A group only arranges its signals' lanes; their channels stand.
         const grouped = groupedSignals(node);
@@ -766,6 +883,7 @@ export function collectSignalSites(
         if (chain) {
             return moduleChannels(
                 chain.module,
+                { module: chain.name, node },
                 node.arguments,
                 1,
                 chain.receiver,
@@ -784,7 +902,13 @@ export function collectSignalSites(
             cycle &&
             isPlain(checker.getTypeAtLocation(callee.expression))
         ) {
-            return moduleChannels(cycle, node.arguments, 1, callee.expression);
+            return moduleChannels(
+                cycle,
+                { module: '$cycle', node },
+                node.arguments,
+                1,
+                callee.expression,
+            );
         }
         // `.range()` builds a `$remap`, which lifts with its bounds.
         if (callee.name.text === 'range') {
