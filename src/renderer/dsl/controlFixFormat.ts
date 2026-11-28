@@ -169,6 +169,7 @@ function findInnermost(
 function isStatement(node: ts.Node): node is ts.Statement {
     return (
         ts.isExpressionStatement(node) ||
+        ts.isLabeledStatement(node) ||
         ts.isVariableStatement(node) ||
         ts.isReturnStatement(node) ||
         ts.isFunctionDeclaration(node) ||

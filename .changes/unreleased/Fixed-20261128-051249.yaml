@@ -1,0 +1,3 @@
+kind: Fixed
+body: 'Quick fixes that add a control, such as "Add slider for ''pwm''", now lay out the line the way Format Document does on track lines like `bass: $saw(''c2'')` too.'
+time: 2026-11-28T05:12:49.246274-05:00

@@ -115,6 +115,39 @@ describe('formatControlQuickFix — layout', () => {
         );
     });
 
+    test.each(['out', 'bass$2'])(
+        'a statement under the %s: track label matches Format Document',
+        async (label) => {
+            const { out, fix } = await formattedAdd(
+                `${label}: $saw('c3').lpf($pulse('a3', { width: 2| })).delay('1/8', { feedback: 3 }).wet(2).plate().wet(1)`,
+                'pwm',
+            );
+            expect(out).toBe(await documentFormat(out));
+            expect(out.startsWith(`${label}: $saw('c3')`)).toBe(true);
+            const control = `$slider('pwm', 0, -5, 5)`;
+            expect(
+                out.slice(
+                    fix.span.start + fix.controlOffset,
+                    fix.span.start + fix.caretOffset,
+                ),
+            ).toBe(control);
+        },
+    );
+
+    test('a labelled statement inside a block keeps its indentation', async () => {
+        const { out } = await formattedAdd(
+            `{
+  out: $pulse('a3', {width: 2.5|}).track()
+}`,
+            'pwm',
+        );
+        expect(out).toBe(
+            `{
+  out: $pulse('a3', { width: 2.5, pwm: $slider('pwm', 0, -5, 5) }).track();
+}`,
+        );
+    });
+
     test('CRLF sources keep CRLF and an exact caret', async () => {
         const { out, fix } = await formattedAdd(
             `$pulse('a3', {\r\n  width: 2 // note|\r\n}).track();\r\n`,
