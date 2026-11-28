@@ -139,10 +139,13 @@ test.describe('output resolution hints', () => {
         await expect
             .poll(() => renderedText(window), { timeout: 20_000 })
             .toContain(`out: $adsr(seq._gate)`);
-        const text = await renderedText(window);
+        await expect
+            .poll(() => renderedText(window), { timeout: 20_000 })
+            .toMatch(/out2: \$perc\(\$clock\._\w+\)/);
         // The pattern is `$cycle`'s pattern here, not a signal.
-        expect(text).toContain(`const seq = $cycle($('c e g'))`);
-        expect(text).toMatch(/out2: \$perc\(\$clock\._\w+\)/);
+        expect(await renderedText(window)).toContain(
+            `const seq = $cycle($('c e g'))`,
+        );
     });
 
     test('a named output shows no hint', async ({ window }) => {

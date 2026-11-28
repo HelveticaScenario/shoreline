@@ -46,6 +46,18 @@ export async function startMonaco(): Promise<Monaco> {
     });
     await wrapper.start();
     registerModelFileSystem();
+    // Prettier formats patches. A second formatter would have the editor ask
+    // which to use, through a service this build leaves out.
+    for (const defaults of [
+        typescript.javascriptDefaults,
+        typescript.typescriptDefaults,
+    ]) {
+        defaults.setModeConfiguration({
+            ...defaults.modeConfiguration,
+            documentRangeFormattingEdits: false,
+            onTypeFormattingEdits: false,
+        });
+    }
     // The language namespaces live in their own packages; plain Monaco
     // exposes them on its root.
     return { ...editorApi, css, json, typescript };
