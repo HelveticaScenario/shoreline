@@ -237,8 +237,7 @@ const PLATE_DOCS: ModuleDocs = ModuleDocs {
         code: r#"
             chord: $saw('f3:M9')
               .lpf('f5', 1)
-              .plate({ decay: 2, damping: 1 })
-              .wet(2)
+              .plate({ decay: 2, damping: 1 }).wet(2)
         "#,
     }],
 };

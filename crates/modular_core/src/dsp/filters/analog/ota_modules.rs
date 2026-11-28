@@ -154,8 +154,7 @@ const APF_OTA_DOCS: ModuleDocs = ModuleDocs {
             title: "Phaser",
             code: r#"
                 chord: $saw('c3:M9')
-                  .apfOta($sine('0.3hz').range('c4', 'c7'), 2)
-                  .wet(2.5)
+                  .apfOta($sine('0.3hz').range('c4', 'c7'), 2).wet(2.5)
                   .gain(4.5)
             "#,
         },

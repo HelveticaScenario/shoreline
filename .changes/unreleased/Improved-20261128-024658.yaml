@@ -1,0 +1,3 @@
+kind: Improved
+body: Format Document keeps a `.wet(...)` on the same line as the effect it mixes, so a long chain reads one effect per line, as in `.plate().wet(2)`.
+time: 2026-11-28T02:46:58.352843-05:00
