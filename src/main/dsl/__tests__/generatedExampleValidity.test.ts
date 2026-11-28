@@ -54,6 +54,9 @@ const stubLoadMediaAudio: NonNullable<DSLExecutionOptions['loadMediaAudio']> = (
     path,
 ) => ({ ...stubLoadWav(`media:${path}`), bitDepth: 32 });
 
+// Every drawing reads as the same small square.
+const stubReadDrawing: NonNullable<DSLExecutionOptions['readDrawing']> = () =>
+    '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0 H10 V10 H0 Z" stroke="black"/></svg>';
 /** Reads the bundled `.syx` files, which is all examples play. */
 const loadBuiltinSyx: NonNullable<DSLExecutionOptions['loadSyx']> = (path) =>
     parseSyx(readFileSync(join(__dirname, '../../../../assets', path)));
@@ -61,6 +64,7 @@ const loadBuiltinSyx: NonNullable<DSLExecutionOptions['loadSyx']> = (path) =>
 const EXECUTION_OPTIONS: DSLExecutionOptions = {
     loadSyx: loadBuiltinSyx,
     loadMediaAudio: stubLoadMediaAudio,
+    readDrawing: stubReadDrawing,
     sampleRate: 48_000,
     workspaceRoot: '/workspace',
     loadWav: stubLoadWav,

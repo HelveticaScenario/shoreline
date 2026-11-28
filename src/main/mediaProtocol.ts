@@ -40,7 +40,7 @@ export function resolveMediaFile(
 }
 
 /** The absolute path of `relative`, or null when there is no workspace or it would leave the workspace folder. */
-function workspaceFile(
+export function workspaceFile(
     workspaceRoot: string | null,
     relative: string,
 ): string | null {

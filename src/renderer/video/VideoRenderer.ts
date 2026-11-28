@@ -420,9 +420,13 @@ export class VideoRenderer {
         }
         if (this.gate.holding) return;
         if (!this.running && this.program !== null) return;
-        // A frame drawn before an audio input has any samples would read it as
-        // zero; the previous frame stays up until every input has data.
-        if (this.program !== null && !this.audio.ready(this.program)) return;
+        const now = performance.now();
+        // A frame drawn before an audio input plays would read it as zero;
+        // the previous frame stays up until every input plays.
+        if (this.program !== null) {
+            this.audio.advance(now);
+            if (!this.audio.ready(this.program)) return;
+        }
         this.fitCanvas();
 
         const program = this.program;
@@ -436,9 +440,8 @@ export class VideoRenderer {
         }
 
         const encoder = this.device.createCommandEncoder();
-        const now = performance.now();
         if (program !== null) {
-            this.audio.update(program, now);
+            this.audio.update(program);
             this.scopes.draw(
                 encoder,
                 this.audio.history,

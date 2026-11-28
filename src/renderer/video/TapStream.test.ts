@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { TapStream } from './TapStream';
+import { TapClock, TapStream } from './TapStream';
 
 interface Setup {
     sampleRate: number;
@@ -339,5 +339,48 @@ describe('TapStream', () => {
         expect(stream.hasData).toBe(false);
         stream.push([0.5], 48000, 0);
         expect(stream.hasData).toBe(true);
+    });
+
+    it('keeps signals on one clock in step, however late one joins', () => {
+        const clock = new TapClock();
+        const rate = 48_000;
+        const block = 384;
+        const early = new TapStream(clock);
+        const late = new TapStream(clock);
+        let written = 0;
+        let t = 0;
+        // Both signals are ramps of the same engine sample index, so equal
+        // values mean the two cursors read the same moment.
+        const run = (ms: number, gapAtMs?: number) => {
+            for (const end = t + ms; t < end; t += 8) {
+                const extra = t === gapAtMs ? 60 : 0;
+                t += extra;
+                const length = block + (extra * rate) / 1000;
+                const chunk = Float32Array.from(
+                    { length },
+                    (_, i) => written + i,
+                );
+                written += length;
+                early.push(chunk, rate, t);
+                if (late.hasData) late.push(chunk, rate, t);
+                early.advance(t);
+                late.advance(t, early.backlog);
+            }
+        };
+        // A slow batch widens the trail past the second signal's first read
+        // just before it joins, so it waits until it can start in step.
+        run(1000, 992);
+        late.push(
+            Float32Array.from({ length: 128 }, (_, i) => written - 128 + i),
+            rate,
+            t,
+        );
+        late.advance(t, early.backlog);
+        expect(late.backlog).toBeUndefined();
+        run(100);
+        expect(late.backlog).toBeDefined();
+        expect(Math.abs(late.value() - early.value())).toBeLessThan(1);
+        run(2000);
+        expect(Math.abs(late.value() - early.value())).toBeLessThan(1);
     });
 });

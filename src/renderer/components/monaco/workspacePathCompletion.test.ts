@@ -14,6 +14,7 @@ import { createWorkspaceAssetIndex } from './workspaceAssetIndex';
 import { BUILTIN_DX7_VOICES } from '../../../shared/builtinDx7';
 import {
     BUILTIN_PREFIX,
+    BUILTIN_DRAWINGS,
     BUILTIN_WAVETABLES,
 } from '../../../shared/builtinAssets';
 
@@ -381,9 +382,11 @@ describe('workspace path completion', () => {
     });
 
     test('offers the bundled files in a literal starting with builtin/ or part of it', async () => {
-        const builtins = [...BUILTIN_WAVETABLES, ...BUILTIN_DX7_VOICES].map(
-            (a) => `'${a.path}'`,
-        );
+        const builtins = [
+            ...BUILTIN_WAVETABLES,
+            ...BUILTIN_DRAWINGS,
+            ...BUILTIN_DX7_VOICES,
+        ].map((a) => `'${a.path}'`);
         for (const typed of ['b', 'builtin', 'builtin/', 'builtin/tables/be']) {
             const line = `$wavetable('c3', '${typed}')`;
             const list = await complete(line, 19 + typed.length);

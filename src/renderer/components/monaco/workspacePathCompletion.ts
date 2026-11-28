@@ -9,6 +9,7 @@ import type { IRange, editor, languages } from 'monaco-editor';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
 import type { AssetKind } from '../../../shared/assetFiles';
 import {
+    BUILTIN_DRAWINGS,
     BUILTIN_PREFIX,
     BUILTIN_WAVETABLES,
 } from '../../../shared/builtinAssets';
@@ -116,6 +117,7 @@ const ASSET_DETAILS: Record<AssetKind, string> = {
     wav: 'WAV file',
     image: 'Image',
     video: 'Video',
+    drawing: 'SVG drawing',
     syx: 'DX7 voices',
 };
 
@@ -204,6 +206,10 @@ const BUILTIN_SUGGESTIONS: PathSuggestion[] = [
     ...BUILTIN_WAVETABLES.map(({ path }) => ({
         path,
         detail: ASSET_DETAILS.wav,
+    })),
+    ...BUILTIN_DRAWINGS.map(({ path }) => ({
+        path,
+        detail: ASSET_DETAILS.drawing,
     })),
     ...BUILTIN_DX7_VOICES.flatMap(({ path, name }) =>
         voiceSuggestions(path, [name]),

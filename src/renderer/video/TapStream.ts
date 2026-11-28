@@ -16,16 +16,64 @@ const MAX_RATE_ADJUST = 0.1;
 const STALL_SECONDS = 0.25;
 
 /**
+ * How far behind the newest sample the signals a shader reads are played,
+ * shared by all of them so they stay in step: an XY scope pairs `x` and `y`
+ * sample by sample, and two signals trailing by different amounts would pair
+ * samples from different moments. The trail is set from what actually
+ * arrives: a cursor consumes audio while it waits, so it must trail by at
+ * least the longest gap between batches. The gap already contains the audio
+ * buffer size, the display's refresh rate and any transport jitter, so nothing
+ * about them is assumed.
+ */
+export class TapClock {
+    private rate = 0;
+    private lastArrivalMs = -1;
+    private gaps: { at: number; gap: number }[] = [];
+
+    /** Records a batch arriving at `nowMs`; batches of one read share a time. */
+    arrive(nowMs: number): void {
+        if (nowMs === this.lastArrivalMs) return;
+        // A gap as long as a stall is the engine stopping or the display
+        // pausing, not how batches arrive, and would hold the trail at its
+        // longest for the whole window.
+        const gap = nowMs - this.lastArrivalMs;
+        if (this.lastArrivalMs >= 0 && gap <= STALL_SECONDS * 1000) {
+            this.gaps.push({ at: nowMs, gap });
+        }
+        this.lastArrivalMs = nowMs;
+    }
+
+    /** How far the cursors should trail the newest sample, in seconds. */
+    latency(nowMs: number): number {
+        const cutoff = nowMs - GAP_WINDOW_MS;
+        while (this.gaps.length > 0 && this.gaps[0].at < cutoff) {
+            this.gaps.shift();
+        }
+        if (this.gaps.length === 0) return INITIAL_LATENCY;
+        let widest = 0;
+        for (const { gap } of this.gaps) widest = Math.max(widest, gap);
+        return Math.min(
+            MAX_LATENCY,
+            Math.max(MIN_LATENCY, (widest / 1000) * GAP_MARGIN + GAP_PADDING),
+        );
+    }
+
+    /** Sets the sample rate, forgetting the gaps seen at any other. */
+    setRate(sampleRate: number): void {
+        if (sampleRate === this.rate) return;
+        this.rate = sampleRate;
+        this.lastArrivalMs = -1;
+        this.gaps = [];
+    }
+}
+
+/**
  * Plays an audio-rate signal back against the display clock. The engine hands
  * samples over in bursts, one audio callback at a time, and the renderer picks
  * them up once per display frame, so "the newest sample" moves in jumps. The
  * cursor here advances smoothly at the sample rate instead, trailing the newest
- * sample just far enough that it never runs out before the next batch.
- *
- * That trail is set from what actually arrives: the cursor consumes audio while
- * it waits, so it must trail by at least the longest gap between batches. The
- * gap already contains the audio buffer size, the display's refresh rate and
- * any transport jitter, so nothing about them is assumed.
+ * sample by the trail its `TapClock` sets, so that it never runs out before
+ * the next batch.
  */
 export class TapStream {
     private readonly ring = new Float32Array(RING);
@@ -34,8 +82,8 @@ export class TapStream {
     private cursor = -1;
     private lastMs = 0;
     private rate = 0;
-    private lastArrivalMs = -1;
-    private gaps: { at: number; gap: number }[] = [];
+
+    constructor(private readonly clock = new TapClock()) {}
 
     /** Whether any samples have arrived. */
     get hasData(): boolean {
@@ -50,23 +98,34 @@ export class TapStream {
             this.ring[(this.written + i) & (RING - 1)] = samples[i];
         }
         this.written += samples.length;
-        // A gap as long as a stall is the engine stopping or the display
-        // pausing, not how batches arrive, and would hold the trail at its
-        // longest for the whole window.
-        const gap = nowMs - this.lastArrivalMs;
-        if (this.lastArrivalMs >= 0 && gap <= STALL_SECONDS * 1000) {
-            this.gaps.push({ at: nowMs, gap });
-        }
-        this.lastArrivalMs = nowMs;
+        this.clock.arrive(nowMs);
     }
 
-    /** Moves the cursor to the wall-clock time `nowMs`. */
-    advance(nowMs: number): void {
+    /** How many samples the cursor trails the newest one by; undefined before it starts. */
+    get backlog(): number | undefined {
+        return this.cursor < 0 ? undefined : this.written - this.cursor;
+    }
+
+    /**
+     * Moves the cursor to the wall-clock time `nowMs`. A cursor that has not
+     * started yet starts `startBacklog` samples behind the newest one, so it
+     * joins signals already playing at the moment they are at, and waits
+     * until that many samples have arrived.
+     */
+    advance(nowMs: number, startBacklog?: number): void {
         if (this.written === 0) return;
-        const target = this.latency(nowMs) * this.rate;
+        const target = this.clock.latency(nowMs) * this.rate;
         const seconds = (nowMs - this.lastMs) / 1000;
         this.lastMs = nowMs;
-        if (this.cursor < 0 || seconds > STALL_SECONDS || seconds < 0) {
+        if (this.cursor < 0) {
+            if (startBacklog === undefined) {
+                this.cursor = Math.max(0, this.written - target);
+            } else if (this.written >= startBacklog) {
+                this.cursor = this.written - startBacklog;
+            }
+            return;
+        }
+        if (seconds > STALL_SECONDS || seconds < 0) {
             this.cursor = Math.max(0, this.written - target);
             return;
         }
@@ -116,27 +175,11 @@ export class TapStream {
         }
     }
 
-    /** How far the cursor should trail the newest sample, in seconds. */
-    private latency(nowMs: number): number {
-        const cutoff = nowMs - GAP_WINDOW_MS;
-        while (this.gaps.length > 0 && this.gaps[0].at < cutoff) {
-            this.gaps.shift();
-        }
-        if (this.gaps.length === 0) return INITIAL_LATENCY;
-        let widest = 0;
-        for (const { gap } of this.gaps) widest = Math.max(widest, gap);
-        return Math.min(
-            MAX_LATENCY,
-            Math.max(MIN_LATENCY, (widest / 1000) * GAP_MARGIN + GAP_PADDING),
-        );
-    }
-
     /** Forgets everything: samples at another rate are on another timeline. */
     private reset(sampleRate: number): void {
         this.rate = sampleRate;
         this.written = 0;
         this.cursor = -1;
-        this.lastArrivalMs = -1;
-        this.gaps = [];
+        this.clock.setRate(sampleRate);
     }
 }

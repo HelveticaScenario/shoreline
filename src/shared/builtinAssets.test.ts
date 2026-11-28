@@ -1,7 +1,11 @@
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_PREFIX, BUILTIN_WAVETABLES } from './builtinAssets';
+import {
+    BUILTIN_DRAWINGS,
+    BUILTIN_PREFIX,
+    BUILTIN_WAVETABLES,
+} from './builtinAssets';
 import { BUILTIN_DX7_VOICES } from './builtinDx7';
 
 const builtinDir = join(__dirname, '..', '..', 'assets', 'builtin');
@@ -24,6 +28,12 @@ describe('built-in assets', () => {
     it('lists exactly the bundled wavetables', () => {
         expect(BUILTIN_WAVETABLES.map((a) => a.path).sort()).toEqual(
             bundled(join(builtinDir, 'tables'), '.wav').sort(),
+        );
+    });
+
+    it('lists exactly the bundled drawings', () => {
+        expect(BUILTIN_DRAWINGS.map((a) => a.path).sort()).toEqual(
+            bundled(join(builtinDir, 'drawings'), '.svg').sort(),
         );
     });
 

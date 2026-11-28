@@ -13,8 +13,7 @@ const gpu = vi.hoisted(() => ({
         reject: (error: Error) => void;
     }[],
     previewFrame: null as
-        | ((frame: VideoPreviewFrame, drawnBy: number) => void)
-        | null,
+        ((frame: VideoPreviewFrame, drawnBy: number) => void) | null,
     delivered: [] as number[],
     /** What the audio inputs forget on the next reset. */
     forgotten: [] as number[],
@@ -76,6 +75,7 @@ vi.mock('./AudioInputs', () => ({
         clear() {
             gpu.clears++;
         }
+        advance() {}
         ready() {
             return true;
         }

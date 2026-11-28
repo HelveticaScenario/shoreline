@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+    BUILTIN_DRAWINGS,
     BUILTIN_WAVETABLES,
     MI_TABLES_INTRO,
 } from '../../shared/builtinAssets';
@@ -30,6 +31,18 @@ export const BuiltinDocs: React.FC = () => {
                         <code>{table.path}</code>
                     </h4>
                     <p>{table.description}</p>
+                </div>
+            ))}
+            <h3>Drawings</h3>
+            <p className="types-intro">
+                SVG line drawings for <code>$svg</code> to trace.
+            </p>
+            {BUILTIN_DRAWINGS.map((drawing) => (
+                <div key={drawing.path} className="module-card">
+                    <h4>
+                        <code>{drawing.path}</code>
+                    </h4>
+                    <p>{drawing.description}</p>
                 </div>
             ))}
             <h3>DX7 Voices</h3>

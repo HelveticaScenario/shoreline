@@ -99,6 +99,28 @@ const MI_TABLES: [name: string, description: string][] = [
     ],
 ];
 
+/** A bundled line drawing, documented on the Docs panel's Built-ins page. */
+export interface BuiltinDrawing {
+    /** The path a patch writes, starting with `builtin/`. */
+    path: string;
+    /** What the drawing shows. */
+    description: string;
+}
+
+/** Every bundled SVG drawing, each one continuous line. */
+export const BUILTIN_DRAWINGS: readonly BuiltinDrawing[] = [
+    {
+        path: `${BUILTIN_PREFIX}drawings/plover.svg`,
+        description:
+            'A piping plover standing on one leg, with its eye, collar, wing and tail drawn in.',
+    },
+    {
+        path: `${BUILTIN_PREFIX}drawings/shapes.svg`,
+        description:
+            'A four-frame animation at one frame a second: a circle, a square, a triangle and a star.',
+    },
+];
+
 /** Every bundled wavetable WAV. */
 export const BUILTIN_WAVETABLES: readonly BuiltinWavetable[] = MI_TABLES.map(
     ([name, description]) => ({

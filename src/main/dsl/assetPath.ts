@@ -1,5 +1,9 @@
 import { ASSET_EXTENSIONS, type AssetKind } from '../../shared/assetFiles';
-import { BUILTIN_PREFIX, BUILTIN_WAVETABLES } from '../../shared/builtinAssets';
+import {
+    BUILTIN_DRAWINGS,
+    BUILTIN_PREFIX,
+    BUILTIN_WAVETABLES,
+} from '../../shared/builtinAssets';
 import { BUILTIN_DX7_VOICES } from '../../shared/builtinDx7';
 
 /** The bundled files of each kind, by path. */
@@ -7,6 +11,7 @@ const BUILTIN_PATHS: Record<AssetKind, ReadonlySet<string>> = {
     wav: new Set(BUILTIN_WAVETABLES.map((asset) => asset.path)),
     image: new Set(),
     video: new Set(),
+    drawing: new Set(BUILTIN_DRAWINGS.map((asset) => asset.path)),
     syx: new Set(BUILTIN_DX7_VOICES.map((voice) => voice.path)),
 };
 
@@ -14,6 +19,7 @@ const EXAMPLE_PATHS: Record<AssetKind, string> = {
     wav: '/wavs/kick.wav',
     image: '/pictures/photo.png',
     video: '/clips/loop.mp4',
+    drawing: '/drawings/sketch.svg',
     syx: '/dx7/rom1a.syx',
 };
 

@@ -24,6 +24,7 @@ describe('AudioInputs.reset', () => {
         inputs.push([chunk(0), chunk(1)]);
         const forgotten = inputs.reset([history(0), history(1)], [7, 9]);
         expect(forgotten).toEqual([1]);
+        inputs.advance(0);
         expect(
             inputs.ready({ histories: [history(0)], tapSlots: [] } as never),
         ).toBe(true);

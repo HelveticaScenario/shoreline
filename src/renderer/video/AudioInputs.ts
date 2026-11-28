@@ -7,7 +7,7 @@ import {
 import { alignWindow } from './alignWindow';
 import { HistoryTexture } from './HistoryTexture';
 import type { ShaderProgram } from './ShaderProgram';
-import { TapStream } from './TapStream';
+import { TapClock, TapStream } from './TapStream';
 
 /**
  * The audio signals a shader reads, each played back against the display
@@ -16,6 +16,7 @@ import { TapStream } from './TapStream';
 export class AudioInputs {
     readonly history: HistoryTexture;
     private readonly streams = new Map<number, TapStream>();
+    private readonly clock = new TapClock();
     /** Scratch the recent samples are copied into, per history row. */
     private scratch: Float32Array[] = [];
     /** The window each history row shows, rewritten every frame. */
@@ -80,16 +81,17 @@ export class AudioInputs {
         for (const { tap, samples, sampleRate } of chunks) {
             let stream = this.streams.get(tap);
             if (stream === undefined) {
-                stream = new TapStream();
+                stream = new TapStream(this.clock);
                 this.streams.set(tap, stream);
             }
             stream.push(samples, sampleRate, now);
         }
     }
 
-    /** Whether every signal `program` reads has samples. */
+    /** Whether every signal `program` reads is playing. */
     ready(program: ShaderProgram): boolean {
-        const has = (tap: number) => this.streams.get(tap)?.hasData === true;
+        const has = (tap: number) =>
+            this.streams.get(tap)?.backlog !== undefined;
         return (
             program.tapSlots.every(({ tap }) => has(tap)) &&
             program.histories.every(({ tap }) => has(tap))
@@ -97,12 +99,27 @@ export class AudioInputs {
     }
 
     /**
-     * Reads each signal at `nowMs`: its value into the uniform slots of
-     * `program` it feeds, and its recent samples into the history rows that
-     * show them.
+     * Moves every signal to the wall-clock time `nowMs`. Signals already
+     * playing move first; a signal joining them starts where they are now.
      */
-    update(program: ShaderProgram, nowMs: number): void {
-        for (const stream of this.streams.values()) stream.advance(nowMs);
+    advance(nowMs: number): void {
+        let playing: number | undefined;
+        for (const stream of this.streams.values()) {
+            if (stream.backlog === undefined) continue;
+            stream.advance(nowMs);
+            playing ??= stream.backlog;
+        }
+        for (const stream of this.streams.values()) {
+            if (stream.backlog === undefined) stream.advance(nowMs, playing);
+        }
+    }
+
+    /**
+     * Reads each signal where `advance` left it: its value into the uniform
+     * slots of `program` it feeds, and its recent samples into the history
+     * rows that show them.
+     */
+    update(program: ShaderProgram): void {
         for (const { slot, tap } of program.tapSlots) {
             program.setSlot(slot, this.streams.get(tap)?.value() ?? 0);
         }

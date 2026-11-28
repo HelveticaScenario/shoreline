@@ -185,6 +185,8 @@ export interface DSLExecutionOptions {
      * it has none. The returned `path` names the decoded audio for a `Wav`.
      */
     loadMediaAudio?: (path: string) => LoadedWav | null;
+    /** The text of an SVG file named by a `/`-rooted workspace or `builtin/` path. */
+    readDrawing?: (path: string) => string;
     /** The DX7 voices of a `.syx` file named by a workspace or builtin path. */
     loadSyx?: (path: string) => SyxVoice[];
 }
@@ -810,6 +812,17 @@ export function executePatchScript(
         return timedWavLoad(() => options.loadWav!(rooted));
     };
     context.setWavResolver((module, path) => wavRef(loadWavFile(module, path)));
+    context.setDrawingResolver((module, path) => {
+        const rooted = assetPath(module, path, 'drawing');
+        if (!options.readDrawing) {
+            throw new Error(`${module}: drawing loading is not available`);
+        }
+        return {
+            type: 'drawing_ref' as const,
+            path: rooted,
+            svg: options.readDrawing(rooted),
+        };
+    });
     context.setDx7VoiceResolver((module, value) => {
         const { path, voice } =
             typeof value === 'string'
