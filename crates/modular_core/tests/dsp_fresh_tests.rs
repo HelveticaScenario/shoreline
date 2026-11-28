@@ -13,7 +13,9 @@ use modular_core::types::{ModuleSpec, PatchGraph, SameIds, Sampleable};
 use serde_json::{Value, json};
 
 mod common;
+mod dx7_common;
 use common::from_graph;
+use dx7_common::plaits_voice;
 
 /// Helper — build a mini-notation payload shaped like what `$(source)`
 /// would emit on the DSL side. `$cycle` takes a parsed payload, never a bare
@@ -416,8 +418,6 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.noise"
         | "$mi.particles"
         | "$mi.phaseDistortion"
-        | "$mi.ringHat"
-        | "$mi.sixOp"
         | "$mi.snare"
         | "$mi.speak"
         | "$mi.string"
@@ -434,14 +434,15 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         | "$mi.waveTerrain"
         | "$mi.waveshaper"
         | "$mi.zOsc" => json!({ "freq": 0.0 }),
+        "$mi.sixOp" => json!({ "freq": 0.0, "voice": plaits_voice(0, 0) }),
         "$pSine" | "$pSaw" | "$pPulse" => json!({ "phase": 0.0 }),
         "$lpf" | "$hpf" | "$jup6f" | "$multimode" | "$apf" | "$lpfSk" | "$hpfSk" | "$lpfLadder"
         | "$hpfLadder" | "$apfLadder" | "$lpfDiode" | "$hpfDiode" | "$lpfOta" | "$hpfOta"
-        | "$apfOta" => {
+        | "$apfOta" | "$lpfWasp" | "$hpfWasp" | "$apfWasp" => {
             json!({ "input": 0.0, "cutoff": 0.0 })
         }
         "$bpf" | "$bpfSk" | "$bpfLadder" | "$bpfDiode" | "$bpfOta" | "$notch" | "$notchSk"
-        | "$notchLadder" | "$notchDiode" | "$notchOta" => {
+        | "$notchLadder" | "$notchDiode" | "$notchOta" | "$bpfWasp" | "$notchWasp" => {
             json!({ "input": 0.0, "center": 0.0 })
         }
         "$xover" => json!({ "input": 0.0, "lowMidFreq": 0.0, "midHighFreq": 0.0 }),
@@ -475,16 +476,6 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$crossfade" => json!({ "a": 0.0, "b": 0.0, "mix": 2.5 }),
         "$cheby" | "$fold" | "$segment" | "$inversion" => json!({ "input": 0.0, "amount": 0.0 }),
         "$overdrive" => json!({ "input": 0.0, "drive": 0.0 }),
-        // Shape modules: `input` + required `mode` (drive is optional). digital
-        // and sine take no mode.
-        "$unstable.shape.saturate" | "$unstable.shape.fold" => {
-            json!({ "input": 0.0, "mode": "soft" })
-        }
-        "$unstable.shape.harmonic" => json!({ "input": 0.0, "mode": "cheby2" }),
-        "$unstable.shape.rectify" => json!({ "input": 0.0, "mode": "full" }),
-        "$unstable.shape.fuzz" => json!({ "input": 0.0, "mode": "fuzz" }),
-        "$unstable.shape.trigonometric" => json!({ "input": 0.0, "mode": "sinPlusX" }),
-        "$unstable.shape.digital" | "$unstable.shape.sine" => json!({ "input": 0.0 }),
         "$buffer" => {
             json!({ "input": 0.0 })
         }
@@ -524,8 +515,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$dattorro" => json!({ "input": 0.0 }),
         "$mi.chorus" => json!({ "input": 0.0 }),
         "$plate" => json!({ "input": 0.0 }),
-        "$unstable.reverb" => json!({ "input": 0.0 }),
-        "$unstable.reverb2" => json!({ "input": 0.0 }),
+        "$hall" => json!({ "input": 0.0 }),
         "$spectralReverb.wash" => json!({ "input": 0.0 }),
         "$spectralReverb.echo" => json!({ "input": 0.0 }),
         "$reverb" => json!({ "input": 0.0 }),
@@ -536,7 +526,7 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$wowFlutter" => json!({ "input": 0.0 }),
         "$clockedDelay" => json!({ "input": 0.0 }),
         "$eq" => json!({ "input": 0.0 }),
-        "$filterDC" => json!({ "input": 0.0 }),
+        "$filterDC" | "$softClip" => json!({ "input": 0.0 }),
         "$quantNoise" => json!({ "input": 0.0, "amount": 1.0 }),
         "$groove" => json!({ "template": { "timing": [0.0, 0.2] } }),
         "$step" => json!({ "steps": [0.0], "next": 0.0 }),
@@ -2824,128 +2814,6 @@ fn cycle_swap_to_same_note_does_not_retrigger() {
     assert!(
         !gate_dropped,
         "the gate must stay high across the swap (no glitch)"
-    );
-}
-
-// ─── Shape (waveshaper) modules ────────────────────────────────────────────────
-
-/// Every `(module, mode)` combination across a spread of input levels and drive
-/// settings must produce finite, non-exploding output. Catches NaN/Inf and
-/// runaway feedback in the SIMD shaper ports and their state.
-#[test]
-fn shape_all_modes_finite_and_bounded() {
-    let modules: &[(&str, &[&str])] = &[
-        (
-            "$unstable.shape.saturate",
-            &["soft", "hard", "asymmetric", "medium", "ojd"],
-        ),
-        (
-            "$unstable.shape.harmonic",
-            &[
-                "cheby2", "cheby3", "cheby4", "cheby5", "add12", "add13", "add14", "add15",
-                "add12345", "addSaw3", "addSqr3",
-            ],
-        ),
-        (
-            "$unstable.shape.rectify",
-            &["full", "positive", "negative", "soft"],
-        ),
-        (
-            "$unstable.shape.fold",
-            &["soft", "single", "dual", "westcoast", "linear", "sine"],
-        ),
-        (
-            "$unstable.shape.fuzz",
-            &["fuzz", "soft", "heavy", "center", "softEdge"],
-        ),
-        (
-            "$unstable.shape.trigonometric",
-            &[
-                "sinPlusX",
-                "sin2x",
-                "sin3x",
-                "sin7x",
-                "sin10x",
-                "cyc2",
-                "cyc7",
-                "cyc10",
-                "cyc2Bound",
-                "cyc7Bound",
-                "cyc10Bound",
-            ],
-        ),
-    ];
-    let inputs = [0.0_f32, 0.5, 3.0, 4.9, -4.9];
-    let drives = [-5.0_f32, 0.0, 2.5, 5.0];
-
-    for (module, modes) in modules {
-        for mode in *modes {
-            for &input in &inputs {
-                for &drive in &drives {
-                    let m = make_module(
-                        module,
-                        "t",
-                        json!({ "input": input, "mode": mode, "drive": drive }),
-                    );
-                    // Settle past the onset fade and drive smoothing. `saturate`
-                    // `asymmetric` diverges on its negative tail at high drive
-                    // (faithful to Surge XT's asym curve), reaching a few tens of
-                    // volts here; the check catches NaN/Inf/runaway, not ±5 V.
-                    let y = settle_and_read(m.as_ref(), 600);
-                    assert!(
-                        y.is_finite() && y.abs() < 50.0,
-                        "{module} mode={mode} input={input} drive={drive} produced {y}"
-                    );
-                }
-            }
-        }
-    }
-
-    // digital and sine take no mode.
-    for module in ["$unstable.shape.digital", "$unstable.shape.sine"] {
-        for &input in &inputs {
-            for &drive in &drives {
-                let m = make_module(module, "t", json!({ "input": input, "drive": drive }));
-                let y = settle_and_read(m.as_ref(), 600);
-                assert!(
-                    y.is_finite() && y.abs() < 100.0,
-                    "{module} input={input} drive={drive} produced {y}"
-                );
-            }
-        }
-    }
-}
-
-/// At `drive = 0` (unity), soft saturation is near-linear for small signals, so
-/// a small DC input passes through roughly unchanged after the onset fade.
-#[test]
-fn shape_saturate_soft_near_unity_at_zero_drive() {
-    let m = make_module(
-        "$unstable.shape.saturate",
-        "t",
-        json!({ "input": 0.5, "mode": "soft", "drive": 0.0 }),
-    );
-    let y = settle_and_read(m.as_ref(), 800);
-    // tanh(0.1)·5 ≈ 0.498 — within a hair of the 0.5 V input.
-    assert!(
-        (y - 0.5).abs() < 0.05,
-        "expected ~0.5 V passthrough, got {y}"
-    );
-}
-
-/// Hard clip with heavy drive must actually clamp: a large input saturates to
-/// the ±5 V rail (±1 before output scaling), not beyond.
-#[test]
-fn shape_saturate_hard_clamps_to_rail() {
-    let m = make_module(
-        "$unstable.shape.saturate",
-        "t",
-        json!({ "input": 4.9, "mode": "hard", "drive": 5.0 }),
-    );
-    let y = settle_and_read(m.as_ref(), 600);
-    assert!(
-        y <= 5.01 && y > 4.5,
-        "hard clip should sit at the rail, got {y}"
     );
 }
 

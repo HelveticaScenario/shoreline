@@ -8,6 +8,19 @@ use super::lfo::Lfo;
 use super::patch::Patch;
 use super::units::{keyboard_scaling, normalize_velocity, pow2_fast_1, pow2_fast_2, rate_scaling};
 
+/// How far behind its envelope an operator's amplitude follows, in seconds:
+/// Plaits ramps each voice's amplitudes across a 24-sample block, half a
+/// block behind on average, so an envelope that jumps never steps a
+/// sounding operator.
+const AMPLITUDE_LAG: f32 = 12.0 / 48000.0;
+
+/// The amplitude below which a released carrier counts as silent, about
+/// -60 dB: a DX7 release level under 10 settles below it.
+const SILENT_AMPLITUDE: f32 = 1.0 / 1024.0;
+
+/// How long a note a newer one cuts off takes to fade out, in seconds.
+const FADE_SECS: f32 = 5.0e-3;
+
 /// Rate-dependent constants every voice shares.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Rates {
@@ -18,6 +31,10 @@ pub struct Rates {
     pub envelope_scale: f32,
     /// How long the scrubbed envelope holds its gate, in samples.
     pub gate_duration: f32,
+    /// How far an operator's amplitude moves toward its level each sample.
+    pub amplitude_follow: f32,
+    /// How much of a cut-off note's level fades each sample.
+    pub fade: f32,
 }
 
 impl Rates {
@@ -28,6 +45,8 @@ impl Rates {
             one_hz,
             envelope_scale: 44100.0 * one_hz,
             gate_duration: 1.5 * sample_rate,
+            amplitude_follow: (1.0 / (AMPLITUDE_LAG * sample_rate)).min(1.0),
+            fade: 1.0 / (FADE_SECS * sample_rate),
         }
     }
 }
@@ -75,8 +94,6 @@ struct Operator {
 /// patch clears every key.
 #[derive(Clone, Copy, Debug)]
 struct Cache {
-    /// The patch (by address) everything below is for.
-    patch: usize,
     /// The input frequency, and its note number.
     note_f0: f32,
     note_number: f32,
@@ -115,7 +132,6 @@ struct Cache {
 impl Default for Cache {
     fn default() -> Self {
         Self {
-            patch: 0,
             note_f0: f32::NAN,
             note_number: 48.0,
             pitch_mod: f32::NAN,
@@ -151,7 +167,9 @@ fn moved(a: f32, b: f32) -> bool {
 
 #[derive(Clone, Copy, Debug)]
 pub struct FmVoice {
-    patch: Option<&'static Patch>,
+    patch: Option<Patch>,
+    /// The loaded patch's id (`Dx7Voice::id`).
+    patch_id: u64,
     pub lfo: Lfo,
     pub parameters: Parameters,
     gate: bool,
@@ -168,6 +186,7 @@ impl Default for FmVoice {
     fn default() -> Self {
         Self {
             patch: None,
+            patch_id: 0,
             lfo: Lfo::default(),
             parameters: Parameters::default(),
             gate: false,
@@ -217,12 +236,47 @@ fn render_chain<const N: usize, const SOURCE: i32>(
 impl FmVoice {
     /// `FMVoice::LoadPatch`: a different patch takes over the operators and
     /// LFO settings, keeping their phases and the envelopes' stages.
-    pub fn load_patch(&mut self, patch: &'static Patch, rates: &Rates) {
-        if self.patch.is_some_and(|p| std::ptr::eq(p, patch)) {
+    pub fn load_patch(&mut self, patch: &Patch, id: u64, rates: &Rates) {
+        if self.patch.is_some() && self.patch_id == id {
             return;
         }
-        self.patch = Some(patch);
+        self.patch = Some(*patch);
+        self.patch_id = id;
+        self.cache = Cache::default();
         self.lfo.set(&patch.lfo, rates.one_hz);
+    }
+
+    /// Returns the operators, envelopes and gate to where `FMVoice::Init`
+    /// leaves them, keeping the patch: a voice faded out while its envelopes
+    /// still sounded starts its next note from silence, as a fresh one does.
+    pub fn silence(&mut self) {
+        self.operators = [Operator::default(); 6];
+        self.envelopes = [Envelope::default(); 6];
+        self.pitch_envelope = Envelope::default();
+        self.feedback_state = [0.0; 2];
+        self.gate = false;
+    }
+
+    /// The loaded patch's id, or `None` before one loads.
+    pub fn patch_id(&self) -> Option<u64> {
+        self.patch.is_some().then_some(self.patch_id)
+    }
+
+    /// Whether the voice has released and settled below `SILENT_AMPLITUDE`
+    /// in every carrier, so it sounds no more until its next note.
+    pub fn released(&self) -> bool {
+        let p = &self.parameters;
+        let Some(patch) = &self.patch else {
+            return true;
+        };
+        !p.gate
+            && !p.sustain
+            && (0..6).all(|i| {
+                patch.algorithm.is_modulator[i]
+                    || (self.envelopes[i].settled()
+                        && self.cache.amplitude[i] <= SILENT_AMPLITUDE
+                        && self.operators[i].amplitude <= SILENT_AMPLITUDE)
+            })
     }
 
     pub fn set_modulations(&mut self, lfo: &Lfo) {
@@ -233,17 +287,10 @@ impl FmVoice {
     /// One sample of the voice; silent until a patch loads.
     #[inline(always)]
     pub fn render(&mut self, rates: &Rates) -> f32 {
-        let Some(patch) = self.patch else {
+        let Some(patch) = &self.patch else {
             return 0.0;
         };
         let p = self.parameters;
-        let patch_id = patch as *const Patch as usize;
-        if patch_id != self.cache.patch {
-            self.cache = Cache {
-                patch: patch_id,
-                ..Cache::default()
-            };
-        }
         let cache = &mut self.cache;
         let scale = rates.envelope_scale;
         let gate_duration = rates.gate_duration;
@@ -365,7 +412,11 @@ impl FmVoice {
             }
         }
         let increment = cache.increment;
-        let amplitude = cache.amplitude;
+        let follow = rates.amplitude_follow;
+        let amplitude: [f32; 6] = std::array::from_fn(|i| {
+            let from = self.operators[i].amplitude;
+            from + (cache.amplitude[i] - from) * follow
+        });
 
         let mut buffers = [0.0; 4];
         let feedback_scale = patch.feedback_scale;

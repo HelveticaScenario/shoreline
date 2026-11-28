@@ -247,8 +247,7 @@ const SPECTRAL_WASH_DOCS: ModuleDocs = ModuleDocs {
                 const notes = $`c5 g4 eb5 ~`
                 melody: $sine(notes)
                   .amp($perc(notes, { decay: 0.15 }))
-                  .spectralReverb.wash({ decay: 4, damping: 2 })
-                  .wet(3)
+                  .spectralReverb.wash({ decay: 4, damping: 2 }).wet(3)
             "#,
         },
         DocExample {
@@ -257,8 +256,11 @@ const SPECTRAL_WASH_DOCS: ModuleDocs = ModuleDocs {
                 const notes = $`c4 ~ ~ eb4 ~ ~ g4 ~`
                 melody: $saw(notes)
                   .amp($perc(notes, { decay: 0.3 }))
-                  .spectralReverb.wash({ decay: 3.5, blur: 2, shimmer: 1 })
-                  .wet(2.5)
+                  .spectralReverb.wash({
+                    decay: 3.5,
+                    blur: 2,
+                    shimmer: 1,
+                  }).wet(2.5)
             "#,
         },
     ],

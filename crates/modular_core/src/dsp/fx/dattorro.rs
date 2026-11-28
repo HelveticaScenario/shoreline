@@ -225,8 +225,7 @@ const DATTORRO_DOCS: ModuleDocs = ModuleDocs {
             const notes = $`c4 eb4 g4 bb4`
             melody: $sine(notes)
               .amp($perc(notes, { decay: 0.2 }))
-              .dattorro({ decay: 3 })
-              .wet(2)
+              .dattorro({ decay: 3 }).wet(2)
         "#,
     }],
 };

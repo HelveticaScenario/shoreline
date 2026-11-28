@@ -1,0 +1,55 @@
+.code-example {
+    position: relative;
+}
+
+/* Clear of the copy button's corner. Whole pixels per line, as the editor
+   laid over the code draws them. */
+.code-example > pre {
+    padding-right: 36px;
+    line-height: round(1.5em, 1px);
+}
+
+.code-example-editor {
+    position: absolute;
+}
+
+/* Holds the examples' hovers, which place themselves against the window. */
+.code-example-overflow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    width: 0;
+    height: 0;
+}
+
+/* The editor draws the code; the static copy keeps its box, background and
+   text. */
+.code-example.live > pre > code,
+.code-example.live > pre > code * {
+    color: transparent;
+}
+
+.code-example-copy {
+    position: absolute;
+    z-index: 1;
+    top: 6px;
+    right: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-default);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.code-example-copy:hover {
+    color: var(--text-primary);
+}
+
+.code-example-copy.copied {
+    color: var(--accent-primary);
+}

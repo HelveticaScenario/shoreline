@@ -9,6 +9,7 @@ import {
 } from '../../shared/dsl/videoDocs';
 import type { VideoDocParam } from '../../shared/dsl/videoDocs';
 import { useQuoteExample } from '../hooks/useQuoteExample';
+import { CodeExample } from './CodeExample';
 
 /** Docs text with its `code` spans rendered. */
 const withCodeSpans = (text: string) =>
@@ -51,12 +52,12 @@ export const VideoDocs: React.FC = () => {
             <h2>Video</h2>
             <div className="types-intro">
                 <Prose text={VIDEO_INTRO.description} />
-                <pre>{examples(VIDEO_INTRO.examples)}</pre>
+                <CodeExample code={examples(VIDEO_INTRO.examples)} />
             </div>
             <h3>Chaining</h3>
             <div className="module-card">
                 <Prose text={VIDEO_CHAIN_INTRO} />
-                <pre>{examples(VIDEO_CHAIN_EXAMPLES)}</pre>
+                <CodeExample code={examples(VIDEO_CHAIN_EXAMPLES)} />
                 <h5>Methods</h5>
                 <ul>
                     {VIDEO_CHAIN.map((method) => (
@@ -90,7 +91,9 @@ export const VideoDocs: React.FC = () => {
                                 {doc.examples.length > 0 && (
                                     <>
                                         <h5>Example</h5>
-                                        <pre>{examples(doc.examples)}</pre>
+                                        <CodeExample
+                                            code={examples(doc.examples)}
+                                        />
                                     </>
                                 )}
                             </div>

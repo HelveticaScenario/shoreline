@@ -1,31 +1,16 @@
-//! Plaits' three DX7 banks (`fm/patch.h`), unpacked once per process along
-//! with everything a voice derives from a patch alone (`Voice::Setup`,
-//! `OperatorEnvelope::Set`, `PitchEnvelope::Set`, `Lfo::Set`).
+//! A DX7 patch unpacked (`fm/patch.h`), with everything a voice derives
+//! from a patch alone (`Voice::Setup`, `OperatorEnvelope::Set`,
+//! `PitchEnvelope::Set`, `Lfo::Set`).
 
-use std::sync::LazyLock;
-
-use super::super::core::tables::{
-    LUT_AMP_MOD_SENSITIVITY, LUT_PITCH_MOD_SENSITIVITY, SYX_BANK_0, SYX_BANK_1, SYX_BANK_2,
-};
+use super::super::core::tables::{LUT_AMP_MOD_SENSITIVITY, LUT_PITCH_MOD_SENSITIVITY};
 use super::algorithms::Algorithm;
 use super::units::{
     frequency_ratio, lfo_delay, lfo_frequency, operator_envelope_increment, operator_level,
     pitch_envelope_increment, pitch_envelope_level,
 };
 
-pub const BANKS: usize = 3;
-pub const PATCHES: usize = 32;
-const SYX_SIZE: usize = 128;
-
-/// Every patch of every bank. Unpacked on first use: modules force it in
-/// `init`, on the main thread, so selecting a patch on the audio thread only
-/// indexes it.
-pub static PATCH_BANKS: LazyLock<Box<[[Patch; PATCHES]; BANKS]>> = LazyLock::new(|| {
-    let banks: [&[u8]; BANKS] = [&SYX_BANK_0, &SYX_BANK_1, &SYX_BANK_2];
-    Box::new(banks.map(|bank| {
-        std::array::from_fn(|i| Patch::unpack(&bank[i * SYX_SIZE..(i + 1) * SYX_SIZE]))
-    }))
-});
+/// The bytes of one voice in the DX7's packed format.
+pub const PACKED_SIZE: usize = 128;
 
 #[derive(Clone, Copy, Debug)]
 pub struct KeyboardScaling {
@@ -152,7 +137,7 @@ pub struct Patch {
 impl Patch {
     /// `Patch::Unpack` of the 128-byte packed format, then each constant a
     /// voice derives from it.
-    fn unpack(data: &[u8]) -> Self {
+    pub fn unpack(data: &[u8; PACKED_SIZE]) -> Self {
         let clamp = |byte: u8, max: u8| (byte & 0x7f).min(max);
         let op = std::array::from_fn(|i| {
             let d = &data[i * 17..(i + 1) * 17];

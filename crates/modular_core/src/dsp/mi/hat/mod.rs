@@ -1,15 +1,12 @@
-//! Plaits' two hi-hats, which its hi-hat engine plays side by side:
-//! `$mi.hiHat`, the 808-style model, and `$mi.ringHat`, its ring-modulated
-//! variant.
+//! `$mi.hiHat`: Plaits' hi-hat engine, its 808-style hat and its
+//! ring-modulated variant side by side.
 
 mod hat_drum;
 mod hi_hat;
 mod lane;
 mod noise;
-mod ring_hat;
 
 pub use hi_hat::MiHiHat;
-pub use ring_hat::MiRingHat;
 
 #[cfg(test)]
 mod tests;

@@ -275,8 +275,7 @@ const SPECTRAL_ECHO_DOCS: ModuleDocs = ModuleDocs {
                 const notes = $`c5 g4 eb5 ~`
                 melody: $sine(notes)
                   .amp($perc(notes, { decay: 0.15 }))
-                  .spectralReverb.echo({ decay: 4, size: 3.5 })
-                  .wet(3)
+                  .spectralReverb.echo({ decay: 4, size: 3.5 }).wet(3)
             "#,
         },
         DocExample {
@@ -285,8 +284,11 @@ const SPECTRAL_ECHO_DOCS: ModuleDocs = ModuleDocs {
                 const notes = $`c4 ~ ~ eb4 ~ ~ g4 ~`
                 melody: $saw(notes)
                   .amp($perc(notes, { decay: 0.3 }))
-                  .spectralReverb.echo({ decay: 3.5, blur: 2, shimmer: 2 })
-                  .wet(2.5)
+                  .spectralReverb.echo({
+                    decay: 3.5,
+                    blur: 2,
+                    shimmer: 2,
+                  }).wet(2.5)
             "#,
         },
     ],

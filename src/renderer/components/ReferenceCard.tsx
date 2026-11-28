@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import Markdown from 'react-markdown';
 import { LinkifyTypes } from './DocsTypeLinks';
-import { ColorizedCode } from './ColorizedCode';
+import { CodeExample } from './CodeExample';
 import { useQuoteExample } from '../hooks/useQuoteExample';
 import { EXPERIMENTAL_NOTICE } from '../../shared/dsl/experimental';
 import type { DslTypeName } from '../../shared/dsl/typeDocs';
@@ -90,7 +90,7 @@ const Examples: React.FC<{ examples: DocExample[] }> = ({ examples }) => {
             {examples.map((e) => (
                 <figure key={e.title} className="doc-example">
                     <figcaption>{e.title}</figcaption>
-                    <ColorizedCode code={quote(e.code)} />
+                    <CodeExample code={quote(e.code)} />
                 </figure>
             ))}
         </>
