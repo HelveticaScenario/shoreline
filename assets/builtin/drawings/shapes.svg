@@ -5,6 +5,9 @@
   <g id="square">
     <path fill="none" stroke="#111" stroke-width="1.5" stroke-linejoin="round" d="M0 -40 L40 -40 L40 40 L-40 40 L-40 -40 Z"/>
   </g>
+  <g id="triangle">
+    <path fill="none" stroke="#111" stroke-width="1.5" stroke-linejoin="round" d="M0.00 -40.00 L34.64 20.00 L-34.64 20.00 Z"/>
+  </g>
   <g id="star">
     <path fill="none" stroke="#111" stroke-width="1.5" stroke-linejoin="round" d="M0.00 -40.00 L9.40 -12.94 L38.04 -12.36 L15.22 4.94 L23.51 32.36 L0.00 16.00 L-23.51 32.36 L-15.22 4.94 L-38.04 -12.36 L-9.40 -12.94 Z"/>
   </g>

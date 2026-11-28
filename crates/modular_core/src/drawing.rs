@@ -136,28 +136,27 @@ impl Frame {
     }
 }
 
-/// A drawing's frames, each traced as its own table of the same length, so
-/// blending two frames point by point blends them by distance along the line.
+/// A drawing's frames, each traced as its own table, and the rate they play at.
 #[derive(Debug)]
 struct DrawingTable {
     frames: Box<[Frame]>,
+    fps: f32,
 }
 
 impl DrawingTable {
     /// Parses `svg` and traces every visible shape in document order, each
     /// stroke followed by the next with the pen lifted between them. With two
-    /// or more top-level groups, each visible one is a frame, and shapes
-    /// outside them are drawn in every frame.
+    /// or more top-level groups, each one is a frame, and shapes outside them
+    /// are drawn in every frame.
     fn from_svg(svg: &str) -> StdResult<Self, String> {
         let unreadable = |e: &dyn std::fmt::Display| format!("not a readable SVG drawing: {e}");
-        let (marked, frame_ids) = mark_frames(svg).map_err(|e| unreadable(&e))?;
-        let tree =
-            usvg::Tree::from_str(&marked, &usvg::Options::default()).map_err(|e| unreadable(&e))?;
+        let marked = mark_frames(svg).map_err(|e| unreadable(&e))?;
+        let tree = usvg::Tree::from_str(&marked.svg, &usvg::Options::default())
+            .map_err(|e| unreadable(&e))?;
         let mut shared = Vec::new();
-        let mut own = vec![None; frame_ids.len()];
-        collect_strokes(tree.root(), &frame_ids, None, &mut shared, &mut own);
-        // A frame hidden in the file is not drawn, so it is no frame.
-        let mut frames: Vec<Vec<Stroke>> = own.into_iter().flatten().collect();
+        let mut own = vec![None; marked.ids.len()];
+        collect_strokes(tree.root(), &marked.ids, None, &mut shared, &mut own);
+        let mut frames: Vec<Vec<Stroke>> = own.into_iter().map(Option::unwrap_or_default).collect();
         if frames.is_empty() {
             frames.push(Vec::new());
         }
@@ -165,35 +164,37 @@ impl DrawingTable {
             frame.extend(shared.iter().cloned());
             frame.retain(|s| s.len() > 1);
         }
-        let Some(fit) = Fit::of(&frames) else {
-            return Ok(Self {
-                frames: Box::default(),
-            });
-        };
-        Ok(Self {
-            frames: frames
+        let frames = match Fit::of(&frames) {
+            Some(fit) => frames
                 .iter()
                 .map(|f| Frame::from_strokes(f, &fit))
                 .collect(),
+            None => Box::default(),
+        };
+        Ok(Self {
+            frames,
+            fps: marked.fps,
         })
     }
 
-    /// The pen position at `phase`, which wraps into 0–1, on the frame
-    /// `position` picks: 0 the first, 5 the last, blending between neighbours.
-    #[inline]
-    fn trace(&self, phase: f32, position: f32) -> [f32; 2] {
-        let Some(last) = self.frames.len().checked_sub(1) else {
-            return [0.0, 0.0];
-        };
-        let frame = if position.is_finite() {
-            position.clamp(0.0, DRAWING_HALF_SPAN) / DRAWING_HALF_SPAN * last as f32
+    /// The frame shown `seconds` into the drawing, before wrapping.
+    fn frame_at(&self, seconds: f32) -> i64 {
+        if seconds.is_finite() {
+            (seconds * self.fps).floor() as i64
         } else {
-            0.0
-        };
-        let lo = (frame as usize).min(last);
-        let blend = frame - lo as f32;
-        let (a, b) = (&self.frames[lo], &self.frames[(lo + 1).min(last)]);
+            0
+        }
+    }
 
+    /// The pen position at `phase`, which wraps into 0–1, on frame `frame`,
+    /// which wraps both ways around the drawing's frames.
+    #[inline]
+    fn trace(&self, phase: f32, frame: i64) -> [f32; 2] {
+        let count = self.frames.len();
+        if count == 0 {
+            return [0.0, 0.0];
+        }
+        let f = &self.frames[frame.rem_euclid(count as i64) as usize];
         let wrapped = phase - phase.floor();
         let pos = if wrapped.is_finite() {
             wrapped * DRAWING_TABLE_LEN as f32
@@ -201,31 +202,35 @@ impl DrawingTable {
             0.0
         };
         let i = (pos as usize).min(DRAWING_TABLE_LEN - 1);
-        let at = |k: usize| {
-            let (p, q) = (a.points[k], b.points[k]);
-            [p[0] + (q[0] - p[0]) * blend, p[1] + (q[1] - p[1]) * blend]
-        };
-        let here = at(i);
-        // The pen lifts wherever either frame it is drawing lifts.
-        if a.lifts[i] && blend < 1.0 || b.lifts[i] && blend > 0.0 {
-            return here;
+        let a = f.points[i];
+        if f.lifts[i] {
+            return a;
         }
-        let next = at((i + 1) % DRAWING_TABLE_LEN);
+        let b = f.points[(i + 1) % DRAWING_TABLE_LEN];
         let t = pos - i as f32;
-        [
-            here[0] + (next[0] - here[0]) * t,
-            here[1] + (next[1] - here[1]) * t,
-        ]
+        [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]
     }
+}
+
+/// Frames a second when the root gives no `data-fps`, so frames drawn by
+/// hand as layers count in seconds.
+const DEFAULT_FPS: f32 = 1.0;
+
+/// An SVG's text with every top-level group carrying an id, the parsed
+/// drawing's way to tell its frames apart.
+struct MarkedFrames<'a> {
+    svg: Cow<'a, str>,
+    /// The frames' ids in document order; none for a single-frame drawing.
+    ids: Vec<String>,
+    fps: f32,
 }
 
 /// Prefix of the ids given to top-level groups that have none.
 const FRAME_ID_PREFIX: &str = "shoreline-frame-";
 
-/// `svg` with every top-level group carrying an id, so the parsed drawing can
-/// tell them apart, and those ids in document order. A drawing with fewer
-/// than two top-level groups is a single frame and returns no ids.
-fn mark_frames(svg: &str) -> StdResult<(Cow<'_, str>, Vec<String>), roxmltree::Error> {
+/// Marks the frames of `svg`, read from its top-level groups and the root's
+/// `data-fps`. A drawing with fewer than two top-level groups is one frame.
+fn mark_frames(svg: &str) -> StdResult<MarkedFrames<'_>, roxmltree::Error> {
     let doc = roxmltree::Document::parse_with_options(
         svg,
         roxmltree::ParsingOptions {
@@ -233,13 +238,22 @@ fn mark_frames(svg: &str) -> StdResult<(Cow<'_, str>, Vec<String>), roxmltree::E
             ..Default::default()
         },
     )?;
-    let groups: Vec<_> = doc
-        .root_element()
+    let root = doc.root_element();
+    let fps = root
+        .attribute("data-fps")
+        .and_then(|v| v.trim().parse::<f32>().ok())
+        .filter(|fps| fps.is_finite() && *fps > 0.0)
+        .unwrap_or(DEFAULT_FPS);
+    let groups: Vec<_> = root
         .children()
         .filter(|n| n.is_element() && n.tag_name().name() == "g")
         .collect();
     if groups.len() < 2 {
-        return Ok((Cow::Borrowed(svg), Vec::new()));
+        return Ok(MarkedFrames {
+            svg: Cow::Borrowed(svg),
+            ids: Vec::new(),
+            fps,
+        });
     }
     let mut marked = String::with_capacity(svg.len() + groups.len() * 32);
     let mut copied = 0;
@@ -261,7 +275,11 @@ fn mark_frames(svg: &str) -> StdResult<(Cow<'_, str>, Vec<String>), roxmltree::E
         ids.push(id);
     }
     marked.push_str(&svg[copied..]);
-    Ok((Cow::Owned(marked), ids))
+    Ok(MarkedFrames {
+        svg: Cow::Owned(marked),
+        ids,
+        fps,
+    })
 }
 
 fn distance(a: &[f32; 2], b: &[f32; 2]) -> f32 {
@@ -371,12 +389,18 @@ impl Drawing {
         })
     }
 
-    /// The pen position, in volts, at `phase`, which wraps into 0–1, on the
-    /// frame `position` picks: 0 the first, 5 the last, blending between
-    /// neighbours. A drawing with nothing visible holds the pen at the center.
+    /// The frame shown `seconds` into the drawing at its frame rate, before
+    /// wrapping; [`Drawing::trace`] wraps it both ways.
     #[inline]
-    pub fn trace(&self, phase: f32, position: f32) -> [f32; 2] {
-        self.table.trace(phase, position)
+    pub fn frame_at(&self, seconds: f32) -> i64 {
+        self.table.frame_at(seconds)
+    }
+
+    /// The pen position, in volts, at `phase`, which wraps into 0–1, on frame
+    /// `frame`. A drawing with nothing visible holds the pen at the center.
+    #[inline]
+    pub fn trace(&self, phase: f32, frame: i64) -> [f32; 2] {
+        self.table.trace(phase, frame)
     }
 }
 
@@ -493,12 +517,12 @@ mod tests {
             &svg(r#"<path d="M10 10 H90 V90 H10 Z" stroke="black" fill="none"/>"#),
         )
         .unwrap();
-        assert!(close(d.trace(0.0, 0.0), [-5.0, 5.0]));
-        assert!(close(d.trace(0.25, 0.0), [5.0, 5.0]));
-        assert!(close(d.trace(0.5, 0.0), [5.0, -5.0]));
-        assert!(close(d.trace(0.75, 0.0), [-5.0, -5.0]));
-        assert!(close(d.trace(1.0, 0.0), d.trace(0.0, 0.0)));
-        assert!(close(d.trace(-0.75, 0.0), d.trace(0.25, 0.0)));
+        assert!(close(d.trace(0.0, 0), [-5.0, 5.0]));
+        assert!(close(d.trace(0.25, 0), [5.0, 5.0]));
+        assert!(close(d.trace(0.5, 0), [5.0, -5.0]));
+        assert!(close(d.trace(0.75, 0), [-5.0, -5.0]));
+        assert!(close(d.trace(1.0, 0), d.trace(0.0, 0)));
+        assert!(close(d.trace(-0.75, 0), d.trace(0.25, 0)));
     }
 
     #[test]
@@ -509,12 +533,12 @@ mod tests {
         )
         .unwrap();
         // Each stroke takes half the phase, and the jump between them none.
-        assert!(close(d.trace(0.25, 0.0), [0.0, 5.0]));
-        assert!(close(d.trace(0.75, 0.0), [0.0, -5.0]));
-        let just_before = d.trace(0.5 - 0.5 / DRAWING_TABLE_LEN as f32, 0.0);
+        assert!(close(d.trace(0.25, 0), [0.0, 5.0]));
+        assert!(close(d.trace(0.75, 0), [0.0, -5.0]));
+        let just_before = d.trace(0.5 - 0.5 / DRAWING_TABLE_LEN as f32, 0);
         assert!(just_before[1] > 4.99, "{just_before:?}");
         // Phase wraps from the end of the second stroke to the start of the first.
-        let end = d.trace(1.0 - 0.1 / DRAWING_TABLE_LEN as f32, 0.0);
+        let end = d.trace(1.0 - 0.1 / DRAWING_TABLE_LEN as f32, 0);
         assert!(end[1] < -4.99, "{end:?}");
     }
 
@@ -526,7 +550,7 @@ mod tests {
         )
         .unwrap();
         for i in 0..16 {
-            let p = d.trace(i as f32 / 16.0, 0.0);
+            let p = d.trace(i as f32 / 16.0, 0);
             assert!((p[0].hypot(p[1]) - 5.0).abs() < 0.02, "{p:?}");
         }
     }
@@ -534,7 +558,7 @@ mod tests {
     #[test]
     fn an_empty_drawing_holds_the_center() {
         let d = Drawing::from_svg("empty".into(), &svg("")).unwrap();
-        assert_eq!(d.trace(0.3, 0.0), [0.0, 0.0]);
+        assert_eq!(d.trace(0.3, 0), [0.0, 0.0]);
     }
 
     #[test]
@@ -543,25 +567,41 @@ mod tests {
     }
 
     /// Two frames, a horizontal line through the middle and a vertical one.
-    fn cross_frames(extra: &str) -> Drawing {
+    fn cross_frames(root: &str, extra: &str) -> Drawing {
         Drawing::from_svg(
             "frames".into(),
-            &svg(&format!(
-                r#"<g><path d="M0 50 H100" stroke="black"/></g>
-                   <g id="up"><path d="M50 100 V0" stroke="black"/></g>{extra}"#
-            )),
+            &format!(
+                r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" {root}>
+                   <g><path d="M0 50 H100" stroke="black"/></g>
+                   <g id="up"><path d="M50 100 V0" stroke="black"/></g>{extra}</svg>"#
+            ),
         )
         .unwrap()
     }
 
+    const ACROSS: [f32; 2] = [-2.5, 0.0];
+    const UP: [f32; 2] = [0.0, -2.5];
+
     #[test]
-    fn top_level_groups_are_frames_that_position_sweeps() {
-        let d = cross_frames("");
-        assert!(close(d.trace(0.25, 0.0), [-2.5, 0.0]));
-        assert!(close(d.trace(0.25, 5.0), [0.0, -2.5]));
-        assert!(close(d.trace(0.25, 2.5), [-1.25, -1.25]));
-        assert!(close(d.trace(0.25, 9.0), d.trace(0.25, 5.0)));
-        assert!(close(d.trace(0.25, f32::NAN), d.trace(0.25, 0.0)));
+    fn top_level_groups_are_frames_that_wrap_both_ways() {
+        let d = cross_frames("", "");
+        assert!(close(d.trace(0.25, 0), ACROSS));
+        assert!(close(d.trace(0.25, 1), UP));
+        assert!(close(d.trace(0.25, 2), ACROSS));
+        assert!(close(d.trace(0.25, -1), UP));
+        assert!(close(d.trace(0.25, -2), ACROSS));
+    }
+
+    #[test]
+    fn frames_count_in_seconds_at_the_drawing_frame_rate() {
+        let d = cross_frames("", "");
+        assert_eq!(d.frame_at(0.99), 0);
+        assert_eq!(d.frame_at(1.0), 1);
+        assert_eq!(d.frame_at(-0.5), -1);
+        assert_eq!(d.frame_at(f32::NAN), 0);
+        let d = cross_frames(r#"data-fps="12""#, "");
+        assert_eq!(d.frame_at(0.5), 6);
+        assert_eq!(cross_frames(r#"data-fps="-3""#, "").frame_at(1.5), 1);
     }
 
     #[test]
@@ -572,23 +612,27 @@ mod tests {
                    <g><path d="M0 50 H100" stroke="black"/></g>"#),
         )
         .unwrap();
-        assert!(close(d.trace(0.0, 0.0), [-1.0, 0.0]));
-        assert!(close(d.trace(0.0, 5.0), [-5.0, 0.0]));
+        assert!(close(d.trace(0.0, 0), [-1.0, 0.0]));
+        assert!(close(d.trace(0.0, 1), [-5.0, 0.0]));
     }
 
     #[test]
     fn shapes_outside_the_frames_are_drawn_in_each() {
-        let d = cross_frames(r#"<path d="M0 0 H100" stroke="black"/>"#);
-        for position in [0.0, 5.0] {
+        let d = cross_frames("", r#"<path d="M0 0 H100" stroke="black"/>"#);
+        for frame in [0, 1] {
             // Each frame's own line, then the shared one, each half the phase.
-            assert!(close(d.trace(0.75, position), [0.0, 5.0]), "{position}");
+            assert!(close(d.trace(0.75, frame), [0.0, 5.0]), "{frame}");
         }
     }
 
     #[test]
-    fn a_hidden_group_is_no_frame() {
-        let d = cross_frames(r#"<g style="display:none"><path d="M0 0 H100" stroke="black"/></g>"#);
-        assert!(close(d.trace(0.25, 5.0), [0.0, -2.5]));
+    fn a_hidden_group_is_a_frame_with_nothing_of_its_own() {
+        let d = cross_frames(
+            "",
+            r#"<g style="display:none"><path d="M0 0 H100" stroke="black"/></g>"#,
+        );
+        assert!(close(d.trace(0.25, 2), [0.0, 0.0]));
+        assert!(close(d.trace(0.25, 3), ACROSS));
     }
 
     #[test]
@@ -599,18 +643,18 @@ mod tests {
                    <g><path d="M50 100 V0" stroke="black"/></g></g>"#),
         )
         .unwrap();
-        assert!(close(d.trace(0.25, 5.0), d.trace(0.25, 0.0)));
-        assert!(close(d.trace(0.625, 0.0), [0.0, -2.5]));
+        assert!(close(d.trace(0.25, 1), d.trace(0.25, 0)));
+        assert!(close(d.trace(0.625, 0), UP));
     }
 
     #[test]
-    fn a_blank_frame_draws_nothing_at_the_center() {
+    fn an_empty_group_is_a_blank_frame() {
         let d = Drawing::from_svg(
             "blank".into(),
             &svg(r#"<g><path d="M0 50 H100" stroke="black"/></g><g></g>"#),
         )
         .unwrap();
-        assert!(close(d.trace(0.25, 5.0), [0.0, 0.0]));
-        assert!(close(d.trace(0.0, 2.5), [-2.5, 0.0]));
+        assert!(close(d.trace(0.25, 1), [0.0, 0.0]));
+        assert!(close(d.trace(0.25, 2), ACROSS));
     }
 }

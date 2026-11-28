@@ -117,7 +117,7 @@ export const BUILTIN_DRAWINGS: readonly BuiltinDrawing[] = [
     {
         path: `${BUILTIN_PREFIX}drawings/shapes.svg`,
         description:
-            'Three frames, a circle, a square and a star, each drawn clockwise from the top so they morph cleanly.',
+            'A four-frame animation at one frame a second: a circle, a square, a triangle and a star.',
     },
 ];
 

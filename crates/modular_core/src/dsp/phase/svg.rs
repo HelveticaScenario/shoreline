@@ -2,6 +2,7 @@
 
 use deserr::Deserr;
 use schemars::JsonSchema;
+use serde::Serialize;
 
 use crate::drawing::Drawing;
 use crate::module_docs::{DocExample, ModuleDocs};
@@ -23,14 +24,37 @@ struct SvgParams {
     )]
     phase: PairSignal,
     #[input(
-        "which frame is drawn: 0 the first, 5 the last, blending between neighbours",
+        "how far into an animated drawing to show, in seconds; past the end it starts again, and before the start it counts back from the end",
         type = control,
         default = 0.0,
-        range = (0.0, 5.0),
+        control_range = (0.0, 10.0),
         fold,
     )]
     #[deserr(default)]
-    position: Option<PolySignal>,
+    frame: Option<PolySignal>,
+    #[input("when a change of frame shows")]
+    #[serde(rename = "switch", default)]
+    #[deserr(rename = "switch", default)]
+    r#switch: FrameSwitch,
+}
+
+/// When `$svg` shows a new frame.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserr, Serialize, JsonSchema, Connect)]
+#[serde(rename_all = "camelCase")]
+#[deserr(rename_all = camelCase)]
+pub enum FrameSwitch {
+    /// at the end of a pass, as the phase wraps, so every pass draws one whole frame
+    #[default]
+    Wrap,
+    /// at once, so a pass can draw part of one frame and part of the next
+    Now,
+}
+
+/// Each lane's frame, held until its phase wraps.
+#[derive(Default)]
+struct SvgLane {
+    last_phase: f32,
+    frame: Option<i64>,
 }
 
 #[derive(Outputs, JsonSchema)]
@@ -53,8 +77,9 @@ const SVG_DOCS: ModuleDocs = ModuleDocs {
                   up–down on the right, for `$scopeXY` or a vector display. \
                   The drawing is fitted to ±5 V, and the pen jumps between separate strokes \
                   without drawing, so a drawing made of one continuous line traces cleanest. \
-                  A drawing whose top-level groups (an editor's layers) each hold one frame \
-                  animates as `position` sweeps through them, like a wavetable.",
+                  A drawing with several top-level groups (an editor's layers) is an \
+                  animation, one frame per group, played by `frame` at the root's \
+                  `data-fps` frames a second, or one a second without it.",
     categories: &[ReferenceCategory::Phase],
     sections: &[],
     examples: &[
@@ -69,12 +94,12 @@ const SVG_DOCS: ModuleDocs = ModuleDocs {
         "#,
         },
         DocExample {
-            title: "Morph between frames",
+            title: "Play an animation",
             code: r#"
             const pen = $svg(
               'builtin/drawings/shapes.svg',
               $ramp('50hz'),
-              $sine('0.1hz').range(0, 5),
+              { frame: $ramp('0.25hz').range(0, 4) },
             )
             $scopeXY(pen)
         "#,
@@ -91,24 +116,37 @@ fn svg_derive_lane_count(params: &SvgParams) -> usize {
     name = "$svg",
     docs = SVG_DOCS,
     lanes_derive = svg_derive_lane_count,
-    args(file, phase, position),
+    args(file, phase),
     stereo = stereo,
     experimental,
 )]
 pub struct Svg {
     outputs: SvgOutputs,
     params: SvgParams,
+    lane_state: Box<[SvgLane]>,
 }
 
 impl Svg {
     fn update(&mut self, _sample_rate: f32) {
+        let lanes = self.lane_count() / 2;
+        let p = &self.params;
         // Lane `l` side `c` is lane `l * 2 + c`.
-        for lane in 0..self.lane_count() / 2 {
-            let p = &self.params;
-            let [x, y] = p.file.trace(
-                p.phase.get_folded(lane),
-                p.position.folded_or(lane, SvgParams::POSITION_DEFAULT),
-            );
+        for (lane, state) in self.lane_state.iter_mut().enumerate().take(lanes) {
+            let phase = p.phase.get_folded(lane);
+            let wrapped = phase - phase.floor();
+            let wanted = p
+                .file
+                .frame_at(p.frame.folded_or(lane, SvgParams::FRAME_DEFAULT));
+            let frame = match (p.r#switch, state.frame) {
+                // A wrap either way is a jump of over half a pass.
+                (FrameSwitch::Wrap, Some(held)) if (wrapped - state.last_phase).abs() <= 0.5 => {
+                    held
+                }
+                _ => wanted,
+            };
+            state.frame = Some(frame);
+            state.last_phase = wrapped;
+            let [x, y] = p.file.trace(phase, frame);
             self.outputs.sample.set(lane * 2, x);
             self.outputs.sample.set(lane * 2 + 1, y);
         }

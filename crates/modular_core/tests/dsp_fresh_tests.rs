@@ -3686,3 +3686,67 @@ fn lpg_added_lanes_do_not_ping_on_a_held_trigger() {
         "added lane pinged on a held trigger, peak {peak}"
     );
 }
+
+/// Each pass of an `$svg` animation (between phase wraps) as the kinds of
+/// sample it drew: `'a'` on the horizontal frame, `'u'` on the vertical one.
+fn svg_passes(switch: &str) -> Vec<String> {
+    let cable =
+        |module: &str| json!({ "type": "cable", "module": module, "port": "output", "lane": 0 });
+    let graph = make_graph(vec![
+        ("phase", "$ramp", json!({ "freq": 0.0 })),
+        ("clock", "$ramp", json!({ "freq": -6.0 })),
+        (
+            "pen",
+            "$svg",
+            json!({
+                "file": {
+                    "type": "drawing_ref",
+                    "path": "frames.svg",
+                    "svg": r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" data-fps="8">
+                        <g><path d="M0 50 H100" stroke="black"/></g>
+                        <g><path d="M50 0 V100" stroke="black"/></g></svg>"#
+                },
+                "phase": cable("phase"),
+                "frame": cable("clock"),
+                "switch": switch,
+            }),
+        ),
+    ]);
+    let patch = from_graph(&graph, SAMPLE_RATE, TEST_BLOCK_SIZE, &HashMap::new())
+        .expect("from_graph failed");
+    let phase = patch.sampleables.get("phase").unwrap();
+    let pen = patch.sampleables.get("pen").unwrap();
+    let mut passes = vec![String::new()];
+    let mut last = 0.0;
+    for _ in 0..48_000 {
+        process_frame(&patch);
+        let p = phase.get_value_at(DEFAULT_PORT, 0, 0);
+        if p < last {
+            passes.push(String::new());
+        }
+        last = p;
+        let (x, y) = (
+            pen.get_value_at(DEFAULT_PORT, 0, 0),
+            pen.get_value_at(DEFAULT_PORT, 1, 0),
+        );
+        let pass = passes.last_mut().unwrap();
+        if y.abs() < 1e-4 && x.abs() > 0.1 && !pass.contains('a') {
+            pass.push('a');
+        } else if x.abs() < 1e-4 && y.abs() > 0.1 && !pass.contains('u') {
+            pass.push('u');
+        }
+    }
+    passes
+}
+
+#[test]
+fn svg_switch_wrap_draws_each_pass_on_one_frame() {
+    let passes = svg_passes("wrap");
+    assert!(passes.iter().all(|p| p.len() <= 1), "{passes:?}");
+    assert!(passes.iter().any(|p| p == "a") && passes.iter().any(|p| p == "u"));
+}
+
+#[test]
+fn svg_switch_now_cuts_mid_pass() {
+    assert!(svg_passes("now").iter().any(|p| p.len() == 2));
+}
