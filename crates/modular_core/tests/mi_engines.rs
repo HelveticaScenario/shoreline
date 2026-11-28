@@ -9,6 +9,9 @@
 //! The per-sample fixtures compare waveforms; this pins the knob mappings and
 //! output gains.
 
+mod dx7_common;
+
+use dx7_common::plaits_voice;
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;
 use modular_core::dsp::mi::core::tables::{LPC_BANK_WORDS, LPC_WORD_STARTS};
@@ -77,7 +80,11 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             // Plaits picks the patch from `harmonics`; the driver centres it on
             // one. The cases scrub (trigger unpatched), where Plaits' second
             // voice never gates and the module's one voice sounds alike.
-            let knobs = json!({ "bank": engine - 2, "patch": (h * 32.64).floor(), "brightness": 5.0 * t, "envelope": 5.0 * m });
+            let voice = plaits_voice(
+                (engine - 2) as usize,
+                ((h * 32.64).floor() as usize).min(31),
+            );
+            let knobs = json!({ "voice": voice, "brightness": 5.0 * t, "envelope": 5.0 * m });
             [
                 port("$mi.sixOp", knobs.clone(), "output"),
                 port("$mi.sixOp", knobs, "output"),
@@ -267,8 +274,8 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
         23 => {
             let knobs = json!({ "tone": 5.0 * t, "decay": 5.0 * m, "noisiness": 5.0 * h });
             [
-                port("$mi.hiHat", knobs.clone(), "output"),
-                port("$mi.ringHat", knobs, "output"),
+                port("$mi.hiHat", knobs.clone(), "square"),
+                port("$mi.hiHat", knobs, "ring"),
             ]
         }
         _ => panic!("no module for engine {engine}"),
@@ -551,7 +558,7 @@ fn matches_plaits_engines() {
             // first block). The ring hat's oscillators ramp their frequency
             // from Plaits' initial one the same way, so they keep a phase
             // offset and match only in sound.
-            let square_hat = engine == 23 && h == 0.0 && port.module == "$mi.hiHat";
+            let square_hat = engine == 23 && h == 0.0 && port.port == "square";
             if engine == 18 || (engine == 22 && !snares) || square_hat {
                 let exact = match trigger_period {
                     Some(period) if engine >= 22 => 0..period as usize - 1,

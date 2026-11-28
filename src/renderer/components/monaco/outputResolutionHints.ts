@@ -23,7 +23,7 @@ import {
 } from '../../../shared/dsl/signalSites';
 import electronAPI from '../../electronAPI';
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import type { DslTypeScriptWorkerApi } from './dslTsWorker';
+import { dslWorker } from './dslWorker';
 
 /** A site the runtime resolved, its value tracked through edits by a decoration. */
 interface RuntimeFill {
@@ -47,10 +47,7 @@ const runtimeFills = new WeakMap<editor.ITextModel, RuntimeFill[]>();
 
 async function signalSites(model: editor.ITextModel): Promise<SignalSite[]> {
     const { monaco, tables } = active!;
-    const getWorker = await monaco.typescript.getJavaScriptWorker();
-    const worker = (await getWorker(
-        model.uri,
-    )) as unknown as DslTypeScriptWorkerApi;
+    const worker = await dslWorker(monaco, model.uri);
     return worker.getSignalSites(model.uri.toString(), await tables);
 }
 

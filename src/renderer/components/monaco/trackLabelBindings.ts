@@ -12,11 +12,10 @@
  * of what it is bound to (the track's final signal, a send target when the
  * track is a bus) and the patch's hover, completion and checking see it.
  * Inside `__tracks` every track name is a parameter typed as a plain track,
- * so no name's type waits on another's and tracks may read each other. A
- * closing `export {}` keeps the names in this patch even when it is read as a
- * script. Every position in the patch's text is untouched; whatever the
- * language service reports past it is dropped or moved onto the label's
- * name, and a request made on a label's name is asked of its declaration.
+ * so no name's type waits on another's and tracks may read each other. Every
+ * position in the patch's text is untouched; whatever the language service
+ * reports past it is dropped or moved onto the label's name, and a request
+ * made on a label's name is asked of its declaration.
  */
 import type * as TS from 'typescript';
 
@@ -125,7 +124,6 @@ export function trackLabelView(ts: typeof TS, source: string): TrackLabelView {
             text,
         };
     }
-    text += '\n;export {};';
     // A construct the patch leaves open (a block, a string) swallows the
     // appended text, which then binds nothing and would only add errors.
     if (parseDiagnostics.length > 0) {
@@ -346,16 +344,14 @@ export function withTrackLabelDiagnostics(
     const atEnd = (appended ? view.endDiagnostics : []).map(
         (d): TS.Diagnostic => ({ ...d, file: sourceFile }),
     );
-    const added = view.analysis.errors.map(
-        (e): TS.Diagnostic => ({
-            category: ts.DiagnosticCategory.Error,
-            code: TRACK_LABEL_CODE,
-            file: sourceFile,
-            length: e.end - e.start,
-            messageText: e.message,
-            start: e.start,
-        }),
-    );
+    const added = view.analysis.errors.map((e): TS.Diagnostic => ({
+        category: ts.DiagnosticCategory.Error,
+        code: TRACK_LABEL_CODE,
+        file: sourceFile,
+        length: e.end - e.start,
+        messageText: e.message,
+        start: e.start,
+    }));
     return [...kept, ...atEnd, ...added].sort(
         (a, b) => (a.start ?? 0) - (b.start ?? 0),
     );

@@ -73,6 +73,28 @@ describe('readWorkspaceTree', () => {
     });
 });
 
+describe('readWorkspaceTree file types', () => {
+    const root = tempFolder('tree-types');
+    for (const name of ['song.js', 'pad.wav', 'logo.png', 'loop.mp4']) {
+        fs.writeFileSync(path.join(root, name), '');
+    }
+    fs.writeFileSync(path.join(root, 'rom1a.SYX'), '');
+    fs.writeFileSync(path.join(root, 'notes.txt'), '');
+
+    test('lists patches and every loadable asset, and nothing else', () => {
+        const types = Object.fromEntries(
+            readWorkspaceTree(root).entries.map((e) => [e.name, e.fileType]),
+        );
+        expect(types).toEqual({
+            'logo.png': 'image',
+            'loop.mp4': 'video',
+            'pad.wav': 'wav',
+            'rom1a.SYX': 'syx',
+            'song.js': 'patch',
+        });
+    });
+});
+
 describe('resolveWorkspacePath through links', () => {
     const root = tempFolder('paths-root');
     const library = tempFolder('paths-library');

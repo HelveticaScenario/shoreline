@@ -84,10 +84,10 @@ fn accent_louder_and_rings_hat_longer() {
         with(square_hit, knobs, ACCENT, 1.0, 1),
         with(square_hit, knobs, ACCENT, 5.0, 1),
     );
-    assert!((tail(&hard) - tail(&soft)).abs() < 0.5, "hiHat: same fade");
+    assert!((tail(&hard) - tail(&soft)).abs() < 0.5, "square: same fade");
     let (soft, hard) = (
         with(ring_hit, knobs, ACCENT, 1.0, 1),
         with(ring_hit, knobs, ACCENT, 5.0, 1),
     );
-    assert!(tail(&hard) > tail(&soft) + 6.0, "ringHat: chokes later");
+    assert!(tail(&hard) > tail(&soft) + 6.0, "ring: chokes later");
 }

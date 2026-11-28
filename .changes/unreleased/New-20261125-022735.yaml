@@ -1,0 +1,3 @@
+kind: New
+body: 'Wasp filters, after the EDP Wasp''s logic-chip filter: `$lpfWasp`, `$hpfWasp`, `$bpfWasp`, `$notchWasp` and `$apfWasp`, each a 12 dB filter that turns dirty and erratic when fed a loud signal and whistles at full resonance without self-oscillating. They have no `drive` (the level you feed them is the drive) and pass no DC.'
+time: 2026-11-25T02:27:35.398791-05:00

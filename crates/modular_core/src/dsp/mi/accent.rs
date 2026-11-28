@@ -20,6 +20,13 @@ pub(super) fn plaits_volts(volts: f32) -> f32 {
     4.0 + 0.2 * volts.clamp(0.0, 5.0)
 }
 
+/// The output level `volts` of accent sets, less one: 0 unaccented, rising
+/// to `trim` - 1 at 5 V.
+#[inline(always)]
+pub(super) fn accent_boost(volts: f32, trim: f32) -> f32 {
+    (trim - 1.0) * volts * 0.2
+}
+
 /// A voice's accent and the output level it sets: 1 unaccented, rising to
 /// the voice's `trim` at 5 V. The trim brings Plaits' own response to accent,
 /// which already makes a hit a little louder, to twice the unaccented level.
@@ -36,6 +43,13 @@ pub(super) struct Accent {
     struck: bool,
     /// Whether the trigger is patched.
     patched: bool,
+    output: AccentLevel,
+}
+
+/// The output level an [`Accent`] sets on one sound, ramping between
+/// strikes' accents as that sound rings.
+#[derive(Clone, Copy, Default)]
+pub(super) struct AccentLevel {
     /// The output level less one.
     level: Level,
     /// The size of the last sample in, to tell whether the voice sounds.
@@ -51,8 +65,7 @@ impl Default for Accent {
             volts: 0.0,
             struck: false,
             patched: false,
-            level: Level::default(),
-            last: 0.0,
+            output: AccentLevel::default(),
         }
     }
 }
@@ -91,15 +104,31 @@ impl Accent {
     /// still sounds, and it holds through the hit.
     #[inline(always)]
     pub(super) fn apply(&mut self, out: f32, trim: f32, sample_rate: f32) -> f32 {
-        let boost = (trim - 1.0) * self.volts * 0.2;
+        let mut output = self.output;
+        let out = self.apply_to(&mut output, out, trim, sample_rate);
+        self.output = output;
+        out
+    }
+
+    /// [`apply`](Self::apply) for one of several sounds a single accent
+    /// plays, each ramping its own `output` level.
+    #[inline(always)]
+    pub(super) fn apply_to(
+        &self,
+        output: &mut AccentLevel,
+        out: f32,
+        trim: f32,
+        sample_rate: f32,
+    ) -> f32 {
+        let boost = accent_boost(self.volts, trim);
         if !self.patched {
-            self.level.set(boost, false, 1);
+            output.level.set(boost, false, 1);
         } else if self.struck {
             let samples = (RAMP_SECS * sample_rate).max(1.0) as u32;
-            self.level.set(boost, self.last > SILENT, samples);
+            output.level.set(boost, output.last > SILENT, samples);
         }
-        let level = 1.0 + self.level.next();
-        self.last = out.abs();
+        let level = 1.0 + output.level.next();
+        output.last = out.abs();
         out * level
     }
 }

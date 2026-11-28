@@ -50,6 +50,11 @@ fn value<const RESHAPE: bool>(
 }
 
 impl Envelope {
+    /// Whether it has released all the way to its last level.
+    pub fn settled(&self) -> bool {
+        self.stage == RELEASE && self.phase >= 1.0
+    }
+
     /// One sample at `rate` times the patch's speed, with the attack and
     /// decay stages sped up by `ad_scale` and the release by `release_scale`.
     #[inline(always)]

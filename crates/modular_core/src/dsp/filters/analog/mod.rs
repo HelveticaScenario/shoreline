@@ -1,6 +1,6 @@
-//! Analog-modelled filters: Sallen-Key, transistor ladder, diode ladder and
-//! OTA cascade, each as a module per response with an output per slope, and
-//! the leapfrog lowpass.
+//! Analog-modelled filters: Sallen-Key, transistor ladder, diode ladder,
+//! OTA cascade and the Wasp's inverter loop, each as a module per response
+//! with an output per slope, and the leapfrog lowpass.
 //!
 //! Each topology is a [`kernel::Kernel`]: its circuit's structure
 //! discretised with trapezoidal integrators, its delay-free feedback loop
@@ -19,6 +19,11 @@ mod ota_modules;
 mod runner;
 mod sallen_key;
 mod sallen_key_modules;
+mod wasp;
+mod wasp_circuit;
+mod wasp_modules;
+mod wasp_parts;
+mod wasp_solve;
 
 use std::collections::HashMap;
 
@@ -47,6 +52,11 @@ macro_rules! for_each_module {
             ota_modules::BpfOta,
             ota_modules::NotchOta,
             ota_modules::ApfOta,
+            wasp_modules::LpfWasp,
+            wasp_modules::HpfWasp,
+            wasp_modules::BpfWasp,
+            wasp_modules::NotchWasp,
+            wasp_modules::ApfWasp,
             leapfrog::LpfLeapfrog
         )
     };

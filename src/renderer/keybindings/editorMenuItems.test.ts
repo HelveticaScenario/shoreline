@@ -6,7 +6,10 @@
 import { afterEach, describe, expect, test } from 'vitest';
 import type { editor } from 'monaco-editor';
 
-import { buildEditorMenuItems } from './editorMenuItems';
+import {
+    buildEditorMenuItems,
+    buildReadOnlyEditorMenuItems,
+} from './editorMenuItems';
 import { registerCommand, unregisterCommand } from './commands';
 import { contextKeys } from './contextKey';
 
@@ -150,6 +153,54 @@ describe('buildEditorMenuItems', () => {
         contextKeys.set('editorFocused', true);
         expect(commandIds(buildEditorMenuItems(fakeEditor()))).toContain(
             'test.ctx.when',
+        );
+    });
+});
+
+describe('buildReadOnlyEditorMenuItems', () => {
+    test('offers navigation and Copy, and nothing that edits', () => {
+        registerCommand('test.ctx.update', () => {}, {
+            contextMenu: { group: '1_patch', order: 1 },
+            label: 'Update Patch',
+        });
+        const items = buildReadOnlyEditorMenuItems(fakeEditor());
+        const ids = commandIds(items);
+        expect(ids).toContain('editor.action.revealDefinition');
+        expect(ids).not.toContain('editor.action.rename');
+        expect(ids).not.toContain('editor.action.formatDocument');
+        expect(ids).not.toContain('test.ctx.update');
+        const roles = items.flatMap((i) =>
+            i?.kind === 'role' ? [i.role] : [],
+        );
+        expect(roles).toEqual(['copy']);
+        expect(items.some((i) => i?.kind === 'submenu')).toBe(true);
+    });
+
+    test('enables navigation whatever language the patch editor holds', () => {
+        for (const key of [
+            'editorHasDefinitionProvider',
+            'editorHasReferenceProvider',
+            'editorHasDocumentSymbolProvider',
+        ]) {
+            contextKeys.set(key, false);
+        }
+        const items = buildReadOnlyEditorMenuItems(
+            fakeEditor({
+                'editor.action.goToReferences': null,
+                'editor.action.quickOutline': null,
+                'editor.action.revealDefinition': null,
+            }),
+        );
+        const commands = items.flatMap((i) =>
+            i?.kind === 'command'
+                ? [i]
+                : i?.kind === 'submenu'
+                  ? i.items.filter((s) => s?.kind === 'command')
+                  : [],
+        );
+        expect(commands.length).toBeGreaterThan(3);
+        expect(commands.every((c) => c?.kind === 'command' && c.enabled)).toBe(
+            true,
         );
     });
 });
