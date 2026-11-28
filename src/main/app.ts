@@ -1086,14 +1086,14 @@ function submitPatchUpdate(
 
 // DSL execution in main process with direct N-API access
 /** Wraps an engine load so it resolves paths against the current workspace. */
-function inWavWorkspace<T>(load: (path: string) => T): (path: string) => T {
+function inAssetWorkspace<T>(load: (path: string) => T): (path: string) => T {
     return (relative) => {
-        if (currentWorkspaceRoot) synth.setWavWorkspace(currentWorkspaceRoot);
+        if (currentWorkspaceRoot) synth.setAssetWorkspace(currentWorkspaceRoot);
         return load(relative);
     };
 }
 
-const loadSyx = inWavWorkspace((syxPath) => synth.loadSyx(syxPath));
+const loadSyx = inAssetWorkspace((syxPath) => synth.loadSyx(syxPath));
 
 const syxVoiceNames = createSyxVoiceNames(
     (workspacePath) =>
@@ -1126,11 +1126,13 @@ registerIPCHandler(
                     mediaFileExists(currentWorkspaceRoot, relative),
                 sampleRate: synth.sampleRate(),
                 workspaceRoot: currentWorkspaceRoot,
-                loadMediaAudio: inWavWorkspace((mediaPath) =>
-                    synth.loadMediaAudio(mediaPath),
-                ),
-                loadWav: inWavWorkspace((wavPath) => synth.loadWav(wavPath)),
-                loadSyx,
+                loaders: {
+                    mediaAudio: inAssetWorkspace((mediaPath) =>
+                        synth.loadMediaAudio(mediaPath),
+                    ),
+                    wav: inAssetWorkspace((wavPath) => synth.loadWav(wavPath)),
+                    syx: loadSyx,
+                },
             });
             patch.moduleIdRemaps = [];
 

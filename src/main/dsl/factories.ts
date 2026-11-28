@@ -22,7 +22,12 @@ import { processModuleSchema } from './paramsSchema';
 import { cycleSettings, isPatternPayload, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
-import { isDx7VoiceRef } from '../../shared/dx7Voice';
+import {
+    ASSET_PARAM_TYPES,
+    isWavRef,
+    loaderUnavailable,
+    type LoadAsset,
+} from './assetParams';
 import {
     captureSourceLocation,
     setDSLWrapperLineOffset,
@@ -56,16 +61,6 @@ export function setActiveSpanRegistry(registry: SpanRegistry | null): void {
  */
 export type ArgumentSpans = Record<string, SourceSpan>;
 
-/** A `wav` param value already resolved to the engine's reference. */
-function isWavRef(value: unknown): boolean {
-    return (
-        typeof value === 'object' &&
-        value !== null &&
-        'type' in value &&
-        value.type === 'wav_ref'
-    );
-}
-
 /**
  * What a `derived` module carries: stereo when a file it plays has two
  * channels, mono when every file's channel count is known, and otherwise
@@ -73,7 +68,7 @@ function isWavRef(value: unknown): boolean {
  */
 function fileChannels(files: unknown[]): Channels {
     const counts = files.map((file) =>
-        isWavRef(file) ? (file as { channels?: unknown }).channels : undefined,
+        isWavRef(file) ? file.channels : undefined,
     );
     if (counts.includes(2)) {
         return 'stereo';
@@ -302,15 +297,8 @@ export class DSLContext {
     factories: Record<string, FactoryFunction> = {};
     namespaceTree: NamespaceTree = {};
     private builder: GraphBuilder;
-    private resolveWav: (module: string, path: unknown) => unknown = (
-        module,
-    ) => {
-        throw new Error(`${module}: WAV loading is not available`);
-    };
-    private resolveDx7Voice: (module: string, value: unknown) => unknown = (
-        module,
-    ) => {
-        throw new Error(`${module}: .syx loading is not available`);
+    private loadAsset: LoadAsset = (module, loader) => {
+        throw loaderUnavailable(module, loader);
     };
 
     constructor(schemas: ModuleSchema[]) {
@@ -337,22 +325,9 @@ export class DSLContext {
         this.namespaceTree = buildNamespaceTree(schemas, this.factories);
     }
 
-    /**
-     * Sets how a `wav` param's path becomes the engine's reference to the
-     * decoded file; `module` names the module in errors.
-     */
-    setWavResolver(resolve: (module: string, path: unknown) => unknown): void {
-        this.resolveWav = resolve;
-    }
-
-    /**
-     * Sets how a DX7 `voice` param's `.syx` path and `#name` become the
-     * voice's bytes; `module` names the module in errors.
-     */
-    setDx7VoiceResolver(
-        resolve: (module: string, value: unknown) => unknown,
-    ): void {
-        this.resolveDx7Voice = resolve;
+    /** Sets how an asset param's checked path is read. */
+    setAssetLoader(load: LoadAsset): void {
+        this.loadAsset = load;
     }
 
     /**
@@ -409,11 +384,11 @@ export class DSLContext {
         const outputs = schema.outputs || [];
         const rootOutputs = resolvableOutputs(schema);
         const processed = processModuleSchema(schema);
+        const assetParams = processed.params.flatMap(({ assetType, name }) =>
+            assetType ? [{ name, type: ASSET_PARAM_TYPES[assetType] }] : [],
+        );
         const wavParamNames = processed.params
-            .filter((p) => p.isWavInput)
-            .map((p) => p.name);
-        const dx7VoiceParamNames = processed.params
-            .filter((p) => p.isDx7VoiceInput)
+            .filter((p) => p.assetType === 'Wav')
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
         const signalParamNames = new Set(
@@ -489,20 +464,12 @@ export class DSLContext {
                 }
             }
 
-            // A `wav` param is a path; the reference the engine reads also
-            // carries the file's lane count, so the file loads here.
-            for (const name of wavParamNames) {
-                if (!isWavRef(params[name])) {
-                    params[name] = this.resolveWav(schema.name, params[name]);
-                }
-            }
-            for (const name of dx7VoiceParamNames) {
-                if (!isDx7VoiceRef(params[name])) {
-                    params[name] = this.resolveDx7Voice(
-                        schema.name,
-                        params[name],
-                    );
-                }
+            for (const { name, type } of assetParams) {
+                params[name] = type.resolve(
+                    schema.name,
+                    params[name],
+                    this.loadAsset,
+                );
             }
 
             // A pattern carries the spans of its own source literals, so

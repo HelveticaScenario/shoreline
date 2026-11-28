@@ -2215,22 +2215,24 @@ describe('script execution environment', () => {
         expect(() =>
             executePatchScript("$wavMeta('/wavs/kick.wav')", schemas, {
                 ...DEFAULT_EXECUTION_OPTIONS,
-                loadWav: (path: string) => {
-                    spinFor(10_000);
-                    return {
-                        bitDepth: 16,
-                        channels: 1,
-                        cuePoints: [],
-                        duration: 1,
-                        frameCount: 48_000,
-                        loops: [],
-                        mtime: 0,
-                        path,
-                        sampleRate: 48_000,
-                    };
+                loaders: {
+                    wav: (path: string) => {
+                        spinFor(10_000);
+                        return {
+                            bitDepth: 16,
+                            channels: 1,
+                            cuePoints: [],
+                            duration: 1,
+                            frameCount: 48_000,
+                            loops: [],
+                            mtime: 0,
+                            path,
+                            sampleRate: 48_000,
+                        };
+                    },
                 },
             }),
-        ).toThrow(/loading WAV files — loaded files stay cached/);
+        ).toThrow(/loading files — loaded files stay cached/);
     }, 15_000);
 
     test('top-level return ends the patch script early', () => {
@@ -2563,7 +2565,7 @@ describe('WAV paths and $wavMeta', () => {
     function execWithWavs(source: string) {
         return executePatchScript(source, schemas, {
             ...DEFAULT_EXECUTION_OPTIONS,
-            loadWav,
+            loaders: { wav: loadWav },
         });
     }
 
@@ -2626,8 +2628,12 @@ describe('WAV paths and $wavMeta', () => {
         expect(() =>
             executePatchScript("out: $sampler('/wavs/snare.wav', 5)", schemas, {
                 ...DEFAULT_EXECUTION_OPTIONS,
-                loadWav: (path: string) => {
-                    throw new Error(`no file ${path} in the workspace folder`);
+                loaders: {
+                    wav: (path: string) => {
+                        throw new Error(
+                            `no file ${path} in the workspace folder`,
+                        );
+                    },
                 },
             }),
         ).toThrow(/no file \/wavs\/snare.wav in the workspace folder/);
@@ -2711,22 +2717,24 @@ describe('WAV paths and $wavMeta', () => {
             schemas,
             {
                 ...DEFAULT_EXECUTION_OPTIONS,
-                loadWav: (path: string) => ({
-                    channels: 1,
-                    frameCount: 44100,
-                    path,
-                    sampleRate: 44100,
-                    duration: 1.0,
-                    bitDepth: 24,
-                    pitch: 0.75,
-                    playback: 'loop',
-                    bpm: 120.0,
-                    beats: 4,
-                    timeSignature: { num: 4, den: 4 },
-                    loops: [{ loopType: 'forward', start: 0.0, end: 0.5 }],
-                    cuePoints: [{ position: 0.5, label: 'Middle' }],
-                    mtime: 1_700_000_000_000,
-                }),
+                loaders: {
+                    wav: (path: string) => ({
+                        channels: 1,
+                        frameCount: 44100,
+                        path,
+                        sampleRate: 44100,
+                        duration: 1.0,
+                        bitDepth: 24,
+                        pitch: 0.75,
+                        playback: 'loop',
+                        bpm: 120.0,
+                        beats: 4,
+                        timeSignature: { num: 4, den: 4 },
+                        loops: [{ loopType: 'forward', start: 0.0, end: 0.5 }],
+                        cuePoints: [{ position: 0.5, label: 'Middle' }],
+                        mtime: 1_700_000_000_000,
+                    }),
+                },
             },
         );
         expect(findModules(result.patch, '$sine').length).toBe(1);
@@ -2763,7 +2771,7 @@ describe('$phase helpers', () => {
     function execWithWavs(source: string) {
         return executePatchScript(source, schemas, {
             ...DEFAULT_EXECUTION_OPTIONS,
-            loadWav,
+            loaders: { wav: loadWav },
         });
     }
 

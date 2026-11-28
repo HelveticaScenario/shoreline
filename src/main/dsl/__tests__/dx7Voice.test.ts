@@ -31,7 +31,7 @@ function voiceOf(source: string) {
     const { patch } = executePatchScript(source, schemas as ModuleSchema[], {
         sampleRate: 48_000,
         workspaceRoot: '/workspace',
-        loadSyx,
+        loaders: { syx: loadSyx },
     });
     const sixOp = patch.modules.find((m) => m.moduleType === '$mi.sixOp');
     return { patch, voice: sixOp?.params.voice };

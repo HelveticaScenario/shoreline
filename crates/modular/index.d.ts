@@ -80,8 +80,8 @@ export declare class Synthesizer {
    * (`/...`) or bundled (`builtin/...`) path.
    */
   loadSyx(path: string): Array<SyxVoiceInfo>
-  /** Set the workspace root directory for WAV file loading. */
-  setWavWorkspace(workspacePath: string): void
+  /** Set the workspace folder that `/...` asset paths name. */
+  setAssetWorkspace(workspacePath: string): void
   /**
    * Set the folder holding the assets bundled with the app, which
    * `builtin/...` paths name.

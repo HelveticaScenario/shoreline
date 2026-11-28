@@ -1,5 +1,6 @@
 #[cfg(feature = "alloc-detector")]
 mod alloc_detector;
+mod asset_files;
 
 mod audio;
 mod commands;
@@ -51,6 +52,7 @@ use modular_core::{
 use napi::Result;
 use napi_derive::napi;
 
+use crate::asset_files::AssetResolver;
 use crate::audio::{
     ApplyPatchError, AudioBudgetSnapshot, AudioDeviceCache, AudioState, CurrentAudioState,
     DeviceCacheSnapshot, HostDeviceInfo, PatchSubmission, TransportSnapshot,
@@ -279,54 +281,6 @@ struct WavCacheEntry {
 
 struct WavCache {
     entries: HashMap<String, WavCacheEntry>,
-    workspace_path: PathBuf,
-    /// The folder `builtin/...` paths name: the assets bundled with the app.
-    builtin_path: PathBuf,
-}
-
-/// The prefix of a path naming an asset bundled with the app. A workspace path
-/// starts with `/`, so the two never collide.
-const BUILTIN_PREFIX: &str = "builtin/";
-
-/// Why `file_inside` found no file.
-enum FileInsideError {
-    /// The path is not plain names, or it leads out of the folder.
-    Outside,
-    /// The file or the folder cannot be read.
-    Unreadable(std::io::Error),
-}
-
-/// Whether links in a folder may lead out of it.
-#[derive(Clone, Copy)]
-enum Links {
-    /// Followed wherever they point: a workspace can link in a sample library.
-    Followed,
-    /// Followed only to files inside the folder: the bundled assets.
-    Contained,
-}
-
-/// The file `relative` names inside `root`, with links followed as `links`
-/// allows.
-fn file_inside(
-    root: &Path,
-    relative: &str,
-    links: Links,
-) -> std::result::Result<PathBuf, FileInsideError> {
-    let relative = Path::new(relative);
-    let mut components = relative.components().peekable();
-    if components.peek().is_none()
-        || !components.all(|c| matches!(c, std::path::Component::Normal(_)))
-    {
-        return Err(FileInsideError::Outside);
-    }
-    let file = std::fs::canonicalize(root.join(relative)).map_err(FileInsideError::Unreadable)?;
-    if let Links::Contained = links {
-        let root = std::fs::canonicalize(root).map_err(FileInsideError::Unreadable)?;
-        if !file.starts_with(&root) {
-            return Err(FileInsideError::Outside);
-        }
-    }
-    Ok(file)
 }
 
 fn build_wav_load_info(
@@ -392,24 +346,17 @@ fn mtime_to_epoch_millis(mtime: SystemTime) -> f64 {
 }
 
 impl WavCache {
-    fn new(workspace_path: PathBuf) -> Self {
+    fn new() -> Self {
         Self {
             entries: HashMap::new(),
-            workspace_path,
-            builtin_path: PathBuf::new(),
         }
     }
 
-    fn set_builtin_path(&mut self, path: PathBuf) {
-        self.builtin_path = path;
-    }
-
-    fn set_workspace_path(&mut self, path: PathBuf) {
-        if self.workspace_path != path {
-            self.entries
-                .retain(|key, _| key.starts_with(BUILTIN_PREFIX));
-            self.workspace_path = path;
-        }
+    /// Drop every workspace file, keeping the bundled ones, for a new
+    /// workspace folder.
+    fn forget_workspace_files(&mut self) {
+        self.entries
+            .retain(|key, _| key.starts_with(asset_files::BUILTIN_PREFIX));
     }
 
     /// Snapshot all cached WAV data as Arc clones (cheap) for PatchUpdate.
@@ -420,45 +367,15 @@ impl WavCache {
             .collect()
     }
 
-    /// The file `path` names: a workspace-rooted `/...` path or a bundled
-    /// `builtin/...` one. Every segment after the prefix must be a plain name.
-    /// A workspace file may lie wherever its links lead; a bundled file, with
-    /// links followed, must lie inside the bundled folder.
-    fn asset_file(&self, path: &str) -> Result<PathBuf> {
-        if let Some(relative) = path.strip_prefix(BUILTIN_PREFIX) {
-            return file_inside(&self.builtin_path, relative, Links::Contained).map_err(|e| {
-                napi::Error::from_reason(match e {
-                    FileInsideError::Outside => {
-                        format!("path must name a built-in file: {path}")
-                    }
-                    FileInsideError::Unreadable(e) => format!("no built-in file {path} ({e})"),
-                })
-            });
-        }
-        if self.workspace_path.as_os_str().is_empty() {
-            return Err(napi::Error::from_reason(format!(
-                "open a workspace folder to load {path}"
-            )));
-        }
-        let outside = || {
-            napi::Error::from_reason(format!(
-                "path must name a file inside the workspace folder: {path}"
-            ))
-        };
-        let relative = path.strip_prefix('/').ok_or_else(outside)?;
-        file_inside(&self.workspace_path, relative, Links::Followed).map_err(|e| match e {
-            FileInsideError::Outside => outside(),
-            FileInsideError::Unreadable(e) => {
-                napi::Error::from_reason(format!("no file {path} in the workspace folder ({e})"))
-            }
-        })
-    }
-
     /// Decode the audio track of a workspace media file, returning cached data
     /// if mtime hasn't changed. `None` means the file has no audio track. The
     /// entry is keyed `media:<path>`, which is also the path of the returned
     /// info, so a `Wav` built from it resolves to this entry.
-    fn load_media_audio(&mut self, rel_path: &str) -> Result<Option<WavLoadInfo>> {
+    fn load_media_audio(
+        &mut self,
+        assets: &AssetResolver,
+        rel_path: &str,
+    ) -> Result<Option<WavLoadInfo>> {
         let relative = std::path::Path::new(rel_path);
         if relative.is_absolute()
             || relative
@@ -470,7 +387,7 @@ impl WavCache {
             )));
         }
         let key = format!("media:{rel_path}");
-        let full_path = self.workspace_path.join(relative);
+        let full_path = assets.workspace_path().join(relative);
         let metadata = std::fs::metadata(&full_path).map_err(|e| {
             napi::Error::from_reason(format!(
                 "media file not found: {} ({e})",
@@ -538,10 +455,11 @@ impl WavCache {
     }
 
     /// Load a WAV file, returning cached data if mtime hasn't changed.
-    /// `path` is a workspace or built-in path (see `asset_file`), and is also
-    /// the cache key a `Wav` parameter uses to find the decoded audio.
-    fn load(&mut self, path: &str) -> Result<WavLoadInfo> {
-        let full_path = self.asset_file(path)?;
+    /// `path` is a workspace or built-in path (see `AssetResolver::file`),
+    /// and is also the cache key a `Wav` parameter uses to find the decoded
+    /// audio.
+    fn load(&mut self, assets: &AssetResolver, path: &str) -> Result<WavLoadInfo> {
+        let full_path = assets.file(path)?;
 
         let metadata = std::fs::metadata(&full_path)
             .map_err(|e| napi::Error::from_reason(format!("cannot read {path} ({e})")))?;
@@ -783,6 +701,7 @@ pub struct Synthesizer {
     default_poll_host: Option<(String, cpal::Host)>,
     fallback_warning: Option<String>,
     next_update_id: u64,
+    assets: AssetResolver,
     wav_cache: WavCache,
 }
 
@@ -843,7 +762,8 @@ impl Synthesizer {
             default_poll_host: None,
             fallback_warning,
             next_update_id: 0,
-            wav_cache: WavCache::new(PathBuf::new()),
+            assets: AssetResolver::default(),
+            wav_cache: WavCache::new(),
         })
     }
 
@@ -1067,7 +987,7 @@ impl Synthesizer {
     /// sample. `path` starts with `/`, the workspace root.
     #[napi]
     pub fn load_wav(&mut self, path: String) -> Result<WavLoadInfo> {
-        self.wav_cache.load(&path)
+        self.wav_cache.load(&self.assets, &path)
     }
 
     /// Decode the audio track of a workspace media file into the cache. `None`
@@ -1075,31 +995,35 @@ impl Synthesizer {
     /// parameter uses to refer to the decoded audio.
     #[napi]
     pub fn load_media_audio(&mut self, path: String) -> Result<Option<WavLoadInfo>> {
-        self.wav_cache.load_media_audio(&path)
+        self.wav_cache.load_media_audio(&self.assets, &path)
     }
 
     /// The DX7 voices of a `.syx` file, in file order. `path` is a workspace
     /// (`/...`) or bundled (`builtin/...`) path.
     #[napi]
     pub fn load_syx(&self, path: String) -> Result<Vec<SyxVoiceInfo>> {
-        let file = self.wav_cache.asset_file(&path)?;
+        let file = self.assets.file(&path)?;
         let bytes = std::fs::read(&file)
             .map_err(|e| napi::Error::from_reason(format!("cannot read {path} ({e})")))?;
         syx_voices(&bytes).map_err(|e| napi::Error::from_reason(format!("{path}: {e}")))
     }
 
-    /// Set the workspace root directory for WAV file loading.
+    /// Set the workspace folder that `/...` asset paths name.
     #[napi]
-    pub fn set_wav_workspace(&mut self, workspace_path: String) {
-        self.wav_cache
-            .set_workspace_path(PathBuf::from(workspace_path));
+    pub fn set_asset_workspace(&mut self, workspace_path: String) {
+        if self
+            .assets
+            .set_workspace_path(PathBuf::from(workspace_path))
+        {
+            self.wav_cache.forget_workspace_files();
+        }
     }
 
     /// Set the folder holding the assets bundled with the app, which
     /// `builtin/...` paths name.
     #[napi]
     pub fn set_builtin_assets(&mut self, builtin_path: String) {
-        self.wav_cache.set_builtin_path(PathBuf::from(builtin_path));
+        self.assets.set_builtin_path(PathBuf::from(builtin_path));
     }
 
     /// Get the list of currently cached WAV file paths.
@@ -1887,6 +1811,7 @@ mod detect_wavetable_tests {
 #[cfg(test)]
 mod wav_cache_tests {
     use super::WavCache;
+    use crate::asset_files::AssetResolver;
     use std::io::Write;
     use std::path::PathBuf;
 
@@ -1943,8 +1868,10 @@ mod wav_cache_tests {
             .expect("write wav");
         let file_len = std::fs::metadata(&wav_path).expect("stat wav").len();
 
-        let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("/wavs/hostile.wav");
+        let mut assets = AssetResolver::default();
+        assets.set_workspace_path(workspace.clone());
+        let mut cache = WavCache::new();
+        let result = cache.load(&assets, "/wavs/hostile.wav");
         let _ = std::fs::remove_dir_all(&workspace);
 
         result.expect("a wav with an overlong data chunk must decode");
@@ -1992,8 +1919,10 @@ mod wav_cache_tests {
             .and_then(|mut f| f.write_all(&bytes))
             .expect("write wav");
 
-        let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("/wavs/trunc.wav");
+        let mut assets = AssetResolver::default();
+        assets.set_workspace_path(workspace.clone());
+        let mut cache = WavCache::new();
+        let result = cache.load(&assets, "/wavs/trunc.wav");
         let _ = std::fs::remove_dir_all(&workspace);
 
         result.expect("truncated stereo wav must decode without error");
@@ -2033,8 +1962,10 @@ mod wav_cache_tests {
         std::fs::File::create(workspace.join("wavs").join("odd.wav"))
             .and_then(|mut f| f.write_all(&bytes))
             .expect("write wav");
-        let mut cache = WavCache::new(workspace.clone());
-        let result = cache.load("/wavs/odd.wav");
+        let mut assets = AssetResolver::default();
+        assets.set_workspace_path(workspace.clone());
+        let mut cache = WavCache::new();
+        let result = cache.load(&assets, "/wavs/odd.wav");
         let _ = std::fs::remove_dir_all(&workspace);
 
         let info = result.expect("a wav with an odd-length chunk must decode");
@@ -2045,84 +1976,12 @@ mod wav_cache_tests {
     }
 
     #[test]
-    fn paths_resolve_from_the_workspace_root_and_follow_its_links() {
-        let workspace = temp_workspace("paths");
-        let outside = temp_workspace("paths_outside");
-        std::fs::File::create(workspace.join("wavs").join("kick.wav")).expect("write wav");
-        std::fs::File::create(outside.join("wavs").join("linked.wav")).expect("write wav");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(outside.join("wavs"), workspace.join("linked")).expect("link");
-        let cache = WavCache::new(workspace.clone());
-
-        let resolved = cache.asset_file("/wavs/kick.wav");
-        #[cfg(unix)]
-        let linked = cache.asset_file("/linked/linked.wav");
-        let escapes: Vec<_> = [
-            "wavs/kick.wav",
-            "/",
-            "//wavs/kick.wav",
-            "/../kick.wav",
-            "/wavs/../../kick.wav",
-            "/./wavs/kick.wav",
-        ]
-        .into_iter()
-        .filter(|bad| cache.asset_file(bad).is_ok())
-        .collect();
-        let _ = std::fs::remove_dir_all(&workspace);
-        let _ = std::fs::remove_dir_all(&outside);
-
-        assert!(
-            resolved.expect("rooted path").ends_with("wavs/kick.wav"),
-            "a plain rooted path resolves inside the workspace"
-        );
-        #[cfg(unix)]
-        assert!(
-            linked.expect("linked path").ends_with("wavs/linked.wav"),
-            "a link out of the workspace is followed"
-        );
-        assert!(escapes.is_empty(), "accepted {escapes:?}");
-    }
-
-    #[test]
-    fn builtin_paths_resolve_from_the_builtin_folder_and_stay_inside_it() {
-        let builtin = temp_workspace("builtin");
-        let outside = temp_workspace("builtin_outside");
-        std::fs::File::create(builtin.join("wavs").join("table.wav")).expect("write wav");
-        std::fs::File::create(outside.join("wavs").join("secret.wav")).expect("write wav");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(outside.join("wavs"), builtin.join("linked")).expect("link");
-        let mut cache = WavCache::new(std::path::PathBuf::new());
-        cache.set_builtin_path(builtin.clone());
-
-        let resolved = cache.asset_file("builtin/wavs/table.wav");
-        let escapes: Vec<_> = [
-            "builtin/",
-            "builtin//wavs/table.wav",
-            "builtin/../wavs/table.wav",
-            "builtin/./wavs/table.wav",
-            "builtin/linked/secret.wav",
-        ]
-        .into_iter()
-        .filter(|bad| cache.asset_file(bad).is_ok())
-        .collect();
-        let _ = std::fs::remove_dir_all(&builtin);
-        let _ = std::fs::remove_dir_all(&outside);
-
-        assert!(
-            resolved
-                .expect("builtin path without a workspace")
-                .ends_with("wavs/table.wav"),
-            "a builtin path resolves inside the builtin folder"
-        );
-        assert!(escapes.is_empty(), "accepted {escapes:?}");
-    }
-
-    #[test]
     fn bundled_wavetables_load_as_whole_frames_of_2048() {
         let assets = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../assets/builtin");
         let tables = assets.join("tables/mi");
-        let mut cache = WavCache::new(std::path::PathBuf::new());
-        cache.set_builtin_path(assets);
+        let mut resolver = AssetResolver::default();
+        resolver.set_builtin_path(assets);
+        let mut cache = WavCache::new();
         let mut names: Vec<_> = std::fs::read_dir(&tables)
             .expect("bundled tables")
             .filter_map(|e| e.ok()?.file_name().into_string().ok())
@@ -2133,7 +1992,7 @@ mod wav_cache_tests {
         for name in names {
             let path = format!("builtin/tables/mi/{name}");
             let info = cache
-                .load(&path)
+                .load(&resolver, &path)
                 .unwrap_or_else(|e| panic!("{path}: {}", e.reason));
             assert_eq!(info.channels, 1, "{path}");
             assert!(
@@ -2147,16 +2006,5 @@ mod wav_cache_tests {
                 "{path}"
             );
         }
-    }
-
-    #[test]
-    fn without_a_workspace_no_path_resolves() {
-        let cache = WavCache::new(std::path::PathBuf::new());
-        let error = cache.asset_file("/kick.wav").expect_err("no workspace");
-        assert!(
-            error.reason.contains("open a workspace folder"),
-            "{}",
-            error.reason
-        );
     }
 }
