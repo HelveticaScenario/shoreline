@@ -1,3 +1,0 @@
-kind: New
-body: 'A brick-wall lowpass filter, `$lpfLeapfrog`, modelled on the North Coast Synthesis Leapfrog: a five-pole near-elliptic response with nulls at twice and three times the cutoff, a rippling passband that rings on sharp edges, and `resonance` that feeds it back through a clipper until it sings about a fourth below the cutoff.'
-time: 2026-11-25T01:16:45.349098-05:00

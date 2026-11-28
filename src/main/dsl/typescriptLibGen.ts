@@ -1591,7 +1591,7 @@ function generateMultiOutputInterface(
     const defaultOutput = outputs.find((o) => o.default) || outputs[0];
     // Read as a signal itself, the module is the output a `cv` input takes.
     const cvOutput = chooseOutput(outputs, 'cv');
-    const baseType = getOutputType(outputs.find((o) => o.name === cvOutput)!);
+    const baseType = getOutputType(outputs.find((o) => o.name === cvOutput));
 
     const interfaceName = getMultiOutputInterfaceName(moduleSchema);
     // Chained from a bus or group, the module and each output keep the

@@ -1,8 +1,0 @@
-kind: New
-body: |-
-    New `$vToHz` turns a pitch into its frequency in Hz, so `'200hz'` becomes 200. Feed it to `addHz` to detune by an amount set as a pitch, such as an Hz slider:
-
-    ```js
-    pitch.addHz($slider('offset', '1hz', '1hz', '1000hz').vToHz())
-    ```
-time: 2026-11-28T02:02:41.682538-05:00

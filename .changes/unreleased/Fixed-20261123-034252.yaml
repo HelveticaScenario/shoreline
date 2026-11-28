@@ -1,3 +1,0 @@
-kind: Fixed
-body: Deleting the file open in the editor moves to the neighbouring tab, the same as closing it.
-time: 2026-11-23T03:42:52.81972-05:00

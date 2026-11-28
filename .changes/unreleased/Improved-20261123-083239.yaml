@@ -1,3 +1,0 @@
-kind: Improved
-body: 'A module with several outputs stays a bus or group when chained from `$bus()` or `$group()`, whichever output is read: `$bus().xover()._low` is a bus that tracks can send to. Its `.concat()` also takes a plain signal, which follows every output.'
-time: 2026-11-23T08:32:39.866721-05:00

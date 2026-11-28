@@ -1,5 +1,103 @@
 # Changelog
 
+## v0.5.0 — November 28, 2026
+
+### Breaking
+
+- `$mi.ringHat` is now part of `$mi.hiHat`: one trigger plays both hats, `_square` is the 808-style hat, `_ring` the ring-modulated one, and `mix` crossfades its default output from the first into the second, so you can sweep or accent between them. `$mi.hiHat` on its own sounds as before, but its `_output` is now `_square`.
+  
+  ```js
+  // before
+  hats: $mi.ringHat('a3', { trigger })
+  closed: $mi.hiHat('a3', { trigger })._output
+  // after
+  hats: $mi.hiHat('a3', { trigger })._ring
+  closed: $mi.hiHat('a3', { trigger })._square
+  ```
+- The `$unstable.filter.*` modules are removed. Use the filters that stay: `$lpf`, `$hpf`, `$bpf`, `$notch` and `$apf`, their `Sk`, `Ladder`, `Diode` and `Ota` variants such as `$lpfLadder` and `$lpfDiode`, `$multimode` and `$jup6f`. They take the sound, then the frequency, then `resonance` where they have one, so a call keeps its arguments, but the sound changes.
+  
+  ```js
+  // before
+  bass: $unstable.filter.lp($saw('c2'), $sine('0.1hz').range('c3', 'c6'), 3)
+  // after
+  bass: $lpf($saw('c2'), $sine('0.1hz').range('c3', 'c6'), 3)
+  ```
+- `$mi.phaseDistortion` no longer starts each new voice with a click: a new voice stays silent until its wave first crosses zero, which shaves a fraction of a cycle off its start. Set `waitForZeroCross` to `false` to hear the old start:
+  
+  ```js
+  // before
+  bass: $mi.phaseDistortion('c2')
+  // after: sounding as before
+  bass: $mi.phaseDistortion('c2', { waitForZeroCross: false })
+  ```
+- `$mi.sixOp` plays voices from DX7 `.syx` files: pass a file as its second argument, and add `#` and a voice name to pick one voice from a bank (`'/dx7/rom1a.syx#E.PIANO 1'`). Autocomplete lists every voice of every `.syx` file in your workspace. Plaits' 96 voices are built in, one file each under `builtin/dx7/plaits/`, and `bank` and `patch` are gone. It also plays up to `voices` notes at once, 2 unless you set it (up to 8), so each note's release rings on under the next; a note past the count fades out the oldest. Set `voices: 1` for one note at a time.
+  
+  ```js
+  // before
+  keys: $mi.sixOp(seq, { gate: seq, bank: 1, patch: 0 })
+  // after
+  keys: $mi.sixOp(seq, 'builtin/dx7/plaits/e-piano-1.syx', { gate: seq })
+  ```
+- The rest of the `$unstable` modules are gone too. `$unstable.reverb2` is now `$hall`, with the same sound and params, and is marked experimental, so its sound and params may still change. `$unstable.reverb` is removed: `$hall` takes the same params, so a call keeps its arguments, but the sound changes. The `$unstable.shape.*` modules are removed: use `$overdrive`, `$fold`, `$cheby` or `$softClip`, and retune `drive` or `amount` by ear, since their curves differ.
+  
+  ```js
+  // before
+  pad: $saw("c3").unstable.reverb2({ decay: 2 }).wet(2)
+  lead: $saw("c4").unstable.shape.saturate("soft", 2)
+  // after
+  pad: $saw("c3").hall({ decay: 2 }).wet(2)
+  lead: $saw("c4").overdrive(2)
+  ```
+- `$scopeXY` and `$v.scopeXY` draw one stereo signal: the left side moves the beam across and the right side moves it up, one trace per lane. A stereo wav holding a drawing in its two channels now plays straight into the scope. Join separate x and y signals with `$stereo`.
+  
+  ```js
+  // before
+  $scopeXY($sine('c3'), $sine('g3'), { lineWidth: 1.5 })
+  // after
+  $scopeXY($stereo($sine('c3'), $sine('g3')), { lineWidth: 1.5 })
+  ```
+- `$hz` is now `$hzToV`, naming the direction it converts beside the new `$vToHz`.
+  
+  ```js
+  // before
+  tone: $sine($hz(440))
+  // after
+  tone: $sine($hzToV(440))
+  ```
+
+### New
+
+- `$lpf`, `$hpf` and `$bpf` have a second output, `._24db`: a steeper 4-pole version of the filter. Used on its own, each still gives its 2-pole sound, also available as `._12db`. A new `$notch` cuts a band instead: one null on `._12db`, two spread around the centre on `._24db`.
+- Analog-modelled filters in four families, each saturating in its own way and self-oscillating at high resonance: Sallen-Key (`$lpfSk`, `$hpfSk`, `$bpfSk`, `$notchSk`), transistor ladder (`$lpfLadder`, `$hpfLadder`, `$bpfLadder`, `$notchLadder`, `$apfLadder`), diode ladder (`$lpfDiode`, `$hpfDiode`, `$bpfDiode`, `$notchDiode`) and OTA cascade (`$lpfOta`, `$hpfOta`, `$bpfOta`, `$notchOta`, `$apfOta`). Each has `._12db` and `._24db` outputs, the ladder, diode and OTA lowpasses and highpasses add `._6db` and `._18db`, and `drive` raises the level into the filter. On the Sallen-Key filters only the resonance clips, so a hot input swamps it for a wild, unruly sound.
+- A brick-wall lowpass filter, `$lpfLeapfrog`, modelled on the North Coast Synthesis Leapfrog: a five-pole near-elliptic response with nulls at twice and three times the cutoff, a rippling passband that rings on sharp edges, and `resonance` that feeds it back through a clipper until it sings about a fourth below the cutoff.
+- Wasp filters, after the EDP Wasp's logic-chip filter: `$lpfWasp`, `$hpfWasp`, `$bpfWasp`, `$notchWasp` and `$apfWasp`, each a 12 dB filter that turns dirty and erratic when fed a loud signal and whistles at full resonance without self-oscillating. They have no `drive` (the level you feed them is the drive) and pass no DC.
+- The Docs panel has a Guide: chapters from your first sound through patterns, controls and mixing, ending in a cheat sheet, with examples to copy and your own keyboard shortcuts.
+- New `$softClip` rounds off peaks above a knee so a signal never passes its `ceiling`, leaving quieter material untouched. The ceiling defaults to the audio output's full scale, so `$setEndOfChainCb((mix) => mix.softClip())` catches the whole mix before it clips at the output. `knee` sets how gradual the rounding is, from a hard clip at 0 to fully rounded at 5. `_tanh` rounds into the same ceiling along a gentler tanh curve, and saturates at every level when `knee` is 5.
+- New `$vToHz` turns a pitch into its frequency in Hz, so `'200hz'` becomes 200. Feed it to `addHz` to detune by an amount set as a pitch, such as an Hz slider:
+  
+  ```js
+  pitch.addHz($slider('offset', '1hz', '1hz', '1000hz').vToHz())
+  ```
+
+### Improved
+
+- `$multimode` uses less CPU when only some of its outputs are patched, such as just its main output or `._lp`.
+- A module with several outputs stays a bus or group when chained from `$bus()` or `$group()`, whichever output is read: `$bus().xover()._low` is a bus that tracks can send to. Its `.concat()` also takes a plain signal, which follows every output.
+- Shoreline runs on Electron 45, bringing a newer Chromium with its security fixes.
+- Path autocomplete in strings stays quick in workspaces with thousands of files: the list is read once and kept until files change, instead of being read from disk on every `/`.
+- Code examples in the Docs panel read like the editor: hover a name to see its docs and see the same output hints. Go to Definition, or Cmd/Ctrl-click, on a module, global or type, in an example or your patch, opens its page in the Docs panel. Each example also has a copy button, so you can paste it straight into a patch.
+- Format Document keeps a `.wet(...)` on the same line as the effect it mixes, so a long chain reads one effect per line, as in `.plate().wet(2)`.
+
+### Fixed
+
+- A param's default on its Docs panel card shows names such as `fall` (on `$slew`'s `rise`) as code, the way the editor's hover does, instead of with raw backticks.
+- Deleting the file open in the editor moves to the neighbouring tab, the same as closing it.
+- Clicking and then double-clicking a file in the explorer before it has loaded no longer opens it twice.
+- Reopening the audio settings while devices are still being listed no longer resets the choices you made there.
+- Scopes, `$v.preview` panels and inline EQ panels stay with their buffer when you switch to another tab and back, and the editor returns to where you left it.
+- The docs examples for `$lpf` and `$hpf` no longer clip the output when you run them.
+- `$mi.sixOp` no longer clicks at note-ons: fast attacks ramp in over half a millisecond as on Plaits, and a new note never restarts a voice that is still sounding, which clicked on voices whose oscillators restart at every note (DX7 key sync, as in `cs-80.syx`).
+
 ## v0.4.1 — November 22, 2026
 
 ### New
