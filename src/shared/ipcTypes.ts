@@ -325,18 +325,21 @@ export interface EditorContextMenuOptions {
     type: 'editor';
     /** Items in display order; a `null` entry renders as a separator. */
     items: (ContextMenuItemDescriptor | null)[];
+    /** The editor the chosen item acts on. */
+    target: 'editor' | 'docsExample';
 }
 
 export type ContextMenuOptions =
     FileContextMenuOptions | EditorContextMenuOptions;
 
-export type ContextMenuCommand = 'save' | 'rename' | 'delete' | 'editor';
+export type ContextMenuCommand =
+    'save' | 'rename' | 'delete' | 'editor' | 'docsExample';
 
 export interface ContextMenuAction {
     command: ContextMenuCommand;
     path?: string;
     bufferId?: string;
-    /** Set when `command === 'editor'`: the id to dispatch in the renderer. */
+    /** Set for `editor` and `docsExample`: the id to dispatch in the renderer. */
     commandId?: string;
 }
 
@@ -435,6 +438,9 @@ export const IPC_CHANNELS = {
     CONFIG_READ: 'modular:config:read',
     CONFIG_WRITE: 'modular:config:write',
     CONFIG_ON_CHANGE: 'modular:config:on-change',
+
+    // Clipboard
+    CLIPBOARD_WRITE_TEXT: 'ui:clipboard-write-text',
 
     // Keybinding operations
     KEYBINDINGS_GET_PATH: 'modular:keybindings:get-path',
@@ -629,6 +635,9 @@ export interface IPCHandlers {
     [IPC_CHANNELS.CONFIG_READ]: () => AppConfig;
     [IPC_CHANNELS.CONFIG_WRITE]: (config: Partial<AppConfig>) => void;
     [IPC_CHANNELS.CONFIG_ON_CHANGE]: (config: AppConfig) => void;
+
+    // Clipboard
+    [IPC_CHANNELS.CLIPBOARD_WRITE_TEXT]: (text: string) => void;
 
     // Keybinding operations
     [IPC_CHANNELS.KEYBINDINGS_GET_PATH]: () => string;

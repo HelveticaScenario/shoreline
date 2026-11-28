@@ -14,12 +14,8 @@ import {
     buildPaletteItems,
     type PaletteItem,
 } from '../keybindings/paletteItems';
-import { toKeyChipGroups } from '../../shared/keybindings/accelerator';
-import electronAPI from '../electronAPI';
+import { KeyChips } from './KeyChips';
 import './CommandPalette.css';
-
-// Chip rendering differs per platform (glyphs on macOS, text elsewhere).
-const PLATFORM = electronAPI.platform === 'darwin' ? 'darwin' : 'other';
 
 export interface CommandPaletteProps {
     open: boolean;
@@ -95,25 +91,7 @@ export function CommandPalette({
                             {item.label}
                         </span>
                         {item.keybinding && (
-                            <span className="command-palette-item-keys">
-                                {toKeyChipGroups(item.keybinding, PLATFORM).map(
-                                    (group, gi) => (
-                                        <span
-                                            key={gi}
-                                            className="command-palette-key-group"
-                                        >
-                                            {group.map((key, ki) => (
-                                                <kbd
-                                                    key={ki}
-                                                    className="command-palette-key"
-                                                >
-                                                    {key}
-                                                </kbd>
-                                            ))}
-                                        </span>
-                                    ),
-                                )}
-                            </span>
+                            <KeyChips binding={item.keybinding} />
                         )}
                     </Command.Item>
                 ))}

@@ -467,7 +467,7 @@ test.describe('docs render', () => {
                     const text = await card.evaluate((el) => {
                         const clone = el.cloneNode(true) as HTMLElement;
                         clone
-                            .querySelectorAll('pre')
+                            .querySelectorAll('pre, .code-example-editor')
                             .forEach((n) => n.remove());
                         clone.querySelectorAll('code').forEach((n) => {
                             n.textContent = n.textContent.replaceAll('`', '');
