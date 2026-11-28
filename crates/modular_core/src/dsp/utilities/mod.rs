@@ -38,6 +38,7 @@ pub mod scan;
 pub mod smooth_control;
 pub mod spread;
 pub mod unison;
+pub mod v_to_hz;
 pub mod video_tap;
 pub mod wrap;
 
@@ -85,6 +86,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     smooth_control::SmoothControl::install_constructor(map);
     spread::Spread::install_constructor(map);
     unison::Unison::install_constructor(map);
+    v_to_hz::VToHz::install_constructor(map);
     video_tap::VideoTap::install_constructor(map);
     wrap::Wrap::install_constructor(map);
 }
@@ -129,6 +131,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     smooth_control::SmoothControl::install_params_deserializer(map);
     spread::Spread::install_params_deserializer(map);
     unison::Unison::install_params_deserializer(map);
+    v_to_hz::VToHz::install_params_deserializer(map);
     video_tap::VideoTap::install_params_deserializer(map);
     wrap::Wrap::install_params_deserializer(map);
 }
@@ -174,6 +177,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         smooth_control::SmoothControl::get_schema(),
         spread::Spread::get_schema(),
         unison::Unison::get_schema(),
+        v_to_hz::VToHz::get_schema(),
         video_tap::VideoTap::get_schema(),
         wrap::Wrap::get_schema(),
     ]

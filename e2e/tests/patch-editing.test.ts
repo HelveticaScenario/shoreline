@@ -17,7 +17,7 @@ test.describe('patch editing', () => {
 
         // Execute initial patch
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $sine($hz(440))');
+            window.__TEST_API__!.setEditorValue('out: $sine($hzToV(440))');
         });
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(2000);
@@ -31,7 +31,7 @@ test.describe('patch editing', () => {
 
         // Modify and re-execute with different frequency
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $saw($hz(220))');
+            window.__TEST_API__!.setEditorValue('out: $saw($hzToV(220))');
         });
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(2000);
@@ -60,7 +60,7 @@ test.describe('patch editing', () => {
 
         // Execute a patch
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $sine($hz(440))');
+            window.__TEST_API__!.setEditorValue('out: $sine($hzToV(440))');
         });
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(1000);
@@ -91,7 +91,7 @@ test.describe('patch editing', () => {
 
         // Execute a patch first
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $sine($hz(440))');
+            window.__TEST_API__!.setEditorValue('out: $sine($hzToV(440))');
         });
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(2000);

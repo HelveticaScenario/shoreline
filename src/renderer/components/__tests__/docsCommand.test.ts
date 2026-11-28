@@ -10,8 +10,8 @@ describe('toDocsTarget', () => {
     });
 
     it('accepts a global', () => {
-        expect(toDocsTarget({ name: '$hz', symbolType: 'global' })).toEqual({
-            name: '$hz',
+        expect(toDocsTarget({ name: '$hzToV', symbolType: 'global' })).toEqual({
+            name: '$hzToV',
             symbolType: 'global',
         });
     });

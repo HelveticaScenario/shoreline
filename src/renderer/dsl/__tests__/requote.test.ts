@@ -18,13 +18,13 @@ const STYLES: QuoteStyle[] = ['single', 'double', 'backtick'];
 
 describe('requote', () => {
     test('quotes strings for each style and keeps the layout', () => {
-        const code = `$hz(440)    // A4\n$note("C4")  // Middle C`;
+        const code = `$hzToV(440)    // A4\n$note("C4")  // Middle C`;
         expect(requote(code, 'single')).toBe(
-            `$hz(440)    // A4\n$note('C4')  // Middle C`,
+            `$hzToV(440)    // A4\n$note('C4')  // Middle C`,
         );
         expect(requote(code, 'double')).toBe(code);
         expect(requote(code, 'backtick')).toBe(
-            '$hz(440)    // A4\n$note(`C4`)  // Middle C',
+            '$hzToV(440)    // A4\n$note(`C4`)  // Middle C',
         );
     });
 

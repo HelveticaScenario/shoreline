@@ -305,7 +305,10 @@ test.describe('editor buffers', () => {
             });
 
         await openUntitledBuffer(window);
-        await setEditor(window, `out: $sine($hz(440)).scope()\n${LONG_PATCH}`);
+        await setEditor(
+            window,
+            `out: $sine($hzToV(440)).scope()\n${LONG_PATCH}`,
+        );
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await expect.poll(async () => (await view()).scopes).toBe(1);
 

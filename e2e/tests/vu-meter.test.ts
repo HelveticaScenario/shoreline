@@ -6,9 +6,10 @@
 
 import { test, expect, openUntitledBuffer } from '../fixtures';
 
-const TWO_OUT_PATCH = [`lead: $sine($hz(440))`, `bass$0m: $saw($hz(110))`].join(
-    '\n',
-);
+const TWO_OUT_PATCH = [
+    `lead: $sine($hzToV(440))`,
+    `bass$0m: $saw($hzToV(110))`,
+].join('\n');
 
 /** Sum of a frame's per-channel rms for the given tap module id. */
 async function rmsFor(
@@ -400,7 +401,7 @@ test.describe('vu meter panel', () => {
             window.__TEST_API__!.getEditorValue(),
         );
         expect(reverted).not.toContain('gain:');
-        expect(reverted).toContain(`lead: $sine($hz(440))\n`);
+        expect(reverted).toContain(`lead: $sine($hzToV(440))\n`);
     });
 
     test('mixer controls still edit the code while the patch is stopped', async ({
@@ -484,7 +485,7 @@ test.describe('vu meter panel', () => {
     }) => {
         await playPatch(
             window,
-            [`lead: $sine($hz(440)).track({ gain: 3 })`],
+            [`lead: $sine($hzToV(440)).track({ gain: 3 })`],
             'lead',
         );
         await window.waitForTimeout(500);
@@ -496,13 +497,15 @@ test.describe('vu meter panel', () => {
         await window.waitForTimeout(300);
         expect(
             await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
-        ).toBe(`lead: $sine($hz(440))`);
+        ).toBe(`lead: $sine($hzToV(440))`);
 
         await canvas.click({ position: { x: 20, y: 15 } });
         await window.waitForTimeout(300);
         expect(
             await window.evaluate(() => window.__TEST_API__!.getEditorValue()),
-        ).toMatch(/^lead: \$sine\(\$hz\(440\)\)\.track\(\{ gain: [\d.]+ \}\)$/);
+        ).toMatch(
+            /^lead: \$sine\(\$hzToV\(440\)\)\.track\(\{ gain: [\d.]+ \}\)$/,
+        );
     });
 
     test('a bus track meters what is sent to it', async ({
@@ -511,7 +514,7 @@ test.describe('vu meter panel', () => {
         await playPatch(
             window,
             [
-                `dry: $sine($hz(440)).track({ sends: [fx, 5] })`,
+                `dry: $sine($hzToV(440)).track({ sends: [fx, 5] })`,
                 `fx$2: $bus().lpf('c8')`,
             ],
             'fx',
@@ -541,8 +544,8 @@ test.describe('vu meter panel', () => {
         await playPatch(
             window,
             [
-                `lead: $sine($hz(440))`,
-                `pad: $saw($hz(220)).track({ sends: [verb, $sine(1).range(0, 5)] })`,
+                `lead: $sine($hzToV(440))`,
+                `pad: $saw($hzToV(220)).track({ sends: [verb, $sine(1).range(0, 5)] })`,
                 `fx$2: $bus().lpf('c8')`,
                 `verb$4: $bus()`,
             ],
@@ -585,7 +588,7 @@ test.describe('vu meter panel', () => {
         await window.mouse.up();
         await expect
             .poll(source)
-            .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
+            .toContain(`lead: $sine($hzToV(440)).track({ sends: [fx, 2] })`);
         await window.screenshot({ path: testInfo.outputPath('sends.png') });
 
         // Released at 0, the send and then the `.track()` go.
@@ -593,7 +596,7 @@ test.describe('vu meter panel', () => {
         await window.mouse.down();
         await window.mouse.move(x, y + 60, { steps: 5 });
         await window.mouse.up();
-        await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
+        await expect.poll(source).toMatch(/^lead: \$sine\(\$hzToV\(440\)\)$/m);
         await expect
             .poll(() => rmsFor(window, '__vuTap_fx'), { timeout: 10_000 })
             .toBeLessThan(0.001);
@@ -604,7 +607,7 @@ test.describe('vu meter panel', () => {
     }) => {
         await playPatch(
             window,
-            [`lead: $sine($hz(440))`, `fx$2: $bus()`],
+            [`lead: $sine($hzToV(440))`, `fx$2: $bus()`],
             'fx',
         );
         const dial = window
@@ -628,14 +631,14 @@ test.describe('vu meter panel', () => {
         // dial shows the code-side level as a ghost.
         await expect
             .poll(source)
-            .toContain(`lead: $sine($hz(440)).track({ sends: [fx, 2] })`);
+            .toContain(`lead: $sine($hzToV(440)).track({ sends: [fx, 2] })`);
         await expect(dial.locator('.vu-knob-ghost')).toHaveCount(1);
         await window.waitForTimeout(1000);
         expect(await rmsFor(window, '__vuTap_fx')).toBeLessThan(0.001);
 
         // Cmd-right-click puts the code back to what is playing.
         await dial.click({ button: 'right', modifiers: ['Meta'] });
-        await expect.poll(source).toMatch(/^lead: \$sine\(\$hz\(440\)\)$/m);
+        await expect.poll(source).toMatch(/^lead: \$sine\(\$hzToV\(440\)\)$/m);
         await expect(dial.locator('.vu-knob-ghost')).toHaveCount(0);
     });
 
@@ -646,7 +649,7 @@ test.describe('vu meter panel', () => {
         await playPatch(
             window,
             [
-                `lead: $sine($hz(440))`,
+                `lead: $sine($hzToV(440))`,
                 ...buses.map((n, i) => `${n}$${2 + 2 * i}: $bus()`),
             ],
             'l',
@@ -661,12 +664,12 @@ test.describe('vu meter panel', () => {
         await playPatch(
             window,
             [
-                `kick$drums: $sine($hz(55))`,
+                `kick$drums: $sine($hzToV(55))`,
                 `hats$drums: $noise()`,
                 `drums$rhythm: $group().lpf('c8')`,
-                `bass$rhythm: $saw($hz(110))`,
+                `bass$rhythm: $saw($hzToV(110))`,
                 `rhythm: $group()`,
-                `lead: $sine($hz(440))`,
+                `lead: $sine($hzToV(440))`,
             ],
             'lead',
         );
@@ -708,7 +711,7 @@ test.describe('vu meter panel', () => {
 
         await openUntitledBuffer(window);
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('$sine($hz(440))');
+            window.__TEST_API__!.setEditorValue('$sine($hzToV(440))');
         });
         await window.evaluate(() => window.__TEST_API__!.executePatch());
         await window.waitForTimeout(1500);
