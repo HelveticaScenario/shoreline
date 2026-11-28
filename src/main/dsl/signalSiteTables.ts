@@ -3,6 +3,8 @@ import type {
     ModuleSiteInfo,
     SignalSiteTables,
 } from '../../shared/dsl/signalSites';
+import type { AssetKind } from '../../shared/assetFiles';
+import { GLOBAL_ASSET_ARGUMENTS } from '../../shared/dsl/assetArguments';
 import { dslModules } from '../../shared/dsl/dslModuleDocs';
 import { functionName } from '../../shared/dsl/referenceDocs';
 import { CHAIN_METHODS } from './chainMethods';
@@ -113,6 +115,7 @@ export function buildSignalSiteTables(
     schemas: ModuleSchema[],
 ): SignalSiteTables {
     const tables: SignalSiteTables = {
+        assets: { ...GLOBAL_ASSET_ARGUMENTS },
         chainMethods: CHAIN_METHODS,
         globals: GLOBAL_CHANNELS,
         modules: {
@@ -154,6 +157,18 @@ export function buildSignalSiteTables(
             positional: (schema.positionalArgs ?? []).map((p) => p.name),
             stereo: schema.stereo as ModuleSiteInfo['stereo'],
         };
+        const assets: Record<number, AssetKind> = {};
+        (schema.positionalArgs ?? []).forEach(({ name }, index) => {
+            const param = processed.params.find((p) => p.name === name);
+            if (param?.isWavInput) {
+                assets[index] = 'wav';
+            } else if (param?.isDx7VoiceInput) {
+                assets[index] = 'syx';
+            }
+        });
+        if (Object.keys(assets).length > 0) {
+            tables.assets[schema.name] = assets;
+        }
         if ((schema.outputs ?? []).length > 1) {
             const outputs = resolvableOutputs(schema);
             tables.roots[qualifiedMultiOutputInterfaceName(schema)] = outputs;

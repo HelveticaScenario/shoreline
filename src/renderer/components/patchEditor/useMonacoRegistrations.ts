@@ -10,6 +10,7 @@ import { registerConfigSchema } from '../monaco/jsonSchema';
 import { setupMonacoJavascript } from '../monaco/monacoLanguage';
 import { registerDslFormattingProvider } from '../monaco/formattingProvider';
 import { registerMidiCompletionProvider } from '../monaco/midiCompletionProvider';
+import { dslWorker } from '../monaco/dslWorker';
 import { registerWorkspacePathCompletionProvider } from '../monaco/workspacePathCompletion';
 import { createWorkspaceAssetIndex } from '../monaco/workspaceAssetIndex';
 import { onWorkspaceRefresh } from '../../app/workspaceRefresh';
@@ -100,9 +101,19 @@ export function useMonacoRegistrations({
             ...electronAPI.filesystem,
             onTreeChange: onWorkspaceRefresh,
         });
+        const tables = electronAPI.getSignalSiteTables();
         const provider = registerWorkspacePathCompletionProvider(
             monaco,
             index.suggestions,
+            async (model, position) => {
+                const worker = await dslWorker(monaco, model.uri);
+                const kind = await worker.getAssetKind(
+                    model.uri.toString(),
+                    model.getOffsetAt(position),
+                    await tables,
+                );
+                return kind ?? undefined;
+            },
         );
         return () => {
             provider.dispose();

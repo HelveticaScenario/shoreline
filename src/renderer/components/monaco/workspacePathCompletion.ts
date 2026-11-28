@@ -1,11 +1,12 @@
 /**
  * Completes asset paths in string literals: workspace files, and each voice
  * of a `.syx` file, in a literal that starts with `/` (the workspace folder),
- * bundled files in one that starts with `builtin/` or part of it. Also
- * inserts files dropped from the explorer.
+ * bundled files in one that starts with `builtin/` or part of it. A literal
+ * its call takes a kind of file in offers that kind alone. Also inserts files
+ * dropped from the explorer.
  */
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import type { IRange, editor, languages } from 'monaco-editor';
+import type { IPosition, IRange, editor, languages } from 'monaco-editor';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
 import type { AssetKind } from '../../../shared/assetFiles';
 import {
@@ -159,9 +160,10 @@ export function quotePath(path: string, preferred: string): string {
     return `${quote}${body}${quote}`;
 }
 
-/** A path offered for completion and the words shown beside it. */
+/** A path offered for completion, its kind and the words shown beside it. */
 export interface PathSuggestion {
     path: string;
+    kind: AssetKind;
     detail: string;
 }
 
@@ -171,13 +173,18 @@ function voiceSuggestions(
     names: readonly string[],
 ): PathSuggestion[] {
     if (names.length === 1) {
-        return [{ path, detail: `DX7 voice ${names[0]}` }];
+        return [{ path, kind: 'syx', detail: `DX7 voice ${names[0]}` }];
     }
     const fragments = voiceFragments(names);
     return [
-        { path, detail: `${ASSET_DETAILS.syx}: the first, ${names[0]}` },
+        {
+            path,
+            kind: 'syx',
+            detail: `${ASSET_DETAILS.syx}: the first, ${names[0]}`,
+        },
         ...fragments.map((fragment, i) => ({
             path: `${path}#${fragment}`,
+            kind: 'syx' as const,
             detail: `DX7 voice ${i + 1} of ${names.length}: ${names[i]}`,
         })),
     ];
@@ -196,13 +203,14 @@ export function workspaceSuggestions(
         const fileNames = kind === 'syx' ? names.get(path) : undefined;
         return fileNames && fileNames.length > 0
             ? voiceSuggestions(path, fileNames)
-            : [{ path, detail: ASSET_DETAILS[kind] }];
+            : [{ path, kind, detail: ASSET_DETAILS[kind] }];
     });
 }
 
 const BUILTIN_SUGGESTIONS: PathSuggestion[] = [
     ...BUILTIN_WAVETABLES.map(({ path }) => ({
         path,
+        kind: 'wav' as const,
         detail: ASSET_DETAILS.wav,
     })),
     ...BUILTIN_DX7_VOICES.flatMap(({ path, name }) =>
@@ -238,11 +246,16 @@ function quoted(list: readonly PathSuggestion[], quote: string): string[] {
  * and the voices of `.syx` files when the literal starts with `/`, bundled
  * files when it starts with `builtin/` or part of it. `workspace` gives the
  * workspace's suggestions; it should answer from a cache, since it is asked
- * on every request.
+ * on every request. `expectedKind` tells the kind of file the literal at a
+ * position names, when its call tells; every kind is offered otherwise.
  */
 export function registerWorkspacePathCompletionProvider(
     monaco: Monaco,
     workspace: () => Promise<readonly PathSuggestion[]>,
+    expectedKind: (
+        model: editor.ITextModel,
+        position: IPosition,
+    ) => Promise<AssetKind | undefined> = async () => undefined,
 ): { dispose: () => void } {
     const provider: languages.CompletionItemProvider = {
         triggerCharacters: ['/', '#'],
@@ -260,10 +273,11 @@ export function registerWorkspacePathCompletionProvider(
                 (BUILTIN_PREFIX.startsWith(typed) ||
                     typed.startsWith(BUILTIN_PREFIX));
             if (!inWorkspace && !builtin) return undefined;
-            const lists = [
-                inWorkspace ? await workspace() : [],
-                builtin ? BUILTIN_SUGGESTIONS : [],
-            ];
+            const [kind, workspaceList] = await Promise.all([
+                expectedKind(model, position),
+                inWorkspace ? workspace() : [],
+            ]);
+            const lists = [workspaceList, builtin ? BUILTIN_SUGGESTIONS : []];
             // The whole literal, quotes included, is replaced: the path may
             // need the other quote, and accepting never leaves the rest of an
             // earlier path behind. In an unclosed literal the rest of the line
@@ -274,15 +288,16 @@ export function registerWorkspacePathCompletionProvider(
                 startColumn: span.contentStart - 1,
                 endColumn: span.closed ? span.contentEnd + 1 : position.column,
             };
-            const kind = monaco.languages.CompletionItemKind.File;
+            const itemKind = monaco.languages.CompletionItemKind.File;
             const suggestions: languages.CompletionItem[] = [];
             for (const list of lists) {
                 const literals = quoted(list, span.quote);
                 for (let i = 0; i < list.length; i++) {
+                    if (kind && list[i].kind !== kind) continue;
                     const { path, detail } = list[i];
                     suggestions.push({
                         label: path,
-                        kind,
+                        kind: itemKind,
                         detail,
                         insertText: literals[i],
                         filterText: `${span.quote}${path}`,

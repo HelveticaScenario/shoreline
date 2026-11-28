@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { languages } from 'monaco-editor';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
+import type { AssetKind } from '../../../shared/assetFiles';
 import {
     WORKSPACE_PATH_MIME,
     installWorkspacePathDrop,
@@ -238,7 +239,7 @@ const VOICES = [
     { path: '/dx7/lone.syx', names: ['BRASS 1'] },
 ];
 
-function makeProvider(): languages.CompletionItemProvider {
+function makeProvider(kind?: AssetKind): languages.CompletionItemProvider {
     let captured: languages.CompletionItemProvider | undefined;
     const monaco = {
         languages: {
@@ -253,16 +254,18 @@ function makeProvider(): languages.CompletionItemProvider {
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
-    registerWorkspacePathCompletionProvider(monaco, async () =>
-        workspaceSuggestions(assetPaths(TREE), VOICES),
+    registerWorkspacePathCompletionProvider(
+        monaco,
+        async () => workspaceSuggestions(assetPaths(TREE), VOICES),
+        async () => kind,
     );
     return captured!;
 }
 
-async function complete(line: string, column: number) {
+async function complete(line: string, column: number, kind?: AssetKind) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const any = {} as any;
-    return (await makeProvider().provideCompletionItems(
+    return (await makeProvider(kind).provideCompletionItems(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         { getLineContent: () => line } as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -411,6 +414,34 @@ describe('workspace path completion', () => {
     test('offers nothing in an empty literal or one starting with anything else', async () => {
         expect(await complete("$sine('c4')", 9)).toBeUndefined();
         expect(await complete("$sampler('', 5)", 11)).toBeUndefined();
+    });
+
+    test('a literal its call takes one kind of file in offers that kind', async () => {
+        const wavs = await complete("$sampler('/', 5)", 12, 'wav');
+        expect(wavs?.suggestions.map((s) => s.insertText)).toEqual([
+            "'/wavs/kick.wav'",
+            `"/wavs/don't.wav"`,
+            "'/wavs/pads/warm.wav'",
+        ]);
+        const voices = await complete("$mi.sixOp('c3', '/')", 19, 'syx');
+        expect(
+            voices?.suggestions.every((s) =>
+                (s.label as string).startsWith('/dx7/'),
+            ),
+        ).toBe(true);
+        expect(voices?.suggestions).toHaveLength(6);
+        const images = await complete("$v.image('/')", 12, 'image');
+        expect(images?.suggestions.map((s) => s.insertText)).toEqual([
+            "'/pictures/photo.png'",
+        ]);
+        const tables = await complete(
+            "$wavetable('c3', 'builtin/')",
+            27,
+            'wav',
+        );
+        expect(tables?.suggestions.map((s) => s.insertText)).toEqual(
+            BUILTIN_WAVETABLES.map((a) => `'${a.path}'`),
+        );
     });
 
     test('offers nothing outside a literal', async () => {
