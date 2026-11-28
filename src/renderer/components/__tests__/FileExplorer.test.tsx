@@ -77,6 +77,8 @@ function renderExplorer(props: {
     });
 }
 
+const resizeCallbacks: (() => void)[] = [];
+
 // jsdom lays nothing out, so the virtualized tree gets a fixed size to render
 // its rows into.
 beforeEach(() => {
@@ -84,9 +86,13 @@ beforeEach(() => {
         globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
     ).IS_REACT_ACT_ENVIRONMENT = true;
     window.localStorage.clear();
+    resizeCallbacks.length = 0;
     vi.stubGlobal(
         'ResizeObserver',
         class {
+            constructor(callback: () => void) {
+                resizeCallbacks.push(callback);
+            }
             observe() {}
             disconnect() {}
         },
@@ -171,6 +177,31 @@ describe('workspace-tree folders', () => {
                 window.localStorage.getItem('modular_expanded_folders')!,
             ),
         ).toEqual(['samples']);
+    });
+
+    test('double-clicking a folder toggles it once per click', () => {
+        renderExplorer({ renamingPath: null });
+        const entry = () => container!.querySelector('.tree-folder')!;
+        act(() => {
+            entry().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            entry().dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            entry().dispatchEvent(
+                new MouseEvent('dblclick', { bubbles: true }),
+            );
+        });
+        expect(names()).toEqual(['samples', 'song.mjs']);
+    });
+
+    test('a tree mounted while hidden shows its rows once visible', () => {
+        const height = vi
+            .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
+            .mockReturnValue(0);
+        renderExplorer({ renamingPath: null });
+        expect(names()).toEqual([]);
+
+        height.mockReturnValue(20);
+        act(() => resizeCallbacks.forEach((callback) => callback()));
+        expect(names()).toEqual(['samples', 'song.mjs']);
     });
 
     test('a folder expanded at the last launch opens expanded', () => {

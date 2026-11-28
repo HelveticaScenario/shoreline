@@ -106,6 +106,10 @@
 .file-list-section {
     display: flex;
     flex-direction: column;
+}
+
+/* Leaves the workspace tree most of the sidebar. */
+.file-list-section:has(+ .file-tree-section) {
     max-height: 40%;
 }
 

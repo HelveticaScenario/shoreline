@@ -102,19 +102,26 @@ function openNode(
     }
 }
 
-/** The row height and indent the stylesheet sets, in pixels. */
+/**
+ * The row height and indent the stylesheet sets, in pixels. They read as 0
+ * while the explorer is hidden, and are measured again once it shows.
+ */
 function useRowMetrics() {
-    const probeRef = useRef<HTMLDivElement>(null);
+    const [probe, setProbe] = useState<HTMLDivElement | null>(null);
     const [metrics, setMetrics] = useState({ indent: 0, rowHeight: 0 });
     useLayoutEffect(() => {
-        const probe = probeRef.current;
         if (!probe) return;
-        setMetrics({
-            indent: probe.offsetWidth,
-            rowHeight: probe.offsetHeight,
-        });
-    }, []);
-    return [probeRef, metrics] as const;
+        const measure = () =>
+            setMetrics({
+                indent: probe.offsetWidth,
+                rowHeight: probe.offsetHeight,
+            });
+        measure();
+        const observer = new ResizeObserver(measure);
+        observer.observe(probe);
+        return () => observer.disconnect();
+    }, [probe]);
+    return [setProbe, metrics] as const;
 }
 
 /** The content-box size of the element `ref` is attached to. */
@@ -176,6 +183,16 @@ export function WorkspaceTree({
             ref={setContainer}
             onKeyDown={handleKeyDown}
             onDragEnter={() => setDragInside(true)}
+            onDragOver={(e) => {
+                // An entry dragged within the tree only moves, so a drag
+                // held with Option or Alt, which asks to copy, moves too.
+                if (
+                    e.dataTransfer.dropEffect === 'copy' &&
+                    treeRef.current?.dragNodes.length
+                ) {
+                    e.dataTransfer.dropEffect = 'move';
+                }
+            }}
             onDragLeave={(e) => {
                 if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
                     setDragInside(false);
@@ -198,6 +215,12 @@ export function WorkspaceTree({
                             selection={activeId}
                             disableMultiSelection
                             disableEdit
+                            disableDrag={(entry) =>
+                                toAbsoluteWorkspacePath(
+                                    ctx.workspaceRoot,
+                                    entry.path,
+                                ) === ctx.renamingPath
+                            }
                             disableDrop={({ parentNode, dragNodes }) =>
                                 dragNodes.every(
                                     (n) => n.parent?.id === parentNode.id,
@@ -248,14 +271,13 @@ export function WorkspaceTree({
     );
 }
 
-// Moves always land in a folder, whose rows highlight instead of a line
-// between rows.
+// A move always lands in a folder, whose rows highlight to show it.
 const NoCursor = () => null;
 
 /**
  * The row a patch file or folder drag carries, shown only over the tree since
  * such a drag can land nowhere else. An asset drag shows the browser's own
- * drag image instead, which follows the pointer into the editor.
+ * drag image, which follows the pointer into the editor.
  */
 function DragPreview({ id, offset, isDragging }: DragPreviewProps) {
     const { dragInside, tree } = useContext(PreviewContext)!;
@@ -332,7 +354,9 @@ function TreeRow({
             title={
                 asset ? `Drag into the editor to use /${entry.path}` : undefined
             }
-            onDoubleClick={() => openNode(node, ctx, false)}
+            onDoubleClick={
+                node.isLeaf ? () => openNode(node, ctx, false) : undefined
+            }
             onContextMenu={(e) => ctx.onContextMenu(e, entry)}
             onDragStart={handleDragStart}
         >

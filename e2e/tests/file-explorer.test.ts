@@ -166,6 +166,20 @@ test.describe('workspace tree', () => {
         ).toHaveCount(1);
     });
 
+    test('a drag held with Alt still moves', async ({
+        electronApp,
+        window,
+    }) => {
+        const root = await workspaceDir(electronApp);
+        await window.keyboard.down('Alt');
+        await dragOnto(window, row(window, 'loose.js'), row(window, 'songs'));
+        await window.keyboard.up('Alt');
+
+        await expect
+            .poll(() => fs.existsSync(path.join(root, 'songs', 'loose.js')))
+            .toBe(true);
+    });
+
     test('a move never overwrites a file of the same name', async ({
         electronApp,
         window,

@@ -84,13 +84,20 @@ export function useFileRenameDelete({
         await refreshFileTree();
     };
 
-    /** Points the buffers of `oldPath`, or of any file under it, at `newPath`. */
+    /**
+     * Points the buffers of `oldPath`, or of any file under it, at `newPath`.
+     * The view state of `oldPath` itself moves even while it has no buffer,
+     * so a closed file reopens where it was left.
+     */
     const carryBuffers = (oldPath: string, newPath: string) => {
+        viewStates.move(oldPath, newPath);
         for (const buffer of buffers) {
             if (buffer.kind !== 'file') continue;
             const moved = movedPath(buffer.filePath, oldPath, newPath);
             if (moved) {
-                viewStates.move(buffer.filePath, moved);
+                if (moved !== newPath) {
+                    viewStates.move(buffer.filePath, moved);
+                }
                 dispatch({
                     newPath: moved,
                     oldPath: buffer.filePath,
