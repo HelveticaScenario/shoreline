@@ -4,7 +4,7 @@ import type { EditorBuffer } from '../../types/editor';
 import { fsError } from '../../utils/errorUtils';
 import { resolveFileTarget } from '../bufferList';
 import type { BufferAction } from '../bufferState';
-import { renamedFilePath } from '../buffers';
+import { renamedFilePath, toAbsoluteWorkspacePath } from '../buffers';
 import type { EditorViewStates } from '../editorViewStates';
 
 interface UseFileRenameDeleteParams {
@@ -16,7 +16,16 @@ interface UseFileRenameDeleteParams {
     viewStates: EditorViewStates;
 }
 
-/** Renaming and deleting files on disk, carrying their open buffers along. */
+/** The path `filePath` takes when the file or folder `oldPath` moves to `newPath`. */
+const movedPath = (filePath: string, oldPath: string, newPath: string) => {
+    if (filePath === oldPath) return newPath;
+    const rest = filePath.slice(oldPath.length);
+    return rest.startsWith('/') || rest.startsWith('\\')
+        ? newPath + rest
+        : undefined;
+};
+
+/** Renaming, moving and deleting files on disk, carrying their open buffers along. */
 export function useFileRenameDelete({
     buffers,
     activeBufferId,
@@ -57,9 +66,45 @@ export function useFileRenameDelete({
             throw fsError(result, 'Failed to rename file');
         }
 
-        viewStates.move(oldPath, newPath);
-        dispatch({ newPath, oldPath, type: 'renameFile' });
+        carryBuffers(oldPath, newPath);
         await refreshFileTree();
+    };
+
+    /** Moves the workspace-relative entry `fromPath` to `toPath`. */
+    const moveEntry = async (fromPath: string, toPath: string) => {
+        const result = await electronAPI.filesystem.moveFile(fromPath, toPath);
+        if (!result.success) {
+            throw fsError(result, 'Failed to move file');
+        }
+
+        carryBuffers(
+            toAbsoluteWorkspacePath(workspaceRoot, fromPath),
+            toAbsoluteWorkspacePath(workspaceRoot, toPath),
+        );
+        await refreshFileTree();
+    };
+
+    /**
+     * Points the buffers of `oldPath`, or of any file under it, at `newPath`.
+     * The view state of `oldPath` itself moves even while it has no buffer,
+     * so a closed file reopens where it was left.
+     */
+    const carryBuffers = (oldPath: string, newPath: string) => {
+        viewStates.move(oldPath, newPath);
+        for (const buffer of buffers) {
+            if (buffer.kind !== 'file') continue;
+            const moved = movedPath(buffer.filePath, oldPath, newPath);
+            if (moved) {
+                if (moved !== newPath) {
+                    viewStates.move(buffer.filePath, moved);
+                }
+                dispatch({
+                    newPath: moved,
+                    oldPath: buffer.filePath,
+                    type: 'renameFile',
+                });
+            }
+        }
     };
 
     const deleteFile = async (targetIdOrPath?: string) => {
@@ -84,6 +129,7 @@ export function useFileRenameDelete({
     return {
         deleteFile,
         handleRenameCommit,
+        moveEntry,
         renameFile,
         renamingPath,
         setRenamingPath,

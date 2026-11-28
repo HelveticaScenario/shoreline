@@ -21,6 +21,8 @@
  * - Closing a dirty untitled buffer via the Save choice closes the tab under
  *   the buffer's post-save id; cancelling the save dialog keeps the tab open.
  * - Deleting the file shown in the editor shows the tab closing it would.
+ * - Moving or renaming a file or folder carries the open buffers of every
+ *   file inside it, and a closed file keeps its view state.
  */
 
 import { act, createElement, useEffect } from 'react';
@@ -30,6 +32,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const api = vi.hoisted(() => ({
     filesystem: {
         deleteFile: vi.fn(),
+        moveFile: vi.fn(),
         readFile: vi.fn(),
         renameFile: vi.fn(),
         onFileChanged: vi.fn(),
@@ -94,8 +97,7 @@ beforeEach(() => {
 /** Deliver a change event as the main process's file watcher would. */
 function emitFileChange(filePath: string, content: string) {
     const listener = api.filesystem.onFileChanged.mock.lastCall?.[0] as
-        | ((change: { filePath: string; content: string }) => void)
-        | undefined;
+        ((change: { filePath: string; content: string }) => void) | undefined;
     act(() => listener?.({ content, filePath }));
 }
 
@@ -209,6 +211,81 @@ describe('deleting the file shown in the editor', () => {
             hookRef.current.buffers.map((b) => b.kind === 'file' && b.filePath),
         ).toEqual([`${WORKSPACE}/a.mjs`, `${WORKSPACE}/c.mjs`]);
         expect(hookRef.current.activeBufferId).toBe(`${WORKSPACE}/c.mjs`);
+    });
+});
+
+describe('moving and renaming carry buffers along', () => {
+    const filePaths = (hook: Hook) =>
+        hook.buffers.map((b) => (b.kind === 'file' ? b.filePath : b.id));
+
+    test('moving a folder carries the buffers of the files inside it', async () => {
+        api.filesystem.readFile.mockResolvedValue('content');
+        api.filesystem.moveFile.mockResolvedValue({ success: true });
+        const hookRef = renderBuffersHook();
+        for (const name of ['songs/intro.js', 'songs/a/b.js', 'songs.js']) {
+            await act(async () => {
+                await hookRef.current.openFile(name, { preview: false });
+            });
+        }
+
+        await act(async () => {
+            await hookRef.current.moveEntry('songs', 'lib/songs');
+        });
+
+        expect(api.filesystem.moveFile).toHaveBeenCalledWith(
+            'songs',
+            'lib/songs',
+        );
+        expect(filePaths(hookRef.current)).toEqual([
+            `${WORKSPACE}/lib/songs/intro.js`,
+            `${WORKSPACE}/lib/songs/a/b.js`,
+            `${WORKSPACE}/songs.js`,
+        ]);
+    });
+
+    test('a refused move leaves the buffers where they were', async () => {
+        api.filesystem.readFile.mockResolvedValue('content');
+        api.filesystem.moveFile.mockResolvedValue({
+            error: 'A file with that name already exists.',
+            success: false,
+        });
+        const hookRef = renderBuffersHook();
+        await act(async () => {
+            await hookRef.current.openFile('a.js', { preview: false });
+        });
+
+        await act(async () => {
+            await expect(
+                hookRef.current.moveEntry('a.js', 'lib/a.js'),
+            ).rejects.toThrow('already exists');
+        });
+
+        expect(filePaths(hookRef.current)).toEqual([`${WORKSPACE}/a.js`]);
+    });
+
+    test('renaming a closed file keeps its view state', async () => {
+        api.filesystem.readFile.mockResolvedValue('content');
+        api.filesystem.renameFile.mockResolvedValue({ success: true });
+        const hookRef = renderBuffersHook();
+        const state = { scrollTop: 40 };
+        const editor = {
+            restoreViewState: vi.fn(),
+            saveViewState: vi.fn(() => state),
+        } as unknown as Parameters<Hook['viewStates']['beforeShow']>[0];
+        const { viewStates } = hookRef.current;
+        viewStates.beforeShow(editor, `${WORKSPACE}/a.js`);
+        viewStates.beforeShow(editor, `${WORKSPACE}/b.js`);
+
+        await act(async () => {
+            await hookRef.current.handleRenameCommit(
+                `${WORKSPACE}/a.js`,
+                'c.js',
+            );
+        });
+        viewStates.beforeShow(editor, `${WORKSPACE}/c.js`);
+        viewStates.afterShow();
+
+        expect(editor!.restoreViewState).toHaveBeenCalledWith(state);
     });
 });
 

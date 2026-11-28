@@ -1,0 +1,3 @@
+kind: New
+body: Drag a file or folder in the explorer onto another folder to move it, and its open editors follow it. The workspace tree also moves with the arrow keys, and Enter opens the selected file.
+time: 2026-11-28T02:55:33.073047-05:00

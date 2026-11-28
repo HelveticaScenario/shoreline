@@ -6,8 +6,7 @@ import { getBufferId, toAbsoluteWorkspacePath } from '../app/buffers';
 import electronAPI from '../electronAPI';
 import { bindFileExplorerFocus } from '../keybindings/contextKeyBootstrap';
 import { BufferItem } from './fileExplorer/BufferItem';
-import { TreeNode } from './fileExplorer/TreeNode';
-import { useExpandedFolders } from './fileExplorer/useExpandedFolders';
+import { WorkspaceTree } from './fileExplorer/WorkspaceTree';
 
 interface FileExplorerProps {
     workspaceRoot: string | null;
@@ -25,6 +24,7 @@ interface FileExplorerProps {
     onRenameCommit: (path: string, newName: string) => void;
     onRenameCancel: () => void;
     onKeepBuffer: (bufferId: string) => void;
+    onMoveEntry: (fromPath: string, toPath: string) => void;
 }
 
 function Section({
@@ -43,7 +43,7 @@ function Section({
     children: ReactNode;
 }) {
     return (
-        <div className="section">
+        <div className={`section ${listClassName}-section`}>
             <div className="section-header">
                 <span>{title}</span>
                 <button
@@ -75,6 +75,7 @@ export function FileExplorer({
     onRenameCommit,
     onRenameCancel,
     onKeepBuffer,
+    onMoveEntry,
 }: FileExplorerProps) {
     const rootRef = useRef<HTMLDivElement>(null);
     useEffect(() => {
@@ -82,8 +83,6 @@ export function FileExplorer({
         if (!el) return;
         return bindFileExplorerFocus(el);
     }, []);
-
-    const [expandedPaths, toggleFolder] = useExpandedFolders(fileTree);
 
     const handleBufferContextMenu = (e: MouseEvent, buffer: EditorBuffer) => {
         e.preventDefault();
@@ -167,22 +166,17 @@ export function FileExplorer({
                         {fileTree.length === 0 ? (
                             <div className="empty-message">No files found</div>
                         ) : (
-                            <ul className="tree-root">
-                                {fileTree.map((entry) => (
-                                    <TreeNode
-                                        key={entry.path}
-                                        entry={entry}
-                                        workspaceRoot={workspaceRoot}
-                                        onOpenFile={onOpenFile}
-                                        onContextMenu={handleTreeContextMenu}
-                                        renamingPath={renamingPath}
-                                        onRenameCommit={onRenameCommit}
-                                        onRenameCancel={onRenameCancel}
-                                        expandedPaths={expandedPaths}
-                                        onToggleFolder={toggleFolder}
-                                    />
-                                ))}
-                            </ul>
+                            <WorkspaceTree
+                                workspaceRoot={workspaceRoot}
+                                fileTree={fileTree}
+                                activeFilePath={activeBufferId}
+                                renamingPath={renamingPath}
+                                onOpenFile={onOpenFile}
+                                onContextMenu={handleTreeContextMenu}
+                                onRenameCommit={onRenameCommit}
+                                onRenameCancel={onRenameCancel}
+                                onMove={onMoveEntry}
+                            />
                         )}
                     </Section>
                 )}
