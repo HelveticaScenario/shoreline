@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import type { ModuleProfileSample } from '@modular/core';
-import type { SortingState } from '@tanstack/react-table';
+import type { OnChangeFn, SortingState } from '@tanstack/react-table';
 import electronAPI from '../electronAPI';
 import { useOverlayPanel } from '../hooks/useOverlayPanel';
+import { useAudioState, useModuleProfile } from '../queries/engine';
 import { ModuleProfileTable } from './moduleProfile/ModuleProfileTable';
 import {
     profileColumns,
@@ -24,70 +24,18 @@ const SAMPLE_RATE_OPTIONS = [
 ];
 
 export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
-    const [rows, setRows] = useState<ModuleProfileSample[] | null>(null);
     const [sorting, setSorting] = useState<SortingState>([
         { id: 'self', desc: true },
     ]);
     const [sampleRate, setSampleRate] = useState(16);
     const [unit, setUnit] = useState<Unit>('ns');
-    const [sampleRateHz, setSampleRateHz] = useState(48000);
-    const [bufferSize, setBufferSize] = useState(256);
+    const { data: audioState } = useAudioState(isOpen);
+    const sampleRateHz = audioState?.sampleRate ?? 48000;
+    const bufferSize =
+        audioState?.bufferSize && audioState.bufferSize > 0
+            ? audioState.bufferSize
+            : 256;
     const panelRef = useOverlayPanel(isOpen, onClose);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        electronAPI.audio
-            .getCurrentState()
-            .then((s) => {
-                setSampleRateHz(s.sampleRate);
-                if (s.bufferSize && s.bufferSize > 0) {
-                    setBufferSize(s.bufferSize);
-                }
-            })
-            .catch(console.error);
-    }, [isOpen]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        let cancelled = false;
-        let intervalId: ReturnType<typeof setInterval> | null = null;
-
-        const poll = () => {
-            electronAPI.synthesizer
-                .getModuleProfile()
-                .then((data) => {
-                    if (!cancelled) setRows(data);
-                })
-                .catch(console.error);
-        };
-
-        // Enable, then poll. Keyed on `isOpen` only: the sampling rate is
-        // set by the effect below, so changing it never tears down and
-        // re-enables profiling. The enable refcounts on the Rust side
-        // (AudioState), so concurrent consumers remain safe if this re-runs.
-        void (async () => {
-            try {
-                await electronAPI.synthesizer.setModuleProfilingEnabled(true);
-                // The cleanup always issues the balancing disable, so just
-                // bail here. Disabling again would double-decrement the
-                // refcounted enable on the Rust side.
-                if (cancelled) return;
-                poll();
-                intervalId = setInterval(poll, 1000);
-            } catch (err) {
-                console.error(err);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-            if (intervalId !== null) clearInterval(intervalId);
-            electronAPI.synthesizer
-                .setModuleProfilingEnabled(false)
-                .catch(console.error);
-            setRows(null);
-        };
-    }, [isOpen]);
 
     // The dropdown sets how many audio callbacks the engine times (1 in
     // `sampleRate`). That setting is separate from the enable refcount and
@@ -99,9 +47,6 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
             .setModuleProfilingSampleRate(sampleRate)
             .catch(console.error);
     }, [isOpen, sampleRate]);
-
-    const data = rows ? toDisplayRows(rows) : [];
-    const columns = profileColumns(data, unit, sampleRateHz);
 
     if (!isOpen) return null;
 
@@ -173,22 +118,73 @@ export function ModuleProfile({ isOpen, onClose }: ModuleProfileProps) {
                         cycle (per-sample wrapper); <em>block</em> = acyclic
                         (per-block wrapper).
                     </p>
-                    {rows === null ? (
-                        <div className="module-profile-loading">Loading…</div>
-                    ) : data.length === 0 ? (
-                        <div className="module-profile-loading">
-                            No module activity yet.
-                        </div>
-                    ) : (
-                        <ModuleProfileTable
-                            data={data}
-                            columns={columns}
-                            sorting={sorting}
-                            onSortingChange={setSorting}
-                        />
-                    )}
+                    <ModuleProfileRows
+                        sampleRateHz={sampleRateHz}
+                        sorting={sorting}
+                        onSortingChange={setSorting}
+                        unit={unit}
+                    />
                 </div>
             </div>
         </div>
+    );
+}
+
+/**
+ * The profiled modules. Mounted only while the panel is open: it turns
+ * profiling on for as long as it is mounted, and each opening reads afresh.
+ */
+function ModuleProfileRows({
+    sampleRateHz,
+    sorting,
+    onSortingChange,
+    unit,
+}: {
+    sampleRateHz: number;
+    sorting: SortingState;
+    onSortingChange: OnChangeFn<SortingState>;
+    unit: Unit;
+}) {
+    const [profiling, setProfiling] = useState(false);
+    const { data: rows } = useModuleProfile(profiling);
+
+    // The enable refcounts on the Rust side (AudioState), so concurrent
+    // consumers stay safe if this re-runs. The cleanup always issues the
+    // balancing disable, so an enable that lands after unmount must not
+    // disable again: that would double-decrement the refcount.
+    useEffect(() => {
+        let cancelled = false;
+        electronAPI.synthesizer
+            .setModuleProfilingEnabled(true)
+            .then(() => {
+                if (!cancelled) setProfiling(true);
+            })
+            .catch(console.error);
+        return () => {
+            cancelled = true;
+            electronAPI.synthesizer
+                .setModuleProfilingEnabled(false)
+                .catch(console.error);
+        };
+    }, []);
+
+    if (rows === undefined) {
+        return <div className="module-profile-loading">Loading…</div>;
+    }
+    const data = toDisplayRows(rows);
+    if (data.length === 0) {
+        return (
+            <div className="module-profile-loading">
+                No module activity yet.
+            </div>
+        );
+    }
+    return (
+        <ModuleProfileTable
+            data={data}
+            columns={profileColumns(data, unit, sampleRateHz)}
+            sorting={sorting}
+            onSortingChange={onSortingChange}
+        />
     );
 }

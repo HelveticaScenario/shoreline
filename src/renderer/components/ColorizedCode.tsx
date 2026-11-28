@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
-import { useTheme } from '../themes/ThemeContext';
+import { useTheme } from '../themes/useTheme';
 import type { AppTheme } from '../themes/types';
 import { applyMonacoTheme } from './monaco/theme';
 

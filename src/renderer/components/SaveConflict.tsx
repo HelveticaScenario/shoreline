@@ -2,7 +2,7 @@ import { DiffEditor } from '@monaco-editor/react';
 
 import { fontFamilyWithFallback } from '../../shared/fonts';
 import { useOverlayPanel } from '../hooks/useOverlayPanel';
-import { useTheme } from '../themes/ThemeContext';
+import { useTheme } from '../themes/useTheme';
 import { applyMonacoTheme } from './monaco/theme';
 import './SaveConflict.css';
 

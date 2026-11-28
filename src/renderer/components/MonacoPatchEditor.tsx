@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import type { editor } from 'monaco-editor';
-import { useTheme } from '../themes/ThemeContext';
+import { useTheme } from '../themes/useTheme';
 import { useCustomMonaco } from '../hooks/useCustomMonaco';
 import { formatPath } from './monaco/monacoHelpers';
 import type { ScopeView, VideoPreviewZone } from '../types/editor';

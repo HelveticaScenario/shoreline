@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-import type { AudioBudgetSnapshot } from '@modular/core';
-import electronAPI from '../electronAPI';
+import { useEngineHealth } from '../queries/engine';
 import { useOverlayPanel } from '../hooks/useOverlayPanel';
 import './EngineHealth.css';
 
@@ -24,33 +22,7 @@ function formatNs(ns: number): string {
 }
 
 export function EngineHealth({ isOpen, onClose }: EngineHealthProps) {
-    const [snapshot, setSnapshot] = useState<AudioBudgetSnapshot | null>(null);
     const panelRef = useOverlayPanel(isOpen, onClose);
-
-    useEffect(() => {
-        if (!isOpen) return;
-
-        let cancelled = false;
-
-        const poll = () => {
-            electronAPI.synthesizer
-                .getHealth()
-                .then((data) => {
-                    if (!cancelled) setSnapshot(data);
-                })
-                .catch(console.error);
-        };
-
-        poll();
-        const intervalId = setInterval(poll, 1000);
-
-        return () => {
-            cancelled = true;
-            clearInterval(intervalId);
-            // Reset snapshot so next open shows "Loading…" instead of stale data.
-            setSnapshot(null);
-        };
-    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -74,45 +46,46 @@ export function EngineHealth({ isOpen, onClose }: EngineHealthProps) {
                 </div>
 
                 <div className="engine-health-body">
-                    {snapshot === null ? (
-                        <div className="engine-health-loading">Loading…</div>
-                    ) : (
-                        <div className="engine-health-section">
-                            <p className="engine-health-section-title">
-                                Audio CPU
-                            </p>
-                            <div className="engine-health-row">
-                                <span className="engine-health-label">
-                                    Average
-                                </span>
-                                <div className="engine-health-values">
-                                    <span
-                                        className={`engine-health-usage ${usageClass(snapshot.avgUsage)}`}
-                                    >
-                                        {formatUsage(snapshot.avgUsage)}
-                                    </span>
-                                    <span className="engine-health-ns">
-                                        {formatNs(snapshot.avgNsPerSample)}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="engine-health-row">
-                                <span className="engine-health-label">
-                                    Peak
-                                </span>
-                                <div className="engine-health-values">
-                                    <span
-                                        className={`engine-health-usage ${usageClass(snapshot.peakUsage)}`}
-                                    >
-                                        {formatUsage(snapshot.peakUsage)}
-                                    </span>
-                                    <span className="engine-health-ns">
-                                        {formatNs(snapshot.peakNsPerSample)}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
+                    <EngineHealthBody />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/** Mounted only while the panel is open, so each opening reads afresh. */
+function EngineHealthBody() {
+    const { data: snapshot } = useEngineHealth();
+    if (snapshot === undefined) {
+        return <div className="engine-health-loading">Loading…</div>;
+    }
+    return (
+        <div className="engine-health-section">
+            <p className="engine-health-section-title">Audio CPU</p>
+            <div className="engine-health-row">
+                <span className="engine-health-label">Average</span>
+                <div className="engine-health-values">
+                    <span
+                        className={`engine-health-usage ${usageClass(snapshot.avgUsage)}`}
+                    >
+                        {formatUsage(snapshot.avgUsage)}
+                    </span>
+                    <span className="engine-health-ns">
+                        {formatNs(snapshot.avgNsPerSample)}
+                    </span>
+                </div>
+            </div>
+            <div className="engine-health-row">
+                <span className="engine-health-label">Peak</span>
+                <div className="engine-health-values">
+                    <span
+                        className={`engine-health-usage ${usageClass(snapshot.peakUsage)}`}
+                    >
+                        {formatUsage(snapshot.peakUsage)}
+                    </span>
+                    <span className="engine-health-ns">
+                        {formatNs(snapshot.peakNsPerSample)}
+                    </span>
                 </div>
             </div>
         </div>

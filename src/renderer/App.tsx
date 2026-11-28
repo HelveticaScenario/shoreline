@@ -41,13 +41,13 @@ import { codeStyleFromPrettier } from './dsl/listEdits';
 import electronAPI from './electronAPI';
 import { EqPanelController } from './eq/eqPanelController';
 import { useBottomPanel } from './hooks/useBottomPanel';
-import { useEditableConfig } from './hooks/useEditableConfig';
 import { useKeybindingsFile } from './keybindings/useKeybindingsFile';
 import { useKeymap } from './keybindings/useKeymap';
 import { useReservedCtrlEnter } from './keybindings/useReservedCtrlEnter';
 import { MixerController } from './mixer/MixerController';
 import { useMixerJump } from './mixer/useMixerJump';
-import { useTheme } from './themes/ThemeContext';
+import { changeConfig, useConfig } from './queries/config';
+import { useTheme, useThemeCss } from './themes/useTheme';
 import type { EditorBuffer } from './types/editor';
 
 const createEqController = () =>
@@ -98,11 +98,11 @@ function App() {
     const [isModuleProfileOpen, setIsModuleProfileOpen] = useState(false);
     const [isPaletteOpen, setIsPaletteOpen] = useState(false);
 
-    const [appConfig, changeAppConfig, appConfigLoaded] =
-        useEditableConfig(true);
+    useThemeCss();
+    const { config: appConfig, loaded: appConfigLoaded } = useConfig();
     const bottomPanel = useBottomPanel(
         appConfig,
-        changeAppConfig,
+        changeConfig,
         appConfigLoaded,
     );
     const isMixerVisible = bottomPanel.tab === 'mixer';
@@ -333,7 +333,7 @@ function App() {
                 <Sidebar
                     docs={bottomPanel.docs}
                     config={appConfig}
-                    onConfigChange={changeAppConfig}
+                    onConfigChange={changeConfig}
                     configLoaded={appConfigLoaded}
                     explorerContent={
                         <FileExplorer
