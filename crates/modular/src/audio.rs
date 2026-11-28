@@ -2527,7 +2527,13 @@ impl AudioProcessor {
                 }
                 GraphCommand::Start => self.start_transport(),
                 GraphCommand::QueuedStopTransport { trigger } => {
-                    self.queued_stop = Some(trigger);
+                    // A press that raced a stop landing on its bar finds no
+                    // bar left to stop at.
+                    if self.transport_stopped.load(Ordering::SeqCst) {
+                        self.stop_pending.store(false, Ordering::SeqCst);
+                    } else {
+                        self.queued_stop = Some(trigger);
+                    }
                 }
                 GraphCommand::CancelQueuedStop => {
                     // A stop that landed before this command arrived is
@@ -4929,6 +4935,21 @@ mod tests {
         cmd_producer.push(GraphCommand::CancelQueuedStop).unwrap();
         processor.process_commands();
         assert!(!processor.clock_held());
+    }
+
+    #[test]
+    fn a_queued_stop_on_a_stopped_transport_is_dropped() {
+        let (mut cmd_producer, mut processor) = create_test_processor();
+        processor.stop_pending.store(true, Ordering::SeqCst);
+        cmd_producer
+            .push(GraphCommand::QueuedStopTransport {
+                trigger: QueuedTrigger::NextBar,
+            })
+            .unwrap();
+        processor.process_commands();
+        assert!(processor.transport_stopped.load(Ordering::SeqCst));
+        assert!(!processor.clock_held());
+        assert!(!processor.stop_pending.load(Ordering::SeqCst));
     }
 
     #[test]

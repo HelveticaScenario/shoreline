@@ -13,6 +13,7 @@ import type { MixerController } from '../../mixer/MixerController';
 import type { EditorBuffer } from '../../types/editor';
 import { getErrorMessage } from '../../utils/errorUtils';
 import { getBufferId } from '../buffers';
+import { updateTransport } from '../transportStore';
 import {
     NO_PATCH_UI,
     type PatchUi,
@@ -190,6 +191,13 @@ export function usePatchRunner({
         setIsEngineRunning(false);
         setRunning(NOT_RUNNING);
         setPatchUi((prev) => ({ ...prev, sourceId: null }));
+        // The transport display stops polling with the engine, so nothing
+        // else clears what was waiting.
+        updateTransport((prev) => ({
+            ...prev,
+            hasQueuedStop: false,
+            hasQueuedUpdate: false,
+        }));
     };
 
     /** Press Stop: the first press halts the transport at `trigger` and the

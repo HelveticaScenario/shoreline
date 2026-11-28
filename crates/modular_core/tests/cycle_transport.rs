@@ -1,6 +1,6 @@
 //! A `$cycle` on the global clock releases its notes when the transport stops
-//! and plays again from the top when it starts; one on its own `playhead`
-//! ignores the transport.
+//! and plays again from the top when it starts. One on its own `playhead`
+//! releases them only if that playhead stops too.
 
 use std::collections::HashMap;
 
@@ -20,10 +20,14 @@ fn mini(source: &str) -> Value {
     serde_json::to_value(&parsed).expect("payload should serialize")
 }
 
-fn cycle_patch(playhead: Option<f64>) -> Patch {
+fn cable(module: &str, port: &str) -> Value {
+    json!({ "type": "cable", "module": module, "port": port, "lane": 0 })
+}
+
+fn cycle_patch(playhead: Option<Value>) -> Patch {
     let mut params = json!({ "pattern": mini("c4 e4") });
     if let Some(playhead) = playhead {
-        params["playhead"] = json!(playhead);
+        params["playhead"] = playhead;
     }
     let graph = PatchGraph {
         modules: [
@@ -32,6 +36,8 @@ fn cycle_patch(playhead: Option<f64>) -> Patch {
                 "_clock",
                 json!({ "tempo": 48000.0, "numerator": 4, "denominator": 4 }),
             ),
+            // About 16 Hz: one pass through the pattern every 3000 samples.
+            ("ramp", "$ramp", json!({ "freq": -4.0 })),
             ("seq", "$cycle", params),
         ]
         .into_iter()
@@ -99,12 +105,42 @@ fn transport_stop_releases_the_notes_of_a_cycle_on_the_global_clock() {
 }
 
 #[test]
-fn a_cycle_on_its_own_playhead_plays_through_a_transport_stop() {
-    let mut patch = cycle_patch(Some(0.1));
-    assert!(gates(&patch, 100)[50..].iter().all(|&g| g > 0.0));
+fn a_cycle_on_a_free_running_playhead_plays_through_a_transport_stop() {
+    let mut patch = cycle_patch(Some(cable("ramp", "output")));
+    patch
+        .dispatch_message(&Message::Clock(ClockMessages::Start))
+        .unwrap();
+    gates(&patch, 3000);
 
     patch
         .dispatch_message(&Message::Clock(ClockMessages::Stop))
         .unwrap();
-    assert!(gates(&patch, SAMPLES_PER_CYCLE).iter().all(|&g| g > 0.0));
+    let after = gates(&patch, 6000);
+    let opens = after
+        .windows(2)
+        .filter(|w| w[0] == 0.0 && w[1] > 0.0)
+        .count();
+    assert!(
+        opens >= 3,
+        "notes keep starting after the stop, saw {opens}"
+    );
+}
+
+#[test]
+fn a_cycle_on_a_playhead_taken_from_the_clock_releases_its_notes() {
+    let mut patch = cycle_patch(Some(cable("ROOT_CLOCK", "playhead")));
+    patch
+        .dispatch_message(&Message::Clock(ClockMessages::Start))
+        .unwrap();
+    assert!(
+        gates(&patch, SAMPLES_PER_CYCLE / 4)
+            .iter()
+            .any(|&g| g > 0.0)
+    );
+
+    patch
+        .dispatch_message(&Message::Clock(ClockMessages::Stop))
+        .unwrap();
+    let after = gates(&patch, 4 * SAMPLES_PER_CYCLE);
+    assert!(after[1..].iter().all(|&g| g == 0.0));
 }
