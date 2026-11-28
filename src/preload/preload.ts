@@ -167,6 +167,9 @@ export interface ElectronAPI {
             IPCHandlers[typeof IPC_CHANNELS.FS_GET_WORKSPACE]
         >;
         listFiles: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_LIST_FILES]>;
+        listSyxVoices: Promisify<
+            IPCHandlers[typeof IPC_CHANNELS.FS_LIST_SYX_VOICES]
+        >;
         /** Calls `callback` when files in the workspace folder change. */
         onTreeChange: (callback: () => void) => () => void;
         readFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_READ_FILE]>;
@@ -240,6 +243,10 @@ export interface ElectronAPI {
         read: () => Promise<AppConfig>;
         write: (config: Partial<AppConfig>) => Promise<void>;
         onChange: (callback: (config: AppConfig) => void) => () => void;
+    };
+
+    clipboard: {
+        writeText: (text: string) => Promise<void>;
     };
 
     // Keybinding overrides (read `<userData>/keybindings.json`)
@@ -412,6 +419,8 @@ const electronAPI: ElectronAPI = {
 
         listFiles: (...args) => invokeIPC('FS_LIST_FILES', ...args),
 
+        listSyxVoices: (...args) => invokeIPC('FS_LIST_SYX_VOICES', ...args),
+
         onTreeChange: menuEventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
 
         moveFile: (...args) => invokeIPC('FS_MOVE_FILE', ...args),
@@ -490,6 +499,10 @@ const electronAPI: ElectronAPI = {
         onChange: menuEventHandler(IPC_CHANNELS.CONFIG_ON_CHANGE),
         read: () => invokeIPC('CONFIG_READ'),
         write: (config) => invokeIPC('CONFIG_WRITE', config),
+    },
+
+    clipboard: {
+        writeText: (text) => invokeIPC('CLIPBOARD_WRITE_TEXT', text),
     },
 
     // Keybinding overrides

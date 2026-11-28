@@ -20,10 +20,7 @@ import type { ModuleSchema } from '@modular/core';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
 import { executeCommand } from '../../keybindings/commands';
-import { isDslType } from '../../../shared/dsl/typeDocs';
-import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
-import { dslModules } from '../../../shared/dsl/dslModuleDocs';
-import { functionName } from '../../../shared/dsl/referenceDocs';
+import { type DocsNames, docsTargetForName } from './definitionDocs';
 import {
     type JsDocLinkRef,
     type JsDocLinkResolver,
@@ -38,10 +35,6 @@ function plainText(parts: readonly SymbolDisplayPart[] | undefined): string {
 }
 
 const OPEN_LINK_COMMAND = 'shoreline.openJsDocLink';
-
-const GLOBAL_NAMES: ReadonlySet<string> = new Set(
-    GLOBAL_ENTRIES.map((e) => e.name),
-);
 
 /** `isTrusted` scoped to the link command, so doc text cannot run others. */
 const LINK_TRUST = { enabledCommands: [OPEN_LINK_COMMAND] };
@@ -63,21 +56,15 @@ type LinkAction =
  * `position`.
  */
 function linkResolver(
-    moduleNames: ReadonlySet<string>,
-    namespaces: ReadonlySet<string>,
+    names: DocsNames,
     from: Uri,
     position: IPosition,
 ): JsDocLinkResolver {
     return ({ name, target }: JsDocLinkRef) => {
+        const docs = docsTargetForName(name, names);
         let action: LinkAction | undefined;
-        if (isDslType(name)) {
-            action = { kind: 'docs', name, symbolType: 'type' };
-        } else if (moduleNames.has(name)) {
-            action = { kind: 'docs', name, symbolType: 'module' };
-        } else if (namespaces.has(name)) {
-            action = { kind: 'docs', name, symbolType: 'namespace' };
-        } else if (GLOBAL_NAMES.has(name)) {
-            action = { kind: 'docs', name, symbolType: 'global' };
+        if (docs) {
+            action = { kind: 'docs', ...docs };
         } else if (target) {
             action = {
                 file: target.fileName,
@@ -134,6 +121,7 @@ function openLink(
 export function registerJsDocLinkProviders(
     monaco: Monaco,
     schemas: readonly ModuleSchema[],
+    names: DocsNames,
     quotes: () => QuoteStyle,
 ): IDisposable {
     const ts = monaco.typescript;
@@ -146,18 +134,6 @@ export function registerJsDocLinkProviders(
         signatureHelp: false,
     });
 
-    const moduleNames = new Set([
-        ...schemas.map((s) => s.name),
-        ...dslModules(schemas).map(functionName),
-    ]);
-    const namespaces = new Set(
-        schemas.flatMap((s) => {
-            const segments = s.name.split('.');
-            return segments
-                .slice(1)
-                .map((_, i) => segments.slice(0, i + 1).join('.'));
-        }),
-    );
     // Completion labels an experimental module can appear under: its factory
     // name and its chain-method name.
     const experimentalLabels = new Set(
@@ -169,7 +145,7 @@ export function registerJsDocLinkProviders(
             }),
     );
     const resolverAt = (from: Uri, position: IPosition) =>
-        linkResolver(moduleNames, namespaces, from, position);
+        linkResolver(names, from, position);
     const docs = (markdown: string) => ({
         isTrusted: LINK_TRUST,
         value: requoteMarkdown(markdown, quotes()),

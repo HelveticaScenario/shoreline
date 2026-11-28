@@ -8,6 +8,7 @@ import { describe, expect, test } from 'vitest';
 import ts from 'typescript';
 import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
+import { EDITOR_COMPILER_OPTIONS } from '../../../renderer/components/monaco/compilerOptions';
 import {
     busSoloDiagnostics,
     groupSuffixDiagnostics,
@@ -26,14 +27,8 @@ const sharedSourceFiles = new Map<string, ts.SourceFile | undefined>();
 /** `patch` compiled against the DSL lib, as the editor compiles it. */
 function programFor(patch: string): ts.Program {
     const options: ts.CompilerOptions = {
-        allowJs: true,
-        allowNonTsExtensions: true,
-        checkJs: true,
+        ...EDITOR_COMPILER_OPTIONS,
         lib: ['lib.esnext.d.ts'],
-        module: ts.ModuleKind.ESNext,
-        moduleResolution: ts.ModuleResolutionKind.Node10,
-        noEmit: true,
-        target: ts.ScriptTarget.ES2020,
     };
     const files = new Map([
         [LIB_FILE, libSource],

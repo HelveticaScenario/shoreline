@@ -9,6 +9,9 @@
 //! The per-sample fixtures compare waveforms; this pins the knob mappings and
 //! output gains.
 
+mod dx7_common;
+
+use dx7_common::plaits_voice;
 use modular_core::Patch;
 use modular_core::dsp::get_params_deserializers;
 use modular_core::dsp::mi::core::tables::{LPC_BANK_WORDS, LPC_WORD_STARTS};
@@ -77,7 +80,11 @@ fn ports(engine: i32, freq: f32, h: f32, t: f32, m: f32, trigger_period: Option<
             // Plaits picks the patch from `harmonics`; the driver centres it on
             // one. The cases scrub (trigger unpatched), where Plaits' second
             // voice never gates and the module's one voice sounds alike.
-            let knobs = json!({ "bank": engine - 2, "patch": (h * 32.64).floor(), "brightness": 5.0 * t, "envelope": 5.0 * m });
+            let voice = plaits_voice(
+                (engine - 2) as usize,
+                ((h * 32.64).floor() as usize).min(31),
+            );
+            let knobs = json!({ "voice": voice, "brightness": 5.0 * t, "envelope": 5.0 * m });
             [
                 port("$mi.sixOp", knobs.clone(), "output"),
                 port("$mi.sixOp", knobs, "output"),
