@@ -475,7 +475,7 @@ export function executePatchScript(
     // Numbers convert here; a frequency that includes a signal converts on the
     // audio thread through `_hz`. Note and Hz strings are already pitches, so
     // they are rejected rather than read as a frequency.
-    const $hz = (frequency: number | PolySignal) => {
+    const $hzToV = (frequency: number | PolySignal) => {
         if (typeof frequency === 'number') {
             return hz(frequency);
         }
@@ -483,7 +483,7 @@ export function executePatchScript(
         for (const item of items) {
             if (typeof item === 'string') {
                 throw new Error(
-                    `$hz takes a frequency in Hz, not "${item}": note and Hz strings are already pitches`,
+                    `$hzToV takes a frequency in Hz, not "${item}": note and Hz strings are already pitches`,
                 );
             }
             if (typeof item === 'number') {
@@ -926,7 +926,7 @@ export function executePatchScript(
         // Prefixed namespace tree (modules and namespaces, minus _clock)
         ...userNamespaceTree,
         // Helper functions with $ prefix
-        $hz,
+        $hzToV,
         $note: note,
         // Mini-notation patterns: $(source), $`source` and $arrange(...) of
         // sections. Each is the $cycle that plays it.

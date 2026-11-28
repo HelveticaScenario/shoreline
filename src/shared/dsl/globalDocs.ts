@@ -13,26 +13,26 @@ const CONTROL_GROUP =
 export const GLOBALS: FunctionDoc[] = [
     {
         declarations: [
-            '$hz(frequency: number): number',
-            '$hz(frequency: number[]): number[]',
-            '$hz(frequency: Poly<number>): Collection',
-            '$hz(frequency: number | Poly<number>): number | number[] | Collection',
+            '$hzToV(frequency: number): number',
+            '$hzToV(frequency: number[]): number[]',
+            '$hzToV(frequency: Poly<number>): Collection',
+            '$hzToV(frequency: number | Poly<number>): number | number[] | Collection',
         ],
         docs: {
             categories: ['pitch'],
             description:
-                'Converts a frequency in Hz to a V/Oct pitch. A number converts as the patch builds, and a frequency that includes a signal converts sample by sample, reading 0 Hz and below as 0.0001 Hz. Note and Hz strings are already pitches, so `$hz` rejects them.',
+                'Converts a frequency in Hz to a V/Oct pitch. A number converts as the patch builds, and a frequency that includes a signal converts sample by sample, reading 0 Hz and below as 0.0001 Hz. Note and Hz strings are already pitches, so `$hzToV` rejects them.',
             examples: [
                 {
-                    code: 'tone: $sine($hz(440))',
+                    code: 'tone: $sine($hzToV(440))',
                     title: 'A4 from its frequency',
                 },
                 {
-                    code: 'chord: $saw($hz([220, 330, 440]))',
+                    code: 'chord: $saw($hzToV([220, 330, 440]))',
                     title: 'Three voices in Hz',
                 },
                 {
-                    code: "tone: $sine($hz($slider('Pitch', 220, 100, 500)))",
+                    code: "tone: $sine($hzToV($slider('Pitch', 220, 100, 500)))",
                     title: 'A slider in Hz',
                 },
             ],
@@ -120,7 +120,7 @@ export const GLOBALS: FunctionDoc[] = [
                 'Every combination of one element from each array, as typed tuples, for fanning voices across several dimensions at once.',
             examples: [
                 {
-                    code: "voices: $mix(\n  $cartesian([220, 440], ['sine', 'saw']).map(\n    ([freq, shape]) =>\n      shape === 'sine' ? $sine($hz(freq)) : $saw($hz(freq)),\n  ),\n)",
+                    code: "voices: $mix(\n  $cartesian([220, 440], ['sine', 'saw']).map(\n    ([freq, shape]) =>\n      shape === 'sine'\n        ? $sine($hzToV(freq))\n        : $saw($hzToV(freq)),\n  ),\n)",
                     title: 'Every pitch on every waveform',
                 },
             ],
@@ -130,33 +130,31 @@ export const GLOBALS: FunctionDoc[] = [
         params: { arrays: 'Arrays to combine' },
         returns: { description: 'One tuple per combination' },
     },
-    ...[1, 2, 3].map(
-        (n): FunctionDoc => ({
-            declarations: [`$g${n}(signals: Poly<Signal>): SignalGroup`],
-            docs: {
-                categories: ['utility'],
-                description:
-                    n === 1
-                        ? 'Tags a param value into signal group 1 (and `$g2`, `$g3` into groups 2 and 3). Params in different groups multiply, the module playing every combination of their lanes, while params in one group cycle together and untagged ones are group 0. Lower groups vary fastest, at most 64 lanes in all, and `$gN` must wrap the whole param value.'
-                        : `Tags a param value into signal group ${n}; see \`$g1\`.`,
-                examples: [
-                    n === 3
-                        ? {
-                              code: "tone: $saw($g1(['c2', 'c3']), {\n  shape: $g2([0, 2.5]),\n  phaseOffset: $g3([0, 0.5]),\n})",
-                              title: '2 × 2 × 2 = 8 voices',
-                          }
-                        : {
-                              code: "tone: $sine($g1(['c3', 'e3', 'g3']), {\n  phaseOffset: $g2([0, 0.25]),\n})",
-                              title: '3 pitches × 2 phases = 6 voices',
-                          },
-                ],
-                sections: [],
-                summary: `Signal group ${n}`,
-            },
-            params: { signals: 'The whole param value' },
-            returns: { description: 'The value, tagged with its group' },
-        }),
-    ),
+    ...[1, 2, 3].map((n): FunctionDoc => ({
+        declarations: [`$g${n}(signals: Poly<Signal>): SignalGroup`],
+        docs: {
+            categories: ['utility'],
+            description:
+                n === 1
+                    ? 'Tags a param value into signal group 1 (and `$g2`, `$g3` into groups 2 and 3). Params in different groups multiply, the module playing every combination of their lanes, while params in one group cycle together and untagged ones are group 0. Lower groups vary fastest, at most 64 lanes in all, and `$gN` must wrap the whole param value.'
+                    : `Tags a param value into signal group ${n}; see \`$g1\`.`,
+            examples: [
+                n === 3
+                    ? {
+                          code: "tone: $saw($g1(['c2', 'c3']), {\n  shape: $g2([0, 2.5]),\n  phaseOffset: $g3([0, 0.5]),\n})",
+                          title: '2 × 2 × 2 = 8 voices',
+                      }
+                    : {
+                          code: "tone: $sine($g1(['c3', 'e3', 'g3']), {\n  phaseOffset: $g2([0, 0.25]),\n})",
+                          title: '3 pitches × 2 phases = 6 voices',
+                      },
+            ],
+            sections: [],
+            summary: `Signal group ${n}`,
+        },
+        params: { signals: 'The whole param value' },
+        returns: { description: 'The value, tagged with its group' },
+    })),
     {
         declarations: [
             '$cross(count: number, playhead: LaneSum<Signal>, range?: [number, number], interpolationType?: Parameters<typeof $keyframes>[1]["interpolationType"]): Collection',

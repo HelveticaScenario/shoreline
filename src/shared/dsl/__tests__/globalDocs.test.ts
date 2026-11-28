@@ -71,7 +71,7 @@ describe('reference entries', () => {
                 type: 'number | HZ | Note',
             },
         );
-        expect(entry('$hz').returns?.type).toBe(
+        expect(entry('$hzToV').returns?.type).toBe(
             'number | number[] | Collection',
         );
     });

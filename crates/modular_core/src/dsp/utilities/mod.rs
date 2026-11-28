@@ -38,6 +38,7 @@ pub mod scan;
 pub mod smooth_control;
 pub mod spread;
 pub mod unison;
+pub mod v_to_hz;
 pub mod video_tap;
 pub mod wrap;
 
@@ -47,6 +48,7 @@ pub use scale::{FixedRoot, ScaleSpec};
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     add_hz::AddHz::install_constructor(map);
+    v_to_hz::VToHz::install_constructor(map);
     adsr::Adsr::install_constructor(map);
     arithmetic::Add::install_constructor(map);
     arithmetic::Sub::install_constructor(map);
@@ -91,6 +93,7 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     add_hz::AddHz::install_params_deserializer(map);
+    v_to_hz::VToHz::install_params_deserializer(map);
     adsr::Adsr::install_params_deserializer(map);
     arithmetic::Add::install_params_deserializer(map);
     arithmetic::Sub::install_params_deserializer(map);
@@ -136,6 +139,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         add_hz::AddHz::get_schema(),
+        v_to_hz::VToHz::get_schema(),
         adsr::Adsr::get_schema(),
         arithmetic::Add::get_schema(),
         arithmetic::Sub::get_schema(),

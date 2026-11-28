@@ -37,13 +37,13 @@ fn hz(frequency: f32) -> f32 {
 
 const HZ_DOCS: ModuleDocs = ModuleDocs {
     summary: "Hz to V/Oct",
-    description: "Converts a frequency in Hz to a V/Oct pitch. Backs `$hz()` when its \
+    description: "Converts a frequency in Hz to a V/Oct pitch. Backs `$hzToV()` when its \
                   argument is a signal.",
     categories: &[ReferenceCategory::Pitch],
     sections: &[],
     examples: &[DocExample {
         title: "Sweep set in Hz",
-        code: "tone: $sine($hz($sine('0.2hz').range(200, 800)))",
+        code: "tone: $sine($hzToV($sine('0.2hz').range(200, 800)))",
     }],
 };
 

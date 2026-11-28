@@ -36,7 +36,7 @@ test.describe('DSL execution', () => {
 
         // Set a simple sine patch
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $sine($hz(440))');
+            window.__TEST_API__!.setEditorValue('out: $sine($hzToV(440))');
         });
 
         // Execute the patch
@@ -61,7 +61,7 @@ test.describe('DSL execution', () => {
         await openUntitledBuffer(window);
 
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $sine($hz(440))');
+            window.__TEST_API__!.setEditorValue('out: $sine($hzToV(440))');
         });
 
         await window.evaluate(() => window.__TEST_API__!.executePatch());
@@ -87,7 +87,9 @@ test.describe('DSL execution', () => {
 
         // Execute a patch with a scope
         await window.evaluate(() => {
-            window.__TEST_API__!.setEditorValue('out: $sine($hz(440)).scope()');
+            window.__TEST_API__!.setEditorValue(
+                'out: $sine($hzToV(440)).scope()',
+            );
         });
 
         await window.evaluate(() => window.__TEST_API__!.executePatch());

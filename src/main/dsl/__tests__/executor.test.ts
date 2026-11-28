@@ -98,8 +98,8 @@ describe('basic oscillators', () => {
         expect(sines.length).toBe(1);
     });
 
-    test('$sine with $hz() helper', () => {
-        const patch = execPatch('out: $sine($hz(440))');
+    test('$sine with $hzToV() helper', () => {
+        const patch = execPatch('out: $sine($hzToV(440))');
         const sines = findModules(patch, '$sine');
         expect(sines.length).toBe(1);
     });
@@ -145,15 +145,15 @@ describe('signal input variants', () => {
         expect(findModules(patch, '$sine').length).toBe(1);
     });
 
-    test('$hz() helper produces a number', () => {
-        // $hz returns a voltage value — test it via $sine
-        const patch = execPatch('out: $sine($hz(261.63))');
+    test('$hzToV() helper produces a number', () => {
+        // $hzToV returns a voltage value — test it via $sine
+        const patch = execPatch('out: $sine($hzToV(261.63))');
         expect(findModules(patch, '$sine').length).toBe(1);
     });
 
-    test('$hz() of a signal converts through _hz wired to that signal', () => {
+    test('$hzToV() of a signal converts through _hz wired to that signal', () => {
         const patch = execPatch(
-            "const f = $slider('pitch', 220, 100, 500); out: $sine($hz(f))",
+            "const f = $slider('pitch', 220, 100, 500); out: $sine($hzToV(f))",
         );
         const [conversion] = findModules(patch, '_hz');
         expect(conversion.params.input).toEqual([
@@ -168,8 +168,8 @@ describe('signal input variants', () => {
         ]);
     });
 
-    test('$hz() of a number array converts each number at script time', () => {
-        const patch = execPatch('out: $saw($hz([220, 440]))');
+    test('$hzToV() of a number array converts each number at script time', () => {
+        const patch = execPatch('out: $saw($hzToV([220, 440]))');
         expect(findModules(patch, '_hz')).toHaveLength(0);
         const [saw] = findModules(patch, '$saw');
         const freq = saw.params.freq as number[];
@@ -177,27 +177,27 @@ describe('signal input variants', () => {
         expect(freq[1]).toBeCloseTo(freq[0] + 1);
     });
 
-    test('$hz() mixing numbers and signals converts on the audio thread', () => {
+    test('$hzToV() mixing numbers and signals converts on the audio thread', () => {
         const patch = execPatch(
-            "out: $saw($hz([220, $slider('pitch', 330, 100, 500)]))",
+            "out: $saw($hzToV([220, $slider('pitch', 330, 100, 500)]))",
         );
         const [conversion] = findModules(patch, '_hz');
         expect((conversion.params.input as unknown[])[0]).toBe(220);
     });
 
     test.each(['"440hz"', '"C4"', '[220, "440hz"]'])(
-        '$hz(%s) rejects note and Hz strings',
+        '$hzToV(%s) rejects note and Hz strings',
         (arg) => {
-            expect(() => execPatch(`out: $sine($hz(${arg}))`)).toThrow(
+            expect(() => execPatch(`out: $sine($hzToV(${arg}))`)).toThrow(
                 /already pitches/,
             );
         },
     );
 
     test.each(['0', '-5', '[220, 0]'])(
-        '$hz(%s) rejects frequencies at or below 0 Hz',
+        '$hzToV(%s) rejects frequencies at or below 0 Hz',
         (arg) => {
-            expect(() => execPatch(`out: $sine($hz(${arg}))`)).toThrow(
+            expect(() => execPatch(`out: $sine($hzToV(${arg}))`)).toThrow(
                 /Frequency must be positive/,
             );
         },
@@ -233,8 +233,8 @@ describe('filters', () => {
         expect(findModules(patch, '$bpf').length).toBe(1);
     });
 
-    test('$lpf with $hz cutoff', () => {
-        const patch = execPatch('out: $lpf($noise("white"), $hz(1000))');
+    test('$lpf with $hzToV cutoff', () => {
+        const patch = execPatch('out: $lpf($noise("white"), $hzToV(1000))');
         expect(findModules(patch, '$lpf').length).toBe(1);
     });
 });
@@ -444,7 +444,7 @@ describe('chaining methods', () => {
 describe('modulation routing', () => {
     test('LFO modulating oscillator pitch', () => {
         const source = `
-            const lfo = $sine($hz(2))
+            const lfo = $sine($hzToV(2))
             out: $sine(lfo.amp(1).add(0))
         `;
         const patch = execPatch(source);
@@ -630,7 +630,7 @@ describe('sequencing', () => {
 
     test('$keyframes with keyframes', () => {
         const patch = execPatch(
-            'out: $keyframes([[$hz(440), 0], [$hz(880), 1]])',
+            'out: $keyframes([[$hzToV(440), 0], [$hzToV(880), 1]])',
         );
         expect(findModules(patch, '$keyframes').length).toBe(1);
     });
@@ -2104,7 +2104,7 @@ describe('complex patches', () => {
     test('multi-voice FM synth', () => {
         const source = `
             const notes = ["C3", "E3", "G3"]
-            const mod = $sine($hz(3))
+            const mod = $sine($hzToV(3))
             const carrier = $sine(notes)
             out: $lpf(carrier, mod.range("C4", "C6"), 2)
         `;
@@ -2245,7 +2245,7 @@ describe('script execution environment', () => {
 
     test('arrays created inside the script support pipe()', () => {
         const patch = execPatch(
-            'out: [440, 880].pipe((a) => $mix(a.map((f) => $sine($hz(f)))))',
+            'out: [440, 880].pipe((a) => $mix(a.map((f) => $sine($hzToV(f)))))',
         );
         expect(findModules(patch, '$sine').length).toBe(2);
     });
@@ -2254,7 +2254,7 @@ describe('script execution environment', () => {
         // The sandbox pipe installer's own `pipe` frame must never win the
         // stack scan — the module belongs to the user's `.pipe($mix)` line.
         const result = exec(
-            'const xs = [440, 880].map((f) => $sine($hz(f)));\nout: xs.pipe($mix);',
+            'const xs = [440, 880].map((f) => $sine($hzToV(f)));\nout: xs.pipe($mix);',
         );
         const mix = findModules(result.patch, '$mix')[0];
         expect(result.sourceLocationMap.get(mix.id)?.line).toBe(2);
@@ -2951,7 +2951,7 @@ describe('error lines', () => {
 
     test('a DSL function error names the line of the call', () => {
         expect(() =>
-            exec('const a = $sine("c4");\n\nout: $sine($hz(0));\n'),
+            exec('const a = $sine("c4");\n\nout: $sine($hzToV(0));\n'),
         ).toThrow(/Frequency must be positive.* \(line 3\)$/);
     });
 
