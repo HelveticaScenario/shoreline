@@ -7,10 +7,13 @@
  *       .plate().wet(1)
  *
  * It wraps the estree printer: the `wet` property prints under a label, and
- * the head of each chain drops the line break Prettier puts before it.
+ * the head of each chain drops the line break Prettier puts before it. A
+ * call that ends in a line comment or a blank line keeps its `.wet` on the
+ * next line. It matches Prettier's printed docs by shape, which
+ * `wetChain.test.ts` checks across Prettier upgrades.
  */
 import type { AstPath, Doc, Plugin, Printer } from 'prettier';
-import { builders, utils } from 'prettier/doc';
+import { builders } from 'prettier/doc';
 import * as prettierEstree from 'prettier/plugins/estree';
 
 interface Node {
@@ -112,19 +115,107 @@ function collectPieces(doc: Doc, out: Doc[], limit: number): void {
     }
 }
 
+/** Whether `doc` ends in a line comment or a line break of its own. */
+function endsInBreak(doc: Doc): boolean {
+    if (typeof doc === 'string') {
+        return false;
+    }
+    if (Array.isArray(doc)) {
+        for (let i = doc.length - 1; i >= 0; i--) {
+            const part = doc[i];
+            if (
+                part === '' ||
+                (part as { type?: string }).type === 'break-parent'
+            ) {
+                continue;
+            }
+            return endsInBreak(part);
+        }
+        return false;
+    }
+    if (doc.type === 'line-suffix' || (doc.type === 'line' && doc.hard)) {
+        return true;
+    }
+    return 'contents' in doc && endsInBreak(doc.contents);
+}
+
+/**
+ * `parts` with the hard line before each `.wet` dropped. `before` is the
+ * doc printed just ahead of `parts`, which a leading hard line follows.
+ */
+function joinParts(parts: Doc[], before: Doc): Doc[] {
+    const out: Doc[] = [];
+    let previous = before;
+    for (let i = 0; i < parts.length; i++) {
+        const piece = join(parts[i], previous);
+        const next = parts[i + 1];
+        if (
+            isHardline(piece) &&
+            next !== undefined &&
+            startsWithWet(next) &&
+            !endsInBreak(previous)
+        ) {
+            continue;
+        }
+        out.push(piece);
+        if (piece !== '') {
+            previous = piece;
+        }
+    }
+    return out;
+}
+
+/** Docs `join` returned, which a chain enclosing them need not walk again. */
+const joinedDocs = new WeakSet<object>();
+
+function join(doc: Doc, before: Doc = ''): Doc {
+    if (typeof doc === 'string' || joinedDocs.has(doc)) {
+        return doc;
+    }
+    if (Array.isArray(doc)) {
+        return joinParts(doc, before);
+    }
+    switch (doc.type) {
+        case 'group': {
+            // A conditional group prints its first expanded state as its
+            // contents, so the two stay one doc.
+            const expandedStates = doc.expandedStates?.map((state) =>
+                join(state, before),
+            );
+            return {
+                ...doc,
+                contents: expandedStates?.[0] ?? join(doc.contents, before),
+                expandedStates,
+            };
+        }
+        case 'fill':
+            return { ...doc, parts: joinParts(doc.parts, before) };
+        case 'if-break':
+            return {
+                ...doc,
+                breakContents: join(doc.breakContents, before),
+                flatContents: join(doc.flatContents, before),
+            };
+        case 'align':
+        case 'indent':
+        case 'indent-if-break':
+        case 'label':
+        case 'line-suffix':
+            return {
+                ...doc,
+                contents: join((doc as { contents: Doc }).contents, before),
+            } as Doc;
+        default:
+            return doc;
+    }
+}
+
 function joinWetCalls(doc: Doc): Doc {
-    return utils.mapDoc(doc, (part) =>
-        Array.isArray(part)
-            ? part.filter(
-                  (piece, i) =>
-                      !(
-                          isHardline(piece) &&
-                          i + 1 < part.length &&
-                          startsWithWet(part[i + 1])
-                      ),
-              )
-            : part,
-    );
+    const joined = join(doc);
+    if (typeof joined === 'object') {
+        joinedDocs.add(joined);
+    }
+    return joined;
 }
 
 export const wetChainPlugin: Plugin = {

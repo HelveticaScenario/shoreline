@@ -44,4 +44,56 @@ describe('wetChain', () => {
         );
         expect(await formatDsl(once)).toBe(once);
     });
+
+    test('keeps a line comment on the call it follows', async () => {
+        const code = [
+            `out: $saw('c3')`,
+            `  .lpf('800hz')`,
+            `  .plate() // big`,
+            `  .wet(2)`,
+            `  .gain(2)`,
+        ].join('\n');
+        expect(await formatDsl(code)).toBe(code);
+    });
+
+    test('keeps a blank line before .wet', async () => {
+        const code = [
+            `out: $saw('c3')`,
+            `  .lpf('800hz')`,
+            `  .plate()`,
+            ``,
+            `  .wet(2)`,
+            `  .gain(2)`,
+        ].join('\n');
+        expect(await formatDsl(code)).toBe(code);
+    });
+
+    test('joins .wet in a chain nested in another', async () => {
+        expect(
+            await formatDsl(
+                `out: $saw('c3').lpf($saw('c2').lpf('300hz').delay('1/8', {feedback: 3}).wet(2).plate().wet(1)).plate().wet(1)`,
+            ),
+        ).toBe(
+            [
+                `out: $saw('c3')`,
+                `  .lpf(`,
+                `    $saw('c2')`,
+                `      .lpf('300hz')`,
+                `      .delay('1/8', { feedback: 3 }).wet(2)`,
+                `      .plate().wet(1),`,
+                `  )`,
+                `  .plate().wet(1)`,
+            ].join('\n'),
+        );
+    });
+
+    test('keeps a line comment on the head of a chain', async () => {
+        const code = [
+            `out: $saw('c3', { shape: 2 }) // raw`,
+            `  .wet(2)`,
+            `  .lpf('800hz', { res: 3, drive: 2 })`,
+            `  .plate()`,
+        ].join('\n');
+        expect(await formatDsl(code)).toBe(code);
+    });
 });
