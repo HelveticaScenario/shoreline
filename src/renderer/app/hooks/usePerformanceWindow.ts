@@ -3,7 +3,7 @@ import type { editor } from 'monaco-editor';
 import type { ButtonDefinition } from '../../../shared/dsl/buttonTypes';
 import { formatPath } from '../../components/monaco/monacoHelpers';
 import { usePerformanceCode } from '../../performance/usePerformanceCode';
-import { useTheme } from '../../themes/ThemeContext';
+import { useTheme } from '../../themes/useTheme';
 import type { EditorBuffer } from '../../types/editor';
 import { performanceOutput } from '../../video/PerformanceOutput';
 import { getBufferId } from '../buffers';

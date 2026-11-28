@@ -1,6 +1,6 @@
 import { resolvePrettierOptions } from '../components/monaco/formattingProvider';
 import { requote } from '../dsl/requote';
-import { useTheme } from '../themes/ThemeContext';
+import { useTheme } from '../themes/useTheme';
 
 /** Quotes DSL code shown to the user, such as an example, in the quote
  *  style Format Document uses. */

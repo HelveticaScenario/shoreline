@@ -28,56 +28,34 @@
 
 import { createRoot } from 'react-dom/client';
 import './index.css';
-import { Component, StrictMode } from 'react';
-import type { ErrorInfo, ReactNode } from 'react';
+import { StrictMode } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ErrorBoundary, type FallbackProps } from 'react-error-boundary';
 import App from './App';
+import { queryClient } from './queries/client';
+import { watchConfig } from './queries/config';
 
-class ErrorBoundary extends Component<
-    { children: ReactNode },
-    { error: Error | null }
-> {
-    state = { error: null as Error | null };
-
-    static getDerivedStateFromError(error: Error) {
-        return { error };
-    }
-
-    componentDidCatch(error: Error, info: ErrorInfo) {
-        console.error(
-            '[ErrorBoundary] Render error:',
-            error,
-            info.componentStack,
-        );
-    }
-
-    render() {
-        const { error } = this.state;
-        if (error) {
-            return (
-                <div
-                    style={{
-                        color: '#ff6b6b',
-                        fontFamily: 'monospace',
-                        padding: 24,
-                        whiteSpace: 'pre-wrap',
-                    }}
-                >
-                    <strong>Renderer crashed</strong>
-                    {'\n\n'}
-                    {error.message}
-                    {'\n\n'}
-                    {error.stack}
-                    {'\n\n'}
-                    <button onClick={() => this.setState({ error: null })}>
-                        Retry
-                    </button>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
+function RendererCrash({ error, resetErrorBoundary }: FallbackProps) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    return (
+        <div
+            style={{
+                color: '#ff6b6b',
+                fontFamily: 'monospace',
+                padding: 24,
+                whiteSpace: 'pre-wrap',
+            }}
+        >
+            <strong>Renderer crashed</strong>
+            {'\n\n'}
+            {err.message}
+            {'\n\n'}
+            {err.stack}
+            {'\n\n'}
+            <button onClick={resetErrorBoundary}>Retry</button>
+        </div>
+    );
 }
-import { ThemeProvider } from './themes/ThemeContext';
 
 // Configure Monaco Editor workers for Vite (replaces MonacoWebpackPlugin)
 import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker';
@@ -185,12 +163,23 @@ if (!root) {
     throw new Error('Failed to find the root element');
 }
 
+watchConfig();
+
 createRoot(root).render(
     <StrictMode>
-        <ErrorBoundary>
-            <ThemeProvider>
+        <ErrorBoundary
+            FallbackComponent={RendererCrash}
+            onError={(error, info) =>
+                console.error(
+                    '[ErrorBoundary] Render error:',
+                    error,
+                    info.componentStack,
+                )
+            }
+        >
+            <QueryClientProvider client={queryClient}>
                 <App />
-            </ThemeProvider>
+            </QueryClientProvider>
         </ErrorBoundary>
     </StrictMode>,
 );

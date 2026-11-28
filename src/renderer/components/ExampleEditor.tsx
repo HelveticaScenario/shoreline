@@ -2,7 +2,7 @@ import React, { useEffect, useRef, type RefObject } from 'react';
 import type { editor } from 'monaco-editor';
 import type { Monaco } from '../hooks/useCustomMonaco';
 import { placeContextMenuCaret } from '../keybindings/editorMenuItems';
-import { useTheme } from '../themes/ThemeContext';
+import { useTheme } from '../themes/useTheme';
 import {
     acquireExampleModel,
     releaseExampleModel,

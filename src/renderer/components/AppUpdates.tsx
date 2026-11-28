@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChangelogInfo } from '../../shared/ipcTypes';
 import type { ReleaseNotes } from '../../shared/releaseNotes';
 import electronAPI from '../electronAPI';
+import { changeConfig } from '../queries/config';
 import { ReleaseNotesDialog } from './ReleaseNotesDialog';
 import {
     UpdateNotification,
@@ -55,9 +56,7 @@ function useUpdateState() {
         dismiss: () => setState(IDLE),
         skip: () => {
             if (versionRef.current) {
-                void electronAPI.config.write({
-                    skippedUpdateVersion: versionRef.current,
-                });
+                changeConfig({ skippedUpdateVersion: versionRef.current });
             }
             setState(IDLE);
         },

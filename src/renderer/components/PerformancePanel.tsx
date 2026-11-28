@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useEditableConfig } from '../hooks/useEditableConfig';
-import { useTheme } from '../themes/ThemeContext';
+import { changeConfig, useConfig } from '../queries/config';
+import { useTheme } from '../themes/useTheme';
 import { performanceOutput } from '../video/PerformanceOutput';
 import { BUNDLED_FONTS } from '../../shared/fonts';
 import { useInstalledSystemFonts } from './fonts';
@@ -13,7 +13,7 @@ import './PerformancePanel.css';
  * can be changed while watching the preview of that window.
  */
 export function PerformancePanel() {
-    const [config, change] = useEditableConfig(true);
+    const { config } = useConfig();
     const { themes } = useTheme();
     const systemFonts = useInstalledSystemFonts();
     const [open, setOpen] = useState(performanceOutput.isOpen);
@@ -41,7 +41,7 @@ export function PerformancePanel() {
                     { fonts: BUNDLED_FONTS, label: 'Bundled' },
                     { fonts: systemFonts, label: 'System' },
                 ]}
-                onConfigChange={change}
+                onConfigChange={changeConfig}
             />
         </div>
     );

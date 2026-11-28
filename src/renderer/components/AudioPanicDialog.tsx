@@ -1,65 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import electronAPI from '../electronAPI';
+import { useAudioPanicked, usePanicLogDir } from '../queries/engine';
 import './AudioPanicDialog.css';
 
-const POLL_INTERVAL_MS = 500;
-
 export function AudioPanicDialog() {
-    const [panicked, setPanicked] = useState(false);
+    const panic = useAudioPanicked();
+    const { data: logDir } = usePanicLogDir();
     const [restarting, setRestarting] = useState(false);
     const [restartError, setRestartError] = useState<string | null>(null);
-    const [logDir, setLogDir] = useState<string | null>(null);
-
-    useEffect(() => {
-        let cancelled = false;
-        const poll = () => {
-            electronAPI.synthesizer
-                .isAudioThreadPanicked()
-                .then((p) => {
-                    if (!cancelled) setPanicked(p);
-                })
-                .catch(() => {
-                    /* transient IPC errors are ignored — next poll retries */
-                });
-        };
-        poll();
-        const id = setInterval(poll, POLL_INTERVAL_MS);
-        return () => {
-            cancelled = true;
-            clearInterval(id);
-        };
-    }, []);
-
-    useEffect(() => {
-        let cancelled = false;
-        electronAPI.synthesizer
-            .panicLogDir()
-            .then((dir) => {
-                if (!cancelled) setLogDir(dir);
-            })
-            .catch(() => {
-                /* fall back to no path shown */
-            });
-        return () => {
-            cancelled = true;
-        };
-    }, []);
 
     const handleRestart = async () => {
         setRestarting(true);
         setRestartError(null);
         try {
             await electronAPI.synthesizer.restartAudio();
-            const stillPanicked =
-                await electronAPI.synthesizer.isAudioThreadPanicked();
-            setPanicked(stillPanicked);
+            await panic.refetch({ throwOnError: true });
         } catch (e) {
             setRestartError(e instanceof Error ? e.message : String(e));
         }
         setRestarting(false);
     };
 
-    if (!panicked) return null;
+    if (!panic.data) return null;
 
     return (
         <div className="audio-panic-overlay">

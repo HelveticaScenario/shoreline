@@ -7,6 +7,8 @@ import {
     registerCommand,
     unregisterCommand,
 } from '../../keybindings/commands';
+import { queryClient } from '../../queries/client';
+import { changeConfig, configQuery } from '../../queries/config';
 import { performanceOutput } from '../../video/PerformanceOutput';
 
 export interface AppCommandHandlers {
@@ -28,8 +30,8 @@ const patchMenu = (order: number) => ({
 });
 
 const togglePerformanceCode = () => {
-    void electronAPI.config.read().then((config) =>
-        electronAPI.config.write({
+    void queryClient.ensureQueryData(configQuery).then((config) =>
+        changeConfig({
             performanceCodeVisible: !(config.performanceCodeVisible ?? true),
         }),
     );

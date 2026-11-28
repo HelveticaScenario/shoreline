@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useTheme } from '../themes/ThemeContext';
+import { useTheme } from '../themes/useTheme';
 import { AudioSettingsTab } from './AudioSettings';
 import { EditorSettingsTab } from './EditorSettingsTab';
 import { FormatterSettingsTab } from './FormatterSettingsTab';

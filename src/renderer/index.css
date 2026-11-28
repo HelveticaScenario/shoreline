@@ -17,7 +17,7 @@
     --sp-4: 4ch;
     --sp-half: 0.5ch;
 
-    /* Colors - these are set dynamically by ThemeContext */
+    /* Colors - these are set dynamically by useThemeCss */
     /* Fallback values match Modular Dark theme */
     --bg-primary: #0a0a0a;
     --bg-secondary: #111111;
