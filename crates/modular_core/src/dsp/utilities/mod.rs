@@ -48,7 +48,6 @@ pub use scale::{FixedRoot, ScaleSpec};
 
 pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     add_hz::AddHz::install_constructor(map);
-    v_to_hz::VToHz::install_constructor(map);
     adsr::Adsr::install_constructor(map);
     arithmetic::Add::install_constructor(map);
     arithmetic::Sub::install_constructor(map);
@@ -87,13 +86,13 @@ pub fn install_constructors(map: &mut HashMap<String, SampleableConstructor>) {
     smooth_control::SmoothControl::install_constructor(map);
     spread::Spread::install_constructor(map);
     unison::Unison::install_constructor(map);
+    v_to_hz::VToHz::install_constructor(map);
     video_tap::VideoTap::install_constructor(map);
     wrap::Wrap::install_constructor(map);
 }
 
 pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer>) {
     add_hz::AddHz::install_params_deserializer(map);
-    v_to_hz::VToHz::install_params_deserializer(map);
     adsr::Adsr::install_params_deserializer(map);
     arithmetic::Add::install_params_deserializer(map);
     arithmetic::Sub::install_params_deserializer(map);
@@ -132,6 +131,7 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
     smooth_control::SmoothControl::install_params_deserializer(map);
     spread::Spread::install_params_deserializer(map);
     unison::Unison::install_params_deserializer(map);
+    v_to_hz::VToHz::install_params_deserializer(map);
     video_tap::VideoTap::install_params_deserializer(map);
     wrap::Wrap::install_params_deserializer(map);
 }
@@ -139,7 +139,6 @@ pub fn install_params_deserializers(map: &mut HashMap<String, ParamsDeserializer
 pub fn schemas() -> Vec<ModuleSchema> {
     vec![
         add_hz::AddHz::get_schema(),
-        v_to_hz::VToHz::get_schema(),
         adsr::Adsr::get_schema(),
         arithmetic::Add::get_schema(),
         arithmetic::Sub::get_schema(),
@@ -178,6 +177,7 @@ pub fn schemas() -> Vec<ModuleSchema> {
         smooth_control::SmoothControl::get_schema(),
         spread::Spread::get_schema(),
         unison::Unison::get_schema(),
+        v_to_hz::VToHz::get_schema(),
         video_tap::VideoTap::get_schema(),
         wrap::Wrap::get_schema(),
     ]

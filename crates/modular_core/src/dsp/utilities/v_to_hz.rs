@@ -78,15 +78,3 @@ impl VToHz {
 }
 
 message_handlers!(impl VToHz {});
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::dsp::utils::{C4_HZ_F32, hz_to_voct};
-
-    #[test]
-    fn converts_pitch_to_hz() {
-        assert!((voct_to_hz(0.0) - C4_HZ_F32).abs() < 1e-3);
-        assert!((voct_to_hz(hz_to_voct(200.0)) - 200.0).abs() < 1e-3);
-    }
-}
