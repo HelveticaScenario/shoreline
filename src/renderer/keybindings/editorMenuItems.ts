@@ -17,7 +17,7 @@
  * matching provider context key (`requires`) instead. A separator is drawn
  * between groups; `null` marks a separator.
  */
-import type { editor } from 'monaco-editor';
+import type { editor, IPosition } from 'monaco-editor';
 
 import type { ContextMenuItemDescriptor } from '../../shared/ipcTypes';
 import { listCommands } from './commands';
@@ -243,4 +243,19 @@ export function buildReadOnlyEditorMenuItems(
         null,
         { kind: 'role', role: 'copy' },
     ];
+}
+
+/**
+ * Moves the caret to a right-click outside the selection, so a paste lands
+ * where the user clicked, and keeps a selection the click falls inside, so
+ * Copy acts on it.
+ */
+export function placeContextMenuCaret(
+    ed: editor.ICodeEditor,
+    position: IPosition | null,
+): void {
+    const selection = ed.getSelection();
+    if (position && (!selection || !selection.containsPosition(position))) {
+        ed.setPosition(position);
+    }
 }

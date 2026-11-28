@@ -3,7 +3,7 @@
  * lib that declares it is no file a musician reads.
  */
 
-import type { IDisposable, IPosition, Uri, editor } from 'monaco-editor';
+import type { IDisposable, IPosition, editor } from 'monaco-editor';
 import type { ModuleSchema } from '@modular/core';
 import type { Monaco } from '../../hooks/useCustomMonaco';
 import { type DocsTarget, SHOW_DOCS_COMMAND } from '../docsCommand';
@@ -12,7 +12,7 @@ import { isDslType } from '../../../shared/dsl/typeDocs';
 import { GLOBAL_ENTRIES } from '../../../shared/dsl/globalDocs';
 import { dslModules } from '../../../shared/dsl/dslModuleDocs';
 import { functionName } from '../../../shared/dsl/referenceDocs';
-import type { DslTypeScriptWorkerApi } from './dslTsWorker';
+import { dslWorker } from './dslWorker';
 
 /** The names the Docs panel has a page or card for. */
 export interface DocsNames {
@@ -113,13 +113,6 @@ export function docsTargetForDeclaration(
 /** The registered opener's state; null until it is registered. */
 let active: { monaco: Monaco; names: DocsNames } | null = null;
 
-async function workerFor(monaco: Monaco, resource: Uri) {
-    const worker = await (
-        await monaco.typescript.getJavaScriptWorker()
-    )(resource);
-    return worker as typeof worker & DslTypeScriptWorkerApi;
-}
-
 /** The docs of the lib declaration at `offset` in `lib`, if it has them. */
 async function declarationDocs(
     lib: editor.ITextModel,
@@ -128,7 +121,7 @@ async function declarationDocs(
     if (!active) {
         return null;
     }
-    const worker = await workerFor(active.monaco, lib.uri);
+    const worker = await dslWorker(active.monaco, lib.uri);
     const qualified = await worker.getDeclarationName(
         lib.uri.toString(),
         offset,
@@ -147,7 +140,7 @@ export async function hasDefinitionDocs(
         return false;
     }
     const { monaco } = active;
-    const worker = await workerFor(monaco, model.uri);
+    const worker = await dslWorker(monaco, model.uri);
     if (model.isDisposed()) {
         return false;
     }

@@ -1,17 +1,14 @@
 import { describe, expect, test } from 'vitest';
 import { DEFAULT_KEYMAP } from '../../keybindings/defaultKeymap';
 import { mergeKeymap } from '../../keybindings/keymap';
-import { GUIDE_CHAPTERS, chapterSections, sectionId } from './chapterList';
+import { GUIDE_CHAPTERS, sectionId } from './chapterList';
+import { GUIDE_SOURCES } from './guideSources';
 
-const sources = import.meta.glob<string>('./*.mdx', {
-    eager: true,
-    import: 'default',
-    query: '?raw',
-});
+const files = Object.keys(GUIDE_SOURCES);
 
-const files = Object.keys(sources).map((path) =>
-    path.replace(/^\.\/|\.mdx$/g, ''),
-);
+/** The text of a chapter's `## ` section headings, in order. */
+const chapterSections = (source: string) =>
+    [...source.matchAll(/^## (.+)$/gm)].map((m) => m[1].trim());
 
 describe('the guide', () => {
     test('lists every chapter file once, and only those', () => {
@@ -19,12 +16,12 @@ describe('the guide', () => {
     });
 
     test.each(files)('%s gives every section a distinct anchor', (file) => {
-        const ids = chapterSections(sources[`./${file}.mdx`]).map(sectionId);
+        const ids = chapterSections(GUIDE_SOURCES[file]).map(sectionId);
         expect(ids.every((id) => id.length > 0)).toBe(true);
         expect(new Set(ids).size).toBe(ids.length);
     });
 
-    const commands = Object.values(sources).flatMap((source) =>
+    const commands = Object.values(GUIDE_SOURCES).flatMap((source) =>
         [...source.matchAll(/<Key command="([^"]+)" \/>/g)].map((m) => m[1]),
     );
 

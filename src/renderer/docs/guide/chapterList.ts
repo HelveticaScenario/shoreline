@@ -6,12 +6,10 @@
 export interface GuideChapter {
     id: string;
     title: string;
-    /** One line: what the chapter covers. */
-    summary: string;
-    /** The page's own heading and line under it, when they differ from the
-     *  title and summary the chapter list shows. */
+    /** The line under the page's heading. */
+    lede: string;
+    /** The page's heading, when it differs from the title in the nav. */
     heading?: string;
-    lede?: string;
 }
 
 export const GUIDE_CHAPTERS: readonly GuideChapter[] = [
@@ -19,37 +17,36 @@ export const GUIDE_CHAPTERS: readonly GuideChapter[] = [
         heading: 'Shoreline',
         id: 'welcome',
         lede: 'A modular synthesizer you play by writing code. Every line builds modules and patches them together. Change a line, update, and the music carries on without missing a beat.',
-        summary: 'A first sound, and help as you type.',
         title: 'Welcome',
     },
     {
         id: 'start',
-        summary: 'Tracks, updating, and where everything lives.',
+        lede: 'Tracks, updating, and where everything lives.',
         title: 'Start here',
     },
     {
         id: 'sound',
-        summary: 'Pitches, chaining modules, and modulating any parameter.',
+        lede: 'Pitches, chaining modules, and modulating any parameter.',
         title: 'Pitch & sound',
     },
     {
         id: 'patterns',
-        summary: 'Melodies, rhythms and drums in mini-notation.',
+        lede: 'Melodies, rhythms and drums in mini-notation.',
         title: 'Patterns',
     },
     {
         id: 'controls',
-        summary: 'Sliders and buttons to play, and scopes to see your signals.',
+        lede: 'Sliders and buttons to play, and scopes to see your signals.',
         title: 'Controls & displays',
     },
     {
         id: 'mixing',
-        summary: 'Levels and panning, shared effects and groups.',
+        lede: 'Levels and panning, shared effects and groups.',
         title: 'Mixing & routing',
     },
     {
         id: 'cheatsheet',
-        summary: 'Everything on one page.',
+        lede: 'Everything on one page.',
         title: 'Cheat sheet',
     },
 ];
@@ -60,7 +57,3 @@ export const sectionId = (heading: string) =>
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-|-$/g, '');
-
-/** The `## ` section headings of a chapter's source, in order. */
-export const chapterSections = (source: string) =>
-    [...source.matchAll(/^## (.+)$/gm)].map((m) => m[1].trim());

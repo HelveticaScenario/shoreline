@@ -1535,7 +1535,7 @@ registerIPCHandler('SHOW_CONTEXT_MENU', (options: ContextMenuOptions) => {
                                 webContents.send(
                                     IPC_CHANNELS.ON_CONTEXT_MENU_COMMAND,
                                     {
-                                        command: options.target ?? 'editor',
+                                        command: options.target,
                                         commandId: item.commandId,
                                     },
                                 ),

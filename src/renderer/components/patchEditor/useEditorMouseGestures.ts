@@ -1,7 +1,10 @@
 import { useEffect, useEffectEvent } from 'react';
 import type { editor } from 'monaco-editor';
 import electronAPI from '../../electronAPI';
-import { buildEditorMenuItems } from '../../keybindings/editorMenuItems';
+import {
+    buildEditorMenuItems,
+    placeContextMenuCaret,
+} from '../../keybindings/editorMenuItems';
 import { dispatchCommand } from '../../keybindings/dispatch';
 import { installWorkspacePathDrop } from '../monaco/workspacePathCompletion';
 import { hasDefinitionDocs } from '../monaco/definitionDocs';
@@ -37,20 +40,11 @@ export function useEditorMouseGestures({
             // Focus on every right-click (editor convention) so the native
             // clipboard roles act on this editor.
             editor.focus();
-            const position = e.target.position;
-            const selection = editor.getSelection();
-            // Right-clicking outside the current selection collapses the caret
-            // to the click point so paste lands where the user clicked; an
-            // existing selection is preserved so copy/cut act on it.
-            if (
-                position &&
-                (!selection || !selection.containsPosition(position))
-            ) {
-                editor.setPosition(position);
-            }
+            placeContextMenuCaret(editor, e.target.position);
             void electronAPI.showContextMenu({
-                type: 'editor',
                 items: buildEditorMenuItems(editor),
+                target: 'editor',
+                type: 'editor',
             });
         });
         const disposeCommandSub = electronAPI.onContextMenuCommand((action) => {

@@ -401,8 +401,9 @@
     align-content: start;
 }
 
-.docs-panel .reference-index-list button {
-    display: block;
+/* The rows of the side indexes: the reference browser's and the guide's. */
+.docs-panel .reference-index-list button,
+.docs-panel .guide-nav button {
     width: 100%;
     padding: 2px 6px;
     background: none;
@@ -412,17 +413,23 @@
     font-family: var(--font-mono);
     font-size: inherit;
     text-align: left;
-    white-space: nowrap;
     cursor: pointer;
 }
 
-.docs-panel .reference-index-list button:hover {
+.docs-panel .reference-index-list button:hover,
+.docs-panel .guide-nav button:hover {
     background: var(--bg-hover);
     color: var(--text-primary);
 }
 
-.docs-panel .reference-index-list button.active {
+.docs-panel .reference-index-list button.active,
+.docs-panel .guide-nav button.active {
     color: var(--accent-primary);
+}
+
+.docs-panel .reference-index-list button {
+    display: block;
+    white-space: nowrap;
 }
 
 .docs-panel .reference-browser-main {
@@ -608,25 +615,6 @@
 .docs-panel .guide-nav button {
     display: flex;
     gap: 8px;
-    width: 100%;
-    padding: 2px 6px;
-    background: none;
-    border: none;
-    border-radius: 3px;
-    color: var(--text-secondary);
-    font-family: var(--font-mono);
-    font-size: inherit;
-    text-align: left;
-    cursor: pointer;
-}
-
-.docs-panel .guide-nav button:hover {
-    background: var(--bg-hover);
-    color: var(--text-primary);
-}
-
-.docs-panel .guide-nav button.active {
-    color: var(--accent-primary);
 }
 
 .docs-panel .guide-nav ul button {

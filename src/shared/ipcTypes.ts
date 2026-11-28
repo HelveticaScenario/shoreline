@@ -325,8 +325,8 @@ export interface EditorContextMenuOptions {
     type: 'editor';
     /** Items in display order; a `null` entry renders as a separator. */
     items: (ContextMenuItemDescriptor | null)[];
-    /** The editor the chosen item acts on; the patch editor when unset. */
-    target?: 'docsExample';
+    /** The editor the chosen item acts on. */
+    target: 'editor' | 'docsExample';
 }
 
 export type ContextMenuOptions =

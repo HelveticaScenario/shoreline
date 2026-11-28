@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef } from 'react';
+import React, { useLayoutEffect, useRef, useState } from 'react';
 import type { MDXComponents } from 'mdx/types';
 import { GUIDE_PAGES } from '../docs/guide/chapters';
 import { sectionId } from '../docs/guide/chapterList';
@@ -63,7 +63,11 @@ const COMPONENTS: MDXComponents = {
     Tip,
     // Block code renders through `pre`, so `code` here is always inline.
     code: InlineCode,
-    h2: ({ children }) => <h3 id={sectionId(textOf(children))}>{children}</h3>,
+    h2: ({ children }) => (
+        <h3 className="guide-section" id={sectionId(textOf(children))}>
+            {children}
+        </h3>
+    ),
     pre: BlockCode,
     table: ({ children }) => <table className="doc-table">{children}</table>,
 };
@@ -87,15 +91,20 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
     const prev = GUIDE_PAGES[index - 1];
     const next = GUIDE_PAGES[index + 1];
 
+    // The nav lists the open chapter's sections as its page renders them.
+    const [sections, setSections] = useState<HTMLElement[]>([]);
     useLayoutEffect(() => {
-        pageRef.current?.scrollTo({ top: 0 });
+        const page = pageRef.current;
+        page?.scrollTo({ top: 0 });
+        setSections([
+            ...(page?.querySelectorAll<HTMLElement>('.guide-section') ?? []),
+        ]);
     }, [chapterId]);
 
     // Scrolls the page alone; the app containers around it must not move.
-    const scrollToSection = (heading: string) => {
+    const scrollToSection = (target: HTMLElement) => {
         const page = pageRef.current;
-        const target = page?.querySelector(`#${sectionId(heading)}`);
-        if (!page || !target) {
+        if (!page) {
             return;
         }
         const offset =
@@ -123,16 +132,16 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
                                 </span>
                                 {c.title}
                             </button>
-                            {c.id === chapter.id && c.sections.length > 0 && (
+                            {c.id === chapter.id && sections.length > 0 && (
                                 <ul>
-                                    {c.sections.map((heading) => (
-                                        <li key={heading}>
+                                    {sections.map((heading) => (
+                                        <li key={heading.id}>
                                             <button
                                                 onClick={() =>
                                                     scrollToSection(heading)
                                                 }
                                             >
-                                                {heading}
+                                                {heading.textContent}
                                             </button>
                                         </li>
                                     ))}
@@ -148,9 +157,7 @@ export const GuideDocs: React.FC<GuideDocsProps> = ({
                         {index === 0 ? 'The guide' : `Chapter ${index}`}
                     </div>
                     <h2>{chapter.heading ?? chapter.title}</h2>
-                    <p className="guide-lede">
-                        {chapter.lede ?? chapter.summary}
-                    </p>
+                    <p className="guide-lede">{chapter.lede}</p>
                 </header>
                 <Page components={COMPONENTS} />
                 <footer className="guide-pager">

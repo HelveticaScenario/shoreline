@@ -28,6 +28,7 @@ import {
     allExamples,
     type DocContent,
 } from '../../../shared/dsl/referenceDocs';
+import { GUIDE_SOURCES } from '../../../renderer/docs/guide/guideSources';
 import { buildLibSource } from '../typescriptLibGen';
 import { type DSLExecutionOptions, executePatchScript } from '../executor';
 
@@ -183,11 +184,6 @@ function structuredExamples(
     }));
 }
 
-const guideSources = import.meta.glob<string>(
-    '../../../renderer/docs/guide/*.mdx',
-    { eager: true, import: 'default', query: '?raw' },
-);
-
 const generated = buildLibSource(schemas);
 const fromDocs = [
     ...schemas.flatMap((m) => structuredExamples('module', m.name, m.docs)),
@@ -197,7 +193,7 @@ const fromDocs = [
     ...dslModules(schemas)
         .map(functionToReferenceEntry)
         .flatMap((m) => structuredExamples('module', m.name, m.docs)),
-    ...Object.entries(guideSources).flatMap(([file, source]) =>
+    ...Object.entries(GUIDE_SOURCES).flatMap(([file, source]) =>
         [...source.matchAll(FENCE_RE)].map((fence, ordinal) => ({
             code: fence[1].replace(/\s+$/, ''),
             kind: 'guide' as const,

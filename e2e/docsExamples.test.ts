@@ -4,6 +4,7 @@
  */
 
 import { test, expect, openUntitledBuffer } from './fixtures';
+import { DOCS_EXAMPLE_ROOT } from '../src/renderer/components/monaco/docsExampleFiles';
 
 const HOVER = '.monaco-hover:not(.hidden)';
 /** A plain `.js` buffer reads as a script unless the editor makes it a module. */
@@ -107,14 +108,18 @@ test("a patch's diagnostics are its own while examples show", async ({
     await window.waitForTimeout(1_000);
     expect(await codes()).toEqual(['2339', '2339']);
 
-    const exampleMarkers = await window.evaluate(() => {
+    const examples = await window.evaluate((root) => {
         const { editor } = window.monaco;
-        return editor
+        const models = editor
             .getModels()
-            .filter((m) =>
-                m.uri.toString().startsWith('file:///shoreline-docs/'),
-            )
-            .flatMap((m) => editor.getModelMarkers({ resource: m.uri }));
-    });
-    expect(exampleMarkers).toEqual([]);
+            .filter((m) => m.uri.toString().startsWith(root));
+        return {
+            count: models.length,
+            markers: models.flatMap((m) =>
+                editor.getModelMarkers({ resource: m.uri }),
+            ),
+        };
+    }, DOCS_EXAMPLE_ROOT);
+    expect(examples.count).toBeGreaterThan(0);
+    expect(examples.markers).toEqual([]);
 });

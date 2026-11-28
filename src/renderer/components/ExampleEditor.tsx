@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, type RefObject } from 'react';
 import type { editor } from 'monaco-editor';
 import type { Monaco } from '../hooks/useCustomMonaco';
+import { placeContextMenuCaret } from '../keybindings/editorMenuItems';
 import { useTheme } from '../themes/ThemeContext';
 import {
     acquireExampleModel,
@@ -143,14 +144,7 @@ export const ExampleEditor: React.FC<ExampleEditorProps> = ({
             }
         });
         const contextMenu = ed.onContextMenu((e) => {
-            const position = e.target.position;
-            const selection = ed.getSelection();
-            if (
-                position &&
-                (!selection || !selection.containsPosition(position))
-            ) {
-                ed.setPosition(position);
-            }
+            placeContextMenuCaret(ed, e.target.position);
             showExampleContextMenu(ed);
         });
         const frame = requestAnimationFrame(() => onLive(true));

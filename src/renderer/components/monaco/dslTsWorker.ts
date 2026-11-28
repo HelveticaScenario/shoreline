@@ -526,10 +526,7 @@ class DslTypeScriptWorker extends TypeScriptWorker {
         return view ? sites.filter((site) => site.start < view.length) : sites;
     }
 
-    /**
-     * The fully qualified name of the declaration at `position` in a lib, as
-     * `$mi` or `ModuleChainMi.chorus`, or null where nothing is declared.
-     */
+    /** `declarationNameAt` over the current program, or null before one exists. */
     async getDeclarationName(
         fileName: string,
         position: number,
