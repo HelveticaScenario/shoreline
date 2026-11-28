@@ -22,6 +22,7 @@ import { processModuleSchema } from './paramsSchema';
 import { cycleSettings, isPatternPayload, patternPayload } from './patterns';
 import { isSignalGroupLike } from './signalGroups';
 import { signalParamsOf } from './signalParams';
+import { isDx7VoiceRef } from '../../shared/dx7Voice';
 import {
     captureSourceLocation,
     setDSLWrapperLineOffset,
@@ -306,6 +307,11 @@ export class DSLContext {
     ) => {
         throw new Error(`${module}: WAV loading is not available`);
     };
+    private resolveDx7Voice: (module: string, value: unknown) => unknown = (
+        module,
+    ) => {
+        throw new Error(`${module}: .syx loading is not available`);
+    };
 
     constructor(schemas: ModuleSchema[]) {
         this.builder = new GraphBuilder(schemas);
@@ -337,6 +343,16 @@ export class DSLContext {
      */
     setWavResolver(resolve: (module: string, path: unknown) => unknown): void {
         this.resolveWav = resolve;
+    }
+
+    /**
+     * Sets how a DX7 `voice` param's `.syx` path and `#name` become the
+     * voice's bytes; `module` names the module in errors.
+     */
+    setDx7VoiceResolver(
+        resolve: (module: string, value: unknown) => unknown,
+    ): void {
+        this.resolveDx7Voice = resolve;
     }
 
     /**
@@ -395,6 +411,9 @@ export class DSLContext {
         const processed = processModuleSchema(schema);
         const wavParamNames = processed.params
             .filter((p) => p.isWavInput)
+            .map((p) => p.name);
+        const dx7VoiceParamNames = processed.params
+            .filter((p) => p.isDx7VoiceInput)
             .map((p) => p.name);
         const signalParams = signalParamsOf(schema, processed);
         const signalParamNames = new Set(
@@ -475,6 +494,14 @@ export class DSLContext {
             for (const name of wavParamNames) {
                 if (!isWavRef(params[name])) {
                     params[name] = this.resolveWav(schema.name, params[name]);
+                }
+            }
+            for (const name of dx7VoiceParamNames) {
+                if (!isDx7VoiceRef(params[name])) {
+                    params[name] = this.resolveDx7Voice(
+                        schema.name,
+                        params[name],
+                    );
                 }
             }
 

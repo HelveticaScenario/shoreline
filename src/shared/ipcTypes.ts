@@ -26,6 +26,7 @@ import type {
     Synthesizer,
     TransportSnapshot,
 } from '@modular/core';
+import type { SyxFileVoices } from './dx7Voice';
 import type schemas from '@modular/core/schemas.json';
 import type { SliderDefinition } from './dsl/sliderTypes';
 import type { ButtonDefinition } from './dsl/buttonTypes';
@@ -278,8 +279,7 @@ export interface FileChange {
 }
 
 export type FSWriteResult =
-    | FSOperationResult
-    | { success: false; conflict: true };
+    FSOperationResult | { success: false; conflict: true };
 
 export interface WorkspaceFolder {
     path: string;
@@ -325,19 +325,21 @@ export interface EditorContextMenuOptions {
     type: 'editor';
     /** Items in display order; a `null` entry renders as a separator. */
     items: (ContextMenuItemDescriptor | null)[];
+    /** The editor the chosen item acts on. */
+    target: 'editor' | 'docsExample';
 }
 
 export type ContextMenuOptions =
-    | FileContextMenuOptions
-    | EditorContextMenuOptions;
+    FileContextMenuOptions | EditorContextMenuOptions;
 
-export type ContextMenuCommand = 'save' | 'rename' | 'delete' | 'editor';
+export type ContextMenuCommand =
+    'save' | 'rename' | 'delete' | 'editor' | 'docsExample';
 
 export interface ContextMenuAction {
     command: ContextMenuCommand;
     path?: string;
     bufferId?: string;
-    /** Set when `command === 'editor'`: the id to dispatch in the renderer. */
+    /** Set for `editor` and `docsExample`: the id to dispatch in the renderer. */
     commandId?: string;
 }
 
@@ -413,6 +415,7 @@ export const IPC_CHANNELS = {
     FS_GET_WORKSPACE: 'modular:fs:get-workspace',
     FS_LIST_FILES: 'modular:fs:list-files',
     FS_TREE_ON_CHANGE: 'modular:fs:tree-on-change',
+    FS_LIST_SYX_VOICES: 'modular:fs:list-syx-voices',
     FS_READ_FILE: 'modular:fs:read-file',
     FS_WRITE_FILE: 'modular:fs:write-file',
     FS_RENAME_FILE: 'modular:fs:rename-file',
@@ -435,6 +438,9 @@ export const IPC_CHANNELS = {
     CONFIG_READ: 'modular:config:read',
     CONFIG_WRITE: 'modular:config:write',
     CONFIG_ON_CHANGE: 'modular:config:on-change',
+
+    // Clipboard
+    CLIPBOARD_WRITE_TEXT: 'ui:clipboard-write-text',
 
     // Keybinding operations
     KEYBINDINGS_GET_PATH: 'modular:keybindings:get-path',
@@ -582,6 +588,8 @@ export interface IPCHandlers {
     [IPC_CHANNELS.FS_GET_WORKSPACE]: () => WorkspaceFolder | null;
     [IPC_CHANNELS.FS_LIST_FILES]: () => FileTreeEntry[];
     [IPC_CHANNELS.FS_TREE_ON_CHANGE]: () => void;
+    /** The voice names of each readable `.syx` file among the workspace paths. */
+    [IPC_CHANNELS.FS_LIST_SYX_VOICES]: (paths: string[]) => SyxFileVoices[];
     [IPC_CHANNELS.FS_READ_FILE]: (filePath: string) => string;
     /**
      * With `expectedDiskContent`, the write is refused with a `conflict`
@@ -627,6 +635,9 @@ export interface IPCHandlers {
     [IPC_CHANNELS.CONFIG_READ]: () => AppConfig;
     [IPC_CHANNELS.CONFIG_WRITE]: (config: Partial<AppConfig>) => void;
     [IPC_CHANNELS.CONFIG_ON_CHANGE]: (config: AppConfig) => void;
+
+    // Clipboard
+    [IPC_CHANNELS.CLIPBOARD_WRITE_TEXT]: (text: string) => void;
 
     // Keybinding operations
     [IPC_CHANNELS.KEYBINDINGS_GET_PATH]: () => string;

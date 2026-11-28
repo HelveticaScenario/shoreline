@@ -19,8 +19,9 @@ import {
     BaseCollection,
     Collection,
     type CollectionWithRange,
-    type ModuleOutput,
+    ModuleOutput,
 } from '../GraphBuilder';
+import { isSignalGroupLike } from '../signalGroups';
 import { VideoOutput, type VideoOps } from './VideoOutput';
 import { colorMethods } from './videoColor';
 import { filterMethods } from './videoFilters';
@@ -85,8 +86,12 @@ export class VideoGraphBuilder implements VideoCore {
     private histories: VideoHistory[] = [];
     private sources: VideoSourceDef[] = [];
     private scopes: VideoScope[] = [];
-    /** The audio signal each tap carries, published once `build` knows which taps are live. */
-    private tapSignals: AudioSignal[] = [];
+    /**
+     * What each tap carries, published once `build` knows which taps are
+     * live: an audio signal, or one side of a lane, whose `$left` or
+     * `$right` module is made only then.
+     */
+    private tapSignals: (AudioSignal | LaneSide)[] = [];
 
     constructor(private readonly host: VideoGraphHost) {
         Object.assign(
@@ -160,9 +165,29 @@ export class VideoGraphBuilder implements VideoCore {
         if (signal.length === 0) {
             throw new Error(`${fn}: ${name} has no lanes`);
         }
-        const key = signal.items
-            .map((o) => `${o.moduleId}\0${o.portName}\0${o.lane}`)
-            .join('\n');
+        const key = signal.items.map(laneKey).join('\n');
+        return this.addTap(fn, name, key, signal);
+    }
+
+    /** The engine tap carrying one side of `lane`, adding it on first use. */
+    private sideTapFor(
+        fn: string,
+        name: string,
+        lane: ModuleOutput,
+        side: LaneSide['side'],
+    ): number {
+        return this.addTap(fn, name, `${side}\0${laneKey(lane)}`, {
+            lane,
+            side,
+        });
+    }
+
+    private addTap(
+        fn: string,
+        name: string,
+        key: string,
+        source: AudioSignal | LaneSide,
+    ): number {
         const known = this.tapIndexes.get(key);
         if (known !== undefined) return known;
         if (this.tapSignals.length >= MAX_VIDEO_TAPS) {
@@ -170,7 +195,7 @@ export class VideoGraphBuilder implements VideoCore {
                 `${fn}: ${name} would be signal ${MAX_VIDEO_TAPS + 1}; a patch can read at most ${MAX_VIDEO_TAPS} audio signals into video`,
             );
         }
-        const tap = this.tapSignals.push(signal) - 1;
+        const tap = this.tapSignals.push(source) - 1;
         this.tapIndexes.set(key, tap);
         return tap;
     }
@@ -262,31 +287,24 @@ export class VideoGraphBuilder implements VideoCore {
     }
 
     /**
-     * An XY scope of audio signals: `x` moves the beam across the frame and
-     * `y` up it. Each lane is its own signal, and the two are paired off
-     * lane by lane, the shorter cycling, one trace per pair. The beam
-     * is white on a transparent background, its opacity its brightness.
+     * An XY scope of a stereo signal: each lane's left side moves the beam
+     * across the frame and its right side up it, one trace per lane. The
+     * beam is white on a transparent background, its opacity its brightness.
      */
-    scopeXY = (
-        x: unknown,
-        y: unknown,
-        config?: VideoScopeConfig,
-    ): VideoOutput => {
+    scopeXY = (signal: unknown, config?: VideoScopeConfig): VideoOutput => {
         const fn = '$v.scopeXY';
-        const xs = this.lanesOf(fn, 'x', x);
-        const ys = this.lanesOf(fn, 'y', y);
-        for (const [name, lanes] of [
-            ['x', xs],
-            ['y', ys],
-        ] as const) {
-            if (lanes.length === 0) {
-                throw new Error(`${fn}: ${name} has no lanes`);
-            }
-        }
-        const traceCount = Math.max(xs.length, ys.length);
-        if (traceCount > MAX_SCOPE_TRACES) {
+        if (isScopeSignal(config)) {
             throw new Error(
-                `${fn}: ${traceCount} traces requested; a scope draws at most ${MAX_SCOPE_TRACES}`,
+                `${fn}: takes one stereo signal whose left side is x and right side is y; join two signals with $stereo(x, y)`,
+            );
+        }
+        const lanes = this.lanesOf(fn, 'signal', signal);
+        if (lanes.length === 0) {
+            throw new Error(`${fn}: signal has no lanes`);
+        }
+        if (lanes.length > MAX_SCOPE_TRACES) {
+            throw new Error(
+                `${fn}: ${lanes.length} traces requested; a scope draws at most ${MAX_SCOPE_TRACES}`,
             );
         }
         const samples = config?.samples ?? 2048;
@@ -299,16 +317,21 @@ export class VideoGraphBuilder implements VideoCore {
                 `${fn}: samples must be an integer from 2 to ${VIDEO_HISTORY_LEN}, got ${describe(samples)}`,
             );
         }
-        const row = (signal: ModuleOutput, axis: string) =>
-            this.historyRow({
-                samples,
-                tap: this.tapFor(fn, axis, new Collection(signal)),
-                trigger: false,
-            });
-        const traces = Array.from({ length: traceCount }, (_, i) => ({
-            x: row(xs[i % xs.length], 'x'),
-            y: row(ys[i % ys.length], 'y'),
-        }));
+        const row = (tap: number) =>
+            this.historyRow({ samples, tap, trigger: false });
+        // A mono lane is both sides at once, so one tap draws both axes.
+        const traces = lanes.map((lane) => {
+            if (this.host.channelsOf(lane) === 'mono') {
+                const both = row(
+                    this.tapFor(fn, 'signal', new Collection(lane)),
+                );
+                return { x: both, y: both };
+            }
+            return {
+                x: row(this.sideTapFor(fn, 'signal', lane, 'left')),
+                y: row(this.sideTapFor(fn, 'signal', lane, 'right')),
+            };
+        });
         const setting = (
             name: keyof typeof SCOPE_SETTING_RANGES,
         ): VideoScopeSetting => {
@@ -546,7 +569,15 @@ export class VideoGraphBuilder implements VideoCore {
             sources.length,
             scopes.length,
         );
-        taps.forEach((tap, k) => this.host.publishTap(this.tapSignals[tap], k));
+        taps.forEach((tap, k) => {
+            const source = this.tapSignals[tap];
+            this.host.publishTap(
+                source instanceof BaseCollection
+                    ? source
+                    : this.host.side(new Collection(source.lane), source.side),
+                k,
+            );
+        });
 
         const remap = (v: VideoValue): VideoValue =>
             v.kind === 'uniform' ? { ...v, slot: slots.indexOf(v.slot) } : v;
@@ -674,6 +705,27 @@ const scopeSettings = (scope: VideoScope): VideoScopeSetting[] => [
     scope.lineWidth,
     scope.persistence,
 ];
+
+/** One side of one lane, as a tap carries it. */
+interface LaneSide {
+    lane: ModuleOutput;
+    side: 'left' | 'right';
+}
+
+/** Names one lane of one output. */
+const laneKey = (o: ModuleOutput) => `${o.moduleId}\0${o.portName}\0${o.lane}`;
+
+/** Whether `value` is a signal rather than a config object. */
+function isScopeSignal(value: unknown): boolean {
+    return (
+        value instanceof BaseCollection ||
+        value instanceof ModuleOutput ||
+        isSignalGroupLike(value) ||
+        Array.isArray(value) ||
+        typeof value === 'number' ||
+        typeof value === 'string'
+    );
+}
 
 /** A config number from `min` to `max`, or `fallback` when absent. */
 function boundedNumber(

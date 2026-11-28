@@ -3,8 +3,10 @@
 //! rendering allocates nothing, and module-level behaviour holds.
 
 mod block_common;
+mod dx7_common;
 
 use block_common::*;
+use dx7_common::plaits_voice;
 use modular_core::types::{ProcessingMode, SameIds};
 use serde_json::{Value, json};
 
@@ -92,26 +94,22 @@ fn allocation_free() {
         "$mi.waveshaper",
         "$mi.zOsc",
     ] {
-        assert_eq!(
-            allocations_while_rendering(
-                module,
-                json!({ "freq": poly_cable("lfo", LANES), "fm": cable("src", 0) })
-            ),
-            0,
-            "{module}"
-        );
+        let mut params = json!({ "freq": poly_cable("lfo", LANES), "fm": cable("src", 0) });
+        if module == "$mi.sixOp" {
+            params["voice"] = plaits_voice(1, 0);
+        }
+        assert_eq!(allocations_while_rendering(module, params), 0, "{module}");
     }
 }
 
-/// Played notes, with the patch and bank switching under them, allocate
-/// nothing.
+/// Played notes allocate nothing.
 #[test]
 fn six_op_allocation_free() {
     assert_eq!(
         allocations_while_rendering(
             "$mi.sixOp",
             json!({ "freq": poly_cable("lfo", LANES), "gate": poly_cable("src", LANES),
-                    "bank": cable("lfo", 1), "patch": cable("lfo", 2), "envelope": cable("lfo", 3) })
+                    "voice": plaits_voice(1, 0), "envelope": cable("lfo", 3) })
         ),
         0
     );

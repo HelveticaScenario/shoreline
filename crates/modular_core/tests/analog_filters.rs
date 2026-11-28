@@ -1,7 +1,8 @@
-//! `$lpf`, `$hpf`, `$bpf`, `$notch` and their Sallen-Key, ladder, diode and
-//! OTA counterparts: each output has its response, the analog models
-//! self-oscillate in tune and stay bounded, and an output renders the same
-//! whichever others are read.
+//! `$lpf`, `$hpf`, `$bpf`, `$notch` and their Sallen-Key, ladder, diode,
+//! OTA and Wasp counterparts: each output has its response, the analog
+//! models self-oscillate in tune, or for the Wasp resonate in tune short of
+//! it, and stay bounded, and an output renders the same whichever others
+//! are read.
 
 use modular_core::dsp::schema;
 use modular_core::dsp::utils::rng::TEST_SEED_BASE;
@@ -126,6 +127,10 @@ const ANALOG: [&str; 18] = [
     "$apfOta",
 ];
 
+/// The Wasp filters, which have the one slope and never self-oscillate.
+const WASP: [&str; 5] = ["$lpfWasp", "$hpfWasp", "$bpfWasp", "$notchWasp", "$apfWasp"];
+
+/// Every filter with both a 12 and a 24 dB output.
 fn all() -> impl Iterator<Item = &'static str> {
     CLEAN.into_iter().chain(ANALOG)
 }
@@ -138,16 +143,22 @@ fn gain_db(module_type: &str, ratio: f32) -> Vec<f32> {
 
 /// [`gain_db`] at `resonance`.
 fn gain_db_at(module_type: &str, ratio: f32, resonance: f32) -> Vec<f32> {
+    gains_db(module_type, ratio, 0.1, resonance, 9600)
+}
+
+/// Gain in dB of every output of a filter tuned to 1 kHz, in slope order,
+/// for a sine of `level` volts at `ratio` × 1 kHz, over `frames` samples.
+fn gains_db(module_type: &str, ratio: f32, level: f32, resonance: f32, frames: usize) -> Vec<f32> {
     render(
         module_type,
         1000.0 * ratio,
-        0.1,
+        level,
         json!(hz(1000.0)),
         resonance,
-        9600,
+        frames,
     )
     .into_iter()
-    .map(|(_, samples)| 20.0 * (peak(&samples) / 0.1).log10())
+    .map(|(_, samples)| 20.0 * (peak(&samples) / level).log10())
     .collect()
 }
 
@@ -270,6 +281,121 @@ fn analog_filters_self_oscillate_in_tune() {
     }
 }
 
+/// [`gains_db`] of a Wasp filter's one output, over long enough for its
+/// resonance to settle.
+fn wasp_gain_db(module_type: &str, ratio: f32, level: f32, resonance: f32) -> f32 {
+    gains_db(module_type, ratio, level, resonance, 19_200)[0]
+}
+
+/// A ratio well above the cutoff whose sine the samples catch at its
+/// peaks, which they do not at a sixth of the sample rate.
+const WELL_ABOVE: f32 = 7.3;
+
+#[test]
+fn wasp_filters_have_their_responses() {
+    for (module_type, stopband, passband) in [
+        ("$lpfWasp", vec![8.0], 0.125),
+        ("$hpfWasp", vec![0.125], WELL_ABOVE),
+        ("$bpfWasp", vec![0.125, 8.0], 1.0),
+    ] {
+        for ratio in stopband {
+            let db = wasp_gain_db(module_type, ratio, 0.1, 0.0);
+            let ceiling = if module_type == "$bpfWasp" {
+                -15.0
+            } else {
+                -30.0
+            };
+            assert!(db < ceiling, "{module_type} at {ratio}×: {db} dB");
+        }
+        // The summer's low gain leaves the highpass a little over 2 dB
+        // short of the lowpass.
+        let nominal = if module_type == "$hpfWasp" { -2.3 } else { 0.0 };
+        let db = wasp_gain_db(module_type, passband, 0.1, 0.0);
+        assert!(
+            (db - nominal).abs() < 1.0,
+            "{module_type} passes its band at {db} dB"
+        );
+    }
+    let null = wasp_gain_db("$notchWasp", 1.0, 0.1, 0.0);
+    assert!(null < -25.0, "$notchWasp: {null} dB");
+    // Either side of the cut plays at one level, down to where the input
+    // capacitor takes the lows off.
+    for ratio in [1.0 / 8.0, WELL_ABOVE] {
+        let db = wasp_gain_db("$notchWasp", ratio, 0.1, 0.0);
+        assert!(db.abs() < 1.0, "$notchWasp at {ratio}×: {db} dB");
+    }
+    // Resonance 5 is left out: there the diodes' swing moves the level at
+    // the cutoff.
+    for resonance in [0.0, 2.5, 4.0] {
+        for ratio in [1.0 / 8.0, 0.5, 1.0, 2.0, WELL_ABOVE] {
+            let db = wasp_gain_db("$apfWasp", ratio, 0.1, resonance);
+            assert!(
+                db.abs() < 1.0,
+                "$apfWasp at {ratio}×, resonance {resonance}: {db} dB"
+            );
+        }
+    }
+}
+
+#[test]
+fn wasp_resonance_peaks_in_tune_and_squashes_as_it_gets_loud() {
+    let gain = |cutoff: f32, ratio: f32| {
+        let out = render(
+            "$bpfWasp",
+            cutoff * ratio,
+            0.01,
+            json!(hz(cutoff)),
+            5.0,
+            48_000,
+        );
+        peak(&out[0].1) / 0.01
+    };
+    // The capacitor across the lowpass's feedback damps the peak more the
+    // higher the cutoff.
+    for (cutoff, least) in [(1000.0, 30.0), (4000.0, 10.0)] {
+        let (below, at, above) = (gain(cutoff, 0.97), gain(cutoff, 1.0), gain(cutoff, 1.03));
+        assert!(
+            at > least && at > 1.1 * below && at > 1.1 * above,
+            "{cutoff} Hz: {below}× {at}× {above}×"
+        );
+    }
+    // Low down, the capacitor under the resonance pot pulls the peak a
+    // little sharp.
+    let (at, sharp, sharper) = (gain(250.0, 1.0), gain(250.0, 1.03), gain(250.0, 1.1));
+    assert!(
+        sharp > 30.0 && sharp > at && sharp > sharper,
+        "250 Hz: {at}× {sharp}× {sharper}×"
+    );
+    let quiet = wasp_gain_db("$bpfWasp", 1.0, 0.01, 5.0);
+    let loud = wasp_gain_db("$bpfWasp", 1.0, 2.0, 5.0);
+    assert!(loud < quiet - 6.0, "{quiet} dB quiet, {loud} dB loud");
+}
+
+#[test]
+fn wasp_filters_never_self_oscillate() {
+    for module_type in WASP {
+        for cutoff in [100.0, 1000.0, 8000.0] {
+            let out = render(module_type, 30.0, 0.001, json!(hz(cutoff)), 5.0, 96_000);
+            let volts = peak(&out[0].1);
+            assert!(volts < 0.05, "{module_type} at {cutoff} Hz: {volts} V");
+        }
+    }
+}
+
+#[test]
+fn wasp_filters_stay_bounded_under_audio_rate_modulation() {
+    for module_type in WASP {
+        for (resonance, level) in [(0.0, 5.0), (5.0, 5.0), (2.5, 20.0), (5.0, 20.0)] {
+            let out = render(module_type, 110.0, level, cable("mod"), resonance, 24_000);
+            let peak = finite_peak(&out[0].1);
+            assert!(
+                peak < 40.0,
+                "{module_type} resonance {resonance} at {level} V: {peak} V"
+            );
+        }
+    }
+}
+
 /// Peak in volts of a lowpass's default output passing a 100 Hz sine of
 /// `level` volts well below its cutoff.
 fn passband_peak(module_type: &str, level: f32, extra: Value) -> f32 {
@@ -385,7 +511,7 @@ fn outputs_render_the_same_whichever_others_are_read() {
             64,
         );
     }
-    for module_type in all() {
+    for module_type in all().chain(WASP) {
         let ports: Vec<String> = schema()
             .into_iter()
             .find(|s| s.name == module_type)

@@ -3,8 +3,10 @@
 //! without stepping what still rings.
 
 mod drum_common;
+mod dx7_common;
 
 use drum_common::*;
+use dx7_common::plaits_voice;
 use serde_json::{Value, json};
 
 /// Each voice with the params that strike it once at the start, the port
@@ -61,7 +63,7 @@ fn struck() -> Vec<(&'static str, Value, &'static str, &'static str)> {
         ),
         (
             "$mi.sixOp",
-            json!({ "freq": voct(220.0) }),
+            json!({ "freq": voct(220.0), "voice": plaits_voice(0, 0) }),
             "gate",
             "output",
         ),
