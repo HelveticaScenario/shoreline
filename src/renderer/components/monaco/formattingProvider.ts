@@ -38,6 +38,15 @@ export function resolvePrettierOptions(userConfig: PrettierConfig = {}) {
     };
 }
 
+/** The plugins every DSL format runs with. `quoteStylePlugin` replaces the
+ *  babel parser, so it comes after `prettierBabel`. */
+export const DSL_PRETTIER_PLUGINS = [
+    prettierBabel,
+    prettierEstree as never,
+    quoteStylePlugin,
+    wetChainPlugin,
+];
+
 export type ResolvedPrettierOptions = ReturnType<typeof resolvePrettierOptions>;
 
 /** Format DSL source the way Format Document does. */
@@ -49,12 +58,7 @@ export async function formatDsl(
         ...resolvePrettierOptions(userConfig),
         // Parser and plugins must not be overridden
         parser: 'babel',
-        plugins: [
-            prettierBabel,
-            prettierEstree as never,
-            quoteStylePlugin,
-            wetChainPlugin,
-        ],
+        plugins: DSL_PRETTIER_PLUGINS,
     });
     return formatted.trimEnd();
 }

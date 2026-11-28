@@ -6,11 +6,10 @@
  * stays as the raw edit computeControlQuickFixes checked.
  */
 import * as prettier from 'prettier/standalone';
-import * as prettierBabel from 'prettier/plugins/babel';
-import * as prettierEstree from 'prettier/plugins/estree';
 import ts from 'typescript';
 
 import { parseTransient } from '../../shared/dsl/ast/parse';
+import { DSL_PRETTIER_PLUGINS } from '../components/monaco/formattingProvider';
 import type { PrettierConfig } from '../../shared/ipcTypes';
 import { introducesSyntaxErrors, parseErrors } from './syntaxCheck';
 import type { ControlQuickFix } from './controlQuickFix';
@@ -73,7 +72,7 @@ async function formatStatement(
             ...options,
             endOfLine: edited.includes('\r\n') ? 'crlf' : 'lf',
             parser: 'babel',
-            plugins: [prettierBabel, prettierEstree as never],
+            plugins: DSL_PRETTIER_PLUGINS,
             printWidth: Math.max((options.printWidth ?? 80) - indentWidth, 20),
         })
     ).trimEnd();
