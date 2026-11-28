@@ -1,0 +1,3 @@
+kind: New
+body: 'Two experimental spectral reverbs to try side by side. `$spectralReverb.wash` holds the level of every frequency and lets each fade on its own: a seamless, echo-free smear. `$spectralReverb.echo` repeats every frequency at its own pace: a scatter of echoes that thickens into a resonant tail, with `size` setting how far apart they fall. Both take `decay`, `damping`, `blur`, `shimmer` and a `freeze` gate that holds the tail.'
+time: 2026-11-25T02:52:30.333094-05:00

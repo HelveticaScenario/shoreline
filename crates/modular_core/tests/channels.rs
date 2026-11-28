@@ -602,6 +602,8 @@ const PER_SIDE: &[(&str, &[&str])] = &[
     ("$dattorro", &["input"]),
     ("$plate", &["input"]),
     ("$hall", &["input"]),
+    ("$spectralReverb.wash", &["input"]),
+    ("$spectralReverb.echo", &["input"]),
     ("$reverb", &["input"]),
     ("$mi.chorus", &["input"]),
     ("$supersaw", &["freq", "detune", "fm", "sync", "restart"]),

@@ -12,10 +12,24 @@ use common::from_graph;
 const SAMPLE_RATE: f32 = 48_000.0;
 const FRAMES: usize = 20_000;
 
-const EFFECTS: &[&str] = &["$dattorro", "$plate", "$hall", "$reverb", "$mi.chorus"];
+const EFFECTS: &[&str] = &[
+    "$dattorro",
+    "$plate",
+    "$hall",
+    "$spectralReverb.wash",
+    "$spectralReverb.echo",
+    "$reverb",
+    "$mi.chorus",
+];
 
 /// The effects whose tank keeps each side of the input apart.
-const SIDED: &[&str] = &["$hall", "$reverb", "$mi.chorus"];
+const SIDED: &[&str] = &[
+    "$hall",
+    "$spectralReverb.wash",
+    "$spectralReverb.echo",
+    "$reverb",
+    "$mi.chorus",
+];
 
 fn cable(module: &str, lane: usize) -> Value {
     json!({ "type": "cable", "module": module, "port": "output", "lane": lane })

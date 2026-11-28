@@ -516,6 +516,8 @@ fn minimal_params(module_type: &str) -> serde_json::Value {
         "$mi.chorus" => json!({ "input": 0.0 }),
         "$plate" => json!({ "input": 0.0 }),
         "$hall" => json!({ "input": 0.0 }),
+        "$spectralReverb.wash" => json!({ "input": 0.0 }),
+        "$spectralReverb.echo" => json!({ "input": 0.0 }),
         "$reverb" => json!({ "input": 0.0 }),
         "$granular" => json!({ "input": 0.0 }),
         "$granularSampler" => {
