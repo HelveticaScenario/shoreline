@@ -1,0 +1,61 @@
+## Tracks
+
+Put a label in front of a line and it becomes a track. It gets a strip in the
+mixer, and you hear it. A line without a label still builds its modules, but
+they stay silent, ready for other lines to use.
+
+```js
+const seq = $`c2 ~ eb2 g2`
+bass: $saw(seq).lpf('c4')
+_lead: $sine('c5')
+```
+
+| Write                | Means                                          |
+| -------------------- | ---------------------------------------------- |
+| `bass:`              | a track called bass                            |
+| `lead_synth:`        | a track the mixer shows as "lead synth"        |
+| `_bass:`             | muted                                          |
+| `S_bass:`            | soloed                                         |
+| `S__bass:`           | muted and soloed, and solo wins                |
+| `bass$2:`            | plays on outputs 2 and 3                       |
+| `bass$2m:`           | plays in mono on output 2                      |
+| `kick$drums:`        | plays into the group track `drums`             |
+| a line with no label | builds modules for other lines, makes no sound |
+
+A track's name is also a name you can use anywhere in the patch, on lines
+before the track as well as after it.
+
+## Updating
+
+Press <Key command="shoreline.updatePatch" /> to update the patch. The change
+waits for the start of the next bar, so it lands in time with the music. For a
+quicker change, <Key command="shoreline.updatePatchNextBeat" /> waits only for
+the next beat.
+
+When you don't want to wait at all, press the shortcut twice: a second update
+while one is waiting goes through right away. The **Update Patch** button at
+the top of the window always updates right away.
+
+Changed your mind while an update is waiting? Press
+<Key command="shoreline.cancelQueuedUpdate" /> to cancel it, and the patch
+that's playing carries on as it was. <Key command="shoreline.stop" /> stops
+everything.
+
+Edit and update as often as you like. Any module you kept carries on from
+where it was, so phases, envelopes and sequences don't restart under you.
+
+## Where things are
+
+| Where           | Has                                                               |
+| --------------- | ----------------------------------------------------------------- |
+| Explorer        | the patches in your workspace folder, and the files you have open |
+| Control         | the sliders and buttons your patch declares                       |
+| Mixer           | a strip per track, with its level, pan and meter                  |
+| Docs            | this guide, and every module and global                           |
+| Command palette | every command and its shortcut                                    |
+
+A few shortcuts are worth learning early. Press
+<Key command="shoreline.openWorkspace" /> to open a folder as your workspace,
+<Key command="shoreline.save" /> to save and <Key command="shoreline.toggleMixer" />
+to show the mixer. When you can't remember the rest,
+<Key command="shoreline.showCommandPalette" /> opens the command palette.

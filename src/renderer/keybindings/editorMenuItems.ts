@@ -17,7 +17,7 @@
  * matching provider context key (`requires`) instead. A separator is drawn
  * between groups; `null` marks a separator.
  */
-import type { editor } from 'monaco-editor';
+import type { editor, IPosition } from 'monaco-editor';
 
 import type { ContextMenuItemDescriptor } from '../../shared/ipcTypes';
 import { listCommands } from './commands';
@@ -130,6 +130,7 @@ type Placed = {
 function actionDescriptor(
     ed: editor.ICodeEditor,
     spec: ActionSpec,
+    providerKeys: (when: string) => boolean = evaluateWhen,
 ): ContextMenuItemDescriptor {
     const action = ed.getAction(spec.id);
     // Resolved editor actions report their own support; registerAction2
@@ -138,7 +139,7 @@ function actionDescriptor(
     const enabled = action
         ? action.isSupported()
         : spec.requires
-          ? evaluateWhen(spec.requires)
+          ? providerKeys(spec.requires)
           : true;
     const accelerator = getCommandAccelerator(spec.id);
     return {
@@ -223,4 +224,38 @@ export function buildEditorMenuItems(
         lastGroup = entry.group;
     }
     return out;
+}
+
+/** The context menu of a read-only editor: navigation, Peek and Copy. */
+export function buildReadOnlyEditorMenuItems(
+    ed: editor.ICodeEditor,
+): (ContextMenuItemDescriptor | null)[] {
+    // The provider context keys describe the patch editor's model. An
+    // example's model is always JavaScript, which has every provider.
+    const providerKeys = () => true;
+    return [
+        ...NAVIGATION.map((spec) => actionDescriptor(ed, spec, providerKeys)),
+        {
+            items: PEEK.map((spec) => actionDescriptor(ed, spec, providerKeys)),
+            kind: 'submenu',
+            label: 'Peek',
+        },
+        null,
+        { kind: 'role', role: 'copy' },
+    ];
+}
+
+/**
+ * Moves the caret to a right-click outside the selection, so a paste lands
+ * where the user clicked, and keeps a selection the click falls inside, so
+ * Copy acts on it.
+ */
+export function placeContextMenuCaret(
+    ed: editor.ICodeEditor,
+    position: IPosition | null,
+): void {
+    const selection = ed.getSelection();
+    if (position && (!selection || !selection.containsPosition(position))) {
+        ed.setPosition(position);
+    }
 }

@@ -1,0 +1,60 @@
+## Shortcuts
+
+These are your own shortcuts, so if you change one in `keybindings.json`
+(same format as VS Code's), this page shows your keys.
+
+| Keys                                            | Does                            |
+| ----------------------------------------------- | ------------------------------- |
+| <Key command="shoreline.updatePatch" />         | update on the next bar          |
+| <Key command="shoreline.updatePatchNextBeat" /> | update on the next beat         |
+| <Key command="shoreline.cancelQueuedUpdate" />  | cancel a waiting update         |
+| <Key command="shoreline.stop" />                | stop                            |
+| <Key command="shoreline.newFile" />             | new file                        |
+| <Key command="shoreline.save" />                | save                            |
+| <Key command="shoreline.openWorkspace" />       | open a folder as your workspace |
+| <Key command="shoreline.toggleMixer" />         | show or hide the mixer          |
+| <Key command="shoreline.showCommandPalette" />  | command palette                 |
+| <Key command="editor.action.formatDocument" />  | format the patch                |
+| <Key command="shoreline.openSettings" />        | settings                        |
+
+## Track labels
+
+| Write         | Means                        |
+| ------------- | ---------------------------- |
+| `bass:`       | a track                      |
+| `_bass:`      | muted                        |
+| `S_bass:`     | soloed                       |
+| `bass$2:`     | on outputs 2 and 3           |
+| `bass$2m:`    | in mono on output 2          |
+| `kick$drums:` | into the group track `drums` |
+
+## Pitches
+
+| Write          | Plays                        |
+| -------------- | ---------------------------- |
+| `'a3'`, `'eb'` | a note, octave 4 if left out |
+| `'220hz'`      | a frequency                  |
+| `'c3:m7'`      | a chord                      |
+| `'d3(dorian)'` | a scale                      |
+| `-1`           | 1 V per octave, 0 at C4      |
+
+## Mini-notation
+
+| Write      | Plays                     |
+| ---------- | ------------------------- |
+| `a b c`    | steps sharing the bar     |
+| `[a b]`    | a group in one step       |
+| `~` or `-` | a rest                    |
+| `a*4`      | a step repeated           |
+| `<a b c>`  | one per bar, taking turns |
+| `a b, c d` | patterns played together  |
+
+## Chains
+
+| Write                          | Does                                  |
+| ------------------------------ | ------------------------------------- |
+| `.lpf(cutoff, resonance)`      | lowpass filter                        |
+| `.amp(level)`                  | level, 5 for unity                    |
+| `.range(low, high)`            | rescales a signal between two values  |
+| `.scope()`                     | draws an oscilloscope beside the line |
+| `.track({ gain, pan, sends })` | sets the track's place in the mix     |

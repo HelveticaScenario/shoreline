@@ -1,12 +1,11 @@
 //! The macros that stamp the analog filter modules.
 
 /// Stamps one analog filter module from its kernel and response. `options`
-/// builds its `Kernel::Options` from the params struct, and may be left out
-/// for a kernel without any. `drive` holds the drive param's description,
-/// or nothing for a module without the param, and may be left out for the
-/// usual one. `freq` names the cutoff param. Each output is
-/// `field[tap] = "name": "description"`, one of them followed by
-/// `, default`, where `tap` is its place in `Taps`.
+/// builds its `Kernel::Options` from the params struct, and is left out for
+/// a kernel without any. `drive` holds the drive param's description, and is
+/// left out for a module without the param. `freq` names the cutoff param.
+/// Each output is `field[tap] = "name": "description"`, one of them followed
+/// by `, default`, where `tap` is its place in `Taps`.
 macro_rules! analog_filter {
     (@drive $this:tt $drive_doc:literal) => {
         &$this.params.drive
@@ -20,8 +19,8 @@ macro_rules! analog_filter {
         ident = $Struct:ident,
         kernel = $Kernel:ty,
         response = $response:expr,
-        options = |$p:ident| $options:expr,
-        drive = [$($drive_doc:literal)?],
+        $(options = |$p:ident| $options:expr,)?
+        $(drive = $drive_doc:literal,)?
         freq = $freq:ident,
         freq_doc = $freq_doc:literal,
         resonance_doc = $resonance_doc:literal,
@@ -108,11 +107,11 @@ macro_rules! analog_filter {
                 /// The connected outputs, `highRes` and the kernel's options.
                 fn key(&self) -> crate::dsp::filters::analog::runner::CoeffKey<$Kernel> {
                     use crate::dsp::filters::analog::runner::AnalogPorts;
-                    let $p = &self.params;
                     (
                         [<$Struct Outputs>]::taps(&self.connected()),
                         self.params.high_res,
-                        $options,
+                        // Without options, the block is empty: `()`.
+                        { $( let $p = &self.params; $options )? },
                     )
                 }
 
@@ -159,64 +158,6 @@ macro_rules! analog_filter {
             message_handlers!(impl $Struct {});
         }
     };
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $Struct:ident,
-        kernel = $Kernel:ty,
-        response = $response:expr,
-        options = |$p:ident| $options:expr,
-        freq = $($rest:tt)*
-    ) => {
-        $crate::dsp::filters::analog::module_macro::analog_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $Struct,
-            kernel = $Kernel,
-            response = $response,
-            options = |$p| $options,
-            drive = ["level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much"],
-            freq = $($rest)*
-        }
-    };
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $Struct:ident,
-        kernel = $Kernel:ty,
-        response = $response:expr,
-        drive = [$($drive_doc:literal)?],
-        freq = $($rest:tt)*
-    ) => {
-        $crate::dsp::filters::analog::module_macro::analog_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $Struct,
-            kernel = $Kernel,
-            response = $response,
-            options = |_params| (),
-            drive = [$($drive_doc)?],
-            freq = $($rest)*
-        }
-    };
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $Struct:ident,
-        kernel = $Kernel:ty,
-        response = $response:expr,
-        freq = $($rest:tt)*
-    ) => {
-        $crate::dsp::filters::analog::module_macro::analog_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $Struct,
-            kernel = $Kernel,
-            response = $response,
-            options = |_params| (),
-            freq = $($rest)*
-        }
-    };
 }
 pub(crate) use analog_filter;
 
@@ -224,7 +165,8 @@ pub(crate) use analog_filter;
 /// (12 and 24 dB outputs, 12 the default) or `four` (6 to 24 dB, 24 the
 /// default); `bandpass` or `notch` followed by the default output, `db12`
 /// or `db24`, a notch optionally by what its resonance does; or `allpass`.
-/// Then [`analog_filter`]'s fields up to `freq`.
+/// Then [`analog_filter`]'s fields up to `drive`. Every kind gets the usual
+/// `drive` param; a module without one calls [`analog_filter`] directly.
 macro_rules! analog_kind {
     (lowpass, $outputs:ident, $($head:tt)*) => {
         $crate::dsp::filters::analog::module_macro::analog_kind! {
@@ -328,6 +270,7 @@ macro_rules! analog_kind {
     ) => {
         $crate::dsp::filters::analog::module_macro::analog_filter! {
             $($head)*
+            drive = "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
             freq = $freq,
             freq_doc = $freq_doc,
             resonance_doc = $resonance_doc,
