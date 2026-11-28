@@ -11,6 +11,7 @@ import * as prettierEstree from 'prettier/plugins/estree';
 import ts from 'typescript';
 
 import { parseTransient } from '../../shared/dsl/ast/parse';
+import { wetChainPlugin } from '../components/monaco/wetChain';
 import type { PrettierConfig } from '../../shared/ipcTypes';
 import { introducesSyntaxErrors, parseErrors } from './syntaxCheck';
 import type { ControlQuickFix } from './controlQuickFix';
@@ -73,7 +74,7 @@ async function formatStatement(
             ...options,
             endOfLine: edited.includes('\r\n') ? 'crlf' : 'lf',
             parser: 'babel',
-            plugins: [prettierBabel, prettierEstree as never],
+            plugins: [prettierBabel, prettierEstree as never, wetChainPlugin],
             printWidth: Math.max((options.printWidth ?? 80) - indentWidth, 20),
         })
     ).trimEnd();

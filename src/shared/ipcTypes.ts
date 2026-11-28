@@ -75,6 +75,9 @@ export interface PrettierConfig {
     semi?: boolean;
     tabWidth?: number;
     printWidth?: number;
+    /** Format Document keeps each `.wet(...)` on the line of the call it
+     *  mixes against. */
+    wetOnSameLine?: boolean;
     [key: string]: unknown;
 }
 

@@ -86,6 +86,23 @@ export function FormatterSettingsTab({
                 </label>
             </div>
 
+            <div className="settings-section">
+                <h3>Wet Mix</h3>
+                <label className="settings-toggle">
+                    <input
+                        type="checkbox"
+                        checked={prettier.wetOnSameLine ?? true}
+                        onChange={(e) =>
+                            updatePrettier({ wetOnSameLine: e.target.checked })
+                        }
+                    />
+                    <span>
+                        Keep <code>.wet()</code> on the line of the effect it
+                        mixes
+                    </span>
+                </label>
+            </div>
+
             <SelectSetting
                 label="Quotes"
                 value={resolvePrettierOptions(prettier).quotes}
