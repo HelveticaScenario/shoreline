@@ -10,7 +10,7 @@ import {
     SignatureHelpAdapter,
     SuggestAdapter,
 } from 'monaco-editor/esm/vs/language/typescript/languageFeatures.js';
-import { ICommandService } from 'monaco-editor/esm/vs/platform/commands/common/commands.js';
+import { ICommandService } from 'monaco-editor/esm/vs/platform/commands/common/commands.service.js';
 import type {
     JSDocTagInfo,
     SignatureHelpItem,

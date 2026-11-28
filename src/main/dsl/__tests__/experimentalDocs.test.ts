@@ -3,7 +3,6 @@ import schemas from '@modular/core/schemas.json';
 import { buildLibSource } from '../typescriptLibGen';
 import { EXPERIMENTAL_NOTICE } from '../../../shared/dsl/experimental';
 import { moduleToReferenceEntry } from '../../../shared/dsl/referenceDocs';
-import type { Schema } from '../../../shared/dsl/schemaTypeResolver';
 
 /** The JSDoc block directly above the declaration matching `declaration`. */
 function jsDocAbove(source: string, declaration: RegExp): string {
@@ -41,9 +40,7 @@ describe('experimental module docs', () => {
 
     test('the reference entry carries the flag', () => {
         const entry = (name: string) =>
-            moduleToReferenceEntry(
-                schemas.find((s) => s.name === name),
-            );
+            moduleToReferenceEntry(schemas.find((s) => s.name === name));
         expect(entry('$comp').experimental).toBe(true);
         expect(entry('$sine').experimental).toBe(false);
     });

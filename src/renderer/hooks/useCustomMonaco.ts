@@ -1,8 +1,16 @@
 import { loader } from '@monaco-editor/react/dist';
+import type * as css from '@codingame/monaco-vscode-standalone-css-language-features';
+import type * as json from '@codingame/monaco-vscode-standalone-json-language-features';
+import type * as typescript from '@codingame/monaco-vscode-standalone-typescript-language-features';
 import type * as monaco_editor from 'monaco-editor';
 import { useEffect, useState } from 'react';
 
-export type Monaco = typeof monaco_editor;
+/** The editor API with the language namespaces of their own packages. */
+export type Monaco = typeof monaco_editor & {
+    css: typeof css;
+    json: typeof json;
+    typescript: typeof typescript;
+};
 
 /** The shared Monaco instance, or null until its loader has resolved. */
 export function useCustomMonaco(): Monaco | null {

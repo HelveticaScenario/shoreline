@@ -384,6 +384,460 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@codingame/monaco-vscode-api@npm:37.6.1, @codingame/monaco-vscode-api@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-api@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-base-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-environment-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-extensions-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-host-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-layout-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-quickaccess-service-override": "npm:37.6.1"
+    "@vscode/diff": "npm:0.0.2-7"
+    "@vscode/iconv-lite-umd": "npm:0.7.1"
+    dompurify: "npm:3.4.15"
+    jschardet: "npm:3.1.4"
+    marked: "npm:14.0.0"
+  checksum: 10c0/4b1ddb06212203195ccaf910812b7ad41fee5eae898d0da00fa4aca5385c328b7df645c613eb0962d4590fd17dadbedc36ed9f9ebcc03fa33c87f374714760aa
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-base-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-base-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/7109298dc76a72a36bbdda5d5a3958a2fcbb964edf5373ac7403e3a0acab5ef57c2531e6454dfc307c632151eaa456abe3feaebbfcd0b7807f505d9c0299d674
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-bulk-edit-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-bulk-edit-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/8e0e2b12bf9591ce92bab2f2c76df1466036a56f27254f30772046a6ef8d206e6b417b29297386d8432785bb4ee0e7349bc1e20d3eb1fa8a903362bb804486e1
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-configuration-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-configuration-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+  checksum: 10c0/dfd99cfd162b627773f313e303c1dc67049907f4f03348025ab51e4a51fd55beaeb4ec38d77bf6871ee915d2d0c02ac2a2db7866ae0fac5d198bc318f06c3995
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-editor-api@npm:^37.6.0, monaco-editor@npm:@codingame/monaco-vscode-editor-api@37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-editor-api@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/6189147e0e42e3d113bdb968493470532d69afca54c0ea8fdf22dea1ad38581cec47be67aa793a84a01978d7a59904d6df6819be889fec241f9206aae37788e6
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-editor-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-editor-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/a402593dfed786f3b04678d6eee789bcc1341b564407203c1146b7da8952606d1519afff2fa8e74b0a544c877e3377b77f7bc006f66a3c0a24605960d3adfc3e
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-environment-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-environment-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/ac087b3781b2d6c2cb254db3a1e74a1373d0fedebd5c37541f09a8e3ae54754b5988ade8d149a70892f557c218a69c5a9225862c07a454f9073774f4783c3f8c
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-extensions-service-override@npm:37.6.1, @codingame/monaco-vscode-extensions-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-extensions-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+  checksum: 10c0/f4ced9504a4c032e9d233c3896c94e1164c1188841b867f66aca92717229eedb682e817e7286adc7e6f9651dc409dd9910cb727c7e3b9d33193203d6cabaa62e
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-files-service-override@npm:37.6.1, @codingame/monaco-vscode-files-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-files-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/a5d1d0e6bbd6ad1be87d8aec2a2fd6a841f091f418ee978c1660346609800191ca0fa9000881ef8b4b158a22f022275e8a34a856260143e9d9a94536553a1083
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-host-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-host-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/f7e058d0926f46dfbae57d0df2da461d3cc94eb012bf2b1756c10f38ae347d2c2383b6d2045862c2621d011df231bebaee0b1f61cc7d5d66ed08db034d3f71d5
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-katex-common@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-katex-common@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    katex: "npm:0.16.45"
+  checksum: 10c0/8dcac731eb92e3789891afefb50473b9436ff8e8c9cc0a4656332b7d509ec8986429dfb225364f0aeb13e849747c5be590a769485f45a5048f4b54627fb6758d
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-keybindings-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-keybindings-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+  checksum: 10c0/9c06467edec09d13f470852d3a6bee0c3bcb4ff6bd08dac28165421c9a738fc10792275eb3aa7ce1e446b6017eb274ffaf480c8cf105579778ccb5127560232f
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-cs@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-cs@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/1cb79cbc47a1e189dbebf7adb51298ed50c18468715c0b6bfbfc58f71b59b95c5519048ca79d6c6c3b1966bf7738df00a5126daeb5971daeaaa91da020eb8413
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-de@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-de@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/fc43bc0aa975c2d148c3a6591eca005c52baf810fe3db98f32acaa32416fbd6e1a972a4fb77fd1bd9bb7b0f707cec2d8c153b5b782f3749ba68ea311f399d779
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-es@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-es@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/a05a5c33907142f10ae613b5d266804741015a60f0db57d0b9b9094fa5b1f78bf596e779bb0457c8aaa21bbcff1bbc5fb5be34cfc4bd07bbd007f6daf5b2ec5c
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-fr@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-fr@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/8207205772674845505911312ba06e1e4cdca1743352489a5c39ba2ad1d3473174e428b39cbf1afbeec15e14f95c2dec60b6c97ac25499ea0ae22941e52bb6bd
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-it@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-it@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/e8ff9c3128e74ccc72361700a682860d91a5ae22db1341dd7d9a8026bc7522bca140e3425b5a45b67f18e9809cb387c853bb25343db73c8372c278fa8889516d
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-ja@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-ja@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/f1c64a0cdc1ba24b59d4ada2e97c59d9743cc2e635bddd99fcd14d963d77363ba820fdc36737988ff5ea93720215e30fce364cc430c4197375652198bd21e029
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-ko@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-ko@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/bbe286442d6b7825949ea7cca3a463246c9f30487ce4cdf14d60dd352e4babd894512a161c561cb9d52ddb32f82d071cb1aa3ed677c77163ea70e646557a0bc6
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-pl@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-pl@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/facaf955af19b649af360cbd0dfe1e96660ff5493f8984c71ed9eb18a10cba19b29949b8f57b0f4a095cf233e105f56b2bd0c296f4e4febf08894d19a6ca93bf
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-pt-br@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-pt-br@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/23dd426641af7e42b0e4db5806fb58a5ecddc63157a134539ea43e08724e54ef4072dd6a74b1f13897be5aae768bb6bec2b7d6d43bfd25a323f6aeedaa500915
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-qps-ploc@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-qps-ploc@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/6bd04ccbe3a48cae7e5bccdbddee9cdb6c1e435a43b3287b1cf30f1583db42b739976b8d1c29f5a4c9a27cd94216c1e75b13ec92794d73fb039b186f2e1a9b71
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-ru@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-ru@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/65f7e913135a835bc7f0c23a8a4337d3e01014f5ca435001db4ea7801ff8aaf85d1d7b7ec89d583f20544fe393618c36b1aab8545d15975d941fd1896a99341b
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-tr@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-tr@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/42e5b50ab69d4b16b4f1682aaffaebaf335478d39b6d99511630420c7a8a5c019f178103fdf251c5581923017da42325e887cb038d904291543f64c27d5697f1
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-zh-hans@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-zh-hans@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/f25f9119efd77d45f6a065d3bd30a5fee65adf45fc6fba7976691b20549b56ba5d8ccedca536a9b51faea5f66d3273b1943190d9c4981ac1ecad6153fe8094a8
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-language-pack-zh-hant@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-language-pack-zh-hant@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/261ad9cb8db9bbd64edd7582a4c1690feb935caecc8f6bc6a405f9fad2e3ca70a70605923f8474d4228eaada1a2413a11b095e721a0fe13d74c2210975d95682
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-languages-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-languages-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+  checksum: 10c0/a4c095c0fb5e95e2ff1298087b64302f1f49207df1a5e08ec7af79b6c0b3d1660c85edc0cbf3bcb9b5985abffadc3f3f6e81a4dd62174eede131d3c30ac3cd1d
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-layout-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-layout-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/4d418711885966f8a64f21801a7002bd2c08f109352e48ed0ba91071388132b31a0e24aa0ced1fd9124e5ee3e4e553a99d5d416d6a61e09d19e1a3bbdb3e5360
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-localization-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-localization-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/6c00062f31caa5ce36846c98e89eaa099e922ad86317425ad8652e6787bfb1ee67d99ded1613c31af9edf4a1c7671c2f5bf6a9dfd23f93d917374a597a246e02
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-log-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-log-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-environment-service-override": "npm:37.6.1"
+  checksum: 10c0/155bf7dc09839370a2f605d8b5f168e9f85d9bbe0f5317ce65d4a81c1e3879ad3371d132ead82466d32d9ec58ba9a956c43fa0c7e0cfb0b022e7777f093284ab
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-model-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-model-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/8839b72befb44b741552c54113d3f46c6abc11f52fbc49a689bebe25efaa5c08453b6cc2a37cc2cf7679b5b5a980060e4d3916a76af612d4a2ecf30bf99d234c
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-monarch-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-monarch-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/92e6f2b50660cf93680b3459550c08dfbc7f858b5f93d7c2f203d8494ab9b4a698f95537a2c5474fd3176ea7342bbe50a3f447af25c9c3e49e100c756103fb9c
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-quickaccess-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-quickaccess-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/801f66480294f8f4e51d2b0d484ccee4a49295c479a308e4de05eed605b78b0d1d82589ffefab151215e24a0a654200e9a3388f166c8644589901bdb12b23aee
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-standalone-css-language-features@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-standalone-css-language-features@npm:37.6.1"
+  dependencies:
+    monaco-editor: "npm:@codingame/monaco-vscode-editor-api@37.6.1"
+    vscode-css-languageservice: "npm:6.2.14"
+    vscode-languageserver-textdocument: "npm:1.0.12"
+    vscode-languageserver-types: "npm:3.17.5"
+  checksum: 10c0/4c92dcafc5bbde7b7834f9f317c31898b8379c337f356a823d6e26615ac8f10c381d25e0d1be44b47f26fe6b9d7194ee2151eca8c51169957a541b853cde16c9
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-standalone-json-language-features@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-standalone-json-language-features@npm:37.6.1"
+  dependencies:
+    jsonc-parser: "npm:3.3.1"
+    monaco-editor: "npm:@codingame/monaco-vscode-editor-api@37.6.1"
+    vscode-json-languageservice: "npm:5.3.11"
+    vscode-languageserver-textdocument: "npm:1.0.12"
+    vscode-languageserver-types: "npm:3.17.5"
+    vscode-uri: "npm:3.0.8"
+  checksum: 10c0/ac5561e3bd7081474cb0dd5d202c111cd0136e001fe29a002707d460139da74338472ff012e5cc9a53376e32c4899dba40743320f17873e518172f6e0cc9b37d
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-standalone-languages@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-standalone-languages@npm:37.6.1"
+  dependencies:
+    monaco-editor: "npm:@codingame/monaco-vscode-editor-api@37.6.1"
+  checksum: 10c0/c197e0fc93cd9dd8aba96632192ce78f27ed82774f0b5de0b7cf1178685b43653c58ceded3b0a3655c58d1ec14d41fb71bdb6fbc61a7fa3ebb3e457e6bde8c86
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-standalone-typescript-language-features@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-standalone-typescript-language-features@npm:37.6.1"
+  dependencies:
+    monaco-editor: "npm:@codingame/monaco-vscode-editor-api@37.6.1"
+  checksum: 10c0/d570f6f18189347982445f0f1bbabd63b47696ce89d86f0e2079eb0aea54c89c5791fc491499e636284f4fb17f57fd6d590365627905d74c721ea08ee58a805b
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-textmate-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-textmate-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+  checksum: 10c0/7d111621eb0cf0150f8f33911b3d24055b63cd02b70bff48897fb7b23c46ce9265ab19e661cfba1700054608f6aeb08fee07a0bca09e6e0fa3272c238c6de8de
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-theme-defaults-default-extension@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-theme-defaults-default-extension@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/91e56da40f2521aafbde456448e4f49e1aaf9b8bdc14537240f6954440eed6037f3443e82f62c184a3c00760e9d3b786e77fce83c6f04715e1d3ba8995506496
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-theme-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-theme-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+  checksum: 10c0/545f1edbb46cab1dfdc55708610bc6ce94efc2994bc3f41c1a77ace775d70bc14bac97d13d594689847b2d79a51fc888da41a840f20c2f8aecc3345ec53e4612
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-view-banner-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-view-banner-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/7d632a43fa0cd634b71f0ddeaf31777abcf446ec7daeb15019bad3e2f16db499131f9055a231a5604e9894c929f1d74b7743c82d8f9a095e51c58a8db3848322
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-view-common-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-view-common-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-bulk-edit-service-override": "npm:37.6.1"
+  checksum: 10c0/9399c591bd7425ef11bd6b04574983ab8a8bda0022aee1ff28a07a321f814e153b5428f9fdc1da03e8ca7ad9f949850dcdd6ec52b67e629e3ec5b55f9abf1df3
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-view-status-bar-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-view-status-bar-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/59a08718e1b9879a98ef20a12c36c5e59bd274a1cda207b173368a40d4a5d78c0be10b1d08e5765f10622ff2052a1f3ddc611cbdd9de53e147128850d8576d67
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-view-title-bar-service-override@npm:37.6.1":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-view-title-bar-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+  checksum: 10c0/4b970b6d5b59fc7cae909734b8c06f192150155b66fad086cb8638a146b329159f2653ab17d250c466785badcbad8e586c25e15d9254d34baad0dec2a65512bb
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-views-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-views-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-keybindings-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-layout-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-quickaccess-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-view-common-service-override": "npm:37.6.1"
+  checksum: 10c0/dd7981753e55ef81df6d26ebe25fcd6aa08bc2fdc4ace32505c446f3e181cef5b9e5be64b259663e0d5be00acfb1343902d5471fc876bfe99975fe2ddeb6fef3
+  languageName: node
+  linkType: hard
+
+"@codingame/monaco-vscode-workbench-service-override@npm:^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-workbench-service-override@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-environment-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-katex-common": "npm:37.6.1"
+    "@codingame/monaco-vscode-keybindings-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-quickaccess-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-view-banner-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-view-common-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-view-status-bar-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-view-title-bar-service-override": "npm:37.6.1"
+  checksum: 10c0/30caad5fe98b848f360399ae27c53aeba1d45e5dc1ffa2cb18f8b6bfe00513fd74d21d7ec08a6202a102758fb2c567d1b1b2a40e7b4b969fab59252549b24c71
+  languageName: node
+  linkType: hard
+
 "@electron-forge/cli@npm:^7.10.2":
   version: 7.10.2
   resolution: "@electron-forge/cli@npm:7.10.2"
@@ -2002,6 +2456,12 @@ __metadata:
   resolution: "@modular/app@workspace:."
   dependencies:
     "@babel/core": "npm:^7.29.0"
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-files-service-override": "npm:37.6.1"
+    "@codingame/monaco-vscode-standalone-css-language-features": "npm:37.6.1"
+    "@codingame/monaco-vscode-standalone-json-language-features": "npm:37.6.1"
+    "@codingame/monaco-vscode-standalone-languages": "npm:37.6.1"
+    "@codingame/monaco-vscode-standalone-typescript-language-features": "npm:37.6.1"
     "@electron-forge/cli": "npm:^7.10.2"
     "@electron-forge/maker-deb": "npm:^7.10.2"
     "@electron-forge/maker-flatpak": "npm:^7.10.2"
@@ -2061,7 +2521,8 @@ __metadata:
     knip: "npm:^6.1.1"
     lint-staged: "npm:^17.6.2"
     lucide-react: "npm:^1.79.0"
-    monaco-editor: "npm:^0.55.1"
+    monaco-editor: "npm:@codingame/monaco-vscode-editor-api@37.6.1"
+    monaco-languageclient: "npm:11.0.3"
     oxlint: "npm:^1.58.0"
     oxlint-tsgolint: "npm:^0.19.0"
     peggy: "npm:^5.1.0"
@@ -4558,6 +5019,27 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@vscode/diff@npm:0.0.2-7":
+  version: 0.0.2-7
+  resolution: "@vscode/diff@npm:0.0.2-7"
+  checksum: 10c0/fe00899886063b7059945a30231466cc2e6245c02e8de6e011182b6892bf062d6467e36bd05bb93643326dd591b80a6e4c488f0032bdb6838ff5b0867c68f09f
+  languageName: node
+  linkType: hard
+
+"@vscode/iconv-lite-umd@npm:0.7.1":
+  version: 0.7.1
+  resolution: "@vscode/iconv-lite-umd@npm:0.7.1"
+  checksum: 10c0/ed6026004465fd2b034cae2b4f03df15b16b90d701ac380f2596972cc651dbd143a9fcf4e68472d7cceaf3d8f91fad5b45b72077127f0b275395f6358d841e5a
+  languageName: node
+  linkType: hard
+
+"@vscode/l10n@npm:^0.0.18":
+  version: 0.0.18
+  resolution: "@vscode/l10n@npm:0.0.18"
+  checksum: 10c0/d1fc797001f7d508ab3fa91175f7a50ea98516c4e47830ff2be79163cde9279279514a167a3bad15b7ab7fc243e7808d8f32d3eb41f4a7d6721d9dfdbb38d89e
+  languageName: node
+  linkType: hard
+
 "@vscode/sudo-prompt@npm:^9.3.1":
   version: 9.3.1
   resolution: "@vscode/sudo-prompt@npm:9.3.1"
@@ -4990,6 +5472,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"balanced-match@npm:^4.0.2":
+  version: 4.0.4
+  resolution: "balanced-match@npm:4.0.4"
+  checksum: 10c0/07e86102a3eb2ee2a6a1a89164f29d0dbaebd28f2ca3f5ca786f36b8b23d9e417eb3be45a4acf754f837be5ac0a2317de90d3fcb7f4f4dc95720a1f36b26a17b
+  languageName: node
+  linkType: hard
+
 "base64-js@npm:^1.3.1, base64-js@npm:^1.5.1":
   version: 1.5.1
   resolution: "base64-js@npm:1.5.1"
@@ -5095,6 +5584,15 @@ __metadata:
   dependencies:
     balanced-match: "npm:^1.0.0"
   checksum: 10c0/6d117a4c793488af86b83172deb6af143e94c17bc53b0b3cec259733923b4ca84679d506ac261f4ba3c7ed37c46018e2ff442f9ce453af8643ecd64f4a54e6cf
+  languageName: node
+  linkType: hard
+
+"brace-expansion@npm:^5.0.8":
+  version: 5.1.0
+  resolution: "brace-expansion@npm:5.1.0"
+  dependencies:
+    balanced-match: "npm:^4.0.2"
+  checksum: 10c0/e45471e38321aa12dd38c4e76ffd065efe1056b053ce6035922742351aa836666a71deca248d0bb875d3d135ca0f77588101370a629b56803e8b6495acc4f251
   languageName: node
   linkType: hard
 
@@ -5541,6 +6039,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"commander@npm:^8.3.0":
+  version: 8.3.0
+  resolution: "commander@npm:8.3.0"
+  checksum: 10c0/8b043bb8322ea1c39664a1598a95e0495bfe4ca2fad0d84a92d7d1d8d213e2a155b441d2470c8e08de7c4a28cf2bc6e169211c49e1b21d9f7edc6ae4d9356060
+  languageName: node
+  linkType: hard
+
 "commander@npm:^9.4.0":
   version: 9.5.0
   resolution: "commander@npm:9.5.0"
@@ -5779,15 +6284,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.2.7":
-  version: 3.2.7
-  resolution: "dompurify@npm:3.2.7"
+"dompurify@npm:3.4.15":
+  version: 3.4.15
+  resolution: "dompurify@npm:3.4.15"
   dependencies:
     "@types/trusted-types": "npm:^2.0.7"
   dependenciesMeta:
     "@types/trusted-types":
       optional: true
-  checksum: 10c0/d41bb31a72f1acdf9b84c56723c549924b05d92a39a15bd8c40bec9007ff80d5fccf844bc53ee12af5b69044f9a7ce24a1e71c267a4f49cf38711379ed8c1363
+  checksum: 10c0/406b5f0f9c9dcbc80016367d33e73585b6a6f440815228d7e9cbe8abe71058183b1f4cb4207b79b8473637de4a106fc055eb6da271ef9db353d29679b891ecbc
   languageName: node
   linkType: hard
 
@@ -7397,6 +7902,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"jschardet@npm:3.1.4":
+  version: 3.1.4
+  resolution: "jschardet@npm:3.1.4"
+  checksum: 10c0/d72c724ff60bc185d3962617ffda6849c6d632a935820841078c656a5247d73617a5df3b233e1fb1064de8683f7dae1b422b68186d1d6db22117b59edb5433dc
+  languageName: node
+  linkType: hard
+
 "jsdom@npm:^31.0.1":
   version: 31.0.1
   resolution: "jsdom@npm:31.0.1"
@@ -7481,7 +7993,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsonc-parser@npm:^3.3.1":
+"jsonc-parser@npm:3.3.1, jsonc-parser@npm:^3.2.1, jsonc-parser@npm:^3.3.1":
   version: 3.3.1
   resolution: "jsonc-parser@npm:3.3.1"
   checksum: 10c0/269c3ae0a0e4f907a914bf334306c384aabb9929bd8c99f909275ebd5c2d3bc70b9bcd119ad794f339dec9f24b6a4ee9cd5a8ab2e6435e730ad4075388fc2ab6
@@ -7517,6 +8029,17 @@ __metadata:
   version: 3.1.0
   resolution: "junk@npm:3.1.0"
   checksum: 10c0/820174b9fa9a3af09aeeeeb1022df2481a2b10752ce5f65ac63924a79cb9bba83ea7c288e8d5b448951109742da5ea69a230846f4bf3c17c5c6a1d0603b63db4
+  languageName: node
+  linkType: hard
+
+"katex@npm:0.16.45":
+  version: 0.16.45
+  resolution: "katex@npm:0.16.45"
+  dependencies:
+    commander: "npm:^8.3.0"
+  bin:
+    katex: cli.js
+  checksum: 10c0/f715eb9a73daff68ac14dcc8c2f47f02f5fc756a74077d22479e64e06872b2b44f0d81f1c91a98a9873722a08841388a869a0b9ddb96b224362eb8054ddf533a
   languageName: node
   linkType: hard
 
@@ -8674,6 +9197,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"minimatch@npm:^10.2.6":
+  version: 10.2.6
+  resolution: "minimatch@npm:10.2.6"
+  dependencies:
+    brace-expansion: "npm:^5.0.8"
+  checksum: 10c0/4559a836243b98bd4d17ea9f7edae698717c76399eea7be374f3737f33164e4907f19e9726891ddeb122f750a5a7fa80d2ac43e851d6e5984dc4ff42ec127d3a
+  languageName: node
+  linkType: hard
+
 "minimatch@npm:^3.0.4, minimatch@npm:^3.0.5, minimatch@npm:^3.1.1":
   version: 3.1.2
   resolution: "minimatch@npm:3.1.2"
@@ -8845,13 +9377,45 @@ __metadata:
   languageName: node
   linkType: hard
 
-"monaco-editor@npm:^0.55.1":
-  version: 0.55.1
-  resolution: "monaco-editor@npm:0.55.1"
+"monaco-languageclient@npm:11.0.3":
+  version: 11.0.3
+  resolution: "monaco-languageclient@npm:11.0.3"
   dependencies:
-    dompurify: "npm:3.2.7"
-    marked: "npm:14.0.0"
-  checksum: 10c0/c1a0cf887657b42c8996518bc5ee96bbd39c977f862d2a2b2018427c45f14b0dd25d1452278202056f6b1ead97981282ccacd7d7ad918d8f0ef084159f974a25
+    "@codingame/monaco-vscode-api": "npm:^37.6.0"
+    "@codingame/monaco-vscode-configuration-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-editor-api": "npm:^37.6.0"
+    "@codingame/monaco-vscode-editor-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-extensions-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-files-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-cs": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-de": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-es": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-fr": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-it": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-ja": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-ko": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-pl": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-pt-br": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-qps-ploc": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-ru": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-tr": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-zh-hans": "npm:^37.6.0"
+    "@codingame/monaco-vscode-language-pack-zh-hant": "npm:^37.6.0"
+    "@codingame/monaco-vscode-languages-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-localization-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-log-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-model-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-monarch-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-textmate-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-theme-defaults-default-extension": "npm:^37.6.0"
+    "@codingame/monaco-vscode-theme-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-views-service-override": "npm:^37.6.0"
+    "@codingame/monaco-vscode-workbench-service-override": "npm:^37.6.0"
+    vscode: "npm:@codingame/monaco-vscode-extension-api@^37.6.0"
+    vscode-languageclient: "npm:~10.1.2"
+    vscode-languageserver-protocol: "npm:~3.18.4"
+    vscode-ws-jsonrpc: "npm:~4.0.3"
+  checksum: 10c0/641dde79df06484d388398a3cd9a1a7e5437d316e87339da0c9774c9ac142a9e34d62c97cf7df7e0a8e0f57559dad7ba6397a7dc754431f624d1114c7e56ee0b
   languageName: node
   linkType: hard
 
@@ -10435,7 +10999,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.6.3":
+"semver@npm:^7.6.3, semver@npm:^7.8.1":
   version: 7.8.6
   resolution: "semver@npm:7.8.6"
   bin:
@@ -11586,6 +12150,152 @@ __metadata:
   bin:
     vitest: ./vitest.mjs
   checksum: 10c0/c3f9ac564025fba9f2d6058e22fb1a97747cd9efaa2fd6f210855d3775654d30e1da55054dddfcf1f788f00d47edd54b8cb7d22f78209510413cf9c84e168141
+  languageName: node
+  linkType: hard
+
+"vscode-css-languageservice@npm:6.2.14":
+  version: 6.2.14
+  resolution: "vscode-css-languageservice@npm:6.2.14"
+  dependencies:
+    "@vscode/l10n": "npm:^0.0.18"
+    vscode-languageserver-textdocument: "npm:^1.0.11"
+    vscode-languageserver-types: "npm:3.17.5"
+    vscode-uri: "npm:^3.0.8"
+  checksum: 10c0/875b4e9e23a97291a5b032dfd33d16a50c1f4594e53059e3af9ceca0a23132c9a123f40ab1c8b2ab379c92b26f47d773d48114d1dbf43b17c7392dd3a73ba317
+  languageName: node
+  linkType: hard
+
+"vscode-json-languageservice@npm:5.3.11":
+  version: 5.3.11
+  resolution: "vscode-json-languageservice@npm:5.3.11"
+  dependencies:
+    "@vscode/l10n": "npm:^0.0.18"
+    jsonc-parser: "npm:^3.2.1"
+    vscode-languageserver-textdocument: "npm:^1.0.11"
+    vscode-languageserver-types: "npm:^3.17.5"
+    vscode-uri: "npm:^3.0.8"
+  checksum: 10c0/13d4ca401b79dfa711fcda1fc4f06311162f86963f808c3661ff505e3e8c7ac83cb4c196b33a92fa5b33b0c08c508166b80d3617a2ad3f4d43234dbb092215d7
+  languageName: node
+  linkType: hard
+
+"vscode-jsonrpc@npm:10.0.2":
+  version: 10.0.2
+  resolution: "vscode-jsonrpc@npm:10.0.2"
+  checksum: 10c0/de7dd49c8915ff99171eace13ded720189504e4a9aecbf5a085d0752db7feb7c342aa1a002e18222fda2122c39d02c79c09dc6c7f37c5d0c9ef3d3284790aac6
+  languageName: node
+  linkType: hard
+
+"vscode-jsonrpc@npm:9.0.3, vscode-jsonrpc@npm:~9.0.3":
+  version: 9.0.3
+  resolution: "vscode-jsonrpc@npm:9.0.3"
+  checksum: 10c0/b6fa49fb33fc781c9b05b4e09a1aa0bc641f5791d6644ee0a0eb2e366d0cf05afbfdf4b6f6010faf0a3b7f185a703963adae110c66ef54c30032ab3e2f0759b2
+  languageName: node
+  linkType: hard
+
+"vscode-languageclient@npm:~10.1.2":
+  version: 10.1.2
+  resolution: "vscode-languageclient@npm:10.1.2"
+  dependencies:
+    minimatch: "npm:^10.2.6"
+    semver: "npm:^7.8.1"
+    vscode-languageserver-protocol: "npm:3.18.4"
+    vscode-languageserver-textdocument: "npm:1.0.15"
+  checksum: 10c0/90ba9992a65a7918d13a0f67199db6c845fccce9a8a5629601e32a23816038edff74ef676419a341d1c6135e6c0101f4c96bc79ecf639772b37f120bb1c8948c
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-protocol@npm:3.18.4":
+  version: 3.18.4
+  resolution: "vscode-languageserver-protocol@npm:3.18.4"
+  dependencies:
+    vscode-jsonrpc: "npm:9.0.3"
+    vscode-languageserver-types: "npm:3.18.4"
+  checksum: 10c0/6323fba7c6cdbcf4aca6cf63f0a9c4c1b171e1dc4390c10971fbc0ef8bd3015c847edeb2bf9896c6acf78431c62e94e7ef127376da80902f7a747aa381e81b5b
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-protocol@npm:~3.18.4":
+  version: 3.18.7
+  resolution: "vscode-languageserver-protocol@npm:3.18.7"
+  dependencies:
+    vscode-jsonrpc: "npm:10.0.2"
+    vscode-languageserver-types: "npm:3.18.6"
+  checksum: 10c0/49d857e7a10700a7a8fc5f44db16a19d8701f825db49832b750fab4b202603b9e9b2366b5345a5112541d1c88288cd04cad294a42ef36ed553c0c2c5b08f211a
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-textdocument@npm:1.0.12":
+  version: 1.0.12
+  resolution: "vscode-languageserver-textdocument@npm:1.0.12"
+  checksum: 10c0/534349894b059602c4d97615a1147b6c4c031141c2093e59657f54e38570f5989c21b376836f13b9375419869242e9efb4066643208b21ab1e1dee111a0f00fb
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-textdocument@npm:1.0.15":
+  version: 1.0.15
+  resolution: "vscode-languageserver-textdocument@npm:1.0.15"
+  checksum: 10c0/b2e5c47fe9b0c3278855aa9ef99a3de7306fe5d45399bf0f6d59f5fb4daebff6dcbadf041e991296560b0c9367627f0014f1d7e40136d2b459f21c19b671df10
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-textdocument@npm:^1.0.11":
+  version: 1.0.16
+  resolution: "vscode-languageserver-textdocument@npm:1.0.16"
+  checksum: 10c0/b21f9d0b6fa84856fc62eb83342f6459264c3832ce5c855a8cc85b86c8230e07ad7662dde0cfa7664c2855c62cd7926874551382aec1f075efe93f8ef697da16
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-types@npm:3.17.5":
+  version: 3.17.5
+  resolution: "vscode-languageserver-types@npm:3.17.5"
+  checksum: 10c0/1e1260de79a2cc8de3e46f2e0182cdc94a7eddab487db5a3bd4ee716f67728e685852707d72c059721ce500447be9a46764a04f0611e94e4321ffa088eef36f8
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-types@npm:3.18.4":
+  version: 3.18.4
+  resolution: "vscode-languageserver-types@npm:3.18.4"
+  checksum: 10c0/95a58eba94900bd9e685b44b840497c40709a8f643a4fa0945daa40affa45246ee843d786aa5ce9d64fe573cec1ef9530d3519ae01e8b4aa0ff2c83ba7608ccc
+  languageName: node
+  linkType: hard
+
+"vscode-languageserver-types@npm:3.18.6, vscode-languageserver-types@npm:^3.17.5":
+  version: 3.18.6
+  resolution: "vscode-languageserver-types@npm:3.18.6"
+  checksum: 10c0/854854dc0bdeaedb640a18ec8d022058f5b70108c6a6a109c8295632c7bbd31d411f758c49141480d7bd8427e05ab25b0d194f00597d1fac55932d38ed605721
+  languageName: node
+  linkType: hard
+
+"vscode-uri@npm:3.0.8":
+  version: 3.0.8
+  resolution: "vscode-uri@npm:3.0.8"
+  checksum: 10c0/f7f217f526bf109589969fe6e66b71e70b937de1385a1d7bb577ca3ee7c5e820d3856a86e9ff2fa9b7a0bc56a3dd8c3a9a557d3fedd7df414bc618d5e6b567f9
+  languageName: node
+  linkType: hard
+
+"vscode-uri@npm:^3.0.8":
+  version: 3.2.0
+  resolution: "vscode-uri@npm:3.2.0"
+  checksum: 10c0/65b4d78f2d014ee359ba36a81605bbd8a420d4c13d3fdba61b44b301ea416bf4b12637253ee72c0f30c1cd774c3649d667674c2fbf00c931667b869158f8519f
+  languageName: node
+  linkType: hard
+
+"vscode-ws-jsonrpc@npm:~4.0.3":
+  version: 4.0.3
+  resolution: "vscode-ws-jsonrpc@npm:4.0.3"
+  dependencies:
+    vscode-jsonrpc: "npm:~9.0.3"
+  checksum: 10c0/1fbd8401412c920a50da2eb90c00442697d4d61f31f42308ad88f66a77a72e3e807a184f305d5ef3045d723ef37b96c5f2ca06e55a5f1affb1e2131263cb3466
+  languageName: node
+  linkType: hard
+
+"vscode@npm:@codingame/monaco-vscode-extension-api@^37.6.0":
+  version: 37.6.1
+  resolution: "@codingame/monaco-vscode-extension-api@npm:37.6.1"
+  dependencies:
+    "@codingame/monaco-vscode-api": "npm:37.6.1"
+    "@codingame/monaco-vscode-extensions-service-override": "npm:37.6.1"
+  checksum: 10c0/6d2be5e04997f0a78bac5548bb353eae2ab7b43e29e95c52f04a0d795c9397aa06c9b8f8b0a7d91a046ceeb96428800fa8a9f521956118535dd55e874fe23dc0
   languageName: node
   linkType: hard
 

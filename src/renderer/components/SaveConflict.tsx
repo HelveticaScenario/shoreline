@@ -3,6 +3,7 @@ import { DiffEditor } from '@monaco-editor/react';
 import { fontFamilyWithFallback } from '../../shared/fonts';
 import { useOverlayPanel } from '../hooks/useOverlayPanel';
 import { useTheme } from '../themes/ThemeContext';
+import type { Monaco } from '../hooks/useCustomMonaco';
 import { applyMonacoTheme } from './monaco/theme';
 import './SaveConflict.css';
 
@@ -131,7 +132,13 @@ export function SaveConflictDiff({
                         }
                         theme={monacoThemeId}
                         beforeMount={(monaco) => {
-                            applyMonacoTheme(monaco, appTheme, monacoThemeId);
+                            // The loader hands over the instance startMonaco
+                            // built, language namespaces included.
+                            applyMonacoTheme(
+                                monaco as Monaco,
+                                appTheme,
+                                monacoThemeId,
+                            );
                         }}
                         options={{
                             readOnly: true,

@@ -154,7 +154,7 @@ declare module 'monaco-editor/esm/vs/language/typescript/languageFeatures.js' {
     }
 }
 
-declare module 'monaco-editor/esm/vs/platform/commands/common/commands.js' {
+declare module 'monaco-editor/esm/vs/platform/commands/common/commands.service.js' {
     export interface ICommandService {
         executeCommand(id: string, ...args: unknown[]): Promise<unknown>;
     }
