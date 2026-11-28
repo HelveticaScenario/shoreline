@@ -193,7 +193,7 @@ fn render(voice: &mut Voice, f0: f32, knobs: Knobs, state: &ZOscState) -> f32 {
 
 /// A phase offset plays the same waveform shifted in time, forward or
 /// backward: at a 100-sample period, a quarter-cycle offset leads by 25
-/// samples.
+/// samples going forward, and three quarters lead by 25 going backward.
 #[test]
 fn phase_offset_shifts_the_waveform_in_time() {
     let state = ZOscState::new(48000.0);

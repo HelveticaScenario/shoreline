@@ -35,6 +35,18 @@ fn formant_paths_agree() {
             "fmMode": "exp",
         }),
     );
+    check_paths_agree(
+        "$mi.formant",
+        json!({ "freq": [-1.0, 0.0, 1.5, 3.0], "phaseOffset": 0.25, "fm": cable("src", 1) }),
+    );
+    check_paths_agree(
+        "$mi.formant",
+        json!({ "freq": 1.0, "ratio": 3.0, "phaseOffset": cable("lfo", 0) }),
+    );
+    check_paths_agree(
+        "$mi.formant",
+        json!({ "freq": cable("lfo", 2), "phaseOffset": poly_cable("lfo", LANES) }),
+    );
 }
 
 #[test]
@@ -74,6 +86,17 @@ fn z_osc_paths_agree() {
     );
 }
 
+const PHASE_OFFSET_ENGINES: [&str; 8] = [
+    "$mi.additive",
+    "$mi.divideDown",
+    "$mi.formant",
+    "$mi.phaseDistortion",
+    "$mi.twoOp",
+    "$mi.waveTerrain",
+    "$mi.waveshaper",
+    "$mi.zOsc",
+];
+
 #[test]
 fn allocation_free() {
     for module in [
@@ -109,6 +132,9 @@ fn allocation_free() {
         let mut params = json!({ "freq": poly_cable("lfo", LANES), "fm": cable("src", 0) });
         if module == "$mi.sixOp" {
             params["voice"] = plaits_voice(1, 0);
+        }
+        if PHASE_OFFSET_ENGINES.contains(&module) {
+            params["phaseOffset"] = cable("lfo", 1);
         }
         assert_eq!(allocations_while_rendering(module, params), 0, "{module}");
     }

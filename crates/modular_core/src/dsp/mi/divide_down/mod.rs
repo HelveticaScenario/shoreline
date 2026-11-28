@@ -52,7 +52,7 @@ struct DivideDownParams {
     #[deserr(default)]
     registration: Option<PolySignal>,
     #[input(
-        "shifts the whole waveform in time, in cycles of its lowest saw; wraps around",
+        "shifts the whole waveform in time, in cycles of the note (two, four or eight at the very highest pitches); wraps around",
         type = control,
         default = 0.0,
         range = (0.0, 1.0),
