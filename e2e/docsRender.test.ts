@@ -58,7 +58,7 @@ const LEAKS: [string, RegExp][] = [
     ['object', /\[object /],
 ];
 
-/** The chain path after `.`, e.g. `unstable.shape.fold` for `$unstable.shape.fold`. */
+/** The chain path after `.`, e.g. `mi.chorus` for `$mi.chorus`. */
 function chainPath(name: string): string {
     return name.replace(/^\$/, '');
 }

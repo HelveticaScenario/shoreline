@@ -1,28 +1,17 @@
 //! The macros that stamp the analog filter modules.
 
 /// Stamps one analog filter module from its kernel and response. `options`
-/// builds its `Kernel::Options` from the params struct, and may be left out
-/// for a kernel without any. `freq` names the cutoff param. Each output is
-/// `field[tap] = "name": "description"`, one of them followed by
-/// `, default`, where `tap` is its place in `Taps`.
+/// builds its `Kernel::Options` from the params struct, and is left out for
+/// a kernel without any. `drive` holds the drive param's description, and is
+/// left out for a module without the param. `freq` names the cutoff param.
+/// Each output is `field[tap] = "name": "description"`, one of them followed
+/// by `, default`, where `tap` is its place in `Taps`.
 macro_rules! analog_filter {
-    (
-        docs = $docs:path,
-        name = $name:literal,
-        ident = $Struct:ident,
-        kernel = $Kernel:ty,
-        response = $response:expr,
-        freq = $($rest:tt)*
-    ) => {
-        $crate::dsp::filters::analog::module_macro::analog_filter! {
-            docs = $docs,
-            name = $name,
-            ident = $Struct,
-            kernel = $Kernel,
-            response = $response,
-            options = |_params| (),
-            freq = $($rest)*
-        }
+    (@drive $this:tt $drive_doc:literal) => {
+        &$this.params.drive
+    };
+    (@drive $this:tt) => {
+        &None
     };
     (
         docs = $docs:path,
@@ -30,7 +19,8 @@ macro_rules! analog_filter {
         ident = $Struct:ident,
         kernel = $Kernel:ty,
         response = $response:expr,
-        options = |$p:ident| $options:expr,
+        $(options = |$p:ident| $options:expr,)?
+        $(drive = $drive_doc:literal,)?
         freq = $freq:ident,
         freq_doc = $freq_doc:literal,
         resonance_doc = $resonance_doc:literal,
@@ -51,16 +41,13 @@ macro_rules! analog_filter {
                 #[input($resonance_doc, type = control, default = 0.0, range = (0.0, 5.0))]
                 #[deserr(default)]
                 resonance: Option<crate::poly::PolySignal>,
+                $(
+                    #[input($drive_doc, type = control, default = 0.0, range = (0.0, 5.0))]
+                    #[deserr(default)]
+                    drive: Option<crate::poly::PolySignal>,
+                )?
                 #[input(
-                    "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
-                    type = control,
-                    default = 0.0,
-                    range = (0.0, 5.0),
-                )]
-                #[deserr(default)]
-                drive: Option<crate::poly::PolySignal>,
-                #[input(
-                    "run at twice the engine rate: less aliasing from saturation and self-oscillation, and truer tuning at high cutoffs; false costs less CPU"
+                    "run at twice the engine rate: less aliasing from saturation and resonance, and truer tuning at high cutoffs; false costs less CPU"
                 )]
                 #[serde(default = "crate::dsp::utils::default_true")]
                 #[deserr(default = crate::dsp::utils::default_true())]
@@ -120,11 +107,11 @@ macro_rules! analog_filter {
                 /// The connected outputs, `highRes` and the kernel's options.
                 fn key(&self) -> crate::dsp::filters::analog::runner::CoeffKey<$Kernel> {
                     use crate::dsp::filters::analog::runner::AnalogPorts;
-                    let $p = &self.params;
                     (
                         [<$Struct Outputs>]::taps(&self.connected()),
                         self.params.high_res,
-                        $options,
+                        // Without options, the block is empty: `()`.
+                        { $( let $p = &self.params; $options )? },
                     )
                 }
 
@@ -132,6 +119,7 @@ macro_rules! analog_filter {
                     use crate::dsp::filters::analog::runner::AnalogPorts;
                     let lanes = self.lane_count();
                     let key = self.key();
+
                     crate::dsp::filters::analog::runner::run::<$Kernel>(
                         $response,
                         lanes,
@@ -142,7 +130,9 @@ macro_rules! analog_filter {
                                 resonance: &self.params.resonance,
                                 default_resonance: 0.0,
                             },
-                            drive: &self.params.drive,
+                            drive: $crate::dsp::filters::analog::module_macro::analog_filter!(
+                                @drive self $($drive_doc)?
+                            ),
                         },
                         key,
                         sample_rate,
@@ -175,7 +165,8 @@ pub(crate) use analog_filter;
 /// (12 and 24 dB outputs, 12 the default) or `four` (6 to 24 dB, 24 the
 /// default); `bandpass` or `notch` followed by the default output, `db12`
 /// or `db24`, a notch optionally by what its resonance does; or `allpass`.
-/// Then [`analog_filter`]'s fields up to `freq`.
+/// Then [`analog_filter`]'s fields up to `drive`. Every kind gets the usual
+/// `drive` param; a module without one calls [`analog_filter`] directly.
 macro_rules! analog_kind {
     (lowpass, $outputs:ident, $($head:tt)*) => {
         $crate::dsp::filters::analog::module_macro::analog_kind! {
@@ -279,6 +270,7 @@ macro_rules! analog_kind {
     ) => {
         $crate::dsp::filters::analog::module_macro::analog_filter! {
             $($head)*
+            drive = "level into the filter, up to +18 dB, pushing it into its saturation; the output comes down by half as much",
             freq = $freq,
             freq_doc = $freq_doc,
             resonance_doc = $resonance_doc,

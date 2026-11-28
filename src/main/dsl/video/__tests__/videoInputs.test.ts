@@ -138,8 +138,8 @@ describe('$v inputs from the audio graph', () => {
 
         it.each([
             `$v.out($v.hsv($v.fromAudio($('0 1'))));`,
-            `$scopeXY($('c3 e3'), $sine('c4'))`,
-            `$v.scopeXY($sine('c4'), $sine('g4'), { persistence: $('0.2 0.9') }).out()`,
+            `$scopeXY($stereo($('c3 e3'), $sine('c4')))`,
+            `$v.scopeXY($stereo($sine('c4'), $sine('g4')), { persistence: $('0.2 0.9') }).out()`,
         ])('plays a pattern through its $cycle: %s', (source) => {
             const { patch } = exec(source);
             expect(

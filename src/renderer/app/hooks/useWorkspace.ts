@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { FileTreeEntry } from '../../../shared/ipcTypes';
 import electronAPI from '../../electronAPI';
+import { announceWorkspaceRefresh } from '../workspaceRefresh';
 
 /** The open workspace folder and its file tree, kept current with the
  *  folder's changes on disk. */
@@ -9,6 +10,7 @@ export function useWorkspace() {
     const [fileTree, setFileTree] = useState<FileTreeEntry[]>([]);
 
     const refreshFileTree = async () => {
+        announceWorkspaceRefresh();
         try {
             setFileTree(await electronAPI.filesystem.listFiles());
         } catch (error) {
@@ -37,10 +39,9 @@ export function useWorkspace() {
      *  one. */
     const choose = async () => {
         const workspace = await electronAPI.filesystem.selectWorkspace();
-        if (workspace) {
-            setRoot(workspace.path);
-            await refreshFileTree();
-        }
+        // Selecting a workspace announces a tree change, which refreshes the
+        // tree.
+        if (workspace) setRoot(workspace.path);
     };
 
     return { choose, fileTree, refreshFileTree, root };

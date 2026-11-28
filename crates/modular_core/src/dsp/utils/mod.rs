@@ -1,4 +1,3 @@
-pub mod adaa;
 pub mod cached;
 pub mod dc_blocker;
 pub mod delay_line;
@@ -21,6 +20,10 @@ pub const GATE_HIGH_VOLTAGE: f32 = 5.0;
 pub const GATE_LOW_VOLTAGE: f32 = 0.0;
 pub const GATE_DETECTION_HIGH_THRESHOLD: f32 = 1.0;
 pub const GATE_DETECTION_LOW_THRESHOLD: f32 = 0.1;
+
+/// The level that plays at 0 dBFS on the audio output: a single ±5 V voice
+/// sits at -12 dBFS, leaving headroom for summed lanes and tracks.
+pub const OUTPUT_FULL_SCALE_VOLTS: f32 = 20.0;
 
 /// Minimum duration for trigger pulses and gate retrigger gaps, in seconds.
 /// Controls how long triggers stay high and how long gate retrigger gaps last.

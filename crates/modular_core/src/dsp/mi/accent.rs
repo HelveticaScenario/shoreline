@@ -20,6 +20,13 @@ pub(super) fn plaits_volts(volts: f32) -> f32 {
     4.0 + 0.2 * volts.clamp(0.0, 5.0)
 }
 
+/// The output level `volts` of accent sets, less one: 0 unaccented, rising
+/// to `trim` - 1 at 5 V.
+#[inline(always)]
+pub(super) fn accent_boost(volts: f32, trim: f32) -> f32 {
+    (trim - 1.0) * volts * 0.2
+}
+
 /// A voice's accent and the output level it sets: 1 unaccented, rising to
 /// the voice's `trim` at 5 V. The trim brings Plaits' own response to accent,
 /// which already makes a hit a little louder, to twice the unaccented level.
@@ -113,7 +120,7 @@ impl Accent {
         trim: f32,
         sample_rate: f32,
     ) -> f32 {
-        let boost = (trim - 1.0) * self.volts * 0.2;
+        let boost = accent_boost(self.volts, trim);
         if !self.patched {
             output.level.set(boost, false, 1);
         } else if self.struck {

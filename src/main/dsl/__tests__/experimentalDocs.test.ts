@@ -42,7 +42,7 @@ describe('experimental module docs', () => {
     test('the reference entry carries the flag', () => {
         const entry = (name: string) =>
             moduleToReferenceEntry(
-                schemas.find((s) => s.name === name) as Schema,
+                schemas.find((s) => s.name === name),
             );
         expect(entry('$comp').experimental).toBe(true);
         expect(entry('$sine').experimental).toBe(false);
