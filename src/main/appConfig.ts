@@ -1,52 +1,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { z } from 'zod';
-import { CURSOR_STYLES, DEFAULT_CURSOR_STYLE } from '../shared/cursorStyle';
-import { MONOSPACE_FONTS } from '../shared/fonts';
+import { AppConfigSchema, type AppConfig } from '../shared/appConfigSchema';
+import { DEFAULT_CURSOR_STYLE } from '../shared/cursorStyle';
 
-const MonospaceFontSchema = z.enum(MONOSPACE_FONTS);
-
-export const AppConfigSchema = z.object({
-    audioConfig: z
-        .object({
-            hostId: z.string().optional(),
-            inputDeviceId: z.string().nullable().optional(),
-            outputDeviceId: z.string().optional(),
-            sampleRate: z.number().optional(),
-            bufferSize: z.number().optional(),
-        })
-        .optional(),
-    cursorStyle: z.enum(CURSOR_STYLES).optional(),
-    font: MonospaceFontSchema.optional(),
-    fontLigatures: z.boolean().optional(),
-    fontSize: z.number().min(8).max(72).optional(),
-    lastOpenedFolder: z.string().optional(),
-    lastSeenVersion: z.string().optional(),
-    prettier: z.record(z.string(), z.unknown()).optional(),
-    skippedUpdateVersion: z.string().optional(),
-    theme: z.string().optional(),
-    codeBackdropOpacity: z.number().min(0).max(1).optional(),
-    performanceAspect: z
-        .enum(['free', '16:9', '4:3', '1:1', '9:16'])
-        .optional(),
-    performanceScale: z.number().min(0.1).max(1).optional(),
-    performanceCodeVisible: z.boolean().optional(),
-    performanceCodeOpacity: z.number().min(0).max(1).optional(),
-    performanceCodeBacking: z.number().min(0).max(1).optional(),
-    performanceFont: MonospaceFontSchema.optional(),
-    performanceFontSize: z.number().min(8).max(160).optional(),
-    performanceLineHeight: z.number().min(1).max(3).optional(),
-    performanceFontLigatures: z.boolean().optional(),
-    performanceLineNumbers: z.boolean().optional(),
-    performanceScrollSpeed: z.number().min(0).max(1).optional(),
-    performanceTheme: z.string().optional(),
-    sidebarSide: z.enum(['left', 'right']).optional(),
-    bottomPanel: z.enum(['mixer', 'docs']).optional(),
-    docsLocation: z.enum(['bottom', 'sidebar']).optional(),
-    bottomPanelHeight: z.number().min(84).optional(),
-});
-
-export type AppConfig = z.infer<typeof AppConfigSchema>;
+export type { AppConfig };
 
 /** The config a first launch writes; an existing config never gains these. */
 const DEFAULT_CONFIG: AppConfig = {

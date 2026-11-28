@@ -5,11 +5,10 @@
  * Shared between main and renderer processes.
  */
 
+import type { AppConfig } from './appConfigSchema';
 import type { AssetKind } from './assetFiles';
-import type { CursorStyle } from './cursorStyle';
 import type { OutputResolutionRecord } from './dsl/outputResolutionRule';
 import type { SignalSiteTables } from './dsl/signalSites';
-import type { MonospaceFont } from './fonts';
 import type { ReleaseNotes } from './releaseNotes';
 import type {
     ApplyPatchError,
@@ -55,28 +54,9 @@ export type {
     QueuedTrigger,
 };
 
-export interface AudioConfig {
-    hostId?: string;
-    inputDeviceId?: string | null;
-    outputDeviceId?: string;
-    sampleRate?: number;
-    bufferSize?: number;
-}
+export type { AppConfig, PrettierConfig, QuoteStyle } from './appConfigSchema';
 
 export type { MonospaceFont, SystemFont } from './fonts';
-
-/** How Format Document quotes strings. `backtick` prints each string as a
- *  template literal wherever the syntax allows one. */
-export type QuoteStyle = 'single' | 'double' | 'backtick';
-
-export interface PrettierConfig {
-    quotes?: QuoteStyle;
-    trailingComma?: 'all' | 'es5' | 'none';
-    semi?: boolean;
-    tabWidth?: number;
-    printWidth?: number;
-    [key: string]: unknown;
-}
 
 /**
  * One user-keybinding entry persisted in `<userData>/keybindings.json`.
@@ -91,54 +71,6 @@ export interface KeybindingOverride {
     command: string | null;
     when?: string;
     args?: unknown;
-}
-
-export interface AppConfig {
-    theme?: string;
-    cursorStyle?: CursorStyle;
-    font?: MonospaceFont;
-    fontLigatures?: boolean;
-    fontSize?: number;
-    prettier?: PrettierConfig;
-    lastOpenedFolder?: string;
-    audioConfig?: AudioConfig;
-    skippedUpdateVersion?: string;
-    /** App version whose release notes were last shown; absent until the first launch records it. */
-    lastSeenVersion?: string;
-    /** Opacity (0..1) of the dark backing behind each line of code while video shows behind the code. Default 0.6. */
-    codeBackdropOpacity?: number;
-    /** Shape of the performance window: a fixed aspect ratio, or free. Default 'free'. */
-    performanceAspect?: 'free' | '16:9' | '4:3' | '1:1' | '9:16';
-    /** Fraction of the performance window's pixels the picture is drawn at (0.1..1). Default 1. */
-    performanceScale?: number;
-    /** Whether the performance window shows the code. Default true. */
-    performanceCodeVisible?: boolean;
-    /** Opacity (0..1) of the code in the performance window while it shows. Default 1. */
-    performanceCodeOpacity?: number;
-    /** Opacity (0..1) of the backing behind each line of code in the performance window. Default 0.6. */
-    performanceCodeBacking?: number;
-    /** Monospace font of the code in the performance window. Default 'Fira Code'. */
-    performanceFont?: MonospaceFont;
-    /** Font size (8–160) of the code in the performance window. Default 28. */
-    performanceFontSize?: number;
-    /** Line height (1–3) of the code in the performance window, as a multiple of its font size. Default 1.4. */
-    performanceLineHeight?: number;
-    /** Font ligatures in the performance window. Default true. */
-    performanceFontLigatures?: boolean;
-    /** Line numbers in the performance window. Default false. */
-    performanceLineNumbers?: boolean;
-    /** How quickly (0..1) the performance window's code scrolls to follow the editor; 1 jumps. Default 0.5. */
-    performanceScrollSpeed?: number;
-    /** Theme id for the code's colors in the performance window; absent follows the editor's theme. */
-    performanceTheme?: string;
-    /** Which side of the window the sidebar sits on. Default 'right'. */
-    sidebarSide?: 'left' | 'right';
-    /** Where the docs open: a panel under the editor or a sidebar tab. Default 'bottom'. */
-    docsLocation?: 'bottom' | 'sidebar';
-    /** The panel open under the editor; absent leaves it collapsed. */
-    bottomPanel?: 'mixer' | 'docs';
-    /** Height in px of the panel under the editor, at least 84. Default 200. */
-    bottomPanelHeight?: number;
 }
 
 /** Result of toggling the macOS Syphon window-output helper. */
@@ -688,20 +620,6 @@ export interface IPCHandlers {
      */
     [IPC_CHANNELS.RELEASE_NOTES_GET_ALL]: () => Promise<ChangelogInfo>;
 }
-
-/**
- * Type helper to extract request type for a channel
- */
-export type IPCRequest<T extends keyof IPCHandlers> = Parameters<
-    IPCHandlers[T]
->;
-
-/**
- * Type helper to extract response type for a channel
- */
-export type IPCResponse<T extends keyof IPCHandlers> = ReturnType<
-    Promisify<IPCHandlers[T]>
->;
 
 export type Promisify<T> = T extends (...args: any[]) => Promise<any>
     ? T

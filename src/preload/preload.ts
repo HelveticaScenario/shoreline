@@ -1,21 +1,14 @@
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
-import type { SignalSiteTables } from '../shared/dsl/signalSites';
 import { contextBridge, ipcRenderer } from 'electron/renderer';
 import {
     AppConfig,
     ContextMenuAction,
-    ContextMenuOptions,
-    DSLExecuteResult,
     IPCHandlers,
-    IPCRequest,
-    IPCResponse,
     IPC_CHANNELS,
-    KeybindingOverride,
     MENU_CHANNELS,
     MainLogEntry,
     Promisify,
-    SyphonToggleResult,
     UpdateAvailableInfo,
 } from '../shared/ipcTypes';
 import type {
@@ -24,174 +17,156 @@ import type {
     QueuedTrigger,
 } from '../shared/ipcTypes';
 import type {
-    VideoCvValue,
-    VideoPull,
-    VideoRestart,
     VideoShaderUpdate,
     VideoUniformUpdate,
 } from '../shared/video/videoGraph';
 
-/**
- * Type-safe wrapper for IPC invoke calls
- */
-function invokeIPC<T extends keyof typeof IPC_CHANNELS>(
-    channel: T,
-    ...args: IPCRequest<(typeof IPC_CHANNELS)[T]>
-): IPCResponse<(typeof IPC_CHANNELS)[T]> {
-    // @ts-expect-error - TypeScript is having trouble inferring the return type here
-    return ipcRenderer.invoke(IPC_CHANNELS[channel], ...args);
-}
+type ChannelKey = keyof typeof IPC_CHANNELS;
+
+/** The renderer-side signature of the invoke channel `K`. */
+type Invoke<K extends ChannelKey> = Promisify<
+    IPCHandlers[(typeof IPC_CHANNELS)[K]]
+>;
+
+type InvokeTable = Record<string, ChannelKey | Record<string, ChannelKey>>;
+
+/** Each table entry as the method that invokes its channel. */
+type InvokeAPI<T extends InvokeTable> = {
+    [N in keyof T]: T[N] extends ChannelKey
+        ? Invoke<T[N]>
+        : {
+              [M in keyof T[N]]: T[N][M] extends ChannelKey
+                  ? Invoke<T[N][M]>
+                  : never;
+          };
+};
 
 /**
- * The public API exposed to the renderer process.
- * All methods are type-safe and match the @modular/core interface.
+ * Every renderer method that invokes a main-process handler, by the
+ * `IPC_CHANNELS` key it forwards to; `IPCHandlers` gives each its signature.
  */
-
-export interface ElectronAPI {
-    // Platform info (synchronous, available immediately)
-    platform: NodeJS.Platform;
-
-    // Schema operations
-    getSchemas: Promisify<IPCHandlers[typeof IPC_CHANNELS.GET_SCHEMAS]>;
-
-    // DSL operations
-    executeDSL: (
-        source: string,
-        sourceId?: string,
-        trigger?: QueuedTrigger,
-    ) => Promise<DSLExecuteResult>;
-    getDslLibSource: () => Promise<string>;
-    getSignalSiteTables: () => Promise<SignalSiteTables>;
-
-    // Synthesizer operations
+const INVOKE_METHODS = {
+    getSchemas: 'GET_SCHEMAS',
+    executeDSL: 'DSL_EXECUTE',
+    getDslLibSource: 'GET_DSL_LIB_SOURCE',
+    getSignalSiteTables: 'GET_SIGNAL_SITE_TABLES',
     synthesizer: {
-        getSampleRate: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_SAMPLE_RATE]
-        >;
-        getChannels: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_CHANNELS]
-        >;
-        getScopes: Promisify<IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_SCOPES]>;
-        getVuMeters: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_VU_METERS]
-        >;
-        getModuleStates: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_MODULE_STATES]
-        >;
-        updatePatch: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_UPDATE_PATCH]
-        >;
-        startRecording: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_START_RECORDING]
-        >;
-        stopRecording: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_STOP_RECORDING]
-        >;
-        isRecording: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_IS_RECORDING]
-        >;
-        getHealth: Promisify<IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_HEALTH]>;
-        getModuleProfile: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_MODULE_PROFILE]
-        >;
-        setModuleProfilingEnabled: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_SET_MODULE_PROFILING_ENABLED]
-        >;
-        setModuleProfilingSampleRate: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_SET_MODULE_PROFILING_SAMPLE_RATE]
-        >;
-        stop: Promisify<IPCHandlers[typeof IPC_CHANNELS.SYNTH_STOP]>;
-        cancelQueuedUpdate: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_CANCEL_QUEUED_UPDATE]
-        >;
-        isStopped: Promisify<IPCHandlers[typeof IPC_CHANNELS.SYNTH_IS_STOPPED]>;
-        setModuleParam: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_SET_MODULE_PARAM]
-        >;
-        getTransportState: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_GET_TRANSPORT_STATE]
-        >;
-        enableLink: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_ENABLE_LINK]
-        >;
-        isAudioThreadPanicked: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_IS_AUDIO_THREAD_PANICKED]
-        >;
-        restartAudio: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_RESTART_AUDIO]
-        >;
-        panicLogDir: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.SYNTH_PANIC_LOG_DIR]
-        >;
-    };
-    // Audio device operations
+        getSampleRate: 'SYNTH_GET_SAMPLE_RATE',
+        getChannels: 'SYNTH_GET_CHANNELS',
+        getScopes: 'SYNTH_GET_SCOPES',
+        getVuMeters: 'SYNTH_GET_VU_METERS',
+        getModuleStates: 'SYNTH_GET_MODULE_STATES',
+        updatePatch: 'SYNTH_UPDATE_PATCH',
+        startRecording: 'SYNTH_START_RECORDING',
+        stopRecording: 'SYNTH_STOP_RECORDING',
+        isRecording: 'SYNTH_IS_RECORDING',
+        getHealth: 'SYNTH_GET_HEALTH',
+        getModuleProfile: 'SYNTH_GET_MODULE_PROFILE',
+        setModuleProfilingEnabled: 'SYNTH_SET_MODULE_PROFILING_ENABLED',
+        setModuleProfilingSampleRate: 'SYNTH_SET_MODULE_PROFILING_SAMPLE_RATE',
+        stop: 'SYNTH_STOP',
+        cancelQueuedUpdate: 'SYNTH_CANCEL_QUEUED_UPDATE',
+        isStopped: 'SYNTH_IS_STOPPED',
+        setModuleParam: 'SYNTH_SET_MODULE_PARAM',
+        getTransportState: 'SYNTH_GET_TRANSPORT_STATE',
+        enableLink: 'SYNTH_ENABLE_LINK',
+        isAudioThreadPanicked: 'SYNTH_IS_AUDIO_THREAD_PANICKED',
+        restartAudio: 'SYNTH_RESTART_AUDIO',
+        panicLogDir: 'SYNTH_PANIC_LOG_DIR',
+    },
     audio: {
-        // New API
-        refreshDeviceCache: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_REFRESH_DEVICE_CACHE]
-        >;
-        getDeviceCache: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_DEVICE_CACHE]
-        >;
-        getCurrentState: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_CURRENT_STATE]
-        >;
-        recreateStreams: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_RECREATE_STREAMS]
-        >;
+        refreshDeviceCache: 'AUDIO_REFRESH_DEVICE_CACHE',
+        getDeviceCache: 'AUDIO_GET_DEVICE_CACHE',
+        getCurrentState: 'AUDIO_GET_CURRENT_STATE',
+        recreateStreams: 'AUDIO_RECREATE_STREAMS',
+        getInputChannels: 'AUDIO_GET_INPUT_CHANNELS',
+    },
+    midi: {
+        listInputs: 'MIDI_LIST_INPUTS',
+        getInput: 'MIDI_GET_INPUT',
+        setInput: 'MIDI_SET_INPUT',
+        tryReconnect: 'MIDI_TRY_RECONNECT',
+    },
+    filesystem: {
+        selectWorkspace: 'FS_SELECT_WORKSPACE',
+        getWorkspace: 'FS_GET_WORKSPACE',
+        listFiles: 'FS_LIST_FILES',
+        listSyxVoices: 'FS_LIST_SYX_VOICES',
+        readFile: 'FS_READ_FILE',
+        writeFile: 'FS_WRITE_FILE',
+        renameFile: 'FS_RENAME_FILE',
+        deleteFile: 'FS_DELETE_FILE',
+        moveFile: 'FS_MOVE_FILE',
+        createFolder: 'FS_CREATE_FOLDER',
+        showSaveDialog: 'FS_SHOW_SAVE_DIALOG',
+        showInputDialog: 'FS_SHOW_INPUT_DIALOG',
+        watchOpenFiles: 'FS_WATCH_OPEN_FILES',
+    },
+    showContextMenu: 'SHOW_CONTEXT_MENU',
+    showUnsavedChangesDialog: 'SHOW_UNSAVED_CHANGES_DIALOG',
+    performanceWindow: {
+        /** Tells the main process whether the performance window is open, so it keeps this window painting. */
+        setOpen: 'VIDEO_SET_OUTPUT_OPEN',
+    },
+    video: {
+        getShader: 'VIDEO_GET_SHADER',
+        /** Reads the taps that `restart` names from the engine's newest samples, the rest from where the last pull left off. */
+        pull: 'VIDEO_PULL',
+        /** Asks the system for camera access when it has not been asked; whether it is allowed. */
+        requestCameraAccess: 'VIDEO_REQUEST_CAMERA',
+        /** The capture source of display number `display`, counting from 1, or why there is none. */
+        getScreenSource: 'VIDEO_SCREEN_SOURCE',
+        sendCvValues: 'VIDEO_CV_VALUES',
+    },
+    config: {
+        getPath: 'CONFIG_GET_PATH',
+        read: 'CONFIG_READ',
+        write: 'CONFIG_WRITE',
+    },
+    clipboard: {
+        writeText: 'CLIPBOARD_WRITE_TEXT',
+    },
+    /** Overrides read from `<userData>/keybindings.json`. */
+    keybindings: {
+        getPath: 'KEYBINDINGS_GET_PATH',
+        readUser: 'KEYBINDINGS_READ_USER',
+        ensureFile: 'KEYBINDINGS_ENSURE_FILE',
+    },
+    /** Syphon window output (macOS); the helper lives in the main process. */
+    syphon: {
+        /** Whether Syphon output is available (macOS 14+). */
+        isSupported: 'SYPHON_IS_SUPPORTED',
+        /** Toggle publishing; resolves with the result (main shows any dialog). */
+        toggle: 'SYPHON_TOGGLE',
+    },
+    shell: {
+        openPath: 'SHELL_OPEN_PATH',
+    },
+    update: {
+        check: 'UPDATE_CHECK',
+        download: 'UPDATE_DOWNLOAD',
+        install: 'UPDATE_INSTALL',
+    },
+    releaseNotes: {
+        whatsNew: 'RELEASE_NOTES_WHATS_NEW',
+        getAll: 'RELEASE_NOTES_GET_ALL',
+    },
+} as const satisfies InvokeTable;
+
+/** Subscriptions to channels the main process sends on, and calls that resolve to nothing. */
+interface PushAPI {
+    platform: NodeJS.Platform;
+    audio: {
         onFallbackWarning: (callback: (warning: string) => void) => () => void;
         onDeviceNotice: (
             callback: (notice: AudioDeviceNotice) => void,
         ) => () => void;
-        getInputChannels: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.AUDIO_GET_INPUT_CHANNELS]
-        >;
     };
-    // MIDI device operations
-    midi: {
-        listInputs: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.MIDI_LIST_INPUTS]
-        >;
-        getInput: Promisify<IPCHandlers[typeof IPC_CHANNELS.MIDI_GET_INPUT]>;
-        setInput: Promisify<IPCHandlers[typeof IPC_CHANNELS.MIDI_SET_INPUT]>;
-        tryReconnect: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.MIDI_TRY_RECONNECT]
-        >;
-    };
-    // Filesystem operations
     filesystem: {
-        selectWorkspace: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_SELECT_WORKSPACE]
-        >;
-        getWorkspace: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_GET_WORKSPACE]
-        >;
-        listFiles: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_LIST_FILES]>;
-        listSyxVoices: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_LIST_SYX_VOICES]
-        >;
         /** Calls `callback` when files in the workspace folder change. */
         onTreeChange: (callback: () => void) => () => void;
-        readFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_READ_FILE]>;
-        writeFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_WRITE_FILE]>;
-        renameFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_RENAME_FILE]>;
-        deleteFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_DELETE_FILE]>;
-        moveFile: Promisify<IPCHandlers[typeof IPC_CHANNELS.FS_MOVE_FILE]>;
-        createFolder: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_CREATE_FOLDER]
-        >;
-        showSaveDialog: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_SHOW_SAVE_DIALOG]
-        >;
-        showInputDialog: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_SHOW_INPUT_DIALOG]
-        >;
-        watchOpenFiles: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.FS_WATCH_OPEN_FILES]
-        >;
         onFileChanged: (callback: (change: FileChange) => void) => () => void;
     };
-    // Menu events
     onMenuNewFile: (callback: () => void) => () => void;
     onMenuSave: (callback: () => void) => () => void;
     onMenuStop: (callback: () => void) => () => void;
@@ -208,82 +183,24 @@ export interface ElectronAPI {
     onMenuOpenSettings: (callback: () => void) => () => void;
     onMenuOpenEngineHealth: (callback: () => void) => () => void;
     onMenuOpenModuleProfile: (callback: () => void) => () => void;
-    // UI operations
-    showContextMenu: (options: ContextMenuOptions) => Promise<void>;
     onContextMenuCommand: (
         callback: (action: ContextMenuAction) => void,
     ) => () => void;
-    showUnsavedChangesDialog: (fileName: string) => Promise<number>;
-
-    // Performance window
-    performanceWindow: {
-        /** Tells the main process whether the performance window is open, so it keeps this window painting. */
-        setOpen: (open: boolean) => Promise<void>;
-    };
     video: {
-        getShader: () => Promise<VideoShaderUpdate>;
         onShader: (callback: (update: VideoShaderUpdate) => void) => () => void;
         onUniform: (
             callback: (updates: VideoUniformUpdate[]) => void,
         ) => () => void;
-        /** Reads the taps that `restart` names from the engine's newest samples, the rest from where the last pull left off. */
-        pull: (restart: VideoRestart) => Promise<VideoPull>;
-        /** Asks the system for camera access when it has not been asked; whether it is allowed. */
-        requestCameraAccess: () => Promise<boolean>;
-        /** The capture source of display number `display`, counting from 1, or why there is none. */
-        getScreenSource: (
-            display: number,
-        ) => Promise<{ id: string } | { error: string }>;
-        sendCvValues: (values: VideoCvValue[]) => Promise<void>;
     };
-
-    // Config operations
     config: {
-        getPath: () => Promise<string>;
-        read: () => Promise<AppConfig>;
-        write: (config: Partial<AppConfig>) => Promise<void>;
         onChange: (callback: (config: AppConfig) => void) => () => void;
     };
-
-    clipboard: {
-        writeText: (text: string) => Promise<void>;
-    };
-
-    // Keybinding overrides (read `<userData>/keybindings.json`)
-    keybindings: {
-        getPath: () => Promise<string>;
-        readUser: () => Promise<KeybindingOverride[]>;
-        ensureFile: () => Promise<string>;
-    };
-
-    // Syphon window output (macOS): the helper lives in the main process, so the
-    // renderer's command toggles it over IPC.
-    syphon: {
-        /** Whether Syphon output is available (macOS 14+). */
-        isSupported: () => Promise<boolean>;
-        /** Toggle publishing; resolves with the result (main shows any dialog). */
-        toggle: () => Promise<SyphonToggleResult>;
-    };
-
-    // Application (top bar) menu integration
     menu: {
         /** Push command -> accelerator so the app menu shows live shortcuts. */
         setAccelerators: (accelerators: Record<string, string>) => void;
     };
-
-    // Main process log forwarding
     onMainLog: (callback: (entry: MainLogEntry) => void) => () => void;
-
-    // OS shell operations
-    shell: {
-        openPath: Promisify<IPCHandlers[typeof IPC_CHANNELS.SHELL_OPEN_PATH]>;
-    };
-
-    // Update operations
     update: {
-        check: () => Promise<void>;
-        download: () => Promise<void>;
-        install: () => Promise<void>;
         onAvailable: (
             callback: (info: UpdateAvailableInfo) => void,
         ) => () => void;
@@ -292,272 +209,124 @@ export interface ElectronAPI {
         onDownloaded: (callback: () => void) => () => void;
         onError: (callback: (message: string) => void) => () => void;
     };
-
     releaseNotes: {
-        whatsNew: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.RELEASE_NOTES_WHATS_NEW]
-        >;
-        getAll: Promisify<
-            IPCHandlers[typeof IPC_CHANNELS.RELEASE_NOTES_GET_ALL]
-        >;
         onMenuShow: (callback: () => void) => () => void;
     };
 }
 
-const electronAPI: ElectronAPI = {
-    // Platform info
+/** The API exposed to the renderer process as `window.electronAPI`. */
+export type ElectronAPI = InvokeAPI<typeof INVOKE_METHODS> & PushAPI;
+
+/**
+ * `ipcRenderer.invoke` is untyped; main registers each channel's handler
+ * against `IPCHandlers`, which gives the forwarded call its type.
+ */
+function invoker<K extends ChannelKey>(key: K): Invoke<K> {
+    const channel = IPC_CHANNELS[key];
+    return ((...args: unknown[]) =>
+        ipcRenderer.invoke(channel, ...args)) as Invoke<K>;
+}
+
+function buildInvokeAPI<T extends InvokeTable>(table: T): InvokeAPI<T> {
+    return Object.fromEntries(
+        Object.entries(table).map(([name, entry]) => [
+            name,
+            typeof entry === 'string'
+                ? invoker(entry)
+                : Object.fromEntries(
+                      Object.entries(entry).map(([method, key]) => [
+                          method,
+                          invoker(key),
+                      ]),
+                  ),
+        ]),
+    ) as InvokeAPI<T>;
+}
+
+const pushAPI: PushAPI = {
     platform: process.platform,
-
-    // Schema operations
-    getSchemas: (...args) => invokeIPC('GET_SCHEMAS', ...args),
-
-    // DSL operations
-    executeDSL: (source, sourceId, trigger) =>
-        invokeIPC('DSL_EXECUTE', source, sourceId, trigger),
-    getDslLibSource: () => invokeIPC('GET_DSL_LIB_SOURCE'),
-    getSignalSiteTables: () => invokeIPC('GET_SIGNAL_SITE_TABLES'),
-
-    // Synthesizer operations
-    synthesizer: {
-        getChannels: (...args) => invokeIPC('SYNTH_GET_CHANNELS', ...args),
-
-        getHealth: (...args) => invokeIPC('SYNTH_GET_HEALTH', ...args),
-
-        getModuleProfile: (...args) =>
-            invokeIPC('SYNTH_GET_MODULE_PROFILE', ...args),
-
-        setModuleProfilingEnabled: (...args) =>
-            invokeIPC('SYNTH_SET_MODULE_PROFILING_ENABLED', ...args),
-
-        setModuleProfilingSampleRate: (...args) =>
-            invokeIPC('SYNTH_SET_MODULE_PROFILING_SAMPLE_RATE', ...args),
-
-        getModuleStates: (...args) =>
-            invokeIPC('SYNTH_GET_MODULE_STATES', ...args),
-
-        getSampleRate: (...args) => invokeIPC('SYNTH_GET_SAMPLE_RATE', ...args),
-
-        getScopes: (...args) => invokeIPC('SYNTH_GET_SCOPES', ...args),
-
-        getVuMeters: (...args) => invokeIPC('SYNTH_GET_VU_METERS', ...args),
-
-        getTransportState: (...args) =>
-            invokeIPC('SYNTH_GET_TRANSPORT_STATE', ...args),
-
-        enableLink: (...args) => invokeIPC('SYNTH_ENABLE_LINK', ...args),
-
-        isAudioThreadPanicked: (...args) =>
-            invokeIPC('SYNTH_IS_AUDIO_THREAD_PANICKED', ...args),
-
-        restartAudio: (...args) => invokeIPC('SYNTH_RESTART_AUDIO', ...args),
-
-        panicLogDir: (...args) => invokeIPC('SYNTH_PANIC_LOG_DIR', ...args),
-
-        isRecording: (...args) => invokeIPC('SYNTH_IS_RECORDING', ...args),
-
-        isStopped: (...args) => invokeIPC('SYNTH_IS_STOPPED', ...args),
-
-        setModuleParam: (...args) =>
-            invokeIPC('SYNTH_SET_MODULE_PARAM', ...args),
-
-        startRecording: (...args) =>
-            invokeIPC('SYNTH_START_RECORDING', ...args),
-
-        stop: (...args) => invokeIPC('SYNTH_STOP', ...args),
-
-        cancelQueuedUpdate: (...args) =>
-            invokeIPC('SYNTH_CANCEL_QUEUED_UPDATE', ...args),
-
-        stopRecording: (...args) => invokeIPC('SYNTH_STOP_RECORDING', ...args),
-
-        updatePatch: (...args) => invokeIPC('SYNTH_UPDATE_PATCH', ...args),
-    },
-
-    // Audio device operations
     audio: {
-        // New API
-        refreshDeviceCache: (...args) =>
-            invokeIPC('AUDIO_REFRESH_DEVICE_CACHE', ...args),
-
-        getDeviceCache: (...args) =>
-            invokeIPC('AUDIO_GET_DEVICE_CACHE', ...args),
-
-        getCurrentState: (...args) =>
-            invokeIPC('AUDIO_GET_CURRENT_STATE', ...args),
-
-        recreateStreams: (...args) =>
-            invokeIPC('AUDIO_RECREATE_STREAMS', ...args),
-
-        onFallbackWarning: menuEventHandler(
-            IPC_CHANNELS.AUDIO_FALLBACK_WARNING,
-        ),
-
-        onDeviceNotice: menuEventHandler(IPC_CHANNELS.AUDIO_DEVICE_NOTICE),
-
-        getInputChannels: (...args) =>
-            invokeIPC('AUDIO_GET_INPUT_CHANNELS', ...args),
+        onFallbackWarning: eventHandler(IPC_CHANNELS.AUDIO_FALLBACK_WARNING),
+        onDeviceNotice: eventHandler(IPC_CHANNELS.AUDIO_DEVICE_NOTICE),
     },
-
-    // MIDI device operations
-    midi: {
-        getInput: (...args) => invokeIPC('MIDI_GET_INPUT', ...args),
-
-        listInputs: (...args) => invokeIPC('MIDI_LIST_INPUTS', ...args),
-
-        setInput: (...args) => invokeIPC('MIDI_SET_INPUT', ...args),
-
-        tryReconnect: (...args) => invokeIPC('MIDI_TRY_RECONNECT', ...args),
-    },
-
-    // Filesystem operations
     filesystem: {
-        createFolder: (...args) => invokeIPC('FS_CREATE_FOLDER', ...args),
-
-        deleteFile: (...args) => invokeIPC('FS_DELETE_FILE', ...args),
-
-        getWorkspace: (...args) => invokeIPC('FS_GET_WORKSPACE', ...args),
-
-        listFiles: (...args) => invokeIPC('FS_LIST_FILES', ...args),
-
-        listSyxVoices: (...args) => invokeIPC('FS_LIST_SYX_VOICES', ...args),
-
-        onTreeChange: menuEventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
-
-        moveFile: (...args) => invokeIPC('FS_MOVE_FILE', ...args),
-
-        readFile: (...args) => invokeIPC('FS_READ_FILE', ...args),
-
-        renameFile: (...args) => invokeIPC('FS_RENAME_FILE', ...args),
-
-        selectWorkspace: (...args) => invokeIPC('FS_SELECT_WORKSPACE', ...args),
-
-        showInputDialog: (...args) =>
-            invokeIPC('FS_SHOW_INPUT_DIALOG', ...args),
-
-        showSaveDialog: (...args) => invokeIPC('FS_SHOW_SAVE_DIALOG', ...args),
-
-        watchOpenFiles: (...args) => invokeIPC('FS_WATCH_OPEN_FILES', ...args),
-
-        onFileChanged: menuEventHandler(IPC_CHANNELS.FS_ON_FILE_CHANGED),
-
-        writeFile: (...args) => invokeIPC('FS_WRITE_FILE', ...args),
+        onTreeChange: eventHandler(IPC_CHANNELS.FS_TREE_ON_CHANGE),
+        onFileChanged: eventHandler(IPC_CHANNELS.FS_ON_FILE_CHANGED),
     },
-
-    // Menu events
-    onMenuNewFile: menuEventHandler(MENU_CHANNELS.NEW_FILE),
-    onMenuSave: menuEventHandler(MENU_CHANNELS.SAVE),
-    onMenuStop: menuEventHandler(MENU_CHANNELS.STOP),
-    onMenuCancelQueuedUpdate: menuEventHandler(
-        MENU_CHANNELS.CANCEL_QUEUED_UPDATE,
-    ),
-    onMenuUpdatePatch: menuEventHandler(MENU_CHANNELS.UPDATE_PATCH),
-    onMenuUpdatePatchNextBeat: menuEventHandler(
+    onMenuNewFile: eventHandler(MENU_CHANNELS.NEW_FILE),
+    onMenuSave: eventHandler(MENU_CHANNELS.SAVE),
+    onMenuStop: eventHandler(MENU_CHANNELS.STOP),
+    onMenuCancelQueuedUpdate: eventHandler(MENU_CHANNELS.CANCEL_QUEUED_UPDATE),
+    onMenuUpdatePatch: eventHandler(MENU_CHANNELS.UPDATE_PATCH),
+    onMenuUpdatePatchNextBeat: eventHandler(
         MENU_CHANNELS.UPDATE_PATCH_NEXT_BEAT,
     ),
-    onMenuOpenWorkspace: menuEventHandler(MENU_CHANNELS.OPEN_WORKSPACE),
-    onMenuCloseBuffer: menuEventHandler(MENU_CHANNELS.CLOSE_BUFFER),
-    onMenuToggleRecording: menuEventHandler(MENU_CHANNELS.TOGGLE_RECORDING),
-    onMenuToggleMixer: menuEventHandler(MENU_CHANNELS.TOGGLE_MIXER),
-    onMenuTogglePerformanceWindow: menuEventHandler(
+    onMenuOpenWorkspace: eventHandler(MENU_CHANNELS.OPEN_WORKSPACE),
+    onMenuCloseBuffer: eventHandler(MENU_CHANNELS.CLOSE_BUFFER),
+    onMenuToggleRecording: eventHandler(MENU_CHANNELS.TOGGLE_RECORDING),
+    onMenuToggleMixer: eventHandler(MENU_CHANNELS.TOGGLE_MIXER),
+    onMenuTogglePerformanceWindow: eventHandler(
         MENU_CHANNELS.TOGGLE_PERFORMANCE_WINDOW,
     ),
-    onMenuOpenSettings: menuEventHandler(MENU_CHANNELS.OPEN_SETTINGS),
-    onMenuOpenEngineHealth: menuEventHandler(MENU_CHANNELS.OPEN_ENGINE_HEALTH),
-    onMenuOpenModuleProfile: menuEventHandler(
-        MENU_CHANNELS.OPEN_MODULE_PROFILE,
-    ),
-
-    // UI operations
-    showContextMenu: (options) => invokeIPC('SHOW_CONTEXT_MENU', options),
-    onContextMenuCommand: menuEventHandler(
-        IPC_CHANNELS.ON_CONTEXT_MENU_COMMAND,
-    ),
-    showUnsavedChangesDialog: (fileName) =>
-        invokeIPC('SHOW_UNSAVED_CHANGES_DIALOG', fileName),
-
-    // Performance window
-    performanceWindow: {
-        setOpen: (open) => invokeIPC('VIDEO_SET_OUTPUT_OPEN', open),
-    },
+    onMenuOpenSettings: eventHandler(MENU_CHANNELS.OPEN_SETTINGS),
+    onMenuOpenEngineHealth: eventHandler(MENU_CHANNELS.OPEN_ENGINE_HEALTH),
+    onMenuOpenModuleProfile: eventHandler(MENU_CHANNELS.OPEN_MODULE_PROFILE),
+    onContextMenuCommand: eventHandler(IPC_CHANNELS.ON_CONTEXT_MENU_COMMAND),
     video: {
-        getShader: () => invokeIPC('VIDEO_GET_SHADER'),
-        onShader: menuEventHandler<[VideoShaderUpdate]>(
+        onShader: eventHandler<[VideoShaderUpdate]>(
             IPC_CHANNELS.VIDEO_ON_SHADER,
         ),
-        onUniform: menuEventHandler<[VideoUniformUpdate[]]>(
+        onUniform: eventHandler<[VideoUniformUpdate[]]>(
             IPC_CHANNELS.VIDEO_ON_UNIFORM,
         ),
-        pull: (restart) => invokeIPC('VIDEO_PULL', restart),
-        requestCameraAccess: () => invokeIPC('VIDEO_REQUEST_CAMERA'),
-        getScreenSource: (display) => invokeIPC('VIDEO_SCREEN_SOURCE', display),
-        sendCvValues: (values) => invokeIPC('VIDEO_CV_VALUES', values),
     },
-
-    // Config operations
     config: {
-        getPath: () => invokeIPC('CONFIG_GET_PATH'),
-        onChange: menuEventHandler(IPC_CHANNELS.CONFIG_ON_CHANGE),
-        read: () => invokeIPC('CONFIG_READ'),
-        write: (config) => invokeIPC('CONFIG_WRITE', config),
+        onChange: eventHandler(IPC_CHANNELS.CONFIG_ON_CHANGE),
     },
-
-    clipboard: {
-        writeText: (text) => invokeIPC('CLIPBOARD_WRITE_TEXT', text),
-    },
-
-    // Keybinding overrides
-    keybindings: {
-        getPath: () => invokeIPC('KEYBINDINGS_GET_PATH'),
-        readUser: () => invokeIPC('KEYBINDINGS_READ_USER'),
-        ensureFile: () => invokeIPC('KEYBINDINGS_ENSURE_FILE'),
-    },
-
-    // Syphon window output (macOS)
-    syphon: {
-        isSupported: () => invokeIPC('SYPHON_IS_SUPPORTED'),
-        toggle: () => invokeIPC('SYPHON_TOGGLE'),
-    },
-
-    // Application (top bar) menu integration
     menu: {
         setAccelerators: (accelerators) => {
-            void invokeIPC('MENU_SET_ACCELERATORS', accelerators);
+            void ipcRenderer.invoke(
+                IPC_CHANNELS.MENU_SET_ACCELERATORS,
+                accelerators,
+            );
         },
     },
-
-    // Main process log forwarding
-    onMainLog: menuEventHandler(IPC_CHANNELS.MAIN_LOG),
-
-    // OS shell operations
-    shell: {
-        openPath: (...args) => invokeIPC('SHELL_OPEN_PATH', ...args),
-    },
-
-    // Update operations
+    onMainLog: eventHandler(IPC_CHANNELS.MAIN_LOG),
     update: {
-        check: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_CHECK),
-        download: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_DOWNLOAD),
-        install: () => ipcRenderer.invoke(IPC_CHANNELS.UPDATE_INSTALL),
-        onAvailable: menuEventHandler<[UpdateAvailableInfo]>(
+        onAvailable: eventHandler<[UpdateAvailableInfo]>(
             IPC_CHANNELS.UPDATE_AVAILABLE,
         ),
-        onDownloaded: menuEventHandler(IPC_CHANNELS.UPDATE_DOWNLOADED),
-        onDownloading: menuEventHandler(IPC_CHANNELS.UPDATE_DOWNLOADING),
-        onPreparing: menuEventHandler(IPC_CHANNELS.UPDATE_PREPARING),
-        onError: menuEventHandler<[string]>(IPC_CHANNELS.UPDATE_ERROR),
+        onDownloaded: eventHandler(IPC_CHANNELS.UPDATE_DOWNLOADED),
+        onDownloading: eventHandler(IPC_CHANNELS.UPDATE_DOWNLOADING),
+        onPreparing: eventHandler(IPC_CHANNELS.UPDATE_PREPARING),
+        onError: eventHandler<[string]>(IPC_CHANNELS.UPDATE_ERROR),
     },
-
     releaseNotes: {
-        whatsNew: () => invokeIPC('RELEASE_NOTES_WHATS_NEW'),
-        getAll: () => invokeIPC('RELEASE_NOTES_GET_ALL'),
-        onMenuShow: menuEventHandler(MENU_CHANNELS.SHOW_RELEASE_NOTES),
+        onMenuShow: eventHandler(MENU_CHANNELS.SHOW_RELEASE_NOTES),
     },
 };
 
-// Expose the API to the renderer process
+/** Joins the two halves, merging the namespaces both have. */
+function mergeAPIs<A extends object, B extends object>(a: A, b: B): A & B {
+    const merged = { ...a } as Record<string, unknown>;
+    for (const [name, value] of Object.entries(b)) {
+        const existing = merged[name];
+        merged[name] =
+            typeof existing === 'object' && typeof value === 'object'
+                ? { ...existing, ...value }
+                : value;
+    }
+    return merged as A & B;
+}
+
+const electronAPI: ElectronAPI = mergeAPIs(
+    buildInvokeAPI(INVOKE_METHODS),
+    pushAPI,
+);
+
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
 
-function menuEventHandler<T extends any[]>(
+function eventHandler<T extends any[]>(
     channel: string,
 ): (callback: (...args: T) => void) => () => Electron.IpcRenderer {
     return (callback: (...args: T) => void) => {
