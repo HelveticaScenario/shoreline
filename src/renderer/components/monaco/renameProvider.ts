@@ -7,7 +7,7 @@
 import type { editor, IDisposable, IPosition, languages } from 'monaco-editor';
 
 import type { Monaco } from '../../hooks/useCustomMonaco';
-import type { DslTypeScriptWorkerApi } from './dslTsWorker';
+import { dslWorker } from './dslWorker';
 
 /** The editor contribution that shows a short message at a position. */
 interface MessageController extends editor.IEditorContribution {
@@ -20,11 +20,8 @@ export function registerRenameProvider(monaco: Monaco): IDisposable {
     const previousModes = defaults.modeConfiguration;
     defaults.setModeConfiguration({ ...previousModes, rename: false });
 
-    const workerFor = async (model: editor.ITextModel) => {
-        const getWorker = await ts.getJavaScriptWorker();
-        const worker = await getWorker(model.uri);
-        return worker as typeof worker & DslTypeScriptWorkerApi;
-    };
+    const workerFor = (model: editor.ITextModel) =>
+        dslWorker(monaco, model.uri);
 
     const rangeOf = (
         model: editor.ITextModel,

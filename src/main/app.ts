@@ -4,6 +4,7 @@ import {
     MenuItem,
     app,
     autoUpdater,
+    clipboard,
     dialog,
     globalShortcut,
     ipcMain,
@@ -1536,7 +1537,7 @@ registerIPCHandler('SHOW_CONTEXT_MENU', (options: ContextMenuOptions) => {
                                 webContents.send(
                                     IPC_CHANNELS.ON_CONTEXT_MENU_COMMAND,
                                     {
-                                        command: 'editor',
+                                        command: options.target,
                                         commandId: item.commandId,
                                     },
                                 ),
@@ -2048,6 +2049,8 @@ function ensureKeybindingsFile(): string {
     }
     return KEYBINDINGS_FILE;
 }
+
+registerIPCHandler('CLIPBOARD_WRITE_TEXT', (text) => clipboard.writeText(text));
 
 registerIPCHandler('KEYBINDINGS_GET_PATH', () => KEYBINDINGS_FILE);
 registerIPCHandler('KEYBINDINGS_READ_USER', () => loadUserKeybindings());
