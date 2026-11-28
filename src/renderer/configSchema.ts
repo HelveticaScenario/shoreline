@@ -174,7 +174,7 @@ export const configSchema = {
         prettier: {
             additionalProperties: true,
             description:
-                "Prettier formatting options. Merged with defaults: quotes='single', trailingComma='all', semi=false, tabWidth=2, printWidth=60. The parser and plugins cannot be overridden.",
+                "Prettier formatting options. Merged with defaults: quotes='single', trailingComma='all', semi=false, tabWidth=2, printWidth=60, wetOnSameLine=true. The parser and plugins cannot be overridden.",
             properties: {
                 printWidth: {
                     default: 60,
@@ -203,6 +203,12 @@ export const configSchema = {
                     description: 'Trailing comma style',
                     enum: ['all', 'es5', 'none'],
                     type: 'string',
+                },
+                wetOnSameLine: {
+                    default: true,
+                    description:
+                        'Keep .wet() on the line of the effect it mixes',
+                    type: 'boolean',
                 },
             },
             type: 'object',

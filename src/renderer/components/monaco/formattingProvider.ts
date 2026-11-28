@@ -12,6 +12,7 @@ export const DEFAULT_PRETTIER_OPTIONS = {
     semi: false,
     tabWidth: 2,
     trailingComma: 'all' as const,
+    wetOnSameLine: true,
 };
 
 /** The quote a config asks for. `quotes` decides it; a config without one

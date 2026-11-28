@@ -96,4 +96,22 @@ describe('wetChain', () => {
         ].join('\n');
         expect(await formatDsl(code)).toBe(code);
     });
+
+    test("wetOnSameLine: false leaves Prettier's own layout", async () => {
+        expect(
+            await formatDsl(
+                `out: $saw('c3').lpf('800hz').delay('1/8', {feedback: 3}).wet(2).plate().wet(1)`,
+                { wetOnSameLine: false },
+            ),
+        ).toBe(
+            [
+                `out: $saw('c3')`,
+                `  .lpf('800hz')`,
+                `  .delay('1/8', { feedback: 3 })`,
+                `  .wet(2)`,
+                `  .plate()`,
+                `  .wet(1)`,
+            ].join('\n'),
+        );
+    });
 });
