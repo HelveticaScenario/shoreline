@@ -152,8 +152,7 @@ const APF_LADDER_DOCS: ModuleDocs = ModuleDocs {
             title: "Phaser",
             code: r#"
                 chord: $saw('c3:m7')
-                  .apfLadder($sine('0.3hz').range('c4', 'c7'), 2)
-                  .wet(2.5)
+                  .apfLadder($sine('0.3hz').range('c4', 'c7'), 2).wet(2.5)
                   .gain(4.5)
             "#,
         },

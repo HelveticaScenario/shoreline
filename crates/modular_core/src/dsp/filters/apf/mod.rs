@@ -121,8 +121,7 @@ const APF_DOCS: ModuleDocs = ModuleDocs {
                     stages: 4,
                     resonance: 2,
                     feedback: 3,
-                  })
-                  .wet(2.5)
+                  }).wet(2.5)
             "#,
         },
     ],
