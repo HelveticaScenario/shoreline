@@ -8,15 +8,15 @@ use crate::reference_category::ReferenceCategory;
 use crate::{
     dsp::{
         oscillators::{
-            FmMode, Landing, Resets, SyncRatios, apply_fm, offset_phase_f64, sync_ratio,
-            wrap_offset,
+            FmMode, Landing, PitchIncrements, Resets, SyncRatios, apply_fm, offset_phase_f64,
+            sync_ratio, wrap_offset,
         },
         utils::{
             sanitize, wrap_phase_f64,
             zero_cross_mute::{Crossing, ZeroCrossMute},
         },
     },
-    poly::{PORT_MAX_LANES, PolyOutput, PolySignal, PolySignalExt},
+    poly::{PolyOutput, PolySignal, PolySignalExt},
     types::SwapGlide,
 };
 
@@ -313,18 +313,12 @@ impl SawOscillator {
             phase_offset: offset,
         } = p.block_inputs(range.clone(), lanes, &mut scratch)?;
         let mut ratios = SyncRatios::new(sync, range.start);
-        // A pitch held for the whole range needs its exponential only once.
-        let mut held_increments = [0.0f64; PORT_MAX_LANES];
-        let held = freq.is_constant() && fm.is_constant();
-        if held {
-            let (freq, fm) = (freq.row(range.start), fm.row(range.start));
-            for ((increment, &pitch), &fm) in held_increments.iter_mut().zip(freq).zip(fm) {
-                *increment = phase_increment(pitch, fm, p.fm_mode, sample_rate);
-            }
-        }
+        let increments = PitchIncrements::new(freq, fm, range.start, |pitch, fm| {
+            phase_increment(pitch, fm, p.fm_mode, sample_rate)
+        });
         let last = range.end - 1;
         for i in range {
-            let (pitch, fm, shape, offset) = (freq.row(i), fm.row(i), shape.row(i), offset.row(i));
+            let (shape, offset) = (shape.row(i), offset.row(i));
             let restart = restart.as_ref().map(|restart| restart.row(i));
             let ratios = ratios.at(i);
             let slots = outputs
@@ -333,11 +327,7 @@ impl SawOscillator {
                 .iter_mut()
                 .zip(self.lane_state.iter_mut());
             for (lane, (out, state)) in slots.enumerate() {
-                let increment = if held {
-                    held_increments[lane]
-                } else {
-                    phase_increment(pitch[lane], fm[lane], p.fm_mode, sample_rate)
-                };
+                let increment = increments.at(i, lane);
                 *out = sanitize(state.step(
                     increment,
                     shape[lane].clamp(0.0, 5.0),

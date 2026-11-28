@@ -221,6 +221,43 @@ impl<'a> SyncRatios<'a> {
     }
 }
 
+/// Each lane's phase increment through a block, from `freq` and `fm` through
+/// `increment`, whose exponential runs once per lane when both hold still.
+pub struct PitchIncrements<'a, T, F> {
+    freq: BlockInput<'a>,
+    fm: BlockInput<'a>,
+    held: Option<[T; PORT_MAX_LANES]>,
+    increment: F,
+}
+
+impl<'a, T: Copy + Default, F: Fn(f32, f32) -> T> PitchIncrements<'a, T, F> {
+    pub fn new(freq: BlockInput<'a>, fm: BlockInput<'a>, start: usize, increment: F) -> Self {
+        let held = (freq.is_constant() && fm.is_constant()).then(|| {
+            let mut held = [T::default(); PORT_MAX_LANES];
+            let (pitch, fm) = (freq.row(start), fm.row(start));
+            for ((held, &pitch), &fm) in held.iter_mut().zip(pitch).zip(fm) {
+                *held = increment(pitch, fm);
+            }
+            held
+        });
+        Self {
+            freq,
+            fm,
+            held,
+            increment,
+        }
+    }
+
+    /// Slot `i`'s increment in `lane`.
+    #[inline(always)]
+    pub fn at(&self, i: usize, lane: usize) -> T {
+        match &self.held {
+            Some(held) => held[lane],
+            None => (self.increment)(self.freq.row(i)[lane], self.fm.row(i)[lane]),
+        }
+    }
+}
+
 /// One lane's `restart` edge detector and `sync` source: a cycle at the
 /// note's pitch that restarts the oscillator each time it completes, while
 /// the oscillator runs `sync_ratio` times faster.
